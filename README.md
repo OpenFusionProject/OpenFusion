@@ -8,12 +8,12 @@ Further documentation pending.
 
 tl;dr:
 
-1. Download the client+server bundle from [here](...).
+1. Download the client+server bundle from [here](https://github.com/OpenFusionProject/OpenFusion/releases/download/1.0/OpenFusionClient.zip).
 2. Run `FreeClient/installUnity.bat` once
 
 From then on, any time you want to run the "game":
 
-3. Run `OpenFusion/winfusion.exe`
+3. Run `OpenFusionRelease/winfusion.exe`
 4. Run `FreeClient/OpenFusionClient.exe`
 
 You have two randomized characters available to you on the Character Selection screen, one boy, one girl.
