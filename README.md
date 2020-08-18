@@ -16,6 +16,8 @@ From then on, any time you want to run the "game":
 3. Run `OpenFusionRelease/winfusion.exe`
 4. Run `FreeClient/OpenFusionClient.exe`
 
+Currently the client by default connects to a public server hosted by Cake. Change the loginInfo.php to point to your own server if you want to host your own.
+
 You have two randomized characters available to you on the Character Selection screen, one boy, one girl.
 You can also make your own character and play through the tutorial. The tutorial can be skipped by pressing the ~ key.
 
