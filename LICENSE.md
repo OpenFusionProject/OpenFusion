@@ -1,4 +1,4 @@
-The OpenFusion MIT except Marlorn License
+The OpenFusion MIT except Malorn License
 
 Copyright 2020 Seth Stubbs
 
