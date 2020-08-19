@@ -72,7 +72,7 @@ Some modern IDEs/text editors do this automatically. If all else fails, use Note
 
 ## Compiling 
 
-OpenFusion can be compiled from source using the included makefile. to compile for windows (on a *nix system) use `make windows`, otherwise to compile it for the current platform you're on just run `make`
+OpenFusion can be compiled from source using the included makefile. A detailed compilation guide is available for Windows users [in the wiki](https://github.com/OpenFusionProject/OpenFusion/wiki/Compilation-on-Windows). Otherwise, to compile it for the current platform you're on, just run `make` with the correct build tools installed (currently make and clang).
 
 ## "Gameplay"
 
