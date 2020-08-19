@@ -15,6 +15,8 @@ void CNSharedData::setPlayer(int64_t sk, Player& plr) {
 }
 
 Player CNSharedData::getPlayer(int64_t sk) {
+    std::lock_guard<std::mutex> lock(playerCrit); // the lock will be removed when the function ends
+
     return players[sk];
 }
 

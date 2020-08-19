@@ -15,6 +15,7 @@ int settings::SPAWN_X = 179213;
 int settings::SPAWN_Y = 268451;
 int settings::SPAWN_Z = -4210;
 
+std::string settings::MOTDSTRING;
 
 void settings::init() {
     INIReader reader("config.ini");
@@ -36,5 +37,6 @@ void settings::init() {
     SPAWN_X = reader.GetInteger("shard", "spawnx", SPAWN_X);
     SPAWN_Y = reader.GetInteger("shard", "spawny", SPAWN_Y);
     SPAWN_Z = reader.GetInteger("shard", "spawnz", SPAWN_Z);
+    MOTDSTRING = reader.Get("shard", "motd", "Welcome to OpenFusion!");
 
 }

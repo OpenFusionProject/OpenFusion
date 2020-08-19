@@ -22,6 +22,7 @@ void PlayerManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GOTO, PlayerManager::gotoPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_SET_VALUE, PlayerManager::setSpecialPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REP_LIVE_CHECK, PlayerManager::heartbeatPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_EXIT, PlayerManager::exitGame);
 }
 
 void PlayerManager::addPlayer(CNSocket* key, Player plr) {
@@ -212,6 +213,7 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_LOADING_COMPLETE* complete = (sP_CL2FE_REQ_PC_LOADING_COMPLETE*)data->buf;
     sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC* response = (sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC));
+    sP_FE2CL_PC_MOTD_LOGIN* motd = (sP_FE2CL_PC_MOTD_LOGIN*)xmalloc(sizeof(sP_FE2CL_PC_MOTD_LOGIN));
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_LOADING_COMPLETE:" << std::endl;
@@ -220,7 +222,11 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
 
     response->iPC_ID = complete->iPC_ID;
 
+    motd->iType = 1;
+    U8toU16(settings::MOTDSTRING, (char16_t*)motd->szSystemMsg);
+
     sock->sendPacket(new CNPacketData((void*)response, P_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC), sock->getFEKey()));
+    sock->sendPacket(new CNPacketData((void*)motd, P_FE2CL_PC_MOTD_LOGIN, sizeof(sP_FE2CL_PC_MOTD_LOGIN), sock->getFEKey()));
 }
 
 void PlayerManager::movePlayer(CNSocket* sock, CNPacketData* data) {
@@ -390,4 +396,14 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
 
 void PlayerManager::heartbeatPlayer(CNSocket* sock, CNPacketData* data) {
     players[sock].lastHeartbeat = getTime();
+}
+
+void PlayerManager::exitGame(CNSocket* sock, CNPacketData* data) {
+    sP_CL2FE_REQ_PC_EXIT* exitData = (sP_CL2FE_REQ_PC_EXIT*)data->buf;
+    sP_FE2CL_REP_PC_EXIT_SUCC* response = (sP_FE2CL_REP_PC_EXIT_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_PC_EXIT_SUCC));
+
+    response->iID = exitData->iID;
+    response->iExitCode = 1;
+
+    sock->sendPacket(new CNPacketData((void*)response, P_FE2CL_REP_PC_EXIT_SUCC, sizeof(sP_FE2CL_REP_PC_EXIT_SUCC), sock->getFEKey()));
 }

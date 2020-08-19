@@ -420,6 +420,10 @@ struct sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT {
 	int32_t iEmoteCode;
 };
 
+struct sP_CL2FE_REQ_PC_EXIT {
+	int32_t iID;
+};
+
 // ========================================================[[ ShardServer2Client packets ]]========================================================
 
 struct sP_FE2CL_REP_PC_ENTER_SUCC {
@@ -532,6 +536,17 @@ struct sP_FE2CL_REP_PC_GOTO_SUCC {
 struct sP_FE2CL_REP_PC_AVATAR_EMOTES_CHAT {
 	int32_t iID_From;
 	int32_t iEmoteCode;
+};
+
+struct sP_FE2CL_REP_PC_EXIT_SUCC {
+	int32_t iID;
+	int32_t iExitCode;
+};
+
+#pragma pack(2)
+struct sP_FE2CL_PC_MOTD_LOGIN {
+	int8_t iType;
+	uint16_t szSystemMsg[512];
 };
 
 #pragma pack(pop)

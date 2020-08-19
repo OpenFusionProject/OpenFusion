@@ -10,6 +10,7 @@ namespace settings {
     extern int SPAWN_X;
     extern int SPAWN_Y;
     extern int SPAWN_Z;
+    extern std::string MOTDSTRING;
 
     void init();
 }

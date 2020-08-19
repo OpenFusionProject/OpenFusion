@@ -1,0 +1,166 @@
+diff --git a/src/CNShardServer.hpp b/src/CNShardServer.hpp
+index 7b1c005..e3c213f 100644
+--- a/src/CNShardServer.hpp
++++ b/src/CNShardServer.hpp
+@@ -18,6 +18,7 @@ enum SHARDPACKETID {
+     P_CL2FE_GM_REQ_PC_SET_VALUE = 318767211,
+     P_CL2FE_REQ_SEND_FREECHAT_MESSAGE = 318767111,
+     P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT = 318767184,
++    P_CL2FE_REQ_PC_EXIT = 318767106,
+ 
+     // shard 2 client
+     P_FE2CL_REP_PC_ENTER_SUCC = 822083586,
+@@ -31,7 +32,9 @@ enum SHARDPACKETID {
+     P_FE2CL_PC_MOVEPLATFORM = 822083704,
+     P_FE2CL_REP_PC_GOTO_SUCC = 822083633,
+     P_FE2CL_GM_REP_PC_SET_VALUE = 822083781,
+-    P_FE2CL_REP_PC_AVATAR_EMOTES_CHAT = 822083730
++    P_FE2CL_REP_PC_AVATAR_EMOTES_CHAT = 822083730,
++    P_FE2CL_REP_PC_EXIT_SUCC = 822083589,
++    P_FE2CL_PC_MOTD_LOGIN = 822083793
+ };
+ 
+ #define REGISTER_SHARD_PACKET(pactype, handlr) CNShardServer::ShardPackets[pactype] = handlr;
+@@ -49,4 +52,4 @@ public:
+     void onTimer();
+ };
+ 
+-#endif
+\ No newline at end of file
++#endif
+diff --git a/src/CNStructs.hpp b/src/CNStructs.hpp
+index a59afe3..94bfea1 100644
+--- a/src/CNStructs.hpp
++++ b/src/CNStructs.hpp
+@@ -420,6 +420,10 @@ struct sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT {
+ 	int32_t iEmoteCode;
+ };
+ 
++struct sP_CL2FE_REQ_PC_EXIT {
++	int32_t iID;
++};
++
+ // ========================================================[[ ShardServer2Client packets ]]========================================================
+ 
+ struct sP_FE2CL_REP_PC_ENTER_SUCC {
+@@ -534,7 +538,18 @@ struct sP_FE2CL_REP_PC_AVATAR_EMOTES_CHAT {
+ 	int32_t iEmoteCode;
+ };
+ 
++struct sP_FE2CL_REP_PC_EXIT_SUCC {
++	int32_t iID;
++	int32_t iExitCode;
++};
++
++#pragma pack(2)
++struct sP_FE2CL_PC_MOTD_LOGIN {
++	int8_t iType;
++	uint16_t szSystemMsg[512];
++};
++
+ #pragma pack(pop)
+ 
+ 
+-#endif
+\ No newline at end of file
++#endif
+diff --git a/src/PlayerManager.cpp b/src/PlayerManager.cpp
+index 406f44c..41437d6 100644
+--- a/src/PlayerManager.cpp
++++ b/src/PlayerManager.cpp
+@@ -22,6 +22,7 @@ void PlayerManager::init() {
+     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GOTO, PlayerManager::gotoPlayer);
+     REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_SET_VALUE, PlayerManager::setSpecialPlayer);
+     REGISTER_SHARD_PACKET(P_CL2FE_REP_LIVE_CHECK, PlayerManager::heartbeatPlayer);
++    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_EXIT, PlayerManager::exitGame);
+ }
+ 
+ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
+@@ -212,6 +213,7 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
+ 
+     sP_CL2FE_REQ_PC_LOADING_COMPLETE* complete = (sP_CL2FE_REQ_PC_LOADING_COMPLETE*)data->buf;
+     sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC* response = (sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC));
++    sP_FE2CL_PC_MOTD_LOGIN* motd = (sP_FE2CL_PC_MOTD_LOGIN*)xmalloc(sizeof(sP_FE2CL_PC_MOTD_LOGIN));
+ 
+     DEBUGLOG(
+         std::cout << "P_CL2FE_REQ_PC_LOADING_COMPLETE:" << std::endl;
+@@ -220,7 +222,11 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
+ 
+     response->iPC_ID = complete->iPC_ID;
+ 
++    motd->iType = 1;
++    U8toU16(settings::MOTDSTRING, (char16_t*)motd->szSystemMsg);
++
+     sock->sendPacket(new CNPacketData((void*)response, P_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC), sock->getFEKey()));
++    sock->sendPacket(new CNPacketData((void*)motd, P_FE2CL_PC_MOTD_LOGIN, sizeof(sP_FE2CL_PC_MOTD_LOGIN), sock->getFEKey()));
+ }
+ 
+ void PlayerManager::movePlayer(CNSocket* sock, CNPacketData* data) {
+@@ -390,4 +396,14 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
+ 
+ void PlayerManager::heartbeatPlayer(CNSocket* sock, CNPacketData* data) {
+     players[sock].lastHeartbeat = getTime();
+-}
+\ No newline at end of file
++}
++
++void PlayerManager::exitGame(CNSocket* sock, CNPacketData* data) {
++    sP_CL2FE_REQ_PC_EXIT* exitData = (sP_CL2FE_REQ_PC_EXIT*)data->buf;
++    sP_FE2CL_REP_PC_EXIT_SUCC* response = (sP_FE2CL_REP_PC_EXIT_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_PC_EXIT_SUCC));
++
++    response->iID = exitData->iID;
++    response->iExitCode = 1;
++
++    sock->sendPacket(new CNPacketData((void*)response, P_FE2CL_REP_PC_EXIT_SUCC, sizeof(sP_FE2CL_REP_PC_EXIT_SUCC), sock->getFEKey()));
++}
+diff --git a/src/PlayerManager.hpp b/src/PlayerManager.hpp
+index a36b2bf..a8e95db 100644
+--- a/src/PlayerManager.hpp
++++ b/src/PlayerManager.hpp
+@@ -35,6 +35,7 @@ namespace PlayerManager {
+     void gotoPlayer(CNSocket* sock, CNPacketData* data);
+     void setSpecialPlayer(CNSocket* sock, CNPacketData* data);
+     void heartbeatPlayer(CNSocket* sock, CNPacketData* data);
++    void exitGame(CNSocket* sock, CNPacketData* data);
+ }
+ 
+-#endif
+\ No newline at end of file
++#endif
+diff --git a/src/settings.cpp b/src/settings.cpp
+index 40bc8e5..d1111ff 100644
+--- a/src/settings.cpp
++++ b/src/settings.cpp
+@@ -15,6 +15,7 @@ int settings::SPAWN_X = 179213;
+ int settings::SPAWN_Y = 268451;
+ int settings::SPAWN_Z = -4210;
+ 
++std::string settings::MOTDSTRING;
+ 
+ void settings::init() {
+     INIReader reader("config.ini");
+@@ -36,5 +37,6 @@ void settings::init() {
+     SPAWN_X = reader.GetInteger("shard", "spawnx", SPAWN_X);
+     SPAWN_Y = reader.GetInteger("shard", "spawny", SPAWN_Y);
+     SPAWN_Z = reader.GetInteger("shard", "spawnz", SPAWN_Z);
++    MOTDSTRING = reader.Get("shard", "motd", "Welcome to OpenFusion!");
+ 
+-}
+\ No newline at end of file
++}
+diff --git a/src/settings.hpp b/src/settings.hpp
+index 47f8221..adeb3cd 100644
+--- a/src/settings.hpp
++++ b/src/settings.hpp
+@@ -10,8 +10,9 @@ namespace settings {
+     extern int SPAWN_X;
+     extern int SPAWN_Y;
+     extern int SPAWN_Z;
++    extern std::string MOTDSTRING;
+ 
+     void init();
+ }
+ 
+-#endif
+\ No newline at end of file
++#endif

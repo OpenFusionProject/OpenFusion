@@ -35,6 +35,7 @@ namespace PlayerManager {
     void gotoPlayer(CNSocket* sock, CNPacketData* data);
     void setSpecialPlayer(CNSocket* sock, CNPacketData* data);
     void heartbeatPlayer(CNSocket* sock, CNPacketData* data);
+    void exitGame(CNSocket* sock, CNPacketData* data);
 }
 
 #endif
