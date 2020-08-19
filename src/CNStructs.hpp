@@ -533,6 +533,12 @@ struct sP_FE2CL_REP_PC_GOTO_SUCC {
 	int32_t iZ;
 };
 
+struct sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC {
+	int32_t iPC_ID;
+	char16_t szFreeChat[128];
+	int32_t iEmoteCode;
+};
+
 struct sP_FE2CL_REP_PC_AVATAR_EMOTES_CHAT {
 	int32_t iID_From;
 	int32_t iEmoteCode;
