@@ -69,7 +69,9 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     charInfo->sPC_Style.iHeight = (rand()%6); // 0 -5
                     charInfo->sPC_Style.iBody = (rand()%4); // 0 - 3
                     charInfo->sPC_Style.iClass = 0;
-                    charInfo->sPC_Style2 = sPCStyle2(1, 1, 1);
+                    charInfo->sPC_Style2.iAppearanceFlag = 1;
+                    charInfo->sPC_Style2.iPayzoneFlag = 1;
+                    charInfo->sPC_Style2.iTutorialFlag = 1;
 
                     // past's town hall
                     charInfo->iX = settings::SPAWN_X;
@@ -181,8 +183,10 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             )
 
             character->PCStyle.iNameCheck = 1;
-            response->PC_Style = character->PCStyle;
-            response->PC_Style2 = sPCStyle2(1, 1, 1);
+            response->sPC_Style = character->PCStyle;
+            response->sPC_Style2.iAppearanceFlag = 1;
+            response->sPC_Style2.iTutorialFlag = 1;
+            response->sPC_Style2.iPayzoneFlag = 1;
             response->iLevel = 1;
             response->sOn_Item = character->sOn_Item;
 
@@ -191,7 +195,9 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             loginSessions[sock].characters[UID].level = 1;
             loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
             loginSessions[sock].characters[UID].PCStyle = character->PCStyle;
-            loginSessions[sock].characters[UID].PCStyle2 = sPCStyle2(1, 0, 1);
+            loginSessions[sock].characters[UID].PCStyle2.iAppearanceFlag = 1;
+            loginSessions[sock].characters[UID].PCStyle2.iPayzoneFlag = 1;
+            loginSessions[sock].characters[UID].PCStyle2.iTutorialFlag = 1;
             loginSessions[sock].characters[UID].x = settings::SPAWN_X;
             loginSessions[sock].characters[UID].y = settings::SPAWN_Y;
             loginSessions[sock].characters[UID].z = settings::SPAWN_Z;
@@ -233,7 +239,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             DEBUGLOG(
                 std::cout << "P_CL2LS_REQ_SHARD_SELECT:" << std::endl;
-                std::cout << "\tShard: " << (int)shard->iShardNum << std::endl;
+                std::cout << "\tShard: " << (int)shard->ShardNum << std::endl;
             )
 
             const char* SHARD_IP = settings::SHARDSERVERIP.c_str();
