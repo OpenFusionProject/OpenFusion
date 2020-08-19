@@ -27,6 +27,9 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
     players[key] = PlayerView();
     players[key].viewable = std::list<CNSocket*>();
     players[key].plr = plr;
+
+    std::cout << U16toU8(plr.PCStyle.szFirstName) << U16toU8(plr.PCStyle.szLastName) << " has joined!" << std::endl;
+    std::cout << players.size() << " players" << std::endl;
 }
 
 void PlayerManager::removePlayer(CNSocket* key) {
@@ -44,6 +47,9 @@ void PlayerManager::removePlayer(CNSocket* key) {
     }
 
     players.erase(key);
+
+    std::cout << U16toU8(cachedView.plr.PCStyle.szFirstName) << U16toU8(cachedView.plr.PCStyle.szLastName) << " has left!" << std::endl;
+    std::cout << players.size() << " players" << std::endl;
 }
 
 Player PlayerManager::getPlayer(CNSocket* key) {
@@ -137,6 +143,9 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
 }
 
 void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_ENTER))
+        return; // ignore the malformed packet
+
     sP_CL2FE_REQ_PC_ENTER* enter = (sP_CL2FE_REQ_PC_ENTER*)data->buf;
     sP_FE2CL_REP_PC_ENTER_SUCC* response = (sP_FE2CL_REP_PC_ENTER_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_PC_ENTER_SUCC));
 
@@ -196,6 +205,9 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_LOADING_COMPLETE))
+        return; // ignore the malformed packet
+
     sP_CL2FE_REQ_PC_LOADING_COMPLETE* complete = (sP_CL2FE_REQ_PC_LOADING_COMPLETE*)data->buf;
     sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC* response = (sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC));
 
@@ -210,6 +222,9 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::movePlayer(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_MOVE))
+        return; // ignore the malformed packet
+    
     sP_CL2FE_REQ_PC_MOVE* moveData = (sP_CL2FE_REQ_PC_MOVE*)data->buf;
     updatePlayerPosition(sock, moveData->iX, moveData->iY, moveData->iZ);
 
@@ -239,15 +254,11 @@ void PlayerManager::movePlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::stopPlayer(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_STOP))
+        return; // ignore the malformed packet
+
     sP_CL2FE_REQ_PC_STOP* stopData = (sP_CL2FE_REQ_PC_STOP*)data->buf;
     updatePlayerPosition(sock, stopData->iX, stopData->iY, stopData->iZ);
-
-    DEBUGLOG(
-        std::cout << "P_CL2FE_REQ_PC_STOP:" << std::endl;
-        std::cout << "\tX: " << stopData->iX << std::endl;
-        std::cout << "\tY: " << stopData->iY << std::endl;
-        std::cout << "\tZ: " << stopData->iZ << std::endl;
-    )
 
     uint64_t tm = getTime();
 
@@ -268,6 +279,9 @@ void PlayerManager::stopPlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::jumpPlayer(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_JUMP))
+        return; // ignore the malformed packet
+    
     sP_CL2FE_REQ_PC_JUMP* jumpData = (sP_CL2FE_REQ_PC_JUMP*)data->buf;
     updatePlayerPosition(sock, jumpData->iX, jumpData->iY, jumpData->iZ);
 
@@ -296,6 +310,9 @@ void PlayerManager::jumpPlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::movePlatformPlayer(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_MOVEPLATFORM))
+        return; // ignore the malformed packet
+
     sP_CL2FE_REQ_PC_MOVEPLATFORM* platformData = (sP_CL2FE_REQ_PC_MOVEPLATFORM*)data->buf;
     updatePlayerPosition(sock, platformData->iX, platformData->iY, platformData->iZ);
 
@@ -328,6 +345,9 @@ void PlayerManager::movePlatformPlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_GOTO))
+        return; // ignore the malformed packet
+
     sP_CL2FE_REQ_PC_GOTO* gotoData = (sP_CL2FE_REQ_PC_GOTO*)data->buf;
     sP_FE2CL_REP_PC_GOTO_SUCC* response = (sP_FE2CL_REP_PC_GOTO_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
 
@@ -346,6 +366,9 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_GM_REQ_PC_SET_VALUE))
+        return; // ignore the malformed packet
+
     sP_CL2FE_GM_REQ_PC_SET_VALUE* setData = (sP_CL2FE_GM_REQ_PC_SET_VALUE*)data->buf;
     sP_FE2CL_GM_REP_PC_SET_VALUE* response = (sP_FE2CL_GM_REP_PC_SET_VALUE*)xmalloc(sizeof(sP_FE2CL_GM_REP_PC_SET_VALUE));
 

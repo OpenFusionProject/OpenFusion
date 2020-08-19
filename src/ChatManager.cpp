@@ -15,6 +15,9 @@ void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 void ChatManager::emoteHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT))
+        return; // ignore the malformed packet
+
     // you can dance with friends!!!!!!!!
 
     sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT* emote = (sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT*)data->buf;

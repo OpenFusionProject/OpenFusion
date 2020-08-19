@@ -34,10 +34,10 @@ enum SHARDPACKETID {
 
 #define REGISTER_SHARD_PACKET(pactype, handlr) CNShardServer::ShardPackets[pactype] = handlr;
 
-// WARNING: THERE CAN ONLY BE ONE OF THESE SERVERS AT A TIME!!!!!! TODO: change players & packet handlers to be non-static
 class CNShardServer : public CNServer {
 private:
     static void handlePacket(CNSocket* sock, CNPacketData* data);
+
 public:
     static std::map<uint32_t, PacketHandler> ShardPackets;
 

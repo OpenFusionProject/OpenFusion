@@ -41,7 +41,7 @@
 
 /*
     Packets format (sent from the client):
-        [4 bytes] - size of packet (including these 4 bytes!)
+        [4 bytes] - size of packet including the 4 byte packet type
         [size bytes] - Encrypted packet (byte swapped && xor'd with 8 byte key; see CNSocketEncryption)
             [4 bytes] - packet type (which is a combination of the first 4 bytes of the packet and a checksum in some versions)
             [structure]

@@ -29,5 +29,4 @@ void CNShardServer::killConnection(CNSocket* cns) {
     PlayerManager::removePlayer(cns);
 
     CNSharedData::erasePlayer(cachedPlr.SerialKey);
-    std::cout << U16toU8(cachedPlr.PCStyle.szFirstName) << " " << U16toU8(cachedPlr.PCStyle.szLastName) << " left" << std::endl;
 }
