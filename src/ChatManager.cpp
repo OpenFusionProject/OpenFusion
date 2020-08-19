@@ -12,16 +12,18 @@ void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE*)data->buf;
     PlayerView plr = PlayerManager::players[sock];
 
+    // send to client
     sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC* resp = (sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC));
-    resp->iPC_ID = PlayerManager::players[sock].plr.iID;
     memcpy(resp->szFreeChat, chat->szFreeChat, sizeof(chat->szFreeChat));
+    resp->iPC_ID = PlayerManager::players[sock].plr.iID;
     resp->iEmoteCode = chat->iEmoteCode;
     sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC), sock->getFEKey()));
 
+    // send to visible players
     for (CNSocket* otherSock : plr.viewable) {
         sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC* resp = (sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC));
-        resp->iPC_ID = PlayerManager::players[sock].plr.iID;
         memcpy(resp->szFreeChat, chat->szFreeChat, sizeof(chat->szFreeChat));
+        resp->iPC_ID = PlayerManager::players[sock].plr.iID;
         resp->iEmoteCode = chat->iEmoteCode;
         otherSock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC), otherSock->getFEKey()));
     }
@@ -34,7 +36,6 @@ void ChatManager::emoteHandler(CNSocket* sock, CNPacketData* data) {
     // you can dance with friends!!!!!!!!
 
     sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT* emote = (sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT*)data->buf;
-
     PlayerView plr = PlayerManager::players[sock];
     
     // send to client
