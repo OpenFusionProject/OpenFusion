@@ -234,7 +234,9 @@ CNServer::CNServer(uint16_t p): port(p) {}
 void CNServer::start() {
     std::cout << "Starting server at *:" << port << std::endl;
     // listen to new connections, add to connection list
-    while (true) {
+    while (active) {
+        std::lock_guard<std::mutex> lock(activeCrit);
+
         // listen for a new connection
         SOCKET newConnection = accept(sock, (struct sockaddr *)&(address), (socklen_t*)&(addressSize));
         if (!SOCKETINVALID(newConnection)) {
@@ -278,6 +280,26 @@ void CNServer::start() {
         sleep(0); // so your cpu isn't at 100% all the time, we don't need all of that! im not hacky! you're hacky!
 #endif
     }
+}
+
+void CNServer::kill() {
+    std::lock_guard<std::mutex> lock(activeCrit); // the lock will be removed when the function ends
+    active = false;
+
+    // kill all connections
+    std::list<CNSocket*>::iterator i = connections.begin();
+    while (i != connections.end()) {
+        CNSocket* cSock = *i;
+
+        if (cSock->isAlive()) {
+            cSock->kill();
+        }
+
+        ++i; // go to the next element
+        delete cSock;
+    }
+
+    connections.clear();
 }
 
 void CNServer::killConnection(CNSocket* cns) {} // stubbed lol

@@ -39,6 +39,12 @@
 #include <list>
 #include <queue>
 
+#ifdef __MINGW32__
+    #include "mingw/mingw.mutex.h"
+#else 
+    #include <mutex>
+#endif
+
 /*
     Packets format (sent from the client):
         [4 bytes] - size of packet including the 4 byte packet type
@@ -125,6 +131,9 @@ protected:
     struct sockaddr_in address;
     void init();
 
+    bool active = true;
+    std::mutex activeCrit;
+
 public:
     PacketHandler pHandler;
 
@@ -132,6 +141,7 @@ public:
     CNServer(uint16_t p);
 
     void start();
+    void kill();
     virtual void killConnection(CNSocket* cns);
 };
 

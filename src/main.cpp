@@ -12,14 +12,8 @@
 #endif
 #include <string>
 
-void startLogin(uint16_t port) {
-    CNLoginServer server(port);
-    server.start();
-}
-
-void startShard(uint16_t port) {
-    CNShardServer server(port);
-    server.start();
+void startShard(CNShardServer* server) {
+    server->start();
 }
 
 int main() {
@@ -36,9 +30,15 @@ int main() {
     ChatManager::init();
 
     std::cout << "[INFO] Starting Server Threads..." << std::endl;
-    std::thread loginThread(startLogin, settings::LOGINPORT);
-    std::thread shardThread(startShard, settings::SHARDPORT);
-    getchar(); // blocks until input
+    CNShardServer loginServer(settings::LOGINPORT);
+    CNLoginServer shardServer(settings::SHARDPORT);
+
+    std::thread shardThread(startShard, (CNShardServer*)&shardServer);
+    
+    loginServer.start();
+
+    shardServer.kill();
+    shardThread.join();
     
 #ifdef _WIN32
     WSACleanup();
