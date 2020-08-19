@@ -30,8 +30,8 @@ int main() {
     ChatManager::init();
 
     std::cout << "[INFO] Starting Server Threads..." << std::endl;
-    CNShardServer loginServer(settings::LOGINPORT);
-    CNLoginServer shardServer(settings::SHARDPORT);
+    CNLoginServer loginServer(settings::LOGINPORT);
+    CNShardServer shardServer(settings::SHARDPORT);
 
     std::thread shardThread(startShard, (CNShardServer*)&shardServer);
     

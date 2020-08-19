@@ -336,9 +336,12 @@ struct sP_CL2FE_REQ_PC_ENTER {
 	int64_t iEnterSerialKey;
 };
 
-
 struct sP_CL2FE_REQ_PC_LOADING_COMPLETE {
 	int32_t iPC_ID;
+};
+
+struct sP_CL2FE_REP_LIVE_CHECK {
+	int32_t iTempValue;
 };
 
 struct sP_CL2FE_REQ_PC_MOVE {
@@ -427,6 +430,10 @@ struct sP_FE2CL_REP_PC_ENTER_SUCC {
 
 struct sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC {
     int32_t iPC_ID;
+};
+
+struct sP_FE2CL_REQ_LIVE_CHECK {
+	int32_t iTempValue;
 };
 
 // literally just a wrapper for a sPCAppearanceData struct :/

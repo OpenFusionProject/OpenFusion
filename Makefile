@@ -5,7 +5,7 @@ CC = clang++ # using GNU C++ compiler
 WIN_CC = x86_64-w64-mingw32-g++ # using GNU C++ compiler
 
 # -w suppresses all warnings (the part that's commented out helps me find memory leaks, it ruins performance though!)
-COMPILER_FLAGS = -std=c++17 -o3 -static #-g3 -fsanitize=address
+COMPILER_FLAGS = -std=c++17 -o3 -g3 -fsanitize=address
 WIN_COMPILER_FLAGS = -std=c++17 -o3 -static #-g3 -fsanitize=address
 
 #LINKER_FLAGS specifies the libraries we're linking against (NONE, this is a single header library.)

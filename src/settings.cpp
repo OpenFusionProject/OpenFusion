@@ -8,7 +8,7 @@ bool settings::LOGINRANDCHARACTERS = false;
 
 int settings::SHARDPORT = 8002;
 std::string settings::SHARDSERVERIP = "127.0.0.1";
-int settings::VIEWDISTANCE = 25000;
+int settings::VIEWDISTANCE = 20000;
 
 // default spawn point is city hall
 int settings::SPAWN_X = 179213;

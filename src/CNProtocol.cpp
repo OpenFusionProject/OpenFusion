@@ -1,4 +1,5 @@
 #include "CNProtocol.hpp"
+#include "CNStructs.hpp"
 
 // ========================================================[[ CNSocketEncryption ]]========================================================
 
@@ -228,8 +229,12 @@ void CNServer::init() {
     }
 }
 
-CNServer::CNServer() {};
-CNServer::CNServer(uint16_t p): port(p) {}
+CNServer::CNServer() {
+    lastTimer = getTime();
+};
+CNServer::CNServer(uint16_t p): port(p) {
+    lastTimer = getTime();
+}
 
 void CNServer::start() {
     std::cout << "Starting server at *:" << port << std::endl;
@@ -274,6 +279,11 @@ void CNServer::start() {
             }
         }
 
+        if (getTime() - lastTimer > 2000) { // every 2 seconds call the onTimer method
+            onTimer();
+            lastTimer = getTime();
+        }
+
 #ifdef _WIN32
         Sleep(0);
 #else
@@ -303,3 +313,4 @@ void CNServer::kill() {
 }
 
 void CNServer::killConnection(CNSocket* cns) {} // stubbed lol
+void CNServer::onTimer() {} // stubbed lol

@@ -9,6 +9,7 @@ enum SHARDPACKETID {
     // client 2 shard
     P_CL2FE_REQ_PC_ENTER = 318767105,
     P_CL2FE_REQ_PC_LOADING_COMPLETE = 318767245,
+    P_CL2FE_REP_LIVE_CHECK = 318767221,
     P_CL2FE_REQ_PC_MOVE = 318767107,
     P_CL2FE_REQ_PC_STOP = 318767108,
     P_CL2FE_REQ_PC_JUMP = 318767109,
@@ -21,6 +22,7 @@ enum SHARDPACKETID {
     // shard 2 client
     P_FE2CL_REP_PC_ENTER_SUCC = 822083586,
     P_FE2CL_REP_PC_LOADING_COMPLETE_SUCC = 822083833,
+    P_FE2CL_REQ_LIVE_CHECK = 822083792,
     P_FE2CL_PC_NEW = 822083587,
     P_FE2CL_PC_MOVE = 822083592,
     P_FE2CL_PC_STOP = 822083593,
@@ -44,6 +46,7 @@ public:
     CNShardServer(uint16_t p);
 
     void killConnection(CNSocket* cns);
+    void onTimer();
 };
 
 #endif

@@ -12,6 +12,7 @@
 struct PlayerView {
     std::list<CNSocket*> viewable;
     Player plr;
+    int long lastHeartbeat;
 };
 
 
@@ -33,7 +34,7 @@ namespace PlayerManager {
     void movePlatformPlayer(CNSocket* sock, CNPacketData* data);
     void gotoPlayer(CNSocket* sock, CNPacketData* data);
     void setSpecialPlayer(CNSocket* sock, CNPacketData* data);
-    
+    void heartbeatPlayer(CNSocket* sock, CNPacketData* data);
 }
 
 #endif

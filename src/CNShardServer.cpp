@@ -30,3 +30,20 @@ void CNShardServer::killConnection(CNSocket* cns) {
 
     CNSharedData::erasePlayer(cachedPlr.SerialKey);
 }
+
+void CNShardServer::onTimer() {
+    long int currTime = getTime();
+
+    auto cachedPlayers = PlayerManager::players;
+
+    for (auto pair : cachedPlayers) {
+        if (pair.second.lastHeartbeat != 0 && currTime - pair.second.lastHeartbeat > 4000) { // if the client hadn't responded in 4 seconds, its a dead connection so throw it out
+            pair.first->kill();
+            continue;
+        }
+
+        // passed the heartbeat, send another
+        sP_FE2CL_REQ_LIVE_CHECK* data = (sP_FE2CL_REQ_LIVE_CHECK*)xmalloc(sizeof(sP_FE2CL_REQ_LIVE_CHECK));
+        pair.first->sendPacket(new CNPacketData((void*)data, P_FE2CL_REQ_LIVE_CHECK, sizeof(sP_FE2CL_REQ_LIVE_CHECK), pair.first->getFEKey()));
+    }
+}

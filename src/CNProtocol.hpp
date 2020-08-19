@@ -124,6 +124,7 @@ public:
 class CNServer {
 protected:
     std::list<CNSocket*> connections;
+    std::mutex activeCrit;
 
     SOCKET sock;
     uint16_t port;
@@ -132,7 +133,7 @@ protected:
     void init();
 
     bool active = true;
-    std::mutex activeCrit;
+    long int lastTimer;
 
 public:
     PacketHandler pHandler;
@@ -143,6 +144,7 @@ public:
     void start();
     void kill();
     virtual void killConnection(CNSocket* cns);
+    virtual void onTimer(); // called every 2 seconds
 };
 
 #endif

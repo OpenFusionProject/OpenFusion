@@ -21,12 +21,14 @@ void PlayerManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_MOVEPLATFORM, PlayerManager::movePlatformPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GOTO, PlayerManager::gotoPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_SET_VALUE, PlayerManager::setSpecialPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REP_LIVE_CHECK, PlayerManager::heartbeatPlayer);
 }
 
 void PlayerManager::addPlayer(CNSocket* key, Player plr) {
     players[key] = PlayerView();
     players[key].viewable = std::list<CNSocket*>();
     players[key].plr = plr;
+    players[key].lastHeartbeat = 0;
 
     std::cout << U16toU8(plr.PCStyle.szFirstName) << U16toU8(plr.PCStyle.szLastName) << " has joined!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
@@ -384,4 +386,8 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
     response->iSetValueType = setData->iSetValueType;
 
     sock->sendPacket(new CNPacketData((void*)response, P_FE2CL_GM_REP_PC_SET_VALUE, sizeof(sP_FE2CL_GM_REP_PC_SET_VALUE), sock->getFEKey()));
+}
+
+void PlayerManager::heartbeatPlayer(CNSocket* sock, CNPacketData* data) {
+    players[sock].lastHeartbeat = getTime();
 }
