@@ -1,4 +1,4 @@
-# OpenFusion
+![](res/radiorave_logo.png)
 
 OpenFusion is a landwalker server for FusionFall. It currently supports versions `beta-20100104` and `beta-20100728` of the original game.
 
