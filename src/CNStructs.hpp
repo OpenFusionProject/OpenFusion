@@ -547,12 +547,9 @@ struct sP_FE2CL_REP_PC_EXIT_SUCC {
 struct sP_FE2CL_PC_MOTD_LOGIN {
 	int8_t iType;
 	uint16_t szSystemMsg[512];
-struct sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC {
-	int32_t iPC_ID;
-	char16_t szFreeChat[128];
-	int32_t iEmoteCode;
 };
 
 #pragma pack(pop)
 
 
+#endif

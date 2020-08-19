@@ -10,25 +10,8 @@ void ChatManager::init() {
 
 void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE*)data->buf;
-	PlayerView plr = PlayerManager::players[sock];
-	
-	DEBUGLOG(
-    std::cout << "\tChat Message: " << U16toU8(chat->szFreeChat) << std::endl;
-    )
-	
-	sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC* resp = (sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC));
-	resp->iPC_ID = PlayerManager::players[sock].plr.iID;
-	memcpy(resp->szFreeChat, chat->szFreeChat, sizeof(chat->szFreeChat));
-    resp->iEmoteCode = chat->iEmoteCode;
-    sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC), sock->getFEKey()));
-	
-	for (CNSocket* otherSock : plr.viewable) {
-        sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC* resp = (sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC));
-		resp->iPC_ID = PlayerManager::players[sock].plr.iID;
-		memcpy(resp->szFreeChat, chat->szFreeChat, sizeof(chat->szFreeChat));
-		resp->iEmoteCode = chat->iEmoteCode;
-        otherSock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC), otherSock->getFEKey()));
-    }
+
+    // stubbed for now
 }
 
 void ChatManager::emoteHandler(CNSocket* sock, CNPacketData* data) {
