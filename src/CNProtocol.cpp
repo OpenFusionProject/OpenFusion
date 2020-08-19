@@ -252,8 +252,15 @@ void CNServer::start() {
 #else
             if (fcntl(newConnection, F_SETFL, (fcntl(sock, F_GETFL, 0) | O_NONBLOCK)) != 0) {
 #endif
-                std::cerr << "[FATAL] OpenFusion: fcntl failed on new connection" << std::endl; 
-                exit(EXIT_FAILURE); 
+                std::cerr << "[WARN] OpenFusion: fcntl failed on new connection" << std::endl; 
+                #ifdef _WIN32
+                    shutdown(newConnection, SD_BOTH);
+                    closesocket(newConnection);
+                #else
+                    shutdown(newConnection, SHUT_RDWR);
+                    close(newConnection);
+                #endif
+                continue;
             }
 
             std::cout << "New connection! " << inet_ntoa(address.sin_addr) << std::endl;
