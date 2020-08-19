@@ -39,7 +39,7 @@
 #include <list>
 #include <queue>
 
-#ifdef __MINGW32__
+#if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
     #include "mingw/mingw.mutex.h"
 #else 
     #include <mutex>
