@@ -79,12 +79,10 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
         int diffX = abs(pair.second.plr.x - X); // the map is like a grid, X and Y are your position on the map, Z is the height. very different from other games...
         int diffY = abs(pair.second.plr.y - Y);
 
-        double dist = sqrt(pow(diffX, 2) + pow(diffY, 2));
-
-        if (dist > settings::VIEWDISTANCE) {
-            noView.push_back(pair.first);
-        } else {
+        if (diffX < settings::VIEWDISTANCE && diffY < settings::VIEWDISTANCE) {
             yesView.push_back(pair.first);
+        } else {
+            noView.push_back(pair.first);
         }
     }
 
