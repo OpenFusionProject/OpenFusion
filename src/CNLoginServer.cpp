@@ -93,11 +93,18 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     loginSessions[sock].characters[UID].PCStyle2 = charInfo->sPC_Style2;
 
                     for (int i = 0; i < AEQUIP_COUNT; i++) {
-                        // setup item
+                        // setup equips
                         charInfo->aEquip[i].iID = 0;
                         charInfo->aEquip[i].iType = i;
                         charInfo->aEquip[i].iOpt = 0;
                         loginSessions[sock].characters[UID].Equip[i] = charInfo->aEquip[i];
+                    }
+                    
+                    for (int i = 0; i < AINVEN_COUNT; i++) {
+                        // setup inventories
+                        loginSessions[sock].characters[UID].Inven[i].iID = 0;
+                        loginSessions[sock].characters[UID].Inven[i].iType = 0;
+                        loginSessions[sock].characters[UID].Inven[i].iOpt = 0;
                     }
                     
                     // set default to the first character

@@ -39,6 +39,8 @@ uint64_t getTime();
 	#define AEQUIP_COUNT 9
 #endif
 
+#define AINVEN_COUNT 50
+
 // ========================================================[[ beta-20100104 ]]========================================================
 #ifdef CNPROTO_VERSION_0104
 	#include "structs/0104.hpp"

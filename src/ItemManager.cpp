@@ -33,11 +33,17 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     
     //please don't reee at me
     if (itemmove->eFrom < 1) {
-        resp->FromSlotItem = plr.plr.Equip[1];
+        resp->FromSlotItem = plr.plr.Inven[itemmove->iFromSlotNum];
     } else {
-        resp->FromSlotItem = plr.plr.Equip[1];
+        resp->FromSlotItem = plr.plr.Equip[itemmove->iFromSlotNum];
     }
-	resp->ToSlotItem = plr.plr.Equip[1];
+    
+    if (itemmove->eTo > 0) {
+        resp->ToSlotItem = plr.plr.Inven[itemmove->iToSlotNum];
+    } else {
+        resp->ToSlotItem = plr.plr.Equip[itemmove->iToSlotNum];
+    }
+
     
 	sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_PC_ITEM_MOVE_SUCC, sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC), sock->getFEKey()));
 }
