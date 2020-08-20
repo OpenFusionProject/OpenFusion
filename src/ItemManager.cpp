@@ -17,12 +17,26 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 	PlayerView plr = PlayerManager::players[sock];
 	
 	sP_FE2CL_PC_ITEM_MOVE_SUCC* resp = (sP_FE2CL_PC_ITEM_MOVE_SUCC*)xmalloc(sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC));
+    
+    DEBUGLOG(
+        std::cout << "Item Move Received:" << std::endl;
+        std::cout << "\teFrom: " << itemmove->eFrom << std::endl;
+        std::cout << "\tiFromSlotNum: " << itemmove->iFromSlotNum << std::endl;
+        std::cout << "\teTo: " << itemmove->eTo << std::endl;
+        std::cout << "\tiToSlotNum: " << itemmove->iToSlotNum << std::endl;
+    )
 	
 	resp->eFrom = itemmove->eFrom;
 	resp->iFromSlotNum = itemmove->iFromSlotNum;
-	resp->FromSlotItem = plr.plr.Equip[1];
 	resp->eTo = itemmove->eTo;
 	resp->iToSlotNum = itemmove->iToSlotNum;
+    
+    //please don't reee at me
+    if (itemmove->eFrom < 1) {
+        resp->FromSlotItem = plr.plr.Equip[1];
+    } else {
+        resp->FromSlotItem = plr.plr.Equip[1];
+    }
 	resp->ToSlotItem = plr.plr.Equip[1];
     
 	sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_PC_ITEM_MOVE_SUCC, sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC), sock->getFEKey()));
