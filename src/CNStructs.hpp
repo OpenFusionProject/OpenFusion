@@ -1,7 +1,5 @@
 /* 
-    CNStructs.hpp - defines some basic structs & useful methods for packets used by FusionFall
-
-    NOTE: this is missing the vast majority of packets, I have also ommitted the ERR & FAIL packets for simplicity
+    CNStructs.hpp - defines some basic structs & useful methods for packets used by FusionFall based on the version defined
 */
 
 #ifndef _CNS_HPP
@@ -12,9 +10,9 @@
 #include <stdint.h>
 // Can't use this in MSVC.
 #ifndef _MSC_VER
-#include <sys/time.h>
+	#include <sys/time.h>
 #else
-#include <time.h>
+	#include <time.h>
 #endif
 #include <cstring>
 #include <string> 
@@ -33,15 +31,11 @@ uint64_t getTime();
 //#define CNPROTO_VERSION_0728
 #define CNPROTO_VERSION_0104
 
-#ifdef CNPROTO_VERSION_0728
-	#define AEQUIP_COUNT 12
-#else
-	#define AEQUIP_COUNT 9
-#endif
-
 // ========================================================[[ beta-20100104 ]]========================================================
-#ifdef CNPROTO_VERSION_0104
+#if defined(CNPROTO_VERSION_0104)
 	#include "structs/0104.hpp"
+#elif defined(CNPROTO_VERSION_0728)
+	#include "structs/0728.hpp"
 #endif
 
 #endif
