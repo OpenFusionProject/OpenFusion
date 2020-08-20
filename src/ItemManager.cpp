@@ -31,19 +31,59 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 	resp->eTo = itemmove->eTo;
 	resp->iToSlotNum = itemmove->iToSlotNum;
     
-    //please don't reee at me
+    sItemBase temp;
+    
     if (itemmove->eFrom < 1) {
-        resp->FromSlotItem = plr.plr.Inven[itemmove->iFromSlotNum];
+        if (itemmove->eTo < 1) {
+            //equip to equip, if this happens, something very wrong has happened
+            temp = plr.plr.Equip[itemmove->iToSlotNum];
+            plr.plr.Equip[itemmove->iToSlotNum] = plr.plr.Equip[itemmove->iFromSlotNum];
+            plr.plr.Equip[itemmove->iFromSlotNum] = temp;
+            resp->FromSlotItem = plr.plr.Equip[itemmove->iFromSlotNum];
+            resp->ToSlotItem = plr.plr.Equip[itemmove->iToSlotNum];
+        } else {
+            //equip to inventory
+            temp = plr.plr.Inven[itemmove->iToSlotNum];
+            plr.plr.Inven[itemmove->iToSlotNum] = plr.plr.Equip[itemmove->iFromSlotNum];
+            plr.plr.Equip[itemmove->iFromSlotNum] = temp;
+            resp->FromSlotItem = plr.plr.Equip[itemmove->iFromSlotNum];
+            resp->ToSlotItem = plr.plr.Inven[itemmove->iToSlotNum];
+        }
     } else {
-        resp->FromSlotItem = plr.plr.Equip[itemmove->iFromSlotNum];
+        if (itemmove->eTo < 1) {
+            //inventory to equip
+            temp = plr.plr.Equip[itemmove->iToSlotNum];
+            plr.plr.Equip[itemmove->iToSlotNum] = plr.plr.Inven[itemmove->iFromSlotNum];
+            plr.plr.Inven[itemmove->iFromSlotNum] = temp;
+            resp->FromSlotItem = plr.plr.Equip[itemmove->iFromSlotNum];
+            resp->ToSlotItem = plr.plr.Inven[itemmove->iToSlotNum];       
+        } else {
+           //inventory to inventory
+            temp = plr.plr.Inven[itemmove->iToSlotNum];
+            plr.plr.Inven[itemmove->iToSlotNum] = plr.plr.Inven[itemmove->iFromSlotNum];
+            plr.plr.Inven[itemmove->iFromSlotNum] = temp;
+            resp->FromSlotItem = plr.plr.Inven[itemmove->iFromSlotNum];
+            resp->ToSlotItem = plr.plr.Inven[itemmove->iToSlotNum]; 
+        }
     }
     
-    if (itemmove->eTo > 0) {
-        resp->ToSlotItem = plr.plr.Inven[itemmove->iToSlotNum];
-    } else {
-        resp->ToSlotItem = plr.plr.Equip[itemmove->iToSlotNum];
+    DEBUGLOG(
+        std::cout << "Sent Data:" << std::endl;
+        std::cout << "\tFrom: " << resp->FromSlotItem.iID << std::endl;
+        std::cout << "\tTo: " << resp->ToSlotItem.iID << std::endl;
+    )
+    
+    for (int i = 0; i < AEQUIP_COUNT; i++) {
+        DEBUGLOG(
+            std::cout <<plr.plr.Equip[i].iID << std::endl;  
+        )
     }
-
+    
+    for (int i = 0; i < AINVEN_COUNT; i++) {
+        DEBUGLOG(
+            std::cout <<plr.plr.Inven[i].iID << std::endl;  
+        )                   
+    }
     
 	sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_PC_ITEM_MOVE_SUCC, sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC), sock->getFEKey()));
 }
