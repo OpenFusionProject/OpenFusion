@@ -1,4 +1,8 @@
 .vscode
 bin/*
+x64/*
+x86/*
+Release/*
+Debug/*
 notes.txt
 config.ini
