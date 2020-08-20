@@ -47,6 +47,7 @@ all: $(SERVER)
 
 windows: $(SERVER)
 
+# Assign Windows-specific values if targeting Windows
 windows : CXX=$(WIN_CXX)
 windows : CXXFLAGS=$(WIN_CXXFLAGS)
 windows : LDFLAGS=$(WIN_LDFLAGS)
@@ -56,6 +57,7 @@ windows : SERVER=$(WIN_SERVER)
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
 $(SERVER): $(OBJ) $(HDR)
+	mkdir -p bin
 	$(CXX) $(OBJ) $(LDFLAGS) -o $(SERVER)
 
 .PHONY: all windows clean
