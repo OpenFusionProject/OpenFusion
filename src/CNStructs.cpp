@@ -18,7 +18,13 @@ int U8toU16(std::string src, char16_t* des) {
 }
 
 uint64_t getTime() {
+#ifndef _MSC_VER
     struct timeval tp;
     gettimeofday(&tp, NULL);
     return tp.tv_sec * 1000 + tp.tv_usec / 1000;
+#else
+    time_t t;
+    time(&t);
+    return (uint64_t)t;
+#endif
 }
