@@ -31,7 +31,6 @@
     <ClCompile Include="src\Player.cpp" />
     <ClCompile Include="src\PlayerManager.cpp" />
     <ClCompile Include="src\settings.cpp" />
-    <ClCompile Include="src\sys\time.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\ChatManager.hpp" />
@@ -48,8 +47,6 @@
     <ClInclude Include="src\settings.hpp" />
     <ClInclude Include="src\structs\0104.hpp" />
     <ClInclude Include="src\structs\0728.hpp" />
-    <ClInclude Include="src\sys\time.h" />
-    <ClInclude Include="src\sys\times.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

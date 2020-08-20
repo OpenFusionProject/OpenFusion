@@ -54,9 +54,6 @@
     <ClCompile Include="src\settings.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\sys\time.cpp">
-      <Filter>Source Files\sys</Filter>
-    </ClCompile>
     <ClCompile Include="src\NanoManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -73,12 +70,6 @@
     </ClInclude>
     <ClInclude Include="src\CNStructs.hpp">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\sys\times.h">
-      <Filter>Header Files\sys</Filter>
-    </ClInclude>
-    <ClInclude Include="src\sys\time.h">
-      <Filter>Header Files\sys</Filter>
     </ClInclude>
     <ClInclude Include="src\CNLoginServer.hpp">
       <Filter>Header Files</Filter>
