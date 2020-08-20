@@ -1,4 +1,4 @@
-.vscode
+.vscode/
 bin/*
 notes.txt
 config.ini
@@ -8,3 +8,4 @@ tags
 CMakeFiles/
 CMakeCache.txt
 build/
+.vs/
