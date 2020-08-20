@@ -7,7 +7,7 @@ SERVER=bin/fusion
 
 # Windows-specific
 WIN_CXX=x86_64-w64-mingw32-g++
-WIN_CXXFLAGS=-std=c++17 -O3 #-g3 -fsanitize=address
+WIN_CXXFLAGS=-std=c++17 -O3 -static #-g3 -fsanitize=address
 WIN_LDFLAGS=-lws2_32 -lwsock32
 WIN_SERVER=bin/winfusion.exe
 
