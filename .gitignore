@@ -2,3 +2,6 @@
 bin/*
 notes.txt
 config.ini
+*.o
+tags
+*~
