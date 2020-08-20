@@ -10,7 +10,12 @@
 #include <iostream>
 #include <stdio.h>
 #include <stdint.h>
+// Can't use this in MSVC.
+#ifndef _MSC_VER
 #include <sys/time.h>
+#else
+#include <time.h>
+#endif
 #include <cstring>
 #include <string> 
 #include <locale> 

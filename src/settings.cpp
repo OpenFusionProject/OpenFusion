@@ -15,7 +15,7 @@ int settings::SPAWN_X = 179213;
 int settings::SPAWN_Y = 268451;
 int settings::SPAWN_Z = -4210;
 
-std::string settings::MOTDSTRING;
+std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
 
 void settings::init() {
     INIReader reader("config.ini");
