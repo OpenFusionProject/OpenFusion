@@ -8,6 +8,9 @@ void NanoManager::init() {
 }
 
 void NanoManager::nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
+	if (data->size != sizeof(sP_CL2FE_REQ_NANO_ACTIVE))
+        return; // malformed packet
+
 	sP_CL2FE_REQ_NANO_ACTIVE* nano = (sP_CL2FE_REQ_NANO_ACTIVE*)data->buf;
 	PlayerView plr = PlayerManager::players[sock];
 
