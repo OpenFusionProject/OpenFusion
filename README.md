@@ -70,10 +70,6 @@ Don't forget to point `assetInfo.php` to where you're hosting the assets and cha
 If you change `loginInfo.php` or `assetInfo.php`, make sure not to put any newline characters (or any other whitespace) at the end of the file(s).
 Some modern IDEs/text editors do this automatically. If all else fails, use Notepad.
 
-## Compiling 
-
-OpenFusion can be compiled from source using the included makefile. A detailed compilation guide is available for Windows users [in the wiki](https://github.com/OpenFusionProject/OpenFusion/wiki/Compilation-on-Windows). Otherwise, to compile it for the current platform you're on, just run `make` with the correct build tools installed (currently make and clang).
-
 ## "Gameplay"
 
 Notice the quotes. This is not a full-fledged game that can be played.
