@@ -70,6 +70,18 @@ Don't forget to point `assetInfo.php` to where you're hosting the assets and cha
 If you change `loginInfo.php` or `assetInfo.php`, make sure not to put any newline characters (or any other whitespace) at the end of the file(s).
 Some modern IDEs/text editors do this automatically. If all else fails, use Notepad.
 
+## Compiling 
+
+You have two choices for compiling OpenFusion: the included Makefile and the included CMakeLists file.
+
+### Makefile
+
+A detailed compilation guide is available for Windows users in the wiki [using MinGW-w64 and MSYS2](https://github.com/OpenFusionProject/OpenFusion/wiki/Compilation-on-Windows). Otherwise, to compile it for the current platform you're on, just run `make` with the correct build tools installed (currently make and clang).
+
+### CMake
+
+A detailed guide is available [in the wiki](https://github.com/OpenFusionProject/OpenFusion/wiki/Compilation-with-CMake-or-Visual-Studio) for people using regular old CMake or the version of CMake that comes with Visual Studio. tl;dr: `cmake -B build`
+
 ## "Gameplay"
 
 Notice the quotes. This is not a full-fledged game that can be played.
