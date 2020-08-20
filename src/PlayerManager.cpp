@@ -1,5 +1,6 @@
 #include "CNProtocol.hpp"
 #include "PlayerManager.hpp"
+#include "NPCManager.hpp"
 #include "CNShardServer.hpp"
 #include "CNShared.hpp"
 
@@ -145,6 +146,8 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
             players[otherSock].viewable.push_back(sock);
         }
     }
+
+    NPCManager::updatePlayerNPCS(sock, players[sock]);
 }
 
 void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {

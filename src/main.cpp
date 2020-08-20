@@ -3,6 +3,7 @@
 #include "PlayerManager.hpp"
 #include "ChatManager.hpp"
 #include "NanoManager.hpp"
+#include "NPCManager.hpp"
 
 #include "settings.hpp"
 
@@ -30,6 +31,7 @@ int main() {
     PlayerManager::init();
     ChatManager::init();
     NanoManager::init();
+    NPCManager::init();
 
     std::cout << "[INFO] Starting Server Threads..." << std::endl;
     CNLoginServer loginServer(settings::LOGINPORT);
