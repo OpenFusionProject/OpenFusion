@@ -47,6 +47,7 @@
     <ClInclude Include="src\PlayerManager.hpp" />
     <ClInclude Include="src\settings.hpp" />
     <ClInclude Include="src\structs\0104.hpp" />
+    <ClInclude Include="src\structs\0728.hpp" />
     <ClInclude Include="src\sys\time.h" />
     <ClInclude Include="src\sys\times.h" />
   </ItemGroup>
