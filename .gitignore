@@ -5,3 +5,6 @@ config.ini
 *.o
 tags
 *~
+CMakeFiles/
+CMakeCache.txt
+build/
