@@ -11,6 +11,7 @@ namespace settings {
     extern int SPAWN_Y;
     extern int SPAWN_Z;
     extern std::string MOTDSTRING;
+    extern std::string NPCJSON;
     extern std::string GMPASS;
 
     void init();
