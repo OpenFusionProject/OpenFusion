@@ -1,6 +1,7 @@
 ![](res/radiorave_logo.png)
 
 [![AppVeyor](https://ci.appveyor.com/api/projects/status/github/OpenFusionProject/OpenFusion?svg=true)](https://ci.appveyor.com/project/Raymonf/openfusion)
+[![Discord](https://img.shields.io/badge/chat-on%20discord-7289da.svg?logo=discord)](https://discord.gg/DYavckB)
 
 OpenFusion is a landwalker server for FusionFall. It currently supports versions `beta-20100104` and `beta-20100728` of the original game.
 
