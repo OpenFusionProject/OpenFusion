@@ -1,0 +1,37 @@
+version: 'openfusion-{branch}-{build}'
+
+image:
+  - Visual Studio 2019
+  - Ubuntu2004
+
+platform:
+  - x64
+
+configuration:
+  - Release
+  
+for:
+-
+  matrix:
+    only:
+      - image: Ubuntu2004
+  before_build:
+    - mkdir -p bin
+  build_script:
+    - make
+  artifacts:
+    - path: bin
+      name: ubuntu20_04-bin-x64
+      type: zip
+-
+  matrix:
+      only:
+        - image: Visual Studio 2019
+  before_build:
+     - cmake -B build
+  build_script:
+     - msbuild build/OpenFusion.sln /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+  artifacts:
+    - path: bin
+      name: windows-vs2019-bin-x64
+      type: zip
