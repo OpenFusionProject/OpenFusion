@@ -20,6 +20,7 @@ struct Player {
 
     int x, y, z, angle;
     sItemBase Equip[AEQUIP_COUNT];
+    sItemBase Inven[AINVEN_COUNT];
 };
 
 #endif

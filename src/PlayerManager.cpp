@@ -1,5 +1,6 @@
 #include "CNProtocol.hpp"
 #include "PlayerManager.hpp"
+#include "NPCManager.hpp"
 #include "CNShardServer.hpp"
 #include "CNShared.hpp"
 
@@ -86,9 +87,9 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
         }
     }
 
-    std::list<CNSocket*> cachedview(players[sock].viewable); // copies the viewable
-
-    for (CNSocket* otherSock : cachedview) {
+    std::list<CNSocket*>::iterator i = players[sock].viewable.begin();
+    while (i != players[sock].viewable.end()) {
+        CNSocket* otherSock = *i;
         if (std::find(noView.begin(), noView.end(), otherSock) != noView.end()) {
             // sock shouldn't be visible, send PC_EXIT packet & remove them
 
@@ -101,15 +102,16 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
             otherSock->sendPacket(new CNPacketData((void*)exitPacket, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT), otherSock->getFEKey()));
             sock->sendPacket(new CNPacketData((void*)exitPacketOther, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT), sock->getFEKey()));
 
-            players[sock].viewable.remove(otherSock);
+            players[sock].viewable.erase(i++);
             players[otherSock].viewable.remove(sock);
+            continue;
         }
+
+        ++i;
     }
 
-    cachedview = players[sock].viewable;
-
     for (CNSocket* otherSock : yesView) {
-        if (std::find(cachedview.begin(), cachedview.end(), otherSock) == cachedview.end()) {
+        if (std::find(players[sock].viewable.begin(), players[sock].viewable.end(), otherSock) == players[sock].viewable.end()) {
             // this needs to be added to the viewable players, send PC_ENTER
 
             sP_FE2CL_PC_NEW* newPlayer = (sP_FE2CL_PC_NEW*)xmalloc(sizeof(sP_FE2CL_PC_NEW)); // current connection to other player
@@ -145,6 +147,8 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
             players[otherSock].viewable.push_back(sock);
         }
     }
+
+    NPCManager::updatePlayerNPCS(sock, players[sock]);
 }
 
 void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {

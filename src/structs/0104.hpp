@@ -1,6 +1,7 @@
 /* genstructs.py */
 
 #define AEQUIP_COUNT 9
+#define AINVEN_COUNT 50
 
 #pragma pack(push)
 
