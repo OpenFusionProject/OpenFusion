@@ -6,7 +6,7 @@
 
 void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
-    REGISTER_SHARD_PACKET(P_FE2CL_PC_EQUIP_CHANGE, itemMoveHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_DELETE, itemDeleteHandler);
 }
 
 void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
@@ -23,7 +23,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     // eFrom 0 means from equip
     if (itemmove->eFrom == 0) {
         // unequiping an item
-        std::cout << "unequipting item" << std::endl;
+        // std::cout << "unequipting item" << std::endl;
         fromItem = plr.plr.Equip[itemmove->iFromSlotNum];
     } else {
         fromItem = plr.plr.Inven[itemmove->iFromSlotNum];
@@ -31,7 +31,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     
     // eTo 0 means to equip
     if (itemmove->eTo == 0) {
-        std::cout << "equipting item" << std::endl;
+        // std::cout << "equipting item" << std::endl;
         // equiping an item
         toItem = plr.plr.Equip[itemmove->iToSlotNum];
         plr.plr.Equip[itemmove->iToSlotNum] = fromItem;
@@ -73,4 +73,26 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     resp->FromSlotItem = fromItem;
 
     sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_PC_ITEM_MOVE_SUCC, sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC), sock->getFEKey()));
+}
+
+void ItemManager::itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_ITEM_DELETE))
+        return; // ignore the malformed packet
+    
+    sP_CL2FE_REQ_PC_ITEM_DELETE* itemdel = (sP_CL2FE_REQ_PC_ITEM_DELETE*)data->buf;
+    sP_FE2CL_REP_PC_ITEM_DELETE_SUCC* resp = (sP_FE2CL_REP_PC_ITEM_DELETE_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC));
+    
+    PlayerView plr = PlayerManager::players[sock];
+    
+    resp->eIL = itemdel->eIL;
+    resp->iSlotNum = itemdel->iSlotNum;
+    
+    // so, im not sure what this eIL thing does since you always delete items in inventory and not equips
+    plr.plr.Inven[itemdel->iSlotNum].iID = 0; 
+    plr.plr.Inven[itemdel->iSlotNum].iType = 0;
+    plr.plr.Inven[itemdel->iSlotNum].iOpt = 0;
+    
+    PlayerManager::players[sock] = plr;
+    
+    sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_PC_ITEM_DELETE_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC), sock->getFEKey()));
 }
