@@ -21,6 +21,7 @@ SRC=\
 	src/CNStructs.cpp\
 	src/main.cpp\
 	src/NanoManager.cpp\
+    src/ItemManager.cpp\
 	src/NPCManager.cpp\
 	src/Player.cpp\
 	src/PlayerManager.cpp\

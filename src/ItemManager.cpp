@@ -10,27 +10,19 @@ void ItemManager::init() {
 }
 
 void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
-	if (data->size != sizeof(sP_CL2FE_REQ_ITEM_MOVE))
+    if (data->size != sizeof(sP_CL2FE_REQ_ITEM_MOVE))
         return; // ignore the malformed packet
 	
-	sP_CL2FE_REQ_ITEM_MOVE* itemmove = (sP_CL2FE_REQ_ITEM_MOVE*)data->buf;
+    sP_CL2FE_REQ_ITEM_MOVE* itemmove = (sP_CL2FE_REQ_ITEM_MOVE*)data->buf;
     sP_FE2CL_PC_ITEM_MOVE_SUCC* resp = (sP_FE2CL_PC_ITEM_MOVE_SUCC*)xmalloc(sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC));
 	
-	PlayerView plr = PlayerManager::players[sock];
-    
-    //DEBUGLOG(
-    //   std::cout << "Item Move Received:" << std::endl;
-    //    std::cout << "\teFrom: " << itemmove->eFrom << std::endl;
-    //   std::cout << "\tiFromSlotNum: " << itemmove->iFromSlotNum << std::endl;
-    //    std::cout << "\teTo: " << itemmove->eTo << std::endl;
-    //    std::cout << "\tiToSlotNum: " << itemmove->iToSlotNum << std::endl;
-    //)
+    PlayerView plr = PlayerManager::players[sock];
 	
     //weird flip flop but it makes things happen
-	resp->eFrom = itemmove->eTo;
-	resp->iFromSlotNum = itemmove->iToSlotNum;
-	resp->eTo = itemmove->eFrom;
-	resp->iToSlotNum = itemmove->iFromSlotNum;
+    resp->eFrom = itemmove->eTo;
+    resp->iFromSlotNum = itemmove->iToSlotNum;
+    resp->eTo = itemmove->eFrom;
+    resp->iToSlotNum = itemmove->iFromSlotNum;
     
     if (itemmove->eFrom == 0) {
         resp->FromSlotItem = plr.plr.Equip[itemmove->iFromSlotNum];
@@ -63,25 +55,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         plr.plr.Inven[itemmove->iFromSlotNum] = resp->ToSlotItem;
     }
     
-    //DEBUGLOG(
-    //    std::cout << "Sent Data:" << std::endl;
-    //    std::cout << "\tFrom: " << resp->FromSlotItem.iID << std::endl;
-    //    std::cout << "\tTo: " << resp->ToSlotItem.iID << std::endl;
-    //)
-    
-    //for (int i = 0; i < AEQUIP_COUNT; i++) {
-    //    DEBUGLOG(
-    //        std::cout <<plr.plr.Equip[i].iID << std::endl;  
-    //    )
-    //}
-    
-    //for (int i = 0; i < AINVEN_COUNT; i++) {
-    //    DEBUGLOG(
-    //       std::cout <<plr.plr.Inven[i].iID << std::endl;  
-    //    )                   
-    //}
-    
     PlayerManager::players[sock] = plr;
     
-	sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_PC_ITEM_MOVE_SUCC, sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC), sock->getFEKey()));
+    sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_PC_ITEM_MOVE_SUCC, sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC), sock->getFEKey()));
 }

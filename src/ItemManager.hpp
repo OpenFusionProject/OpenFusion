@@ -5,7 +5,7 @@
 
 namespace ItemManager {
     void init();	
-	void itemMoveHandler(CNSocket* sock, CNPacketData* data);   
+    void itemMoveHandler(CNSocket* sock, CNPacketData* data);   
 }
 
 #endif
