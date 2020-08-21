@@ -43,7 +43,7 @@ for:
                 Remove-Item "build" -Recurse
                 Write-Output "Deleted existing build folder"
             }
-            Invoke-Expression "cmake -B build -DPACKET_VERSION=$version"
+            Invoke-Expression "cmake -B build -DPROTOCOL_VERSION=$version"
             if ($LASTEXITCODE -ne "0") {
                 Write-Error "cmake generation failed for version $version" -ErrorAction Stop
             }
