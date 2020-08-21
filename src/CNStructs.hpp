@@ -35,9 +35,9 @@ uint64_t getTime();
 #define CNPROTO_VERSION_0104
 
 #if defined(CNPROTO_VERSION_0104)
-	#include "structs/0104.hpp"
+    #include "structs/0104.hpp"
 #elif defined(CNPROTO_VERSION_0728)
-	#include "structs/0728.hpp"
+    #include "structs/0728.hpp"
 #endif
 
 #endif
