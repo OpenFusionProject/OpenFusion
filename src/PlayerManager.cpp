@@ -36,7 +36,7 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
     players[key].plr = plr;
     players[key].lastHeartbeat = 0;
 
-    std::cout << U16toU8(plr.PCStyle.szFirstName) << U16toU8(plr.PCStyle.szLastName) << " has joined!" << std::endl;
+    std::cout << U16toU8(plr.PCStyle.szFirstName) << " " << U16toU8(plr.PCStyle.szLastName) << " has joined!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
 }
 
@@ -157,6 +157,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_ENTER* enter = (sP_CL2FE_REQ_PC_ENTER*)data->buf;
     sP_FE2CL_REP_PC_ENTER_SUCC* response = (sP_FE2CL_REP_PC_ENTER_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_PC_ENTER_SUCC));
+    sP_FE2CL_PC_MOTD_LOGIN* motd = (sP_FE2CL_PC_MOTD_LOGIN*)xmalloc(sizeof(sP_FE2CL_PC_MOTD_LOGIN));
 
     // TODO: check if serialkey exists, if it doesn't send sP_FE2CL_REP_PC_ENTER_FAIL
     Player plr = CNSharedData::getPlayer(enter->iEnterSerialKey);
@@ -188,6 +189,22 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     for (int i = 0; i < AEQUIP_COUNT; i++)
         response->PCLoadData2CL.aEquip[i] = plr.Equip[i];
 
+    // protocol-agnostic sItemBase usage
+    sItemBase item = (sItemBase){0};
+    item.iID = 495;
+
+    for (int i = 0; i < AINVEN_COUNT; i++) {
+        switch (i) {
+        case 6: case 8: case 11: case 13: case 20:
+        case 24: case 26: case 27: case 28:
+            plr.Inven[i] = item;
+            break;
+        default:
+            plr.Inven[i] = (sItemBase){0};
+        }
+        response->PCLoadData2CL.aInven[i] = plr.Inven[i];
+    }
+
     // don't ask..
     for (int i = 1; i < 37; i++) {
         response->PCLoadData2CL.aNanoBank[i].iID = i;
@@ -205,10 +222,15 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     plr.SerialKey = enter->iEnterSerialKey;
     plr.HP = response->PCLoadData2CL.iHP;
 
+    motd->iType = 1;
+    U8toU16(settings::MOTDSTRING, (char16_t*)motd->szSystemMsg);
+
     sock->setEKey(CNSocketEncryption::createNewKey(response->uiSvrTime, response->iID + 1, response->PCLoadData2CL.iFusionMatter + 1));
     sock->setFEKey(plr.FEKey);
 
     sock->sendPacket(new CNPacketData((void*)response, P_FE2CL_REP_PC_ENTER_SUCC, sizeof(sP_FE2CL_REP_PC_ENTER_SUCC), sock->getFEKey()));
+    // transmit MOTD after entering the game, so the client hopefully changes modes on time
+    sock->sendPacket(new CNPacketData((void*)motd, P_FE2CL_PC_MOTD_LOGIN, sizeof(sP_FE2CL_PC_MOTD_LOGIN), sock->getFEKey()));
 
     addPlayer(sock, plr);
 }
@@ -219,20 +241,15 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_LOADING_COMPLETE* complete = (sP_CL2FE_REQ_PC_LOADING_COMPLETE*)data->buf;
     sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC* response = (sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC));
-    sP_FE2CL_PC_MOTD_LOGIN* motd = (sP_FE2CL_PC_MOTD_LOGIN*)xmalloc(sizeof(sP_FE2CL_PC_MOTD_LOGIN));
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_LOADING_COMPLETE:" << std::endl;
-        std::cout << "\tPC_ID: " << complete->iPC_ID << std::endl; 
+        std::cout << "\tPC_ID: " << complete->iPC_ID << std::endl;
     )
 
     response->iPC_ID = complete->iPC_ID;
 
-    motd->iType = 1;
-    U8toU16(settings::MOTDSTRING, (char16_t*)motd->szSystemMsg);
-
     sock->sendPacket(new CNPacketData((void*)response, P_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC), sock->getFEKey()));
-    sock->sendPacket(new CNPacketData((void*)motd, P_FE2CL_PC_MOTD_LOGIN, sizeof(sP_FE2CL_PC_MOTD_LOGIN), sock->getFEKey()));
 }
 
 void PlayerManager::movePlayer(CNSocket* sock, CNPacketData* data) {
