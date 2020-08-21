@@ -31,10 +31,10 @@ std::string U16toU8(char16_t* src);
 int U8toU16(std::string src, char16_t* des); // returns number of char16_t that was written at des
 uint64_t getTime();
 
-// The CNPROTO_CUSTOM definition is defined by cmake if you use it.
+// The CNPROTO_OVERRIDE definition is defined by cmake if you use it.
 // If you don't use cmake, feel free to comment this out and change it around.
 // Otherwise, use the PACKET_VERSION option (e.g. -DPACKET_VERSION=0104 in the cmake command) to change it.
-#if !defined(CNPROTO_CUSTOM)
+#if !defined(CNPROTO_OVERRIDE)
     //#define CNPROTO_VERSION_0728
     #define CNPROTO_VERSION_0104
 #endif
