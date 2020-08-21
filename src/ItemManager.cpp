@@ -103,23 +103,30 @@ void ItemManager::itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
     
     sP_CL2FE_REQ_PC_GIVE_ITEM* itemreq = (sP_CL2FE_REQ_PC_GIVE_ITEM*)data->buf;
+    PlayerView plr = PlayerManager::players[sock];
     
     if (itemreq->eIL == 2) {
         // Quest item, not a real item, handle this later, stubbed for now
         // sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_PC_GIVE_ITEM_FAIL, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_FAIL), sock->getFEKey()));
-    } else if (itemreq->eIL == 1) {    
+    } else if (itemreq->eIL == 1 and plr.plr.IsGM == 1) {    
         sP_FE2CL_REP_PC_GIVE_ITEM_SUCC* resp = (sP_FE2CL_REP_PC_GIVE_ITEM_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC));
-    
-        PlayerView plr = PlayerManager::players[sock];
         
         resp->eIL = itemreq->eIL;
         resp->iSlotNum = itemreq->iSlotNum;
         resp->Item = itemreq->Item;
         
         plr.plr.Inven[itemreq->iSlotNum] = itemreq->Item; 
+        plr.plr.level = 36; 
         
         PlayerManager::players[sock] = plr;
         
         sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_PC_GIVE_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC), sock->getFEKey()));
+        
+        sP_FE2CL_REP_PC_CHANGE_LEVEL* resp2 = (sP_FE2CL_REP_PC_CHANGE_LEVEL*)xmalloc(sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+        
+        resp2->iPC_ID = plr.plr.iID;
+        resp2->iPC_Level = 36;
+        
+        sock->sendPacket(new CNPacketData((void*)resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL), sock->getFEKey()));
     }
 }
