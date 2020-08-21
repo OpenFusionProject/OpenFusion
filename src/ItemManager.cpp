@@ -16,7 +16,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_ITEM_MOVE* itemmove = (sP_CL2FE_REQ_ITEM_MOVE*)data->buf;
     sP_FE2CL_PC_ITEM_MOVE_SUCC* resp = (sP_FE2CL_PC_ITEM_MOVE_SUCC*)xmalloc(sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC));
 
-    PlayerView plr = PlayerManager::players[sock];
+    PlayerView& plr = PlayerManager::players[sock];
     sItemBase fromItem;
     sItemBase toItem;
     
@@ -62,8 +62,6 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
             otherSock->sendPacket(new CNPacketData((void*)resp2, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE), otherSock->getFEKey()));
         }   
     }
-
-    PlayerManager::players[sock] = plr;
     
     resp->eTo = itemmove->eFrom;
     resp->iToSlotNum = itemmove->iFromSlotNum;
