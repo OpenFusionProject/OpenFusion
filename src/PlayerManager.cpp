@@ -36,7 +36,7 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
     players[key].plr = plr;
     players[key].lastHeartbeat = 0;
 
-    std::cout << U16toU8(plr.PCStyle.szFirstName) << U16toU8(plr.PCStyle.szLastName) << " has joined!" << std::endl;
+    std::cout << U16toU8(plr.PCStyle.szFirstName) << " " << U16toU8(plr.PCStyle.szLastName) << " has joined!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
 }
 
@@ -187,6 +187,22 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     for (int i = 0; i < AEQUIP_COUNT; i++)
         response->PCLoadData2CL.aEquip[i] = plr.Equip[i];
+
+    // protocol-agnostic sItemBase usage
+    sItemBase item = (sItemBase){0};
+    item.iID = 495;
+
+    for (int i = 0; i < AINVEN_COUNT; i++) {
+        switch (i) {
+        case 6: case 8: case 11: case 13: case 20:
+        case 24: case 26: case 27: case 28:
+            plr.Inven[i] = item;
+            break;
+        default:
+            plr.Inven[i] = (sItemBase){0};
+        }
+        response->PCLoadData2CL.aInven[i] = plr.Inven[i];
+    }
 
     // don't ask..
     for (int i = 1; i < 37; i++) {
