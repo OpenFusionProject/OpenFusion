@@ -1,5 +1,6 @@
 #include "CNProtocol.hpp"
 #include "PlayerManager.hpp"
+#include "NPCManager.hpp"
 #include "CNShardServer.hpp"
 #include "CNShared.hpp"
 
@@ -18,7 +19,11 @@ void PlayerManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_MOVE, PlayerManager::movePlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_STOP, PlayerManager::stopPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_JUMP, PlayerManager::jumpPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_JUMPPAD, PlayerManager::jumppadPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_LAUNCHER, PlayerManager::launchPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ZIPLINE, PlayerManager::ziplinePlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_MOVEPLATFORM, PlayerManager::movePlatformPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SLOPE, PlayerManager::moveSlopePlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GOTO, PlayerManager::gotoPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_SET_VALUE, PlayerManager::setSpecialPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REP_LIVE_CHECK, PlayerManager::heartbeatPlayer);
@@ -75,18 +80,16 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
         int diffX = abs(pair.second.plr.x - X); // the map is like a grid, X and Y are your position on the map, Z is the height. very different from other games...
         int diffY = abs(pair.second.plr.y - Y);
 
-        double dist = sqrt(pow(diffX, 2) + pow(diffY, 2));
-
-        if (dist > settings::VIEWDISTANCE) {
-            noView.push_back(pair.first);
-        } else {
+        if (diffX < settings::VIEWDISTANCE && diffY < settings::VIEWDISTANCE) {
             yesView.push_back(pair.first);
+        } else {
+            noView.push_back(pair.first);
         }
     }
 
-    std::list<CNSocket*> cachedview(players[sock].viewable); // copies the viewable
-
-    for (CNSocket* otherSock : cachedview) {
+    std::list<CNSocket*>::iterator i = players[sock].viewable.begin();
+    while (i != players[sock].viewable.end()) {
+        CNSocket* otherSock = *i;
         if (std::find(noView.begin(), noView.end(), otherSock) != noView.end()) {
             // sock shouldn't be visible, send PC_EXIT packet & remove them
 
@@ -99,15 +102,16 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
             otherSock->sendPacket(new CNPacketData((void*)exitPacket, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT), otherSock->getFEKey()));
             sock->sendPacket(new CNPacketData((void*)exitPacketOther, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT), sock->getFEKey()));
 
-            players[sock].viewable.remove(otherSock);
+            players[sock].viewable.erase(i++);
             players[otherSock].viewable.remove(sock);
+            continue;
         }
+
+        ++i;
     }
 
-    cachedview = players[sock].viewable;
-
     for (CNSocket* otherSock : yesView) {
-        if (std::find(cachedview.begin(), cachedview.end(), otherSock) == cachedview.end()) {
+        if (std::find(players[sock].viewable.begin(), players[sock].viewable.end(), otherSock) == players[sock].viewable.end()) {
             // this needs to be added to the viewable players, send PC_ENTER
 
             sP_FE2CL_PC_NEW* newPlayer = (sP_FE2CL_PC_NEW*)xmalloc(sizeof(sP_FE2CL_PC_NEW)); // current connection to other player
@@ -143,6 +147,8 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
             players[otherSock].viewable.push_back(sock);
         }
     }
+
+    NPCManager::updatePlayerNPCS(sock, players[sock]);
 }
 
 void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
@@ -317,6 +323,103 @@ void PlayerManager::jumpPlayer(CNSocket* sock, CNPacketData* data) {
     }
 }
 
+void PlayerManager::jumppadPlayer(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_JUMPPAD))
+        return; // ignore the malformed packet
+    
+    sP_CL2FE_REQ_PC_JUMPPAD* jumppadData = (sP_CL2FE_REQ_PC_JUMPPAD*)data->buf;
+    updatePlayerPosition(sock, jumppadData->iX, jumppadData->iY, jumppadData->iZ);
+
+    uint64_t tm = getTime();
+
+    for (CNSocket* otherSock : players[sock].viewable) {
+        sP_FE2CL_PC_JUMPPAD* jumppadResponse = (sP_FE2CL_PC_JUMPPAD*)xmalloc(sizeof(sP_FE2CL_PC_JUMPPAD));
+
+        jumppadResponse->iPC_ID = players[sock].plr.iID;
+        jumppadResponse->cKeyValue = jumppadData->cKeyValue;
+
+        jumppadResponse->iX = jumppadData->iX;
+        jumppadResponse->iY = jumppadData->iY;
+        jumppadResponse->iZ = jumppadData->iZ;
+        jumppadResponse->iVX = jumppadData->iVX;
+        jumppadResponse->iVY = jumppadData->iVY;
+        jumppadResponse->iVZ = jumppadData->iVZ;
+        
+        jumppadResponse->iCliTime = jumppadData->iCliTime;
+        jumppadResponse->iSvrTime = tm;
+
+        otherSock->sendPacket(new CNPacketData((void*)jumppadResponse, P_FE2CL_PC_JUMPPAD, sizeof(sP_FE2CL_PC_JUMPPAD), otherSock->getFEKey()));
+    }
+}
+
+void PlayerManager::launchPlayer(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_LAUNCHER))
+        return; // ignore the malformed packet
+    
+    sP_CL2FE_REQ_PC_LAUNCHER* launchData = (sP_CL2FE_REQ_PC_LAUNCHER*)data->buf;
+    updatePlayerPosition(sock, launchData->iX, launchData->iY, launchData->iZ);
+
+    uint64_t tm = getTime();
+
+    for (CNSocket* otherSock : players[sock].viewable) {
+        sP_FE2CL_PC_LAUNCHER* launchResponse = (sP_FE2CL_PC_LAUNCHER*)xmalloc(sizeof(sP_FE2CL_PC_LAUNCHER));
+
+        launchResponse->iPC_ID = players[sock].plr.iID;
+
+        launchResponse->iX = launchData->iX;
+        launchResponse->iY = launchData->iY;
+        launchResponse->iZ = launchData->iZ;
+        launchResponse->iVX = launchData->iVX;
+        launchResponse->iVY = launchData->iVY;
+        launchResponse->iVZ = launchData->iVZ;
+        launchResponse->iSpeed = launchData->iSpeed;
+        launchResponse->iAngle = launchData->iAngle;
+        
+        launchResponse->iCliTime = launchData->iCliTime;
+        launchResponse->iSvrTime = tm;
+
+        otherSock->sendPacket(new CNPacketData((void*)launchResponse, P_FE2CL_PC_LAUNCHER, sizeof(sP_FE2CL_PC_LAUNCHER), otherSock->getFEKey()));
+    }
+}
+
+void PlayerManager::ziplinePlayer(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_ZIPLINE))
+        return; // ignore the malformed packet
+
+    sP_CL2FE_REQ_PC_ZIPLINE* ziplineData = (sP_CL2FE_REQ_PC_ZIPLINE*)data->buf;
+    updatePlayerPosition(sock, ziplineData->iX, ziplineData->iY, ziplineData->iZ);
+
+    uint64_t tm = getTime();
+
+    for (CNSocket* otherSock : players[sock].viewable) {
+
+        sP_FE2CL_PC_ZIPLINE* ziplineResponse = (sP_FE2CL_PC_ZIPLINE*)xmalloc(sizeof(sP_FE2CL_PC_ZIPLINE));
+
+        ziplineResponse->iPC_ID = players[sock].plr.iID;
+        ziplineResponse->iCliTime = ziplineData->iCliTime;
+        ziplineResponse->iSvrTime = tm;
+        ziplineResponse->iX = ziplineData->iX;
+        ziplineResponse->iY = ziplineData->iY;
+        ziplineResponse->iZ = ziplineData->iZ;
+        ziplineResponse->fVX = ziplineData->fVX;
+        ziplineResponse->fVY = ziplineData->fVY;
+        ziplineResponse->fVZ = ziplineData->fVZ;
+        ziplineResponse->fMovDistance = ziplineData->fMovDistance;
+        ziplineResponse->fMaxDistance = ziplineData->fMaxDistance;
+        ziplineResponse->fDummy = ziplineData->fDummy; //wtf is this for?
+        ziplineResponse->iStX = ziplineData->iStX;
+        ziplineResponse->iStY = ziplineData->iStY;
+        ziplineResponse->iStZ = ziplineData->iStZ;
+        ziplineResponse->bDown = ziplineData->bDown;
+        ziplineResponse->iSpeed = ziplineData->iSpeed;
+        ziplineResponse->iAngle = ziplineData->iAngle;
+        ziplineResponse->iRollMax = ziplineData->iRollMax;
+        ziplineResponse->iRoll = ziplineData->iRoll;
+
+        otherSock->sendPacket(new CNPacketData((void*)ziplineResponse, P_FE2CL_PC_ZIPLINE, sizeof(sP_FE2CL_PC_ZIPLINE), otherSock->getFEKey()));
+    }
+}
+
 void PlayerManager::movePlatformPlayer(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_MOVEPLATFORM))
         return; // ignore the malformed packet
@@ -349,6 +452,37 @@ void PlayerManager::movePlatformPlayer(CNSocket* sock, CNPacketData* data) {
         platResponse->iPlatformID = platformData->iPlatformID;
 
         otherSock->sendPacket(new CNPacketData((void*)platResponse, P_FE2CL_PC_MOVEPLATFORM, sizeof(sP_FE2CL_PC_MOVEPLATFORM), otherSock->getFEKey()));
+    }
+}
+
+void PlayerManager::moveSlopePlayer(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_SLOPE))
+        return; // ignore the malformed packet
+
+    sP_CL2FE_REQ_PC_SLOPE* slopeData = (sP_CL2FE_REQ_PC_SLOPE*)data->buf;
+    updatePlayerPosition(sock, slopeData->iX, slopeData->iY, slopeData->iZ);
+
+    uint64_t tm = getTime();
+
+    for (CNSocket* otherSock : players[sock].viewable) {
+
+        sP_FE2CL_PC_SLOPE* slopeResponse = (sP_FE2CL_PC_SLOPE*)xmalloc(sizeof(sP_FE2CL_PC_SLOPE));
+
+        slopeResponse->iPC_ID = players[sock].plr.iID;
+        slopeResponse->iCliTime = slopeData->iCliTime;
+        slopeResponse->iSvrTime = tm;
+        slopeResponse->iX = slopeData->iX;
+        slopeResponse->iY = slopeData->iY;
+        slopeResponse->iZ = slopeData->iZ;
+        slopeResponse->iAngle = slopeData->iAngle;
+        slopeResponse->fVX = slopeData->fVX;
+        slopeResponse->fVY = slopeData->fVY;
+        slopeResponse->fVZ = slopeData->fVZ;
+        slopeResponse->iSpeed = slopeData->iSpeed;
+        slopeResponse->cKeyValue = slopeData->cKeyValue;
+        slopeResponse->iSlopeID = slopeData->iSlopeID;
+
+        otherSock->sendPacket(new CNPacketData((void*)slopeResponse, P_FE2CL_PC_SLOPE, sizeof(sP_FE2CL_PC_SLOPE), otherSock->getFEKey()));
     }
 }
 

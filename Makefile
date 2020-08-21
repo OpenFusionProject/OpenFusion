@@ -1,23 +1,66 @@
-# makefile for OpenFusion
-
-OBJS = src/*.cpp # source files to compile
-CC = clang++ # using GNU C++ compiler
-WIN_CC = x86_64-w64-mingw32-g++ # using GNU C++ compiler
-
+CXX=clang++
 # -w suppresses all warnings (the part that's commented out helps me find memory leaks, it ruins performance though!)
-COMPILER_FLAGS = -std=c++17 -o3 -static #-g3 -fsanitize=address
-WIN_COMPILER_FLAGS = -std=c++17 -o3 -static #-g3 -fsanitize=address
+CXXFLAGS=-std=c++17 -O3 #-g3 -fsanitize=address
+LDFLAGS=-lpthread
+# specifies the name of our exectuable
+SERVER=bin/fusion
 
-#LINKER_FLAGS specifies the libraries we're linking against (NONE, this is a single header library.)
-LINKER_FLAGS = -lpthread
-WIN_LINKER_FLAGS = -lws2_32 -lwsock32
+# Windows-specific
+WIN_CXX=x86_64-w64-mingw32-g++
+WIN_CXXFLAGS=-std=c++17 -O3 #-g3 -fsanitize=address
+WIN_LDFLAGS=-static -lws2_32 -lwsock32
+WIN_SERVER=bin/winfusion.exe
 
-#OBJ_NAME specifies the name of our exectuable
-OBJ_NAME = bin/fusion # location of output for build
-WIN_OBJ_NAME = bin/winfusion.exe # location of output for build
+# source files
+SRC=\
+	src/ChatManager.cpp\
+	src/CNLoginServer.cpp\
+	src/CNProtocol.cpp\
+	src/CNShardServer.cpp\
+	src/CNShared.cpp\
+	src/CNStructs.cpp\
+	src/main.cpp\
+	src/NanoManager.cpp\
+	src/NPCManager.cpp\
+	src/Player.cpp\
+	src/PlayerManager.cpp\
+	src/settings.cpp\
 
-all:	$(OBJS) 
-	$(CC) $(OBJS) $(COMPILER_FLAGS) $(LINKER_FLAGS) -o $(OBJ_NAME)
+# headers (for timestamp purposes)
+HDR=\
+	src/ChatManager.hpp\
+	src/CNLoginServer.hpp\
+	src/CNProtocol.hpp\
+	src/CNShardServer.hpp\
+	src/CNShared.hpp\
+	src/CNStructs.hpp\
+	src/INIReader.hpp\
+	src/NanoManager.hpp\
+	src/NPCManager.hpp\
+	src/Player.hpp\
+	src/PlayerManager.hpp\
+	src/settings.hpp\
 
-windows:	$(OBJS) 
-	$(WIN_CC) $(OBJS) $(WIN_COMPILER_FLAGS) $(WIN_LINKER_FLAGS) -o $(WIN_OBJ_NAME)
+OBJ=$(SRC:.cpp=.o)
+
+all: $(SERVER)
+
+windows: $(SERVER)
+
+# Assign Windows-specific values if targeting Windows
+windows : CXX=$(WIN_CXX)
+windows : CXXFLAGS=$(WIN_CXXFLAGS)
+windows : LDFLAGS=$(WIN_LDFLAGS)
+windows : SERVER=$(WIN_SERVER)
+
+%.o: %.cpp $(HDR)
+	$(CXX) -c $(CXXFLAGS) -o $@ $<
+
+$(SERVER): $(OBJ) $(HDR)
+	mkdir -p bin
+	$(CXX) $(OBJ) $(LDFLAGS) -o $(SERVER)
+
+.PHONY: all windows clean
+
+clean:
+	rm -f $(OBJ) $(SERVER) $(WIN_SERVER)

@@ -2,7 +2,8 @@
 #include "CNShardServer.hpp"
 #include "PlayerManager.hpp"
 #include "ChatManager.hpp"
-#include "ItemManager.hpp"
+#include "NanoManager.hpp"
+#include "NPCManager.hpp"
 
 #include "settings.hpp"
 
@@ -29,7 +30,8 @@ int main() {
     std::cout << "[INFO] Intializing Packet Managers..." << std::endl;
     PlayerManager::init();
     ChatManager::init();
-    ItemManager::init();
+    NanoManager::init();
+    NPCManager::init();
 
     std::cout << "[INFO] Starting Server Threads..." << std::endl;
     CNLoginServer loginServer(settings::LOGINPORT);

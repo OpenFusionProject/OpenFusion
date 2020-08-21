@@ -9,6 +9,9 @@ void ChatManager::init() {
 }
 
 void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE))
+        return; // malformed packet
+    
     sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE*)data->buf;
     PlayerView plr = PlayerManager::players[sock];
 

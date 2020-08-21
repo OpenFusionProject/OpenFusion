@@ -1,4 +1,11 @@
-.vscode
+.vscode/
 bin/*
 notes.txt
 config.ini
+*.o
+tags
+*~
+CMakeFiles/
+CMakeCache.txt
+build/
+.vs/
