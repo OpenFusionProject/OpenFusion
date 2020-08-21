@@ -56,7 +56,7 @@ void PlayerManager::removePlayer(CNSocket* key) {
 
     players.erase(key);
 
-    std::cout << U16toU8(cachedView.plr.PCStyle.szFirstName) << U16toU8(cachedView.plr.PCStyle.szLastName) << " has left!" << std::endl;
+    std::cout << U16toU8(cachedView.plr.PCStyle.szFirstName) << " " << U16toU8(cachedView.plr.PCStyle.szLastName) << " has left!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
 }
 
