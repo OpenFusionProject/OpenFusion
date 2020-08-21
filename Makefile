@@ -21,6 +21,7 @@ SRC=\
 	src/CNStructs.cpp\
 	src/main.cpp\
 	src/NanoManager.cpp\
+	src/ItemManager.cpp\
 	src/NPCManager.cpp\
 	src/Player.cpp\
 	src/PlayerManager.cpp\
@@ -36,6 +37,7 @@ HDR=\
 	src/CNStructs.hpp\
 	src/INIReader.hpp\
 	src/NanoManager.hpp\
+	src/ItemManager.hpp\
 	src/NPCManager.hpp\
 	src/Player.hpp\
 	src/PlayerManager.hpp\
