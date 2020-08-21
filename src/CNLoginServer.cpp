@@ -192,14 +192,15 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             
             int64_t UID = character->PCStyle.iPC_UID;
             
-            bool BecomeGM;
+            // commented and disabled for now
+            //bool BecomeGM;
             
-            if (U16toU8(character->PCStyle.szFirstName) == settings::GMPASS) {
-                BecomeGM = true;
-                U8toU16("GM",character->PCStyle.szFirstName);
-            } else {
-                BecomeGM = false;
-            }
+            //if (U16toU8(character->PCStyle.szFirstName) == settings::GMPASS) {
+            //    BecomeGM = true;
+            //    U8toU16("GM",character->PCStyle.szFirstName);
+            //} else {
+            //    BecomeGM = false;
+            //}
 
             character->PCStyle.iNameCheck = 1;
             response->sPC_Style = character->PCStyle;
@@ -225,7 +226,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             loginSessions[sock].characters[UID].Equip[2].iType = 2;
             loginSessions[sock].characters[UID].Equip[3].iID = character->sOn_Item.iEquipFootID; // foot!
             loginSessions[sock].characters[UID].Equip[3].iType = 3; 
-            loginSessions[sock].characters[UID].IsGM = BecomeGM;
+            loginSessions[sock].characters[UID].IsGM = false;
 
             sock->sendPacket(new CNPacketData((void*)response, P_LS2CL_REP_CHAR_CREATE_SUCC, sizeof(sP_LS2CL_REP_CHAR_CREATE_SUCC), sock->getEKey()));
             break;

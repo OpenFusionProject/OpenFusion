@@ -98,10 +98,11 @@ void ItemManager::itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_GIVE_ITEM* itemreq = (sP_CL2FE_REQ_PC_GIVE_ITEM*)data->buf;
     PlayerView& plr = PlayerManager::players[sock];
 
-    if (!plr.plr.IsGM) {
+    // Commented and disabled for future use
+    //if (!plr.plr.IsGM) {
     	// TODO: send fail packet
-        return;
-    }
+    //    return;
+    //}
 
     if (itemreq->eIL == 2) {
         // Quest item, not a real item, handle this later, stubbed for now
