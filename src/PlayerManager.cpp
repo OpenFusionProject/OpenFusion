@@ -188,6 +188,18 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     for (int i = 0; i < AEQUIP_COUNT; i++)
         response->PCLoadData2CL.aEquip[i] = plr.Equip[i];
 
+    // build-agnostic sItemBase usage
+    sItemBase item = (sItemBase){0};
+    item.iID = 495;
+
+    for (int i = 0; i < 50; i++) {
+        switch (i) {
+        case 6: case 8: case 11: case 13: case 20:
+        case 24: case 26: case 27: case 28:
+            response->PCLoadData2CL.aInven[i] = item;
+        }
+    }
+
     // don't ask..
     for (int i = 1; i < 37; i++) {
         response->PCLoadData2CL.aNanoBank[i].iID = i;
