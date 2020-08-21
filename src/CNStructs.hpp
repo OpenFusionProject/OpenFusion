@@ -33,7 +33,7 @@ uint64_t getTime();
 
 // The PROTOCOL_VERSION definition is defined by the build system.
 #if !defined(PROTOCOL_VERSION)
-    #error "PROTOCOL_VERSION not defined"
+    #include "structs/0104.hpp"
 #elif PROTOCOL_VERSION == 728
     #include "structs/0728.hpp"
 #elif PROTOCOL_VERSION == 104
