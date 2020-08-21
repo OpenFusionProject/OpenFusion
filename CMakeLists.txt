@@ -4,11 +4,11 @@ project(OpenFusion)
 set(CMAKE_CXX_STANDARD 17)
 
 # OpenFusion supports multiple packet/struct versions
-# 0104 is the default version to build which can be changed
-# For example: cmake -B build -DPACKET_VERSION=0728
-OPTION(PACKET_VERSION "The packet version to build" "0104")
+# 104 is the default version to build which can be changed
+# For example: cmake -B build -DPROTOCOL_VERSION=728
+set(PROTOCOL_VERSION 104 CACHE STRING "The packet version to build")
 
-ADD_DEFINITIONS(-DCNPROTO_OVERRIDE -DCNPROTO_VERSION_${PACKET_VERSION})
+add_compile_definitions(PROTOCOL_VERSION=${PROTOCOL_VERSION})
 
 # Disallow in-source builds
 if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
