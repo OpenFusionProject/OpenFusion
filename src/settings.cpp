@@ -14,6 +14,7 @@ int settings::VIEWDISTANCE = 20000;
 int settings::SPAWN_X = 179213;
 int settings::SPAWN_Y = 268451;
 int settings::SPAWN_Z = -4210;
+std::string settings::GMPASS = "pass";
 
 std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
 
@@ -38,5 +39,6 @@ void settings::init() {
     SPAWN_Y = reader.GetInteger("shard", "spawny", SPAWN_Y);
     SPAWN_Z = reader.GetInteger("shard", "spawnz", SPAWN_Z);
     MOTDSTRING = reader.Get("shard", "motd", "Welcome to OpenFusion!");
+    GMPASS = reader.Get("login", "pass", "pass");
 
 }
