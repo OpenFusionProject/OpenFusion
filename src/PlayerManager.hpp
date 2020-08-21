@@ -24,6 +24,7 @@ namespace PlayerManager {
     void removePlayer(CNSocket* key);
     Player getPlayer(CNSocket* key);
 
+    void updatePlayer(CNSocket* key, Player plr);
     void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z);
 
     void enterPlayer(CNSocket* sock, CNPacketData* data);
@@ -40,6 +41,7 @@ namespace PlayerManager {
     void setSpecialPlayer(CNSocket* sock, CNPacketData* data);
     void heartbeatPlayer(CNSocket* sock, CNPacketData* data);
     void exitGame(CNSocket* sock, CNPacketData* data);
+    void onPlayerSpawn(CNSocket* sock, CNPacketData* data);
 }
 
 #endif
