@@ -24,12 +24,14 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     resp->eTo = itemmove->eFrom;
     resp->iToSlotNum = itemmove->iFromSlotNum;
     
+    //eFrom 0 means from equip, 1 means from inventory
     if (itemmove->eFrom == 0) {
         resp->FromSlotItem = plr.plr.Equip[itemmove->iFromSlotNum];
     } else {
         resp->FromSlotItem = plr.plr.Inven[itemmove->iFromSlotNum];
     }
     
+    //eTo 0 means to equip, 1 means to inventory
     if (itemmove->eTo == 0) {
         resp->ToSlotItem = plr.plr.Equip[itemmove->iToSlotNum];
         plr.plr.Equip[itemmove->iToSlotNum] = resp->FromSlotItem;
