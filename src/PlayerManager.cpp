@@ -190,7 +190,8 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
         response->PCLoadData2CL.aEquip[i] = plr.Equip[i];
 
     // protocol-agnostic sItemBase usage
-    sItemBase item = (sItemBase){0};
+    sItemBase item;
+    memset(&item, 0, sizeof(sItemBase));
     item.iID = 495;
 
     for (int i = 0; i < AINVEN_COUNT; i++) {
@@ -200,7 +201,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
             plr.Inven[i] = item;
             break;
         default:
-            plr.Inven[i] = (sItemBase){0};
+            memset(&plr.Inven[i], 0, sizeof(sItemBase));
         }
         response->PCLoadData2CL.aInven[i] = plr.Inven[i];
     }
