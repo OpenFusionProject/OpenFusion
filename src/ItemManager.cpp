@@ -108,7 +108,7 @@ void ItemManager::itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
     if (itemreq->eIL == 2) {
         // Quest item, not a real item, handle this later, stubbed for now
         // sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_PC_GIVE_ITEM_FAIL, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_FAIL), sock->getFEKey()));
-    } else if (itemreq->eIL == 1 and plr.plr.IsGM == 1) {    
+    } else if (itemreq->eIL == 1 and plr.plr.IsGM == true) {    
         sP_FE2CL_REP_PC_GIVE_ITEM_SUCC* resp = (sP_FE2CL_REP_PC_GIVE_ITEM_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC));
         
         resp->eIL = itemreq->eIL;
