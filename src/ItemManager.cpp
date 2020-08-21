@@ -6,84 +6,82 @@
 
 void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
+    REGISTER_SHARD_PACKET(P_FE2CL_PC_EQUIP_CHANGE, itemMoveHandler);
 }
 
 void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 	if (data->size != sizeof(sP_CL2FE_REQ_ITEM_MOVE))
-        return; // ignore the malorn packet
+        return; // ignore the malformed packet
 	
 	sP_CL2FE_REQ_ITEM_MOVE* itemmove = (sP_CL2FE_REQ_ITEM_MOVE*)data->buf;
+    sP_FE2CL_PC_ITEM_MOVE_SUCC* resp = (sP_FE2CL_PC_ITEM_MOVE_SUCC*)xmalloc(sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC));
 	
 	PlayerView plr = PlayerManager::players[sock];
+    
+    //DEBUGLOG(
+    //   std::cout << "Item Move Received:" << std::endl;
+    //    std::cout << "\teFrom: " << itemmove->eFrom << std::endl;
+    //   std::cout << "\tiFromSlotNum: " << itemmove->iFromSlotNum << std::endl;
+    //    std::cout << "\teTo: " << itemmove->eTo << std::endl;
+    //    std::cout << "\tiToSlotNum: " << itemmove->iToSlotNum << std::endl;
+    //)
 	
-	sP_FE2CL_PC_ITEM_MOVE_SUCC* resp = (sP_FE2CL_PC_ITEM_MOVE_SUCC*)xmalloc(sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC));
+    //weird flip flop but it makes things happen
+	resp->eFrom = itemmove->eTo;
+	resp->iFromSlotNum = itemmove->iToSlotNum;
+	resp->eTo = itemmove->eFrom;
+	resp->iToSlotNum = itemmove->iFromSlotNum;
     
-    DEBUGLOG(
-        std::cout << "Item Move Received:" << std::endl;
-        std::cout << "\teFrom: " << itemmove->eFrom << std::endl;
-        std::cout << "\tiFromSlotNum: " << itemmove->iFromSlotNum << std::endl;
-        std::cout << "\teTo: " << itemmove->eTo << std::endl;
-        std::cout << "\tiToSlotNum: " << itemmove->iToSlotNum << std::endl;
-    )
-	
-	resp->eFrom = itemmove->eFrom;
-	resp->iFromSlotNum = itemmove->iFromSlotNum;
-	resp->eTo = itemmove->eTo;
-	resp->iToSlotNum = itemmove->iToSlotNum;
-    
-    sItemBase temp;
-    
-    if (itemmove->eFrom < 1) {
-        if (itemmove->eTo < 1) {
-            //equip to equip, if this happens, something very wrong has happened
-            temp = plr.plr.Equip[itemmove->iToSlotNum];
-            plr.plr.Equip[itemmove->iToSlotNum] = plr.plr.Equip[itemmove->iFromSlotNum];
-            plr.plr.Equip[itemmove->iFromSlotNum] = temp;
-            resp->FromSlotItem = plr.plr.Equip[itemmove->iFromSlotNum];
-            resp->ToSlotItem = plr.plr.Equip[itemmove->iToSlotNum];
-        } else {
-            //equip to inventory
-            temp = plr.plr.Inven[itemmove->iToSlotNum];
-            plr.plr.Inven[itemmove->iToSlotNum] = plr.plr.Equip[itemmove->iFromSlotNum];
-            plr.plr.Equip[itemmove->iFromSlotNum] = temp;
-            resp->FromSlotItem = plr.plr.Equip[itemmove->iFromSlotNum];
-            resp->ToSlotItem = plr.plr.Inven[itemmove->iToSlotNum];
-        }
+    if (itemmove->eFrom == 0) {
+        resp->FromSlotItem = plr.plr.Equip[itemmove->iFromSlotNum];
     } else {
-        if (itemmove->eTo < 1) {
-            //inventory to equip
-            temp = plr.plr.Equip[itemmove->iToSlotNum];
-            plr.plr.Equip[itemmove->iToSlotNum] = plr.plr.Inven[itemmove->iFromSlotNum];
-            plr.plr.Inven[itemmove->iFromSlotNum] = temp;
-            resp->FromSlotItem = plr.plr.Equip[itemmove->iFromSlotNum];
-            resp->ToSlotItem = plr.plr.Inven[itemmove->iToSlotNum];       
-        } else {
-           //inventory to inventory
-            temp = plr.plr.Inven[itemmove->iToSlotNum];
-            plr.plr.Inven[itemmove->iToSlotNum] = plr.plr.Inven[itemmove->iFromSlotNum];
-            plr.plr.Inven[itemmove->iFromSlotNum] = temp;
-            resp->FromSlotItem = plr.plr.Inven[itemmove->iFromSlotNum];
-            resp->ToSlotItem = plr.plr.Inven[itemmove->iToSlotNum]; 
-        }
+        resp->FromSlotItem = plr.plr.Inven[itemmove->iFromSlotNum];
     }
     
-    DEBUGLOG(
-        std::cout << "Sent Data:" << std::endl;
-        std::cout << "\tFrom: " << resp->FromSlotItem.iID << std::endl;
-        std::cout << "\tTo: " << resp->ToSlotItem.iID << std::endl;
-    )
-    
-    for (int i = 0; i < AEQUIP_COUNT; i++) {
-        DEBUGLOG(
-            std::cout <<plr.plr.Equip[i].iID << std::endl;  
-        )
+    if (itemmove->eTo == 0) {
+        resp->ToSlotItem = plr.plr.Equip[itemmove->iToSlotNum];
+        plr.plr.Equip[itemmove->iToSlotNum] = resp->FromSlotItem;
+    } else {
+        resp->ToSlotItem = plr.plr.Inven[itemmove->iToSlotNum];
+        plr.plr.Inven[itemmove->iToSlotNum] = resp->FromSlotItem;
     }
     
-    for (int i = 0; i < AINVEN_COUNT; i++) {
-        DEBUGLOG(
-            std::cout <<plr.plr.Inven[i].iID << std::endl;  
-        )                   
+    if (itemmove->eFrom == 0) {
+        plr.plr.Equip[itemmove->iFromSlotNum] = resp->ToSlotItem;
+        
+        sP_FE2CL_PC_EQUIP_CHANGE* resp2 = (sP_FE2CL_PC_EQUIP_CHANGE*)xmalloc(sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
+        
+        resp2->iPC_ID = plr.plr.iID;
+        resp2->iEquipSlotNum = resp->iToSlotNum;
+        resp2->EquipSlotItem = resp->ToSlotItem;
+        
+        for (CNSocket* otherSock : plr.viewable) {
+            otherSock->sendPacket(new CNPacketData((void*)resp2, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE), otherSock->getFEKey()));
+        }    
+        
+    } else {
+        plr.plr.Inven[itemmove->iFromSlotNum] = resp->ToSlotItem;
     }
+    
+    //DEBUGLOG(
+    //    std::cout << "Sent Data:" << std::endl;
+    //    std::cout << "\tFrom: " << resp->FromSlotItem.iID << std::endl;
+    //    std::cout << "\tTo: " << resp->ToSlotItem.iID << std::endl;
+    //)
+    
+    //for (int i = 0; i < AEQUIP_COUNT; i++) {
+    //    DEBUGLOG(
+    //        std::cout <<plr.plr.Equip[i].iID << std::endl;  
+    //    )
+    //}
+    
+    //for (int i = 0; i < AINVEN_COUNT; i++) {
+    //    DEBUGLOG(
+    //       std::cout <<plr.plr.Inven[i].iID << std::endl;  
+    //    )                   
+    //}
+    
+    PlayerManager::players[sock] = plr;
     
 	sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_PC_ITEM_MOVE_SUCC, sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC), sock->getFEKey()));
 }
