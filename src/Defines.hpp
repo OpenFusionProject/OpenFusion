@@ -8,12 +8,12 @@
  * implementing just yet anyway.
  */
 
-const float VALUE_BATTERY_EMPTY_PENALTY = 0.5;
-const float CN_EP_RANK_1 = 0.8;
-const float CN_EP_RANK_2 = 0.7;
-const float CN_EP_RANK_3 = 0.5;
-const float CN_EP_RANK_4 = 0.3;
-const float CN_EP_RANK_5 = 0.29;
+const float VALUE_BATTERY_EMPTY_PENALTY = 0.5f;
+const float CN_EP_RANK_1 = 0.8f;
+const float CN_EP_RANK_2 = 0.7f;
+const float CN_EP_RANK_3 = 0.5f;
+const float CN_EP_RANK_4 = 0.3f;
+const float CN_EP_RANK_5 = 0.29f;
 
 enum {
     SUCC = 1,
