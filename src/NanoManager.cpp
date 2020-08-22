@@ -18,9 +18,14 @@ void NanoManager::nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_NANO_EQUIP* nano = (sP_CL2FE_REQ_NANO_EQUIP*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_NANO_EQUIP_SUCC, resp);
+    Player plr = PlayerManager::getPlayer(sock);
 
     resp.iNanoID = nano->iNanoID;
     resp.iNanoSlotNum = nano->iNanoSlotNum;
+
+    // Update player
+    plr.equippedNanos[nano->iNanoSlotNum] = nano->iNanoID;
+    PlayerManager::updatePlayer(sock, plr);
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_EQUIP_SUCC, sizeof(sP_FE2CL_REP_NANO_EQUIP_SUCC));
 }
@@ -31,8 +36,13 @@ void NanoManager::nanoUnEquipHandler(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_NANO_UNEQUIP* nano = (sP_CL2FE_REQ_NANO_UNEQUIP*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_NANO_UNEQUIP_SUCC, resp);
+    Player plr = PlayerManager::getPlayer(sock);
 
     resp.iNanoSlotNum = nano->iNanoSlotNum;
+
+    // update player
+    plr.equippedNanos[nano->iNanoSlotNum] = 0;
+    PlayerManager::updatePlayer(sock, plr);
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_UNEQUIP_SUCC, sizeof(sP_FE2CL_REP_NANO_UNEQUIP_SUCC));
 }
@@ -57,16 +67,33 @@ void NanoManager::nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_NANO_ACTIVE))
         return; // malformed packet
 
-    sP_CL2FE_REQ_NANO_ACTIVE* nano = (sP_CL2FE_REQ_NANO_ACTIVE*)data->buf;
+    sP_CL2FE_REQ_NANO_ACTIVE* pkt = (sP_CL2FE_REQ_NANO_ACTIVE*)data->buf;
     PlayerView plr = PlayerManager::players[sock];
 
     // Send to client
     INITSTRUCT(sP_FE2CL_REP_NANO_ACTIVE_SUCC, resp);
-    resp.iActiveNanoSlotNum = nano->iNanoSlotNum;
+    resp.iActiveNanoSlotNum = pkt->iNanoSlotNum;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_ACTIVE_SUCC, sizeof(sP_FE2CL_REP_NANO_ACTIVE_SUCC));
 
+    int nanoId = plr.plr.equippedNanos[pkt->iNanoSlotNum];
+    sNano nano = plr.plr.Nanos[nanoId];
+
+    // Send to other players
+    for (CNSocket *s : PlayerManager::players[sock].viewable) {
+	INITSTRUCT(sP_FE2CL_NANO_ACTIVE, pkt);
+
+	pkt.iPC_ID = plr.plr.iID;
+	pkt.Nano = nano;
+
+	s->sendPacket((void*)&pkt, P_FE2CL_NANO_ACTIVE, sizeof(sP_FE2CL_NANO_ACTIVE));
+    }
+
+    // update player
+    plr.plr.nano = nanoId;
+    PlayerManager::updatePlayer(sock, plr.plr);
+
     DEBUGLOG(
-        std::cout << U16toU8(plr.plr.PCStyle.szFirstName) << U16toU8(plr.plr.PCStyle.szLastName) << " requested to summon nano slot: " << nano->iNanoSlotNum << std::endl;
+        std::cout << U16toU8(plr.plr.PCStyle.szFirstName) << U16toU8(plr.plr.PCStyle.szLastName) << " requested to summon nano slot: " << pkt->iNanoSlotNum << std::endl;
     )
 }
 

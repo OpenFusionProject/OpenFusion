@@ -125,6 +125,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
             newPlayer.PCAppearanceData.iZ = plr.z;
             newPlayer.PCAppearanceData.iAngle = plr.angle;
             newPlayer.PCAppearanceData.PCStyle = plr.PCStyle;
+            newPlayer.PCAppearanceData.Nano = plr.Nanos[plr.nano];
             memcpy(newPlayer.PCAppearanceData.ItemEquip, plr.Equip, sizeof(sItemBase) * AEQUIP_COUNT);
 
             otherSock->sendPacket((void*)&newPlayer, P_FE2CL_PC_NEW, sizeof(sP_FE2CL_PC_NEW));
@@ -137,6 +138,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
             newPlayer.PCAppearanceData.iZ = otherPlr.z;
             newPlayer.PCAppearanceData.iAngle = otherPlr.angle;
             newPlayer.PCAppearanceData.PCStyle = otherPlr.PCStyle;
+            newPlayer.PCAppearanceData.Nano = otherPlr.Nanos[otherPlr.nano];
             memcpy(newPlayer.PCAppearanceData.ItemEquip, otherPlr.Equip, sizeof(sItemBase) * AEQUIP_COUNT);
 
             sock->sendPacket((void*)&newPlayer, P_FE2CL_PC_NEW, sizeof(sP_FE2CL_PC_NEW));
