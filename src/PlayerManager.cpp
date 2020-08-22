@@ -553,6 +553,9 @@ void PlayerManager::heartbeatPlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::exitGame(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_EXIT))
+        return;
+    
     sP_CL2FE_REQ_PC_EXIT* exitData = (sP_CL2FE_REQ_PC_EXIT*)data->buf;
     sP_FE2CL_REP_PC_EXIT_SUCC* response = (sP_FE2CL_REP_PC_EXIT_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_PC_EXIT_SUCC));
 
