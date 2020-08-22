@@ -17,6 +17,7 @@ struct Player {
     int slot;
     sPCStyle PCStyle;
     sPCStyle2 PCStyle2;
+    sNano Nanos[37];
 
     int x, y, z, angle;
     sItemBase Equip[AEQUIP_COUNT];
