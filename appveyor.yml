@@ -15,10 +15,24 @@ for:
   matrix:
     only:
       - image: Ubuntu2004
-  before_build:
-    - mkdir -p bin
   build_script:
-    - make
+    - ps: |
+        $versions = "104", "728"
+
+        foreach ($version in $versions) {
+            Write-Output "Cleaning old output"
+            Invoke-Expression "make clean"
+            if ($LASTEXITCODE -ne "0") {
+                Write-Error "make clean failed for version $version" -ErrorAction Stop
+            }
+            Write-Output "Building version $version"
+            Invoke-Expression "make PROTOCOL_VERSION=$version"
+            if ($LASTEXITCODE -ne "0") {
+                Write-Error "make failed for version $version" -ErrorAction Stop
+            }
+            Rename-Item -Path "bin/fusion" -newName "$version-fusion"
+            Write-Output "Built version $version"
+        }
   artifacts:
     - path: bin
       name: ubuntu20_04-bin-x64
@@ -29,7 +43,7 @@ for:
       - image: Visual Studio 2019
   build_script:
     - ps: |
-        $versions = "0104", "0728"
+        $versions = "104", "728"
         $configurations = "Release", "Debug"
 
         # AppVeyor uses VS2019 Community
@@ -43,7 +57,7 @@ for:
                 Remove-Item "build" -Recurse
                 Write-Output "Deleted existing build folder"
             }
-            Invoke-Expression "cmake -B build -DPACKET_VERSION=$version"
+            Invoke-Expression "cmake -B build -DPROTOCOL_VERSION=$version"
             if ($LASTEXITCODE -ne "0") {
                 Write-Error "cmake generation failed for version $version" -ErrorAction Stop
             }

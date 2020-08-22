@@ -4,19 +4,41 @@
 #include <cmath>
 #include <algorithm>
 #include <list>
+#include <fstream>
+
+#include "contrib/JSON.hpp"
 
 std::map<int32_t, BaseNPC> NPCManager::NPCs;
 
 void NPCManager::init() {
-    /* BaseNPC test(settings::SPAWN_X, settings::SPAWN_Y, settings::SPAWN_Z, 727);
-    NPCs[test.appearanceData.iNPC_ID] = test; */
+    // load NPCs from NPCs.json into our NPC manager
+
+    try {
+        std::ifstream inFile("NPCs.json");
+        nlohmann::json jsonData;
+
+        // read file into jsonData
+        inFile >> jsonData;
+
+        for (auto& npc : jsonData) {
+            BaseNPC tmp(npc["x"], npc["y"], npc["z"], npc["id"]);
+            NPCManager::NPCs[tmp.appearanceData.iNPC_ID] = tmp;
+        }
+
+        std::cout << "populated " << NPCs.size() << " NPCs" << std::endl;
+    }
+    catch (const std::exception& err) {
+        std::cerr << "[WARN] Malformed NPC.json file! Reason:" << std::endl << err.what() << std::endl;
+    }
 }
+
+#undef CHECKNPC
 
 void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
     std::list<int32_t> yesView;
     std::list<int32_t> noView;
 
-    for (auto pair : NPCs) {
+    for (auto& pair : NPCs) {
         int diffX = abs(view.plr.x - pair.second.appearanceData.iX);
         int diffY = abs(view.plr.y - pair.second.appearanceData.iY);
 
