@@ -17,11 +17,12 @@ void NanoManager::nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_NANO_EQUIP* nano = (sP_CL2FE_REQ_NANO_EQUIP*)data->buf;
-    sP_FE2CL_REP_NANO_EQUIP_SUCC* resp = (sP_FE2CL_REP_NANO_EQUIP_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_NANO_EQUIP_SUCC));
-    resp->iNanoID = nano->iNanoID;
-    resp->iNanoSlotNum = nano->iNanoSlotNum;
+    sP_FE2CL_REP_NANO_EQUIP_SUCC resp;
 
-    sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_NANO_EQUIP_SUCC, sizeof(sP_FE2CL_REP_NANO_EQUIP_SUCC), sock->getFEKey()));
+    resp.iNanoID = nano->iNanoID;
+    resp.iNanoSlotNum = nano->iNanoSlotNum;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_EQUIP_SUCC, sizeof(sP_FE2CL_REP_NANO_EQUIP_SUCC));
 }
 
 void NanoManager::nanoUnEquipHandler(CNSocket* sock, CNPacketData* data) {
@@ -29,10 +30,11 @@ void NanoManager::nanoUnEquipHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_NANO_UNEQUIP* nano = (sP_CL2FE_REQ_NANO_UNEQUIP*)data->buf;
-    sP_FE2CL_REP_NANO_UNEQUIP_SUCC* resp = (sP_FE2CL_REP_NANO_UNEQUIP_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_NANO_UNEQUIP_SUCC));
-    resp->iNanoSlotNum = nano->iNanoSlotNum;
+    sP_FE2CL_REP_NANO_UNEQUIP_SUCC resp;
 
-    sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_NANO_UNEQUIP_SUCC, sizeof(sP_FE2CL_REP_NANO_UNEQUIP_SUCC), sock->getFEKey()));
+    resp.iNanoSlotNum = nano->iNanoSlotNum;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_UNEQUIP_SUCC, sizeof(sP_FE2CL_REP_NANO_UNEQUIP_SUCC));
 }
 
 void NanoManager::nanoGMGiveHandler(CNSocket* sock, CNPacketData* data) {
@@ -59,9 +61,9 @@ void NanoManager::nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
     PlayerView plr = PlayerManager::players[sock];
 
     // Send to client
-    sP_FE2CL_REP_NANO_ACTIVE_SUCC* resp = (sP_FE2CL_REP_NANO_ACTIVE_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_NANO_ACTIVE_SUCC));
-    resp->iActiveNanoSlotNum = nano->iNanoSlotNum;
-    sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_NANO_ACTIVE_SUCC, sizeof(sP_FE2CL_REP_NANO_ACTIVE_SUCC), sock->getFEKey()));
+    sP_FE2CL_REP_NANO_ACTIVE_SUCC resp;
+    resp.iActiveNanoSlotNum = nano->iNanoSlotNum;
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_ACTIVE_SUCC, sizeof(sP_FE2CL_REP_NANO_ACTIVE_SUCC));
 
     DEBUGLOG(
         std::cout << U16toU8(plr.plr.PCStyle.szFirstName) << U16toU8(plr.plr.PCStyle.szLastName) << " requested to summon nano slot: " << nano->iNanoSlotNum << std::endl;
@@ -76,16 +78,16 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
     PlayerView plr = PlayerManager::players[sock];
 
     // Send to client
-    sP_FE2CL_NANO_SKILL_USE_SUCC* resp = (sP_FE2CL_NANO_SKILL_USE_SUCC*)xmalloc(sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC));
-    resp->iArg1 = skill->iArg1;
-    resp->iArg2 = skill->iArg2;
-    resp->iArg3 = skill->iArg3;
-    resp->iBulletID = skill->iBulletID;
-    resp->iTargetCnt = skill->iTargetCnt;
-    resp->iPC_ID = plr.plr.iID;
-    resp->iNanoStamina = 150; // Hardcoded for now
+    sP_FE2CL_NANO_SKILL_USE_SUCC resp;
+    resp.iArg1 = skill->iArg1;
+    resp.iArg2 = skill->iArg2;
+    resp.iArg3 = skill->iArg3;
+    resp.iBulletID = skill->iBulletID;
+    resp.iTargetCnt = skill->iTargetCnt;
+    resp.iPC_ID = plr.plr.iID;
+    resp.iNanoStamina = 150; // Hardcoded for now
 
-    sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_NANO_SKILL_USE_SUCC, sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC), sock->getFEKey()));
+    sock->sendPacket((void*)&resp, P_FE2CL_NANO_SKILL_USE_SUCC, sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC));
 
     DEBUGLOG(
         std::cout << U16toU8(plr.plr.PCStyle.szFirstName) << U16toU8(plr.plr.PCStyle.szLastName) << " requested to summon nano skill " << std::endl;
@@ -105,15 +107,15 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
     Player plr = PlayerManager::getPlayer(sock);
 
     // Send to client
-    sP_FE2CL_REP_PC_NANO_CREATE_SUCC* resp = new sP_FE2CL_REP_PC_NANO_CREATE_SUCC();
-    resp->Nano.iID = nanoId;
-    resp->Nano.iStamina = 150;
-    resp->iQuestItemSlotNum = slot;
+    sP_FE2CL_REP_PC_NANO_CREATE_SUCC resp;
+    resp.Nano.iID = nanoId;
+    resp.Nano.iStamina = 150;
+    resp.iQuestItemSlotNum = slot;
 
-    sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_PC_NANO_CREATE_SUCC, sizeof(sP_FE2CL_REP_PC_NANO_CREATE_SUCC), sock->getFEKey()));
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_NANO_CREATE_SUCC, sizeof(sP_FE2CL_REP_PC_NANO_CREATE_SUCC));
 
     // Update player
-    plr.Nanos[nanoId] = resp->Nano;
+    plr.Nanos[nanoId] = resp.Nano;
     PlayerManager::updatePlayer(sock, plr);
 }
 
@@ -125,11 +127,11 @@ void NanoManager::setNanoSkill(CNSocket* sock, int16_t nanoId, int16_t skillId) 
     plr.Nanos[nanoId] = nano;
 
     // Send to client
-    sP_FE2CL_REP_NANO_TUNE_SUCC* resp = (sP_FE2CL_REP_NANO_TUNE_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_NANO_TUNE_SUCC));
-    resp->iNanoID = nanoId;
-    resp->iSkillID = skillId;
+    sP_FE2CL_REP_NANO_TUNE_SUCC resp;
+    resp.iNanoID = nanoId;
+    resp.iSkillID = skillId;
 
-    sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_NANO_TUNE_SUCC, sizeof(sP_FE2CL_REP_NANO_TUNE_SUCC), sock->getFEKey()));
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_TUNE_SUCC, sizeof(sP_FE2CL_REP_NANO_TUNE_SUCC));
 
     DEBUGLOG(
         std::cout << U16toU8(plr.PCStyle.szFirstName) << U16toU8(plr.PCStyle.szLastName) << " set skill id " << skillId << " for nano: " << nanoId << std::endl;
