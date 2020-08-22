@@ -39,6 +39,7 @@ HDR=\
 	src/CNShardServer.hpp\
 	src/CNShared.hpp\
 	src/CNStructs.hpp\
+	src/Defines.hpp\
 	src/contrib/INIReader.hpp\
 	src/contrib/JSON.hpp\
 	src/NanoManager.hpp\
