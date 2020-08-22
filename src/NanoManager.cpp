@@ -86,6 +86,7 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
     resp->iNanoStamina = 150; // Hardcoded for now
 
     sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_NANO_SKILL_USE_SUCC, sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC), sock->getFEKey()));
+
     DEBUGLOG(
         std::cout << U16toU8(plr.plr.PCStyle.szFirstName) << U16toU8(plr.plr.PCStyle.szLastName) << " requested to summon nano skill " << std::endl;
     )

@@ -133,7 +133,7 @@ protected:
     void init();
 
     bool active = true;
-    long int lastTimer;
+    uint64_t lastTimer;
 
 public:
     PacketHandler pHandler;

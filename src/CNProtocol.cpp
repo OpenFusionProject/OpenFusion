@@ -1,6 +1,10 @@
 #include "CNProtocol.hpp"
 #include "CNStructs.hpp"
 
+#ifdef _MSC_VER
+    #define _WINSOCK_DEPRECATED_NO_WARNINGS
+#endif
+
 // ========================================================[[ CNSocketEncryption ]]========================================================
 
 // literally C/P from the client and converted to C++ (does some byte swapping /shrug)

@@ -37,7 +37,7 @@ void CNShardServer::killConnection(CNSocket* cns) {
 }
 
 void CNShardServer::onTimer() {
-    long int currTime = getTime();
+    uint64_t currTime = getTime();
 
     auto cachedPlayers = PlayerManager::players;
 
