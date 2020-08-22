@@ -1,6 +1,6 @@
 #include <iostream>
 #include "settings.hpp"
-#include "INIReader.hpp"
+#include "contrib/INIReader.hpp"
 
 // defaults :)
 int settings::LOGINPORT = 8001;

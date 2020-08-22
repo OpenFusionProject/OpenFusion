@@ -6,7 +6,7 @@
 #include <list>
 #include <fstream>
 
-#include "JSON.hpp"
+#include "contrib/JSON.hpp"
 
 std::map<int32_t, BaseNPC> NPCManager::NPCs;
 

@@ -73,12 +73,15 @@ CNSocket::CNSocket(SOCKET s, PacketHandler ph): sock(s), pHandler(ph) {
 
 bool CNSocket::sendData(uint8_t* data, int size) {
     int sentBytes = 0;
+    int maxTries = 10;
 
     while (sentBytes < size) {
         int sent = send(sock, (buffer_t*)(data + sentBytes), size - sentBytes, 0); // no flags defined
         if (SOCKETERROR(sent)) {
-            if (errno == 11)
+            if (errno == 11 && maxTries > 0) {
+                maxTries--;
                 continue; // try again
+            }
             std::cout << "[FATAL] SOCKET ERROR: " << errno << std::endl;
             return false; // error occured while sending bytes
         }
