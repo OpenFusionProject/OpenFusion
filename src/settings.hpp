@@ -2,6 +2,7 @@
 #define _SETT_HPP
 
 namespace settings {
+    extern bool VERBOSE;
     extern int LOGINPORT;
     extern bool LOGINRANDCHARACTERS;
     extern int SHARDPORT;
