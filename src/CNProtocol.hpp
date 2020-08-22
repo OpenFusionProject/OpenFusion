@@ -77,15 +77,17 @@ namespace CNSocketEncryption {
     int decryptData(uint8_t* buffer, uint8_t* key, int size);
 }
 
-class CNPacketData {
-public:
+struct CNPacketData {
     void* buf;
     int size;
     uint32_t type;
-    uint64_t key;
 
-    CNPacketData(void* b, uint32_t t, int l, uint64_t k);
-    ~CNPacketData();
+    CNPacketData(void* b, uint32_t t, int l);
+};
+
+enum ACTIVEKEY {
+    SOCKETKEY_E,
+    SOCKETKEY_FE
 };
 
 class CNSocket;
@@ -101,6 +103,8 @@ private:
     bool activelyReading = false;
     bool alive = true;
 
+    ACTIVEKEY activeKey;
+
     bool sendData(uint8_t* data, int size);
 
 public:
@@ -113,9 +117,10 @@ public:
     void setFEKey(uint64_t k);
     uint64_t getEKey();
     uint64_t getFEKey();
+    void setActiveKey(ACTIVEKEY t);
 
     void kill();
-    void sendPacket(CNPacketData* pak);
+    void sendPacket(void* buf, uint32_t packetType, size_t size);
     void step();
     bool isAlive();
 };
@@ -143,6 +148,7 @@ public:
 
     void start();
     void kill();
+    virtual void newConnection(CNSocket* cns);
     virtual void killConnection(CNSocket* cns);
     virtual void onTimer(); // called every 2 seconds
 };
