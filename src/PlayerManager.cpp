@@ -559,3 +559,13 @@ void PlayerManager::exitGame(CNSocket* sock, CNPacketData* data) {
 
     sock->sendPacket(new CNPacketData((void*)response, P_FE2CL_REP_PC_EXIT_SUCC, sizeof(sP_FE2CL_REP_PC_EXIT_SUCC), sock->getFEKey()));
 }
+
+void PlayerManager::updatePlayer(CNSocket* key, Player plr) {
+    PlayerView plrv = players[key];
+    plrv.plr = plr;
+
+    players[key] = plrv;
+}
+
+void PlayerManager::onPlayerSpawn(CNSocket* sock, CNPacketData* data) {
+}
