@@ -214,6 +214,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
         response->PCLoadData2CL.aNanoBank[i].iStamina = 150;
     }
 
+    // temporarily not add nanos for nano add test through commands
     //response->PCLoadData2CL.aNanoSlots[0] = 1;
     //response->PCLoadData2CL.aNanoSlots[1] = 2;
     //response->PCLoadData2CL.aNanoSlots[2] = 3;
