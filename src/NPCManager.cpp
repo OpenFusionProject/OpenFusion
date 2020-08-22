@@ -10,37 +10,26 @@
 
 std::map<int32_t, BaseNPC> NPCManager::NPCs;
 
-#define CHECKNPC(x) if (NPC.value().find(x) == NPC.value().end()) { \
-            std::cout << "[WARN] Malformed NPC.json file! failed to find " << x << std::endl; \
-            return; \
-        }
-
 void NPCManager::init() {
     // load NPCs from NPCs.json into our NPC manager
 
-    std::ifstream inFile("NPCs.json");
-    nlohmann::json jsonData;
+    try {
+        std::ifstream inFile("NPCs.json");
+        nlohmann::json jsonData;
 
-    // read file into jsonData
-    inFile >> jsonData;
+        // read file into jsonData
+        inFile >> jsonData;
 
-    for (auto& NPC : jsonData.items()) {
-        std::string name = NPC.key();
+        for (auto& npc : jsonData) {
+            BaseNPC tmp(npc["x"], npc["y"], npc["z"], npc["id"]);
+            NPCManager::NPCs[tmp.appearanceData.iNPC_ID] = tmp;
+        }
 
-        // sanity checks
-        CHECKNPC("id")
-        CHECKNPC("x")
-        CHECKNPC("y")
-        CHECKNPC("z")
-        
-        int x = (int)(jsonData[NPC.key()]["x"]);
-        int y = (int)(jsonData[NPC.key()]["y"]);
-        int z = (int)(jsonData[NPC.key()]["z"]);
-        BaseNPC tmp(x, y, z, jsonData[NPC.key()]["id"]);
-        NPCManager::NPCs[tmp.appearanceData.iNPC_ID] = tmp;
+        std::cout << "populated " << NPCs.size() << " NPCs" << std::endl;
     }
-
-    std::cout << "populated " << NPCs.size() << " NPCs" << std::endl;
+    catch (const std::exception& err) {
+        std::cerr << "[WARN] Malformed NPC.json file! Reason:" << std::endl << err.what() << std::endl;
+    }
 }
 
 #undef CHECKNPC
@@ -49,7 +38,7 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
     std::list<int32_t> yesView;
     std::list<int32_t> noView;
 
-    for (auto pair : NPCs) {
+    for (auto& pair : NPCs) {
         int diffX = abs(view.plr.x - pair.second.appearanceData.iX);
         int diffY = abs(view.plr.y - pair.second.appearanceData.iY);
 
