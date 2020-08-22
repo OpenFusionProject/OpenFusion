@@ -3,6 +3,7 @@
 #include "CNShardServer.hpp"
 #include "PlayerManager.hpp"
 #include "CNShared.hpp"
+#include "settings.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -17,6 +18,10 @@ CNShardServer::CNShardServer(uint16_t p) {
 }
 
 void CNShardServer::handlePacket(CNSocket* sock, CNPacketData* data) {
+    if (settings::VERBOSE)
+        std::cout << "OpenFusion: received " << Defines::p2str(CL2FE, data->type) << " (" << data->type << ")" << std::endl;
+
+
     if (ShardPackets.find(data->type) != ShardPackets.end())
         ShardPackets[data->type](sock, data);
     else
@@ -24,7 +29,7 @@ void CNShardServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 }
 
 void CNShardServer::killConnection(CNSocket* cns) {
-    // remove from CNSharedData 
+    // remove from CNSharedData
     Player cachedPlr = PlayerManager::getPlayer(cns);
     PlayerManager::removePlayer(cns);
 

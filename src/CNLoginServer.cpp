@@ -17,6 +17,9 @@ CNLoginServer::CNLoginServer(uint16_t p) {
 }
 
 void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
+    if (settings::VERBOSE)
+        std::cout << "OpenFusion: received " << Defines::p2str(CL2LS, data->type) << " (" << data->type << ")" << std::endl;
+
     switch (data->type) {
         case P_CL2LS_REQ_LOGIN: {
             if (data->size != sizeof(sP_CL2LS_REQ_LOGIN))

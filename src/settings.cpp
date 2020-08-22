@@ -3,6 +3,8 @@
 #include "contrib/INIReader.hpp"
 
 // defaults :)
+bool settings::VERBOSE = false;
+
 int settings::LOGINPORT = 8001;
 bool settings::LOGINRANDCHARACTERS = false;
 
@@ -30,6 +32,7 @@ void settings::init() {
         return;
     }
 
+    VERBOSE = reader.GetBoolean("", "verbose", VERBOSE);
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);
     LOGINRANDCHARACTERS = reader.GetBoolean("login", "randomcharacters", LOGINRANDCHARACTERS);
     SHARDPORT = reader.GetInteger("shard", "port", SHARDPORT);
