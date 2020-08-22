@@ -1,6 +1,6 @@
 #include <iostream>
 #include "settings.hpp"
-#include "INIReader.hpp"
+#include "contrib/INIReader.hpp"
 
 // defaults :)
 int settings::LOGINPORT = 8001;
@@ -14,7 +14,8 @@ int settings::VIEWDISTANCE = 20000;
 int settings::SPAWN_X = 179213;
 int settings::SPAWN_Y = 268451;
 int settings::SPAWN_Z = -4210;
-
+std::string settings::GMPASS = "pass";
+std::string settings::NPCJSON = "NPCs.json";
 std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
 
 void settings::init() {
@@ -37,6 +38,8 @@ void settings::init() {
     SPAWN_X = reader.GetInteger("shard", "spawnx", SPAWN_X);
     SPAWN_Y = reader.GetInteger("shard", "spawny", SPAWN_Y);
     SPAWN_Z = reader.GetInteger("shard", "spawnz", SPAWN_Z);
-    MOTDSTRING = reader.Get("shard", "motd", "Welcome to OpenFusion!");
+    GMPASS = reader.Get("login", "pass", GMPASS);
+    NPCJSON = reader.Get("shard", "npcdata", NPCJSON);
+    MOTDSTRING = reader.Get("shard", "motd", MOTDSTRING);
 
 }

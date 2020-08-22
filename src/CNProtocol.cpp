@@ -73,11 +73,18 @@ CNSocket::CNSocket(SOCKET s, PacketHandler ph): sock(s), pHandler(ph) {
 
 bool CNSocket::sendData(uint8_t* data, int size) {
     int sentBytes = 0;
+    int maxTries = 10;
 
     while (sentBytes < size) {
         int sent = send(sock, (buffer_t*)(data + sentBytes), size - sentBytes, 0); // no flags defined
-        if (SOCKETERROR(sent)) 
+        if (SOCKETERROR(sent)) {
+            if (errno == 11 && maxTries > 0) {
+                maxTries--;
+                continue; // try again
+            }
+            std::cout << "[FATAL] SOCKET ERROR: " << errno << std::endl;
             return false; // error occured while sending bytes
+        }
         sentBytes += sent;
     }
     
@@ -116,6 +123,11 @@ void CNSocket::kill() {
 }
 
 void CNSocket::sendPacket(CNPacketData* pak) {
+    if (!alive) {
+        delete pak;
+        return;
+    }
+    
     int tmpSize = pak->size + sizeof(uint32_t);
     uint8_t* tmpBuf = (uint8_t*)xmalloc(tmpSize);
 
@@ -127,10 +139,12 @@ void CNSocket::sendPacket(CNPacketData* pak) {
     CNSocketEncryption::encryptData((uint8_t*)tmpBuf, (uint8_t*)(&pak->key), tmpSize);
 
     // send packet size
-    sendData((uint8_t*)&tmpSize, sizeof(uint32_t));
+    if (!sendData((uint8_t*)&tmpSize, sizeof(uint32_t)))
+        kill();
 
     // send packet data!
-    sendData(tmpBuf, tmpSize);
+    if (alive && !sendData(tmpBuf, tmpSize)) 
+        kill();
 
     delete pak;
     free(tmpBuf); // free tmp buffer

@@ -1,8 +1,12 @@
 #include "CNStructs.hpp"
 
 std::string U16toU8(char16_t* src) {
-    std::wstring_convert<std::codecvt_utf8_utf16<char16_t>,char16_t> convert; 
-    return convert.to_bytes(src);   
+    try {
+        std::wstring_convert<std::codecvt_utf8_utf16<char16_t>,char16_t> convert; 
+        return convert.to_bytes(src);   
+    } catch(std::exception e) {
+        return "";
+    }
 }
 
 // returns number of char16_t that was written at des
