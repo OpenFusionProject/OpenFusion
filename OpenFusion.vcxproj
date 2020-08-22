@@ -40,6 +40,8 @@
     <ClInclude Include="src\CNShardServer.hpp" />
     <ClInclude Include="src\CNShared.hpp" />
     <ClInclude Include="src\CNStructs.hpp" />
+    <ClInclude Include="src\contrib\INIReader.hpp" />
+    <ClInclude Include="src\contrib\JSON.hpp" />
     <ClInclude Include="src\INIReader.hpp" />
     <ClInclude Include="src\ItemManager.hpp" />
     <ClInclude Include="src\NanoManager.hpp" />

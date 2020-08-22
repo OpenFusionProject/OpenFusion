@@ -19,7 +19,7 @@ public:
         appearanceData.iBarkerType = 0;
 
         // hopefully no collisions happen :eyes:
-        appearanceData.iNPC_ID = (int32_t)getTime();
+        appearanceData.iNPC_ID = (int32_t)rand();
     };
 };
 

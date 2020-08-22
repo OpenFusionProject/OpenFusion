@@ -91,6 +91,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     loginSessions[sock].characters[UID].z = charInfo->iZ;
                     loginSessions[sock].characters[UID].PCStyle = charInfo->sPC_Style;
                     loginSessions[sock].characters[UID].PCStyle2 = charInfo->sPC_Style2;
+                    loginSessions[sock].characters[UID].IsGM = false;
 
                     for (int i = 0; i < AEQUIP_COUNT; i++) {
                         // setup equips
@@ -188,6 +189,18 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 std::cout << "\tiEquipLBID: " << (int)character->sOn_Item.iEquipLBID << std::endl;
                 std::cout << "\tiEquipFootID: " << (int)character->sOn_Item.iEquipFootID << std::endl;
             )
+            
+            int64_t UID = character->PCStyle.iPC_UID;
+            
+            // commented and disabled for now
+            //bool BecomeGM;
+            
+            //if (U16toU8(character->PCStyle.szFirstName) == settings::GMPASS) {
+            //    BecomeGM = true;
+            //    U8toU16("GM",character->PCStyle.szFirstName);
+            //} else {
+            //    BecomeGM = false;
+            //}
 
             character->PCStyle.iNameCheck = 1;
             response->sPC_Style = character->PCStyle;
@@ -197,7 +210,6 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             response->iLevel = 1;
             response->sOn_Item = character->sOn_Item;
 
-            int64_t UID = character->PCStyle.iPC_UID;
             loginSessions[sock].characters[UID] = Player();
             loginSessions[sock].characters[UID].level = 1;
             loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
@@ -214,6 +226,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             loginSessions[sock].characters[UID].Equip[2].iType = 2;
             loginSessions[sock].characters[UID].Equip[3].iID = character->sOn_Item.iEquipFootID; // foot!
             loginSessions[sock].characters[UID].Equip[3].iType = 3; 
+            loginSessions[sock].characters[UID].IsGM = false;
 
             sock->sendPacket(new CNPacketData((void*)response, P_LS2CL_REP_CHAR_CREATE_SUCC, sizeof(sP_LS2CL_REP_CHAR_CREATE_SUCC), sock->getEKey()));
             break;

@@ -113,5 +113,11 @@
     <ClInclude Include="src\NPC.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\contrib\INIReader.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\contrib\JSON.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
