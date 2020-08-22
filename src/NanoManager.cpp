@@ -11,6 +11,9 @@ void NanoManager::init() {
 }
 
 void NanoManager::nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
+	if (data->size != sizeof(sP_CL2FE_REQ_NANO_EQUIP))
+		return; // malformed packet
+
 	sP_CL2FE_REQ_NANO_EQUIP* nano = (sP_CL2FE_REQ_NANO_EQUIP*)data->buf;
 	sP_FE2CL_REP_NANO_EQUIP_SUCC* resp = (sP_FE2CL_REP_NANO_EQUIP_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_NANO_EQUIP_SUCC));
 	resp->iNanoID = nano->iNanoID;
@@ -36,7 +39,7 @@ void NanoManager::nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
-	if (data->size != sizeof(sP_CL2FE_REQ_NANO_ACTIVE))
+	if (data->size != sizeof(sP_CL2FE_REQ_NANO_SKILL_USE))
 		return; // malformed packet
 
 	sP_CL2FE_REQ_NANO_SKILL_USE* skill = (sP_CL2FE_REQ_NANO_SKILL_USE*)data->buf;
@@ -58,7 +61,7 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 void NanoManager::nanoSkillSetHandler(CNSocket* sock, CNPacketData* data) {
-	if (data->size != sizeof(sP_CL2FE_REQ_NANO_ACTIVE))
+	if (data->size != sizeof(sP_CL2FE_REQ_NANO_TUNE))
 		return; // malformed packet
 
 	sP_CL2FE_REQ_NANO_TUNE* skill = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
