@@ -6,12 +6,12 @@
 void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_MENUCHAT_MESSAGE, menuChatHandler);
 }
 
 void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE))
         return; // malformed packet
-    
     sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE*)data->buf;
     PlayerView plr = PlayerManager::players[sock];
 
@@ -31,7 +31,28 @@ void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
         otherSock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC), otherSock->getFEKey()));
     }
 }
+void ChatManager::menuChatHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_SEND_MENUCHAT_MESSAGE))
+        return; // malformed packet
+    sP_CL2FE_REQ_SEND_MENUCHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_MENUCHAT_MESSAGE*)data->buf;
+    PlayerView plr = PlayerManager::players[sock];
 
+    // send to client
+    sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC* resp = (sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC));
+    memcpy(resp->szFreeChat, chat->szFreeChat, sizeof(chat->szFreeChat));
+    resp->iPC_ID = PlayerManager::players[sock].plr.iID;
+    resp->iEmoteCode = chat->iEmoteCode;
+    sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC), sock->getFEKey()));
+
+    // send to visible players
+    for (CNSocket* otherSock : plr.viewable) {
+        sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC* resp = (sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC));
+        memcpy(resp->szFreeChat, chat->szFreeChat, sizeof(chat->szFreeChat));
+        resp->iPC_ID = PlayerManager::players[sock].plr.iID;
+        resp->iEmoteCode = chat->iEmoteCode;
+        otherSock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC), otherSock->getFEKey()));
+    }
+}
 void ChatManager::emoteHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT))
         return; // ignore the malformed packet
