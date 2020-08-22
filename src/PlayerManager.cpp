@@ -567,6 +567,3 @@ void PlayerManager::updatePlayer(CNSocket* key, Player plr) {
 
 	players[key] = plrv;
 }
-
-void PlayerManager::onPlayerSpawn(CNSocket* sock, CNPacketData* data) {
-}
