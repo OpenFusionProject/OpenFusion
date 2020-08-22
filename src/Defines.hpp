@@ -838,3 +838,20 @@ enum {
     P_LS2CL_REP_CHANGE_CHAR_NAME_FAIL = 0x21000018,		// 553648152
     P_LS2CL_REP_SHARD_LIST_INFO_SUCC = 0x21000019,		// 553648153
 };
+
+/*
+ * Numbers of packets by type.
+ * Each is the last packet - the upper bits + 1
+ */
+enum {
+   N_CL2LS = 0xf,
+   N_CL2FE = 0xa5,
+   N_FE2CL = 0x12f,
+   N_LS2CL = 0x1a,
+
+   N_PACKETS = N_CL2LS + N_CL2FE + N_FE2CL + N_LS2CL
+};
+
+namespace Defines {
+    std::string p2str(int type, int val);
+}

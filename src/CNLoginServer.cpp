@@ -278,7 +278,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             break;
         }
         default:
-            std::cerr << "OpenFusion: LOGIN UNIMPLM ERR. PacketType: " << data->type << std::endl;
+            std::cerr << "OpenFusion: LOGIN UNIMPLM ERR. PacketType: " << Defines::p2str(CL2LS, data->type) << " (" << data->type << ")" << std::endl;
             break;
     }
 }

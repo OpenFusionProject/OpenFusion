@@ -23,6 +23,7 @@ SRC=\
 	src/CNShardServer.cpp\
 	src/CNShared.cpp\
 	src/CNStructs.cpp\
+	src/Defines.cpp\
 	src/main.cpp\
 	src/NanoManager.cpp\
 	src/ItemManager.cpp\

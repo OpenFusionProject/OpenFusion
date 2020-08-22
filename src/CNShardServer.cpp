@@ -20,7 +20,7 @@ void CNShardServer::handlePacket(CNSocket* sock, CNPacketData* data) {
     if (ShardPackets.find(data->type) != ShardPackets.end())
         ShardPackets[data->type](sock, data);
     else
-        std::cerr << "OpenFusion: SHARD UNIMPLM ERR. PacketType: " << data->type << std::endl;
+        std::cerr << "OpenFusion: SHARD UNIMPLM ERR. PacketType: " << Defines::p2str(CL2FE, data->type) << " (" << data->type << ")" << std::endl;
 }
 
 void CNShardServer::killConnection(CNSocket* cns) {
