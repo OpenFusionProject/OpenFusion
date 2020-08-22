@@ -82,7 +82,8 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
 
         if (diffX < settings::VIEWDISTANCE && diffY < settings::VIEWDISTANCE) {
             yesView.push_back(pair.first);
-        } else {
+        }
+        else {
             noView.push_back(pair.first);
         }
     }
@@ -95,7 +96,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
 
             sP_FE2CL_PC_EXIT* exitPacket = (sP_FE2CL_PC_EXIT*)xmalloc(sizeof(sP_FE2CL_PC_EXIT));
             sP_FE2CL_PC_EXIT* exitPacketOther = (sP_FE2CL_PC_EXIT*)xmalloc(sizeof(sP_FE2CL_PC_EXIT));
-            
+
             exitPacket->iID = players[sock].plr.iID;
             exitPacketOther->iID = players[otherSock].plr.iID;
 
@@ -164,13 +165,13 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_ENTER:" << std::endl;
-        std::cout << "\tID: " << U16toU8(enter->szID) << std::endl;
-        std::cout << "\tSerial: " << enter->iEnterSerialKey << std::endl;
-        std::cout << "\tTemp: " << enter->iTempValue << std::endl;
-        std::cout << "\tPC_UID: " << plr.PCStyle.iPC_UID << std::endl;
+    std::cout << "\tID: " << U16toU8(enter->szID) << std::endl;
+    std::cout << "\tSerial: " << enter->iEnterSerialKey << std::endl;
+    std::cout << "\tTemp: " << enter->iTempValue << std::endl;
+    std::cout << "\tPC_UID: " << plr.PCStyle.iPC_UID << std::endl;
     )
 
-    response->iID = rand();
+        response->iID = rand();
     response->uiSvrTime = getTime();
     response->PCLoadData2CL.iUserLevel = 1;
     response->PCLoadData2CL.iHP = 1000 * plr.level;
@@ -213,9 +214,10 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
         response->PCLoadData2CL.aNanoBank[i].iStamina = 150;
     }
 
-    response->PCLoadData2CL.aNanoSlots[0] = 1;
-    response->PCLoadData2CL.aNanoSlots[1] = 2;
-    response->PCLoadData2CL.aNanoSlots[2] = 3;
+    // temporarily not add nanos for nano add test through commands
+    //response->PCLoadData2CL.aNanoSlots[0] = 1;
+    //response->PCLoadData2CL.aNanoSlots[1] = 2;
+    //response->PCLoadData2CL.aNanoSlots[2] = 3;
 
     response->PCLoadData2CL.aQuestFlag[0] = -1;
 
@@ -245,10 +247,10 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_LOADING_COMPLETE:" << std::endl;
-        std::cout << "\tPC_ID: " << complete->iPC_ID << std::endl;
+    std::cout << "\tPC_ID: " << complete->iPC_ID << std::endl;
     )
 
-    response->iPC_ID = complete->iPC_ID;
+        response->iPC_ID = complete->iPC_ID;
 
     sock->sendPacket(new CNPacketData((void*)response, P_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC), sock->getFEKey()));
 }
@@ -256,7 +258,7 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
 void PlayerManager::movePlayer(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_MOVE))
         return; // ignore the malformed packet
-    
+
     sP_CL2FE_REQ_PC_MOVE* moveData = (sP_CL2FE_REQ_PC_MOVE*)data->buf;
     updatePlayerPosition(sock, moveData->iX, moveData->iY, moveData->iZ);
 
@@ -276,7 +278,7 @@ void PlayerManager::movePlayer(CNSocket* sock, CNPacketData* data) {
         moveResponse->fVX = moveData->fVX;
         moveResponse->fVY = moveData->fVY;
         moveResponse->fVZ = moveData->fVZ;
-        
+
         moveResponse->iSpeed = moveData->iSpeed;
         moveResponse->iCliTime = moveData->iCliTime; // maybe don't send this??? seems unneeded...
         moveResponse->iSvrTime = tm;
@@ -313,7 +315,7 @@ void PlayerManager::stopPlayer(CNSocket* sock, CNPacketData* data) {
 void PlayerManager::jumpPlayer(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_JUMP))
         return; // ignore the malformed packet
-    
+
     sP_CL2FE_REQ_PC_JUMP* jumpData = (sP_CL2FE_REQ_PC_JUMP*)data->buf;
     updatePlayerPosition(sock, jumpData->iX, jumpData->iY, jumpData->iZ);
 
@@ -332,7 +334,7 @@ void PlayerManager::jumpPlayer(CNSocket* sock, CNPacketData* data) {
         jumpResponse->iVX = jumpData->iVX;
         jumpResponse->iVY = jumpData->iVY;
         jumpResponse->iVZ = jumpData->iVZ;
-        
+
         jumpResponse->iSpeed = jumpData->iSpeed;
         jumpResponse->iCliTime = jumpData->iCliTime; // maybe don't send this??? seems unneeded...
         jumpResponse->iSvrTime = tm;
@@ -344,7 +346,7 @@ void PlayerManager::jumpPlayer(CNSocket* sock, CNPacketData* data) {
 void PlayerManager::jumppadPlayer(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_JUMPPAD))
         return; // ignore the malformed packet
-    
+
     sP_CL2FE_REQ_PC_JUMPPAD* jumppadData = (sP_CL2FE_REQ_PC_JUMPPAD*)data->buf;
     updatePlayerPosition(sock, jumppadData->iX, jumppadData->iY, jumppadData->iZ);
 
@@ -362,7 +364,7 @@ void PlayerManager::jumppadPlayer(CNSocket* sock, CNPacketData* data) {
         jumppadResponse->iVX = jumppadData->iVX;
         jumppadResponse->iVY = jumppadData->iVY;
         jumppadResponse->iVZ = jumppadData->iVZ;
-        
+
         jumppadResponse->iCliTime = jumppadData->iCliTime;
         jumppadResponse->iSvrTime = tm;
 
@@ -373,7 +375,7 @@ void PlayerManager::jumppadPlayer(CNSocket* sock, CNPacketData* data) {
 void PlayerManager::launchPlayer(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_LAUNCHER))
         return; // ignore the malformed packet
-    
+
     sP_CL2FE_REQ_PC_LAUNCHER* launchData = (sP_CL2FE_REQ_PC_LAUNCHER*)data->buf;
     updatePlayerPosition(sock, launchData->iX, launchData->iY, launchData->iZ);
 
@@ -392,7 +394,7 @@ void PlayerManager::launchPlayer(CNSocket* sock, CNPacketData* data) {
         launchResponse->iVZ = launchData->iVZ;
         launchResponse->iSpeed = launchData->iSpeed;
         launchResponse->iAngle = launchData->iAngle;
-        
+
         launchResponse->iCliTime = launchData->iCliTime;
         launchResponse->iSvrTime = tm;
 
@@ -513,12 +515,12 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_GOTO:" << std::endl;
-        std::cout << "\tX: " << gotoData->iToX << std::endl;
-        std::cout << "\tY: " << gotoData->iToY << std::endl;
-        std::cout << "\tZ: " << gotoData->iToZ << std::endl;
+    std::cout << "\tX: " << gotoData->iToX << std::endl;
+    std::cout << "\tY: " << gotoData->iToY << std::endl;
+    std::cout << "\tZ: " << gotoData->iToZ << std::endl;
     )
 
-    response->iX = gotoData->iToX;
+        response->iX = gotoData->iToX;
     response->iY = gotoData->iToY;
     response->iZ = gotoData->iToZ;
 
@@ -534,12 +536,12 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
 
     DEBUGLOG(
         std::cout << "P_CL2FE_GM_REQ_PC_SET_VALUE:" << std::endl;
-        std::cout << "\tPC_ID: " << setData->iPC_ID << std::endl;
-        std::cout << "\tSetValueType: " << setData->iSetValueType << std::endl;
-        std::cout << "\tSetValue: " << setData->iSetValue << std::endl;
+    std::cout << "\tPC_ID: " << setData->iPC_ID << std::endl;
+    std::cout << "\tSetValueType: " << setData->iSetValueType << std::endl;
+    std::cout << "\tSetValue: " << setData->iSetValue << std::endl;
     )
 
-    response->iPC_ID = setData->iPC_ID;
+        response->iPC_ID = setData->iPC_ID;
     response->iSetValue = setData->iSetValue;
     response->iSetValueType = setData->iSetValueType;
 
@@ -558,4 +560,11 @@ void PlayerManager::exitGame(CNSocket* sock, CNPacketData* data) {
     response->iExitCode = 1;
 
     sock->sendPacket(new CNPacketData((void*)response, P_FE2CL_REP_PC_EXIT_SUCC, sizeof(sP_FE2CL_REP_PC_EXIT_SUCC), sock->getFEKey()));
+}
+
+void PlayerManager::updatePlayer(CNSocket* key, Player plr) {
+    PlayerView plrv = players[key];
+    plrv.plr = plr;
+
+    players[key] = plrv;
 }
