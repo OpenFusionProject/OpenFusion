@@ -17,7 +17,7 @@ struct Player {
     int slot; // player slot, not nano slot
     sPCStyle PCStyle;
     sPCStyle2 PCStyle2;
-    sNano Nanos[37];
+    sNano Nanos[37]; // acquired nanos
     int equippedNanos[3];
     int nano; // active nano (index into Nanos)
 
