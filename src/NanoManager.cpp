@@ -103,7 +103,7 @@ void NanoManager::nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
     }
 
     // update player
-    plr.nano = nanoId;
+    plr.activeNano = nanoId;
     PlayerManager::updatePlayer(sock, plr);
 
     DEBUGLOG(

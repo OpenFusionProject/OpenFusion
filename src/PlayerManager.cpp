@@ -29,6 +29,9 @@ void PlayerManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REP_LIVE_CHECK, PlayerManager::heartbeatPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_REGEN, PlayerManager::revivePlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_EXIT, PlayerManager::exitGame);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SPECIAL_STATE_SWITCH, PlayerManager::setSpecialSwitchPlayer);
+
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_OFF, PlayerManager::exitPlayerVehicle);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_ON, PlayerManager::enterPlayerVehicle);
 }
 
@@ -123,7 +126,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
             newPlayer.PCAppearanceData.iZ = plr.z;
             newPlayer.PCAppearanceData.iAngle = plr.angle;
             newPlayer.PCAppearanceData.PCStyle = plr.PCStyle;
-            newPlayer.PCAppearanceData.Nano = plr.Nanos[plr.nano];
+            newPlayer.PCAppearanceData.Nano = plr.Nanos[plr.activeNano];
             memcpy(newPlayer.PCAppearanceData.ItemEquip, plr.Equip, sizeof(sItemBase) * AEQUIP_COUNT);
 
             otherSock->sendPacket((void*)&newPlayer, P_FE2CL_PC_NEW, sizeof(sP_FE2CL_PC_NEW));
@@ -136,7 +139,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
             newPlayer.PCAppearanceData.iZ = otherPlr.z;
             newPlayer.PCAppearanceData.iAngle = otherPlr.angle;
             newPlayer.PCAppearanceData.PCStyle = otherPlr.PCStyle;
-            newPlayer.PCAppearanceData.Nano = otherPlr.Nanos[otherPlr.nano];
+            newPlayer.PCAppearanceData.Nano = otherPlr.Nanos[otherPlr.activeNano];
             memcpy(newPlayer.PCAppearanceData.ItemEquip, otherPlr.Equip, sizeof(sItemBase) * AEQUIP_COUNT);
 
             sock->sendPacket((void*)&newPlayer, P_FE2CL_PC_NEW, sizeof(sP_FE2CL_PC_NEW));
@@ -568,9 +571,36 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
 void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_VEHICLE_ON* vehicleData = (sP_CL2FE_REQ_PC_VEHICLE_ON*)data->buf;
     INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_SUCC, response);
+    PlayerView plrv = PlayerManager::players[sock];
 
-    response.UNUSED = vehicleData->UNUSED;
+    // send to other players
+    //for (CNSocket* otherSock : plrv.viewable) {
+    //    otherSock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_ON_SUCC));
+    //}
+
     sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_ON_SUCC));
+}
+
+void PlayerManager::exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
+    sP_CL2FE_REQ_PC_VEHICLE_OFF* vehicleData = (sP_CL2FE_REQ_PC_VEHICLE_OFF*)data->buf;
+    INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
+    PlayerView plrv = PlayerManager::players[sock];
+
+    // send to other players
+    //for (CNSocket* otherSock : plrv.viewable) {
+    //    otherSock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_OFF_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_OFF_SUCC));
+    //}
+
+    sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_OFF_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_OFF_SUCC));
+}
+
+void PlayerManager::setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {
+    sP_CL2FE_REQ_PC_SPECIAL_STATE_SWITCH* specialData = (sP_CL2FE_REQ_PC_SPECIAL_STATE_SWITCH*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC, response);
+
+    response.iPC_ID = specialData->iPC_ID;
+    response.iReqSpecialStateFlag = specialData->iSpecialStateFlag;
+    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC, sizeof(sP_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC));
 }
 
 #pragma region Helper methods
