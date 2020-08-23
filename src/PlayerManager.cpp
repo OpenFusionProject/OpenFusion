@@ -561,6 +561,9 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     response.bMoveLocation = reviveData->eIL;
     response.PCRegenData.iMapNum = reviveData->iIndex;
     response.PCRegenData.iHP = 1000 * plr.level;
+    response.PCRegenData.iX = plr.x;
+    response.PCRegenData.iY = plr.y;
+    response.PCRegenData.iZ = plr.z;
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_REGEN_SUCC, sizeof(sP_FE2CL_REP_PC_REGEN_SUCC));
 }
