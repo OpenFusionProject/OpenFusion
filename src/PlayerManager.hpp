@@ -27,6 +27,7 @@ namespace PlayerManager {
 
     void updatePlayer(CNSocket* key, Player plr);
     void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z);
+    std::list<CNSocket*> getNearbyPlayers(int X, int Y, int dist);
 
     void enterPlayer(CNSocket* sock, CNPacketData* data);
     void loadPlayer(CNSocket* sock, CNPacketData* data);
