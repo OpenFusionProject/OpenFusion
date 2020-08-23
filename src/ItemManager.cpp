@@ -8,6 +8,10 @@ void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_DELETE, itemDeleteHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GIVE_ITEM, itemGMGiveHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER, itemTradeOfferHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER_ACCEPT, itemTradeOfferAcceptHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER_REFUSAL, itemTradeOfferRefusalHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_CONFIRM_CANCEL, itemTradeConfirmCancelHandler);
 }
 
 void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
@@ -146,4 +150,66 @@ void ItemManager::itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
         //sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
         // saving this for later use on a /level command
     }
+}
+
+void ItemManager::itemTradeOfferHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_OFFER))
+        return; // ignore the malformed packet
+
+    sP_CL2FE_REQ_PC_TRADE_OFFER* pacdat = (sP_CL2FE_REQ_PC_TRADE_OFFER*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER, resp);
+    
+    DEBUGLOG(
+                std::cout << "\tiID_Request: " << (int)pacdat->iID_Request << std::endl;
+                std::cout << "\tiID_From: " << (int)pacdat->iID_From << std::endl;
+                std::cout << "\tiID_To: " << (int)pacdat->iID_To << std::endl;
+            )
+
+    resp.iID_Request = pacdat->iID_Request;
+    resp.iID_From = pacdat->iID_To;
+    resp.iID_To = pacdat->iID_From;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER));
+}
+
+void ItemManager::itemTradeOfferAcceptHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_OFFER_ACCEPT))
+        return; // ignore the malformed packet
+
+    sP_CL2FE_REQ_PC_TRADE_OFFER_ACCEPT* pacdat = (sP_CL2FE_REQ_PC_TRADE_OFFER_ACCEPT*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER_SUCC, resp);
+
+    resp.iID_Request = pacdat->iID_Request;
+    resp.iID_From = pacdat->iID_To;
+    resp.iID_To = pacdat->iID_From;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER_SUCC));
+}
+
+void ItemManager::itemTradeOfferRefusalHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_OFFER_REFUSAL))
+        return; // ignore the malformed packet
+
+    sP_CL2FE_REQ_PC_TRADE_OFFER_REFUSAL* pacdat = (sP_CL2FE_REQ_PC_TRADE_OFFER_REFUSAL*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, resp);
+
+    resp.iID_Request = pacdat->iID_Request;
+    resp.iID_From = pacdat->iID_To;
+    resp.iID_To = pacdat->iID_From;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL));
+}
+
+void ItemManager::itemTradeConfirmCancelHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_CONFIRM_CANCEL))
+        return; // ignore the malformed packet
+
+    sP_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL* pacdat = (sP_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, resp);
+
+    resp.iID_Request = pacdat->iID_Request;
+    resp.iID_From = pacdat->iID_To;
+    resp.iID_To = pacdat->iID_From;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL));
 }
