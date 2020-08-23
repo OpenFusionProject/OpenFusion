@@ -12,6 +12,8 @@ namespace NPCManager {
     void init();
 
     void updatePlayerNPCS(CNSocket* sock, PlayerView& plr);
+    void npcWarpManager(CNSocket* sock, CNPacketData* data);
+
 }
 
 #endif
