@@ -84,3 +84,24 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
 
     PlayerManager::players[sock].viewableNPCs = view.viewableNPCs;
 }
+void NPCManager::npcWarpManager(CNSocket* sock, CNPacketData* data)
+{
+    std::ifstream warp_file("Warps.json", std::ifstream::binary);
+    nlohmann::json warp;
+    warp_file >> warp;
+
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_WARP_USE_NPC))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_WARP_USE_NPC* warpNpc = (sP_CL2FE_REQ_PC_WARP_USE_NPC*)data->buf;
+    //Send to Client
+    sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC* resp = (sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
+    resp->iX = warp[std::to_string(warpNpc->iWarpID)]["m_iToX"];
+    resp->iY = warp[std::to_string(warpNpc->iWarpID)]["m_iToY"];
+    resp->iZ = warp[std::to_string(warpNpc->iWarpID)]["m_iToZ"];
+    //Add Instance Stuff Later
+    std::cerr << "OpenFusion: Warp using " << "Warp ID" <<warpNpc->iWarpID << "Warp to Z:"<< warp[std::to_string(warpNpc->iWarpID)]["m_iToZ"] << std::endl;
+
+    sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC), sock->getFEKey()));
+
+}
