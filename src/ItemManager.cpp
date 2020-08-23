@@ -32,6 +32,9 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         return;
     }
     
+    if (itemmove->iToSlotNum > AINVEN_COUNT) 
+        return; // sanity checks
+    
     sItemBase fromItem;
     sItemBase toItem;
 
