@@ -38,7 +38,7 @@ void ChatManager::menuChatHandler(CNSocket* sock, CNPacketData* data) {
     memcpy(resp.szFreeChat, chat->szFreeChat, sizeof(chat->szFreeChat));
     resp.iPC_ID = PlayerManager::players[sock].plr.iID;
     resp.iEmoteCode = chat->iEmoteCode;
-    sock.sendPacket((void*)&resp, P_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC));
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC));
 
     // send to visible players
     for (CNSocket* otherSock : plr.viewable) {
