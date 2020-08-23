@@ -2,8 +2,7 @@
     CNStructs.hpp - defines some basic structs & useful methods for packets used by FusionFall based on the version defined
 */
 
-#ifndef _CNS_HPP
-#define _CNS_HPP
+#pragma once
 
 #ifdef _MSC_VER
     // codecvt_* is deprecated in C++17 and MSVC will throw an annoying warning because of that.
@@ -44,6 +43,4 @@ uint64_t getTime();
     #include "structs/0104.hpp"
 #else
     #error Invalid PROTOCOL_VERSION
-#endif
-
 #endif

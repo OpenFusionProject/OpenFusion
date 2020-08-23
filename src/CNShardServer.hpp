@@ -1,5 +1,4 @@
-#ifndef _CNSS_HPP
-#define _CNSS_HPP
+#pragma once
 
 #include "CNProtocol.hpp"
 #include "Defines.hpp"
@@ -21,5 +20,3 @@ public:
     void killConnection(CNSocket* cns);
     void onTimer();
 };
-
-#endif

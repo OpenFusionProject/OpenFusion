@@ -1,5 +1,4 @@
-#ifndef _CM_HPP
-#define _CM_HPP
+#pragma once
 
 #include "CNShardServer.hpp"
 
@@ -10,5 +9,3 @@ namespace ChatManager {
     void emoteHandler(CNSocket* sock, CNPacketData* data);
     void menuChatHandler(CNSocket* sock, CNPacketData* data);
 }
-
-#endif
