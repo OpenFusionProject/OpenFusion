@@ -27,6 +27,7 @@ void PlayerManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GOTO, PlayerManager::gotoPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_SET_VALUE, PlayerManager::setSpecialPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REP_LIVE_CHECK, PlayerManager::heartbeatPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_REGEN, PlayerManager::revivePlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_EXIT, PlayerManager::exitGame);
 }
 
@@ -170,7 +171,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     std::cout << "\tPC_UID: " << plr.PCStyle.iPC_UID << std::endl;
     )
 
-    response.iID = rand();
+        response.iID = rand();
     response.uiSvrTime = getTime();
     response.PCLoadData2CL.iUserLevel = 1;
     response.PCLoadData2CL.iHP = 1000 * plr.level;
@@ -189,7 +190,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     for (int i = 0; i < AEQUIP_COUNT; i++)
         response.PCLoadData2CL.aEquip[i] = plr.Equip[i];
 
-    for (int i = 0; i < AINVEN_COUNT; i++) 
+    for (int i = 0; i < AINVEN_COUNT; i++)
         response.PCLoadData2CL.aInven[i] = plr.Inven[i];
 
     // don't ask..
@@ -237,7 +238,7 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
     std::cout << "\tPC_ID: " << complete->iPC_ID << std::endl;
     )
 
-    response.iPC_ID = complete->iPC_ID;
+        response.iPC_ID = complete->iPC_ID;
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC));
 }
@@ -504,7 +505,7 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
     std::cout << "\tZ: " << gotoData->iToZ << std::endl;
     )
 
-    response.iX = gotoData->iToX;
+        response.iX = gotoData->iToX;
     response.iY = gotoData->iToY;
     response.iZ = gotoData->iToZ;
 
@@ -525,7 +526,7 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
     std::cout << "\tSetValue: " << setData->iSetValue << std::endl;
     )
 
-    response.iPC_ID = setData->iPC_ID;
+        response.iPC_ID = setData->iPC_ID;
     response.iSetValue = setData->iSetValue;
     response.iSetValueType = setData->iSetValueType;
 
@@ -539,7 +540,7 @@ void PlayerManager::heartbeatPlayer(CNSocket* sock, CNPacketData* data) {
 void PlayerManager::exitGame(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_EXIT))
         return;
-    
+
     sP_CL2FE_REQ_PC_EXIT* exitData = (sP_CL2FE_REQ_PC_EXIT*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_EXIT_SUCC, response);
 
@@ -549,9 +550,27 @@ void PlayerManager::exitGame(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_EXIT_SUCC, sizeof(sP_FE2CL_REP_PC_EXIT_SUCC));
 }
 
+void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_REGEN))
+        return;
+
+    Player plr = PlayerManager::getPlayer(sock);
+
+    sP_CL2FE_REQ_PC_REGEN* reviveData = (sP_CL2FE_REQ_PC_REGEN*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_PC_REGEN_SUCC, response);
+    response.bMoveLocation = reviveData->eIL;
+    response.PCRegenData.iMapNum = reviveData->iIndex;
+    response.PCRegenData.iHP = 1000 * plr.level;
+
+    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_REGEN_SUCC, sizeof(sP_FE2CL_REP_PC_REGEN_SUCC));
+}
+
+#pragma region Helper methods
+
 void PlayerManager::updatePlayer(CNSocket* key, Player plr) {
     PlayerView plrv = players[key];
     plrv.plr = plr;
 
     players[key] = plrv;
 }
+#pragma endregion
