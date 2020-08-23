@@ -20,8 +20,12 @@ void NanoManager::nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_NANO_EQUIP_SUCC, resp);
     Player plr = PlayerManager::getPlayer(sock);
 
+    if (nano->iNanoSlotNum > 2)
+        return;
+
     resp.iNanoID = nano->iNanoID;
     resp.iNanoSlotNum = nano->iNanoSlotNum;
+
 
     // Update player
     plr.equippedNanos[nano->iNanoSlotNum] = nano->iNanoID;
@@ -37,6 +41,9 @@ void NanoManager::nanoUnEquipHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_NANO_UNEQUIP* nano = (sP_CL2FE_REQ_NANO_UNEQUIP*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_NANO_UNEQUIP_SUCC, resp);
     Player plr = PlayerManager::getPlayer(sock);
+
+    if (nano->iNanoSlotNum > 2)
+        return;
 
     resp.iNanoSlotNum = nano->iNanoSlotNum;
 
@@ -75,7 +82,14 @@ void NanoManager::nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
     resp.iActiveNanoSlotNum = pkt->iNanoSlotNum;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_ACTIVE_SUCC, sizeof(sP_FE2CL_REP_NANO_ACTIVE_SUCC));
 
+    if (pkt->iNanoSlotNum > 2)
+        return;
+
     int nanoId = plr.plr.equippedNanos[pkt->iNanoSlotNum];
+
+    if (nanoId > 36)
+        return; // sanity check
+
     sNano nano = plr.plr.Nanos[nanoId];
 
     // Send to other players
@@ -131,6 +145,9 @@ void NanoManager::nanoSkillSetHandler(CNSocket* sock, CNPacketData* data) {
 
 #pragma region Helper methods
 void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
+    if (nanoId > 36)
+        return;
+
     Player plr = PlayerManager::getPlayer(sock);
 
     // Send to client
@@ -147,6 +164,9 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
 }
 
 void NanoManager::setNanoSkill(CNSocket* sock, int16_t nanoId, int16_t skillId) {
+    if (nanoId > 36)
+        return;
+
     Player plr = PlayerManager::getPlayer(sock);
     sNano nano = plr.Nanos[nanoId];
 
@@ -169,6 +189,9 @@ void NanoManager::setNanoSkill(CNSocket* sock, int16_t nanoId, int16_t skillId) 
 }
 
 void NanoManager::resetNanoSkill(CNSocket* sock, int16_t nanoId) {
+    if (nanoId > 36)
+        return;
+    
     Player plr = PlayerManager::getPlayer(sock);
     sNano nano = plr.Nanos[nanoId];
 
