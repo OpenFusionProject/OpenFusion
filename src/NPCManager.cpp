@@ -33,8 +33,6 @@ void NPCManager::init() {
         REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_NPC, npcWarpManager);
 }
 
-#undef CHECKNPC
-
 void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
     std::list<int32_t> yesView;
     std::list<int32_t> noView;
