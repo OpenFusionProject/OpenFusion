@@ -1,6 +1,6 @@
 CXX=clang++
 # -w suppresses all warnings (the part that's commented out helps me find memory leaks, it ruins performance though!)
-CXXFLAGS=-std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
+CXXFLAGS=-Wall -std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
 LDFLAGS=-lpthread
 # specifies the name of our exectuable
 SERVER=bin/fusion
@@ -11,7 +11,7 @@ PROTOCOL_VERSION?=104
 
 # Windows-specific
 WIN_CXX=x86_64-w64-mingw32-g++
-WIN_CXXFLAGS=-std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
+WIN_CXXFLAGS=-Wall -std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
 WIN_LDFLAGS=-static -lws2_32 -lwsock32
 WIN_SERVER=bin/winfusion.exe
 
