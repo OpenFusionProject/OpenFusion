@@ -42,7 +42,14 @@ namespace PlayerManager {
     void setSpecialPlayer(CNSocket* sock, CNPacketData* data);
     void heartbeatPlayer(CNSocket* sock, CNPacketData* data);
     void exitGame(CNSocket* sock, CNPacketData* data);
+<<<<<<< Updated upstream
     void onPlayerSpawn(CNSocket* sock, CNPacketData* data);
+=======
+
+    void makePlayerBuddy(CNSocket* sock, CNPacketData* data);
+    void invitePlayerGroup(CNSocket* sock, CNPacketData* data);
+    void acceptPlayerGroup(CNSocket* sock, CNPacketData* data);
+>>>>>>> Stashed changes
 }
 
 #endif

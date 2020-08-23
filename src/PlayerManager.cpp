@@ -13,6 +13,7 @@
 std::map<CNSocket*, PlayerView> PlayerManager::players;
 
 void PlayerManager::init() {
+<<<<<<< Updated upstream
 	// register packet types
 	REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ENTER, PlayerManager::enterPlayer);
 	REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_LOADING_COMPLETE, PlayerManager::loadPlayer);
@@ -28,6 +29,28 @@ void PlayerManager::init() {
 	REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_SET_VALUE, PlayerManager::setSpecialPlayer);
 	REGISTER_SHARD_PACKET(P_CL2FE_REP_LIVE_CHECK, PlayerManager::heartbeatPlayer);
 	REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_EXIT, PlayerManager::exitGame);
+=======
+    // register packet types
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ENTER, PlayerManager::enterPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_LOADING_COMPLETE, PlayerManager::loadPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_MOVE, PlayerManager::movePlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_STOP, PlayerManager::stopPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_JUMP, PlayerManager::jumpPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_JUMPPAD, PlayerManager::jumppadPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_LAUNCHER, PlayerManager::launchPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ZIPLINE, PlayerManager::ziplinePlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_MOVEPLATFORM, PlayerManager::movePlatformPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SLOPE, PlayerManager::moveSlopePlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GOTO, PlayerManager::gotoPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_SET_VALUE, PlayerManager::setSpecialPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REP_LIVE_CHECK, PlayerManager::heartbeatPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_REGEN, PlayerManager::revivePlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_EXIT, PlayerManager::exitGame);
+
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_REQUEST_MAKE_BUDDY, PlayerManager::makePlayerBuddy);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_INVITE, PlayerManager::invitePlayerGroup);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_JOIN, PlayerManager::acceptPlayerGroup);
+>>>>>>> Stashed changes
 }
 
 void PlayerManager::addPlayer(CNSocket* key, Player plr) {
@@ -558,9 +581,123 @@ void PlayerManager::exitGame(CNSocket* sock, CNPacketData* data) {
 	response->iID = exitData->iID;
 	response->iExitCode = 1;
 
+<<<<<<< Updated upstream
 	sock->sendPacket(new CNPacketData((void*)response, P_FE2CL_REP_PC_EXIT_SUCC, sizeof(sP_FE2CL_REP_PC_EXIT_SUCC), sock->getFEKey()));
 }
 
+=======
+    response.iID = exitData->iID;
+    response.iExitCode = 1;
+
+    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_EXIT_SUCC, sizeof(sP_FE2CL_REP_PC_EXIT_SUCC));
+}
+
+void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_REGEN))
+        return;
+
+    Player plr = PlayerManager::getPlayer(sock);
+
+    sP_CL2FE_REQ_PC_REGEN* reviveData = (sP_CL2FE_REQ_PC_REGEN*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_PC_REGEN_SUCC, response);
+    response.bMoveLocation = reviveData->eIL;
+    response.PCRegenData.iMapNum = reviveData->iIndex;
+    response.PCRegenData.iHP = 1000 * plr.level;
+
+    // revive loc is currently where player last died
+    response.PCRegenData.iX = plr.x;
+    response.PCRegenData.iY = plr.y;
+    response.PCRegenData.iZ = plr.z;
+
+    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_REGEN_SUCC, sizeof(sP_FE2CL_REP_PC_REGEN_SUCC));
+}
+
+void PlayerManager::makePlayerBuddy(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_REQUEST_MAKE_BUDDY))
+        return;
+
+    Player plr = PlayerManager::getPlayer(sock);
+    sP_CL2FE_REQ_REQUEST_MAKE_BUDDY* buddyData = (sP_CL2FE_REQ_REQUEST_MAKE_BUDDY*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_REQUEST_MAKE_BUDDY_SUCC, response);
+    response.iBuddyID = buddyData->iBuddyID;
+    response.iBuddyPCUID = buddyData->iBuddyPCUID;
+
+    sP_FE2CL_REP_REQUEST_MAKE_BUDDY_SUCC_TO_ACCEPTER acceptData;
+    acceptData.iBuddyID = buddyData->iBuddyID;
+    memcpy(acceptData.szFirstName, plr.PCStyle.szFirstName, sizeof(plr.PCStyle.szFirstName));
+    memcpy(acceptData.szLastName, plr.PCStyle.szLastName, sizeof(plr.PCStyle.szLastName));
+
+    sock->sendPacket((void*)&acceptData, P_FE2CL_REP_REQUEST_MAKE_BUDDY_SUCC_TO_ACCEPTER, sizeof(sP_FE2CL_REP_REQUEST_MAKE_BUDDY_SUCC_TO_ACCEPTER));
+    //sock->sendPacket((void*)&response, P_FE2CL_REP_REQUEST_MAKE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_REQUEST_MAKE_BUDDY_SUCC));
+
+    DEBUGLOG(
+        std::cout << U16toU8(plr.PCStyle.szFirstName) << U16toU8(plr.PCStyle.szLastName) << " (" << buddyData->iBuddyID << ") invited someone for a buddy" << std::endl;
+    )
+}
+
+void PlayerManager::invitePlayerGroup(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_GROUP_INVITE))
+        return;
+
+    Player plr = PlayerManager::getPlayer(sock);
+    sP_CL2FE_REQ_PC_GROUP_INVITE* groupData = (sP_CL2FE_REQ_PC_GROUP_INVITE*)data->buf;
+
+    // Send to other players
+    for (CNSocket* s : PlayerManager::players[sock].viewable) {
+        Player otherPlr = PlayerManager::getPlayer(s);
+
+        // Find THAT player
+        if (otherPlr.iID == groupData->iID_To) {
+            INITSTRUCT(sP_FE2CL_PC_GROUP_INVITE, pkt);
+            pkt.iHostID = plr.iID;
+            s->sendPacket((void*)&pkt, P_FE2CL_PC_GROUP_INVITE, sizeof(sP_FE2CL_PC_GROUP_INVITE));
+
+            DEBUGLOG(
+                std::cout << U16toU8(plr.PCStyle.szFirstName) << U16toU8(plr.PCStyle.szLastName) << "(" << plr.iID << ") invited: " << U16toU8(plr.PCStyle.szFirstName) << U16toU8(plr.PCStyle.szLastName) << " to be in a group" << std::endl;
+            )
+                break;
+        }
+    }
+}
+
+void PlayerManager::acceptPlayerGroup(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_GROUP_JOIN))
+        return;
+
+    Player plr = PlayerManager::getPlayer(sock);
+    sP_CL2FE_REQ_PC_GROUP_JOIN* groupData = (sP_CL2FE_REQ_PC_GROUP_JOIN*)data->buf;
+
+    // Send to other players
+    for (CNSocket* s : PlayerManager::players[sock].viewable) {
+        Player otherPlr = PlayerManager::getPlayer(s);
+
+        // Find THAT player
+        if (otherPlr.iID == groupData->iID_From) {
+
+            INITSTRUCT(sP_FE2CL_PC_GROUP_JOIN, pkt);
+            INITSTRUCT(sP_FE2CL_PC_GROUP_JOIN, pkt1);
+
+            // Send to the inviter
+            pkt.iID_NewMember = plr.iID;
+            pkt.iMemberPCCnt = 1;
+            s->sendPacket((void*)&pkt, P_FE2CL_PC_GROUP_JOIN, sizeof(sP_FE2CL_PC_GROUP_JOIN));
+
+            // Send to invited
+            pkt1.iID_NewMember = otherPlr.iID;
+            pkt1.iMemberPCCnt = 1;
+            sock->sendPacket((void*)&pkt, P_FE2CL_PC_GROUP_JOIN, sizeof(sP_FE2CL_PC_GROUP_JOIN));
+
+            DEBUGLOG(
+                std::cout << U16toU8(plr.PCStyle.szFirstName) << U16toU8(plr.PCStyle.szLastName) << "(" << plr.iID << ") joined group with: " << U16toU8(otherPlr.PCStyle.szFirstName) << U16toU8(otherPlr.PCStyle.szLastName) << std::endl;
+            )
+                break;
+        }
+    }
+}
+
+#pragma region Helper methods
+
+>>>>>>> Stashed changes
 void PlayerManager::updatePlayer(CNSocket* key, Player plr) {
 	PlayerView plrv = players[key];
 	plrv.plr = plr;
