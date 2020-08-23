@@ -86,7 +86,7 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
 }
 void NPCManager::npcWarpManager(CNSocket* sock, CNPacketData* data)
 {
-    std::ifstream warp_file("Warps.json", std::ifstream::binary);
+    std::ifstream warp_file("warps.json", std::ifstream::binary);
     nlohmann::json warp;
     warp_file >> warp;
 
