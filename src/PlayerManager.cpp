@@ -603,6 +603,9 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     response.bMoveLocation = reviveData->eIL;
     response.PCRegenData.iMapNum = reviveData->iIndex;
     response.PCRegenData.iHP = 1000 * plr.level;
+    response.PCRegenData.iX = plr.x;
+    response.PCRegenData.iY = plr.y;
+    response.PCRegenData.iZ = plr.z;
 
     // revive loc is currently where player last died
     response.PCRegenData.iX = plr.x;
