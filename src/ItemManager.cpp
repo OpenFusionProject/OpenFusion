@@ -15,7 +15,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_REQ_ITEM_MOVE* itemmove = (sP_CL2FE_REQ_ITEM_MOVE*)data->buf;
-    sP_FE2CL_PC_ITEM_MOVE_SUCC resp;
+    INITSTRUCT(sP_FE2CL_PC_ITEM_MOVE_SUCC, resp);
 
     PlayerView& plr = PlayerManager::players[sock];
     sItemBase fromItem;
@@ -46,7 +46,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     }
 
     if (itemmove->eFrom == 0 || itemmove->eTo == 0) {
-        sP_FE2CL_PC_EQUIP_CHANGE equipChange;
+        INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, equipChange);
 
         equipChange.iPC_ID = plr.plr.iID;
         if (itemmove->eFrom == 0) {
@@ -78,7 +78,7 @@ void ItemManager::itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_REQ_PC_ITEM_DELETE* itemdel = (sP_CL2FE_REQ_PC_ITEM_DELETE*)data->buf;
-    sP_FE2CL_REP_PC_ITEM_DELETE_SUCC resp;
+    INITSTRUCT(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC, resp);
 
     PlayerView& plr = PlayerManager::players[sock];
 
@@ -110,7 +110,7 @@ void ItemManager::itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
         // Quest item, not a real item, handle this later, stubbed for now
         // sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_PC_GIVE_ITEM_FAIL, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_FAIL), sock->getFEKey()));
     } else if (itemreq->eIL == 1) {
-        sP_FE2CL_REP_PC_GIVE_ITEM_SUCC resp;
+        INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp);
 
         resp.eIL = itemreq->eIL;
         resp.iSlotNum = itemreq->iSlotNum;

@@ -26,7 +26,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 return; // ignore the malformed packet
 
             sP_CL2LS_REQ_LOGIN* login = (sP_CL2LS_REQ_LOGIN*)data->buf;
-            sP_LS2CL_REP_LOGIN_SUCC resp;
+            INITSTRUCT(sP_LS2CL_REP_LOGIN_SUCC, resp);
             uint64_t cachedKey = sock->getEKey(); // so we can still send the resp packet with the correct key
             int charCount = 2; // send 4 randomly generated characters for now
 
@@ -131,7 +131,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             
             // naughty words allowed!!!!!!!! (also for some reason, the client will always show 'Player 0' if you manually type a name. It will show up for other connected players though)
             sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck = (sP_CL2LS_REQ_CHECK_CHAR_NAME*)data->buf;
-            sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC resp;
+            INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC, resp);
 
             DEBUGLOG(
                 std::cout << "P_CL2LS_REQ_CHECK_CHAR_NAME:" << std::endl;
@@ -150,7 +150,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 return;
             
             sP_CL2LS_REQ_SAVE_CHAR_NAME* save = (sP_CL2LS_REQ_SAVE_CHAR_NAME*)data->buf;
-            sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC resp;
+            INITSTRUCT(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC, resp);
 
             DEBUGLOG(
                 std::cout << "P_CL2LS_REQ_SAVE_CHAR_NAME:" << std::endl;
@@ -172,7 +172,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 return;
             
             sP_CL2LS_REQ_CHAR_CREATE* character = (sP_CL2LS_REQ_CHAR_CREATE*)data->buf;
-            sP_LS2CL_REP_CHAR_CREATE_SUCC resp;
+            INITSTRUCT(sP_LS2CL_REP_CHAR_CREATE_SUCC, resp);
 
             DEBUGLOG(
                 std::cout << "P_CL2LS_REQ_CHAR_CREATE:" << std::endl;
@@ -240,7 +240,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             
             // character selected
             sP_CL2LS_REQ_CHAR_SELECT* chararacter = (sP_CL2LS_REQ_CHAR_SELECT*)data->buf;
-            sP_LS2CL_REP_CHAR_SELECT_SUCC resp;
+            INITSTRUCT(sP_LS2CL_REP_CHAR_SELECT_SUCC, resp);
 
             DEBUGLOG(
                 std::cout << "P_CL2LS_REQ_CHAR_SELECT:" << std::endl;
@@ -258,7 +258,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             
             // tell client to connect to the shard server
             sP_CL2LS_REQ_SHARD_SELECT* shard = (sP_CL2LS_REQ_SHARD_SELECT*)data->buf;
-            sP_LS2CL_REP_SHARD_SELECT_SUCC resp;
+            INITSTRUCT(sP_LS2CL_REP_SHARD_SELECT_SUCC, resp);
 
             DEBUGLOG(
                 std::cout << "P_CL2LS_REQ_SHARD_SELECT:" << std::endl;

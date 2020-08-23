@@ -17,7 +17,7 @@ void NanoManager::nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_NANO_EQUIP* nano = (sP_CL2FE_REQ_NANO_EQUIP*)data->buf;
-    sP_FE2CL_REP_NANO_EQUIP_SUCC resp;
+    INITSTRUCT(sP_FE2CL_REP_NANO_EQUIP_SUCC, resp);
 
     resp.iNanoID = nano->iNanoID;
     resp.iNanoSlotNum = nano->iNanoSlotNum;
@@ -30,7 +30,7 @@ void NanoManager::nanoUnEquipHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_NANO_UNEQUIP* nano = (sP_CL2FE_REQ_NANO_UNEQUIP*)data->buf;
-    sP_FE2CL_REP_NANO_UNEQUIP_SUCC resp;
+    INITSTRUCT(sP_FE2CL_REP_NANO_UNEQUIP_SUCC, resp);
 
     resp.iNanoSlotNum = nano->iNanoSlotNum;
 
@@ -61,7 +61,7 @@ void NanoManager::nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
     PlayerView plr = PlayerManager::players[sock];
 
     // Send to client
-    sP_FE2CL_REP_NANO_ACTIVE_SUCC resp;
+    INITSTRUCT(sP_FE2CL_REP_NANO_ACTIVE_SUCC, resp);
     resp.iActiveNanoSlotNum = nano->iNanoSlotNum;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_ACTIVE_SUCC, sizeof(sP_FE2CL_REP_NANO_ACTIVE_SUCC));
 
@@ -78,7 +78,7 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
     PlayerView plr = PlayerManager::players[sock];
 
     // Send to client
-    sP_FE2CL_NANO_SKILL_USE_SUCC resp;
+    INITSTRUCT(sP_FE2CL_NANO_SKILL_USE_SUCC, resp);
     resp.iArg1 = skill->iArg1;
     resp.iArg2 = skill->iArg2;
     resp.iArg3 = skill->iArg3;
@@ -107,7 +107,7 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
     Player plr = PlayerManager::getPlayer(sock);
 
     // Send to client
-    sP_FE2CL_REP_PC_NANO_CREATE_SUCC resp;
+    INITSTRUCT(sP_FE2CL_REP_PC_NANO_CREATE_SUCC, resp);
     resp.Nano.iID = nanoId;
     resp.Nano.iStamina = 150;
     resp.iQuestItemSlotNum = slot;
@@ -127,7 +127,7 @@ void NanoManager::setNanoSkill(CNSocket* sock, int16_t nanoId, int16_t skillId) 
     plr.Nanos[nanoId] = nano;
 
     // Send to client
-    sP_FE2CL_REP_NANO_TUNE_SUCC resp;
+    INITSTRUCT(sP_FE2CL_REP_NANO_TUNE_SUCC, resp);
     resp.iNanoID = nanoId;
     resp.iSkillID = skillId;
 
