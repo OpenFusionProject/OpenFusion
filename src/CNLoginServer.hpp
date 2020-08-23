@@ -21,6 +21,7 @@ private:
 public:
     CNLoginServer(uint16_t p);
 
+    void newConnection(CNSocket* cns);
     void killConnection(CNSocket* cns);
 };
 

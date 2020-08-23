@@ -13,7 +13,7 @@ struct PlayerView {
     std::list<CNSocket*> viewable;
     std::list<int32_t> viewableNPCs;
     Player plr;
-    int long lastHeartbeat;
+    uint64_t lastHeartbeat;
 };
 
 
