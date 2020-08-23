@@ -152,6 +152,20 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
     NPCManager::updatePlayerNPCS(sock, players[sock]);
 }
 
+std::list<CNSocket*> PlayerManager::getNearbyPlayers(int x, int y, int dist) {
+    std::list<CNSocket*> plrs;
+
+    for (auto pair : players) {
+        int diffX = abs(pair.second.plr.x - x);
+        int diffY = abs(pair.second.plr.x - x);
+
+        if (diffX < dist && diffY < dist)
+            plrs.push_back(pair.first);
+    }
+
+    return plrs;
+}
+
 void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_ENTER))
         return; // ignore the malformed packet

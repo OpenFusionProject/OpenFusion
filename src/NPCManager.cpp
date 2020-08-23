@@ -9,30 +9,49 @@
 #include "contrib/JSON.hpp"
 
 std::map<int32_t, BaseNPC> NPCManager::NPCs;
+std::map<int32_t, WarpLocation> NPCManager::Warps;
 
 void NPCManager::init() {
     // load NPCs from NPCs.json into our NPC manager
 
     try {
         std::ifstream inFile("NPCs.json");
-        nlohmann::json jsonData;
+        nlohmann::json npcData;
 
-        // read file into jsonData
-        inFile >> jsonData;
+        // read file into json
+        inFile >> npcData;
 
-        for (auto& npc : jsonData) {
-            BaseNPC tmp(npc["x"], npc["y"], npc["z"], npc["id"]);
-            NPCManager::NPCs[tmp.appearanceData.iNPC_ID] = tmp;
+        for (nlohmann::json::iterator npc = npcData.begin(); npc != npcData.end(); npc++) {
+            BaseNPC tmp(npc.value()["x"], npc.value()["y"], npc.value()["z"], npc.value()["id"]);
+            NPCs[tmp.appearanceData.iNPC_ID] = tmp;
         }
 
-        std::cout << "populated " << NPCs.size() << " NPCs" << std::endl;
+        std::cout << "[INFO] populated " << NPCs.size() << " NPCs" << std::endl;
+    } catch (const std::exception& err) {
+        std::cerr << "[WARN] Malformed NPCs.json file! Reason:" << err.what() << std::endl;
     }
-    catch (const std::exception& err) {
-        std::cerr << "[WARN] Malformed NPC.json file! Reason:" << std::endl << err.what() << std::endl;
-    }
-}
 
-#undef CHECKNPC
+    try {
+        std::ifstream infile("warps.json");
+        nlohmann::json warpData;
+
+        // read file into json
+        infile >> warpData;
+
+        for (nlohmann::json::iterator warp = warpData.begin(); warp != warpData.end(); warp++) {
+            WarpLocation warpLoc = {warp.value()["m_iToX"], warp.value()["m_iToY"], warp.value()["m_iToZ"]};
+            int warpID = atoi(warp.key().c_str());
+            Warps[warpID] = warpLoc;
+        }
+
+        std::cout << "[INFO] populated " << Warps.size() << " Warps" << std::endl;
+    } catch (const std::exception& err) {
+        std::cerr << "[WARN] Malformed warps.json file! Reason:" << err.what() << std::endl;
+    }
+
+
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_NPC, npcWarpManager);
+}
 
 void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
     std::list<int32_t> yesView;
@@ -81,4 +100,25 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
     }
 
     PlayerManager::players[sock].viewableNPCs = view.viewableNPCs;
+}
+
+void NPCManager::npcWarpManager(CNSocket* sock, CNPacketData* data)
+{
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_WARP_USE_NPC))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_WARP_USE_NPC* warpNpc = (sP_CL2FE_REQ_PC_WARP_USE_NPC*)data->buf;
+
+    // sanity check
+    if (Warps.find(warpNpc->iWarpID) == Warps.end())
+        return;
+
+    // send to client
+    INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC, resp);
+    resp.iX = Warps[warpNpc->iWarpID].x;
+    resp.iY = Warps[warpNpc->iWarpID].y;
+    resp.iZ = Warps[warpNpc->iWarpID].z;
+    
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
+
 }
