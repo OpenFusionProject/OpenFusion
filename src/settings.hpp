@@ -1,7 +1,7 @@
 #pragma once
 
 namespace settings {
-    extern bool VERBOSE;
+    extern int VERBOSITY;
     extern int LOGINPORT;
     extern bool LOGINRANDCHARACTERS;
     extern int SHARDPORT;

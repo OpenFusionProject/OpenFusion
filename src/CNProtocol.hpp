@@ -1,7 +1,7 @@
 #pragma once
 
 #define MAX_PACKETSIZE 8192
-#define DEBUGLOG(x) x 
+#define DEBUGLOG(x) if (settings::VERBOSITY) {x};
 
 #include <iostream>
 #include <stdio.h>
@@ -37,6 +37,9 @@
 #include <csignal>
 #include <list>
 #include <queue>
+
+#include "Defines.hpp"
+#include "settings.hpp"
 
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
     #include "mingw/mingw.mutex.h"
@@ -147,6 +150,7 @@ public:
 
     void start();
     void kill();
+    static void printPacket(CNPacketData *data, int type);
     virtual void newConnection(CNSocket* cns);
     virtual void killConnection(CNSocket* cns);
     virtual void onTimer(); // called every 2 seconds

@@ -18,13 +18,11 @@ CNShardServer::CNShardServer(uint16_t p) {
 }
 
 void CNShardServer::handlePacket(CNSocket* sock, CNPacketData* data) {
-    if (settings::VERBOSE)
-        std::cout << "OpenFusion: received " << Defines::p2str(CL2FE, data->type) << " (" << data->type << ")" << std::endl;
-
+    printPacket(data, CL2FE);
 
     if (ShardPackets.find(data->type) != ShardPackets.end())
         ShardPackets[data->type](sock, data);
-    else
+    else if (settings::VERBOSITY)
         std::cerr << "OpenFusion: SHARD UNIMPLM ERR. PacketType: " << Defines::p2str(CL2FE, data->type) << " (" << data->type << ")" << std::endl;
 }
 

@@ -352,6 +352,28 @@ void CNServer::kill() {
     connections.clear();
 }
 
+void CNServer::printPacket(CNPacketData *data, int type) {
+    if (settings::VERBOSITY < 2)
+        return;
+
+    if (settings::VERBOSITY < 3) switch (data->type) {
+    case P_CL2LS_REP_LIVE_CHECK:
+    case P_CL2FE_REP_LIVE_CHECK:
+    case P_CL2FE_REQ_PC_MOVE:
+    case P_CL2FE_REQ_PC_JUMP:
+    case P_CL2FE_REQ_PC_SLOPE:
+    case P_CL2FE_REQ_PC_MOVEPLATFORM:
+    case P_CL2FE_REQ_PC_MOVETRANSPORTATION:
+    case P_CL2FE_REQ_PC_ZIPLINE:
+    case P_CL2FE_REQ_PC_JUMPPAD:
+    case P_CL2FE_REQ_PC_LAUNCHER:
+    case P_CL2FE_REQ_PC_STOP:
+        return;
+    }
+
+    std::cout << "OpenFusion: received " << Defines::p2str(type, data->type) << " (" << data->type << ")" << std::endl;
+}
+
 void CNServer::newConnection(CNSocket* cns) {} // stubbed
 void CNServer::killConnection(CNSocket* cns) {} // stubbed
 void CNServer::onTimer() {} // stubbed
