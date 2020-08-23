@@ -16,8 +16,22 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_ITEM_MOVE* itemmove = (sP_CL2FE_REQ_ITEM_MOVE*)data->buf;
     INITSTRUCT(sP_FE2CL_PC_ITEM_MOVE_SUCC, resp);
-
+    
     PlayerView& plr = PlayerManager::players[sock];
+    
+    if (itemmove->eFrom == 0 && itemmove->eTo == 0) {
+        // this packet should never happen, tell the client to do nothing and do nothing ourself
+        resp.eTo = itemmove->eFrom;
+        resp.iToSlotNum = itemmove->iFromSlotNum;
+        resp.ToSlotItem = plr.plr.Equip[itemmove->iToSlotNum];
+        resp.eFrom = itemmove->eTo;
+        resp.iFromSlotNum = itemmove->iToSlotNum;
+        resp.FromSlotItem = plr.plr.Equip[itemmove->iFromSlotNum];
+        
+        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_ITEM_DELETE_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC));
+        return;
+    }
+    
     sItemBase fromItem;
     sItemBase toItem;
 
@@ -109,7 +123,8 @@ void ItemManager::itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
     if (itemreq->eIL == 2) {
         // Quest item, not a real item, handle this later, stubbed for now
         // sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_PC_GIVE_ITEM_FAIL, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_FAIL), sock->getFEKey()));
-    } else if (itemreq->eIL == 1) {
+    } else if (itemreq->eIL == 1 && itemreq->Item.iType >= 0 && itemreq->Item.iType <= 8) {
+        
         INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp);
 
         resp.eIL = itemreq->eIL;
@@ -117,17 +132,18 @@ void ItemManager::itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
         resp.Item = itemreq->Item;
 
         plr.plr.Inven[itemreq->iSlotNum] = itemreq->Item;
-        plr.plr.level = 36;
 
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_GIVE_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC));
 
         // some items require a level, for now we're just going to bypass this by setting your level to 36
+        //plr.plr.level = 36;
         
-        sP_FE2CL_REP_PC_CHANGE_LEVEL resp2;
+        //sP_FE2CL_REP_PC_CHANGE_LEVEL resp2;
 
-        resp2.iPC_ID = plr.plr.iID;
-        resp2.iPC_Level = 36;
+        //resp2.iPC_ID = plr.plr.iID;
+        //resp2.iPC_Level = 36;
 
-        sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+        //sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+        // saving this for later use on a /level command
     }
 }
