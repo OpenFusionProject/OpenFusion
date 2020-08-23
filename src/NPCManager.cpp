@@ -92,7 +92,7 @@ void NPCManager::npcWarpManager(CNSocket* sock, CNPacketData* data)
     if (data->size != sizeof(sP_CL2FE_REQ_PC_WARP_USE_NPC))
         return; // malformed packet
 
-    sP_CL2FE_REQ_PC_WARP_USE_NPC* warpNpc = (sP_CL2FE_REQ_PC_WARP_USE_NPC*)data->buf;
+    INITSTRUCT(sP_CL2FE_REQ_PC_WARP_USE_NPC,warpNpc);
     //Send to Client
     sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC* resp = (sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC*)xmalloc(sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
     resp->iX = warp[std::to_string(warpNpc->iWarpID)]["m_iToX"];
