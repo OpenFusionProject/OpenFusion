@@ -30,6 +30,7 @@ void NPCManager::init() {
     catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed NPC.json file! Reason:" << std::endl << err.what() << std::endl;
     }
+        REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_NPC, npcWarpManager);
 }
 
 #undef CHECKNPC
