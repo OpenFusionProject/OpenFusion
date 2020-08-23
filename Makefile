@@ -23,6 +23,7 @@ SRC=\
 	src/CNShardServer.cpp\
 	src/CNShared.cpp\
 	src/CNStructs.cpp\
+	src/Defines.cpp\
 	src/main.cpp\
 	src/NanoManager.cpp\
 	src/ItemManager.cpp\
@@ -39,6 +40,7 @@ HDR=\
 	src/CNShardServer.hpp\
 	src/CNShared.hpp\
 	src/CNStructs.hpp\
+	src/Defines.hpp\
 	src/contrib/INIReader.hpp\
 	src/contrib/JSON.hpp\
 	src/NanoManager.hpp\
