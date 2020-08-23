@@ -63,7 +63,7 @@ int CNSocketEncryption::decryptData(uint8_t* buffer, uint8_t* key, int size) {
 
 // ========================================================[[ CNPacketData ]]========================================================
 
-CNPacketData::CNPacketData(void* b, uint32_t t, int l): buf(b), type(t), size(l) {}
+CNPacketData::CNPacketData(void* b, uint32_t t, int l): buf(b), size(l), type(t) {}
 
 // ========================================================[[ CNSocket ]]========================================================
 

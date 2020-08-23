@@ -27,7 +27,6 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             sP_CL2LS_REQ_LOGIN* login = (sP_CL2LS_REQ_LOGIN*)data->buf;
             INITSTRUCT(sP_LS2CL_REP_LOGIN_SUCC, resp);
-            uint64_t cachedKey = sock->getEKey(); // so we can still send the resp packet with the correct key
             int charCount = 2; // send 4 randomly generated characters for now
 
             DEBUGLOG(
