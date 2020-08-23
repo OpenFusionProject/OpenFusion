@@ -30,6 +30,7 @@ void NPCManager::init() {
     catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed NPC.json file! Reason:" << std::endl << err.what() << std::endl;
     }
+        REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_NPC, npcWarpManager);
 }
 
 #undef CHECKNPC
@@ -81,4 +82,26 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
     }
 
     PlayerManager::players[sock].viewableNPCs = view.viewableNPCs;
+}
+void NPCManager::npcWarpManager(CNSocket* sock, CNPacketData* data)
+{
+    std::ifstream warp_file("warps.json", std::ifstream::binary);
+    nlohmann::json warp;
+    warp_file >> warp;
+
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_WARP_USE_NPC))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_WARP_USE_NPC* warpNpc = (sP_CL2FE_REQ_PC_WARP_USE_NPC*)data->buf;
+
+    //Send to Client
+    INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC, resp);
+    resp.iX = warp[std::to_string(warpNpc->iWarpID)]["m_iToX"];
+    resp.iY = warp[std::to_string(warpNpc->iWarpID)]["m_iToY"];
+    resp.iZ = warp[std::to_string(warpNpc->iWarpID)]["m_iToZ"];
+    //Add Instance Stuff Later
+    std::cerr << "OpenFusion: Warp using " << "Warp ID" <<warpNpc->iWarpID << "Warp to Z:"<< warp[std::to_string(warpNpc->iWarpID)]["m_iToZ"] << std::endl;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
+
 }
