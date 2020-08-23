@@ -26,8 +26,8 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 return; // ignore the malformed packet
 
             sP_CL2LS_REQ_LOGIN* login = (sP_CL2LS_REQ_LOGIN*)data->buf;
-            sP_LS2CL_REP_LOGIN_SUCC* response = (sP_LS2CL_REP_LOGIN_SUCC*)xmalloc(sizeof(sP_LS2CL_REP_LOGIN_SUCC));
-            uint64_t cachedKey = sock->getEKey(); // so we can still send the response packet with the correct key
+            INITSTRUCT(sP_LS2CL_REP_LOGIN_SUCC, resp);
+            uint64_t cachedKey = sock->getEKey(); // so we can still send the resp packet with the correct key
             int charCount = 2; // send 4 randomly generated characters for now
 
             DEBUGLOG(
@@ -37,71 +37,71 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 std::cout << "\tID: " << U16toU8(login->szID) << " Password: " << U16toU8(login->szPassword) << std::endl;
             )
 
-            response->iCharCount = charCount;
-            response->iSlotNum = 1;
-            response->iPaymentFlag = 1;
-            response->iOpenBetaFlag = 0;
-            response->uiSvrTime = getTime();
+            resp.iCharCount = charCount;
+            resp.iSlotNum = 1;
+            resp.iPaymentFlag = 1;
+            resp.iOpenBetaFlag = 0;
+            resp.uiSvrTime = getTime();
 
-            // set username in response packet
-            memcpy(response->szID, login->szID, sizeof(char16_t) * 33);
+            // set username in resp packet
+            memcpy(resp.szID, login->szID, sizeof(char16_t) * 33);
+
+            // send the resp in with original key
+            sock->sendPacket((void*)&resp, P_LS2CL_REP_LOGIN_SUCC, sizeof(sP_LS2CL_REP_LOGIN_SUCC));
 
             // update keys
-            sock->setEKey(CNSocketEncryption::createNewKey(response->uiSvrTime, response->iCharCount + 1, response->iSlotNum + 1));
+            sock->setEKey(CNSocketEncryption::createNewKey(resp.uiSvrTime, resp.iCharCount + 1, resp.iSlotNum + 1));
             sock->setFEKey(CNSocketEncryption::createNewKey((uint64_t)(*(uint64_t*)&CNSocketEncryption::defaultKey[0]), login->iClientVerC, 1));
-
-             // send the response in with original key
-            sock->sendPacket(new CNPacketData((void*)response, P_LS2CL_REP_LOGIN_SUCC, sizeof(sP_LS2CL_REP_LOGIN_SUCC), cachedKey));
 
             loginSessions[sock] = CNLoginData();
 
             if (settings::LOGINRANDCHARACTERS) {
                 // now send the characters :)
                 for (int i = 0; i < charCount; i++) {
-                    sP_LS2CL_REP_CHAR_INFO* charInfo = (sP_LS2CL_REP_CHAR_INFO*)xmalloc(sizeof(sP_LS2CL_REP_CHAR_INFO));
-                    charInfo->iSlot = (int8_t)i + 1;
-                    charInfo->iLevel = (int16_t)1;
-                    charInfo->sPC_Style.iPC_UID = rand(); // unique identifier for the character
-                    charInfo->sPC_Style.iNameCheck = 1;
-                    charInfo->sPC_Style.iGender = (i%2)+1; // can be 1(boy) or 2(girl)
-                    charInfo->sPC_Style.iFaceStyle = 1;
-                    charInfo->sPC_Style.iHairStyle = 1;
-                    charInfo->sPC_Style.iHairColor = (rand()%19) + 1; // 1 - 19
-                    charInfo->sPC_Style.iSkinColor = (rand()%13) + 1; // 1 - 13
-                    charInfo->sPC_Style.iEyeColor = (rand()%6) + 1; // 1 - 6
-                    charInfo->sPC_Style.iHeight = (rand()%6); // 0 -5
-                    charInfo->sPC_Style.iBody = (rand()%4); // 0 - 3
-                    charInfo->sPC_Style.iClass = 0;
-                    charInfo->sPC_Style2.iAppearanceFlag = 1;
-                    charInfo->sPC_Style2.iPayzoneFlag = 1;
-                    charInfo->sPC_Style2.iTutorialFlag = 1;
+                    sP_LS2CL_REP_CHAR_INFO charInfo = sP_LS2CL_REP_CHAR_INFO();
+                    charInfo.iSlot = (int8_t)i + 1;
+                    charInfo.iLevel = (int16_t)1;
+                    charInfo.sPC_Style.iPC_UID = rand(); // unique identifier for the character
+                    charInfo.sPC_Style.iNameCheck = 1;
+                    charInfo.sPC_Style.iGender = (i%2)+1; // can be 1(boy) or 2(girl)
+                    charInfo.sPC_Style.iFaceStyle = 1;
+                    charInfo.sPC_Style.iHairStyle = 1;
+                    charInfo.sPC_Style.iHairColor = (rand()%19) + 1; // 1 - 19
+                    charInfo.sPC_Style.iSkinColor = (rand()%13) + 1; // 1 - 13
+                    charInfo.sPC_Style.iEyeColor = (rand()%6) + 1; // 1 - 6
+                    charInfo.sPC_Style.iHeight = (rand()%6); // 0 -5
+                    charInfo.sPC_Style.iBody = (rand()%4); // 0 - 3
+                    charInfo.sPC_Style.iClass = 0;
+                    charInfo.sPC_Style2.iAppearanceFlag = 1;
+                    charInfo.sPC_Style2.iPayzoneFlag = 1;
+                    charInfo.sPC_Style2.iTutorialFlag = 1;
 
                     // past's town hall
-                    charInfo->iX = settings::SPAWN_X;
-                    charInfo->iY = settings::SPAWN_Y;
-                    charInfo->iZ = settings::SPAWN_Z;
+                    charInfo.iX = settings::SPAWN_X;
+                    charInfo.iY = settings::SPAWN_Y;
+                    charInfo.iZ = settings::SPAWN_Z;
 
-                    U8toU16(std::string("Player"), charInfo->sPC_Style.szFirstName);
-                    U8toU16(std::to_string(i + 1), charInfo->sPC_Style.szLastName);
+                    U8toU16(std::string("Player"), charInfo.sPC_Style.szFirstName);
+                    U8toU16(std::to_string(i + 1), charInfo.sPC_Style.szLastName);
 
-                    int64_t UID = charInfo->sPC_Style.iPC_UID;
+                    int64_t UID = charInfo.sPC_Style.iPC_UID;
                     loginSessions[sock].characters[UID] = Player();
-                    loginSessions[sock].characters[UID].level = charInfo->iLevel;
-                    loginSessions[sock].characters[UID].slot = charInfo->iSlot;
+                    loginSessions[sock].characters[UID].level = charInfo.iLevel;
+                    loginSessions[sock].characters[UID].slot = charInfo.iSlot;
                     loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
-                    loginSessions[sock].characters[UID].x = charInfo->iX;
-                    loginSessions[sock].characters[UID].y = charInfo->iY;
-                    loginSessions[sock].characters[UID].z = charInfo->iZ;
-                    loginSessions[sock].characters[UID].PCStyle = charInfo->sPC_Style;
-                    loginSessions[sock].characters[UID].PCStyle2 = charInfo->sPC_Style2;
+                    loginSessions[sock].characters[UID].x = charInfo.iX;
+                    loginSessions[sock].characters[UID].y = charInfo.iY;
+                    loginSessions[sock].characters[UID].z = charInfo.iZ;
+                    loginSessions[sock].characters[UID].PCStyle = charInfo.sPC_Style;
+                    loginSessions[sock].characters[UID].PCStyle2 = charInfo.sPC_Style2;
                     loginSessions[sock].characters[UID].IsGM = false;
 
                     for (int i = 0; i < AEQUIP_COUNT; i++) {
                         // setup equips
-                        charInfo->aEquip[i].iID = 0;
-                        charInfo->aEquip[i].iType = i;
-                        charInfo->aEquip[i].iOpt = 0;
-                        loginSessions[sock].characters[UID].Equip[i] = charInfo->aEquip[i];
+                        charInfo.aEquip[i].iID = 0;
+                        charInfo.aEquip[i].iType = i;
+                        charInfo.aEquip[i].iOpt = 0;
+                        loginSessions[sock].characters[UID].Equip[i] = charInfo.aEquip[i];
                     }
                     
                     for (int i = 0; i < AINVEN_COUNT; i++) {
@@ -115,7 +115,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     if (i == 0)
                         loginSessions[sock].selectedChar = UID;
 
-                    sock->sendPacket(new CNPacketData((void*)charInfo, P_LS2CL_REP_CHAR_INFO, sizeof(sP_LS2CL_REP_CHAR_INFO), sock->getEKey()));
+                    sock->sendPacket((void*)&charInfo, P_LS2CL_REP_CHAR_INFO, sizeof(sP_LS2CL_REP_CHAR_INFO));
                 }
             }
 
@@ -131,18 +131,18 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             
             // naughty words allowed!!!!!!!! (also for some reason, the client will always show 'Player 0' if you manually type a name. It will show up for other connected players though)
             sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck = (sP_CL2LS_REQ_CHECK_CHAR_NAME*)data->buf;
-            sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC* response = (sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC*)xmalloc(sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC));
+            INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC, resp);
 
             DEBUGLOG(
                 std::cout << "P_CL2LS_REQ_CHECK_CHAR_NAME:" << std::endl;
                 std::cout << "\tFirstName: " << U16toU8(nameCheck->szFirstName) << " LastName: " << U16toU8(nameCheck->szLastName) << std::endl;
             )
 
-            memcpy(response->szFirstName, nameCheck->szFirstName, sizeof(char16_t) * 9);
-            memcpy(response->szLastName, nameCheck->szLastName, sizeof(char16_t) * 17);
+            memcpy(resp.szFirstName, nameCheck->szFirstName, sizeof(char16_t) * 9);
+            memcpy(resp.szLastName, nameCheck->szLastName, sizeof(char16_t) * 17);
 
             // fr*ck allowed!!!
-            sock->sendPacket(new CNPacketData((void*)response, P_LS2CL_REP_CHECK_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC), sock->getEKey()));
+            sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC));
             break;
         }
         case P_CL2LS_REQ_SAVE_CHAR_NAME: {
@@ -150,7 +150,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 return;
             
             sP_CL2LS_REQ_SAVE_CHAR_NAME* save = (sP_CL2LS_REQ_SAVE_CHAR_NAME*)data->buf;
-            sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC* response = (sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC*)xmalloc(sizeof(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC));
+            INITSTRUCT(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC, resp);
 
             DEBUGLOG(
                 std::cout << "P_CL2LS_REQ_SAVE_CHAR_NAME:" << std::endl;
@@ -159,12 +159,12 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 std::cout << "\tName: " << U16toU8(save->szFirstName) << " " << U16toU8(save->szLastName) << std::endl;
             )
 
-            response->iSlotNum = save->iSlotNum;
-            response->iGender = save->iGender;
-            memcpy(response->szFirstName, save->szFirstName, sizeof(char16_t) * 9);
-            memcpy(response->szLastName, save->szLastName, sizeof(char16_t) * 17);
+            resp.iSlotNum = save->iSlotNum;
+            resp.iGender = save->iGender;
+            memcpy(resp.szFirstName, save->szFirstName, sizeof(char16_t) * 9);
+            memcpy(resp.szLastName, save->szLastName, sizeof(char16_t) * 17);
 
-            sock->sendPacket(new CNPacketData((void*)response, P_LS2CL_REP_SAVE_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC), sock->getEKey()));
+            sock->sendPacket((void*)&resp, P_LS2CL_REP_SAVE_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC));
             break;
         }
         case P_CL2LS_REQ_CHAR_CREATE: {
@@ -172,7 +172,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 return;
             
             sP_CL2LS_REQ_CHAR_CREATE* character = (sP_CL2LS_REQ_CHAR_CREATE*)data->buf;
-            sP_LS2CL_REP_CHAR_CREATE_SUCC* response = (sP_LS2CL_REP_CHAR_CREATE_SUCC*)xmalloc(sizeof(sP_LS2CL_REP_CHAR_CREATE_SUCC));
+            INITSTRUCT(sP_LS2CL_REP_CHAR_CREATE_SUCC, resp);
 
             DEBUGLOG(
                 std::cout << "P_CL2LS_REQ_CHAR_CREATE:" << std::endl;
@@ -206,12 +206,12 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             //}
 
             character->PCStyle.iNameCheck = 1;
-            response->sPC_Style = character->PCStyle;
-            response->sPC_Style2.iAppearanceFlag = 1;
-            response->sPC_Style2.iTutorialFlag = 1;
-            response->sPC_Style2.iPayzoneFlag = 1;
-            response->iLevel = 1;
-            response->sOn_Item = character->sOn_Item;
+            resp.sPC_Style = character->PCStyle;
+            resp.sPC_Style2.iAppearanceFlag = 1;
+            resp.sPC_Style2.iTutorialFlag = 1;
+            resp.sPC_Style2.iPayzoneFlag = 1;
+            resp.iLevel = 1;
+            resp.sOn_Item = character->sOn_Item;
 
             loginSessions[sock].characters[UID] = Player();
             loginSessions[sock].characters[UID].level = 1;
@@ -231,7 +231,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             loginSessions[sock].characters[UID].Equip[3].iType = 3; 
             loginSessions[sock].characters[UID].IsGM = false;
 
-            sock->sendPacket(new CNPacketData((void*)response, P_LS2CL_REP_CHAR_CREATE_SUCC, sizeof(sP_LS2CL_REP_CHAR_CREATE_SUCC), sock->getEKey()));
+            sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_CREATE_SUCC, sizeof(sP_LS2CL_REP_CHAR_CREATE_SUCC));
             break;
         }
         case P_CL2LS_REQ_CHAR_SELECT: {
@@ -240,7 +240,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             
             // character selected
             sP_CL2LS_REQ_CHAR_SELECT* chararacter = (sP_CL2LS_REQ_CHAR_SELECT*)data->buf;
-            sP_LS2CL_REP_CHAR_SELECT_SUCC* response = (sP_LS2CL_REP_CHAR_SELECT_SUCC*)xmalloc(sizeof(sP_LS2CL_REP_CHAR_SELECT_SUCC));
+            INITSTRUCT(sP_LS2CL_REP_CHAR_SELECT_SUCC, resp);
 
             DEBUGLOG(
                 std::cout << "P_CL2LS_REQ_CHAR_SELECT:" << std::endl;
@@ -249,7 +249,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             loginSessions[sock].selectedChar = chararacter->iPC_UID;
 
-            sock->sendPacket(new CNPacketData((void*)response, P_LS2CL_REP_CHAR_SELECT_SUCC, sizeof(sP_LS2CL_REP_CHAR_SELECT_SUCC), sock->getEKey()));
+            sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_SELECT_SUCC, sizeof(sP_LS2CL_REP_CHAR_SELECT_SUCC));
             break;
         }
         case P_CL2LS_REQ_SHARD_SELECT: {
@@ -258,7 +258,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             
             // tell client to connect to the shard server
             sP_CL2LS_REQ_SHARD_SELECT* shard = (sP_CL2LS_REQ_SHARD_SELECT*)data->buf;
-            sP_LS2CL_REP_SHARD_SELECT_SUCC* response = (sP_LS2CL_REP_SHARD_SELECT_SUCC*)xmalloc(sizeof(sP_LS2CL_REP_SHARD_SELECT_SUCC));
+            INITSTRUCT(sP_LS2CL_REP_SHARD_SELECT_SUCC, resp);
 
             DEBUGLOG(
                 std::cout << "P_CL2LS_REQ_SHARD_SELECT:" << std::endl;
@@ -266,17 +266,17 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             )
 
             const char* SHARD_IP = settings::SHARDSERVERIP.c_str();
-            response->iEnterSerialKey = rand();
-            response->g_FE_ServerPort = settings::SHARDPORT;
+            resp.iEnterSerialKey = rand();
+            resp.g_FE_ServerPort = settings::SHARDPORT;
 
-            // copy IP to response (this struct uses ASCII encoding so we don't have to goof around converting encodings)
-            memcpy(response->g_FE_ServerIP, SHARD_IP, strlen(SHARD_IP));
-            response->g_FE_ServerIP[strlen(SHARD_IP)] = '\0';
+            // copy IP to resp (this struct uses ASCII encoding so we don't have to goof around converting encodings)
+            memcpy(resp.g_FE_ServerIP, SHARD_IP, strlen(SHARD_IP));
+            resp.g_FE_ServerIP[strlen(SHARD_IP)] = '\0';
 
             // pass player to CNSharedData
-            CNSharedData::setPlayer(response->iEnterSerialKey, loginSessions[sock].characters[loginSessions[sock].selectedChar]);
+            CNSharedData::setPlayer(resp.iEnterSerialKey, loginSessions[sock].characters[loginSessions[sock].selectedChar]);
 
-            sock->sendPacket(new CNPacketData((void*)response, P_LS2CL_REP_SHARD_SELECT_SUCC, sizeof(sP_LS2CL_REP_SHARD_SELECT_SUCC), sock->getEKey()));
+            sock->sendPacket((void*)&resp, P_LS2CL_REP_SHARD_SELECT_SUCC, sizeof(sP_LS2CL_REP_SHARD_SELECT_SUCC));
             sock->kill(); // client should connect to the Shard server now
             break;
         }
@@ -284,6 +284,10 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             std::cerr << "OpenFusion: LOGIN UNIMPLM ERR. PacketType: " << Defines::p2str(CL2LS, data->type) << " (" << data->type << ")" << std::endl;
             break;
     }
+}
+
+void CNLoginServer::newConnection(CNSocket* cns) {
+    cns->setActiveKey(SOCKETKEY_E); // by default they accept keys encrypted with the default key
 }
 
 void CNLoginServer::killConnection(CNSocket* cns) {
