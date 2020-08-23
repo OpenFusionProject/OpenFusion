@@ -88,8 +88,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
         }
     }
 
-    sP_FE2CL_PC_EXIT exitPacket;
-
+    INITSTRUCT(sP_FE2CL_PC_EXIT, exitPacket);
     std::list<CNSocket*>::iterator i = players[sock].viewable.begin();
     while (i != players[sock].viewable.end()) {
         CNSocket* otherSock = *i;
@@ -110,7 +109,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
         ++i;
     }
 
-    sP_FE2CL_PC_NEW newPlayer;
+    INITSTRUCT(sP_FE2CL_PC_NEW, newPlayer);
     for (CNSocket* otherSock : yesView) {
         if (std::find(players[sock].viewable.begin(), players[sock].viewable.end(), otherSock) == players[sock].viewable.end()) {
             // this needs to be added to the viewable players, send PC_ENTER
@@ -126,6 +125,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
             newPlayer.PCAppearanceData.iZ = plr.z;
             newPlayer.PCAppearanceData.iAngle = plr.angle;
             newPlayer.PCAppearanceData.PCStyle = plr.PCStyle;
+            newPlayer.PCAppearanceData.Nano = plr.Nanos[plr.nano];
             memcpy(newPlayer.PCAppearanceData.ItemEquip, plr.Equip, sizeof(sItemBase) * AEQUIP_COUNT);
 
             otherSock->sendPacket((void*)&newPlayer, P_FE2CL_PC_NEW, sizeof(sP_FE2CL_PC_NEW));
@@ -138,6 +138,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
             newPlayer.PCAppearanceData.iZ = otherPlr.z;
             newPlayer.PCAppearanceData.iAngle = otherPlr.angle;
             newPlayer.PCAppearanceData.PCStyle = otherPlr.PCStyle;
+            newPlayer.PCAppearanceData.Nano = otherPlr.Nanos[otherPlr.nano];
             memcpy(newPlayer.PCAppearanceData.ItemEquip, otherPlr.Equip, sizeof(sItemBase) * AEQUIP_COUNT);
 
             sock->sendPacket((void*)&newPlayer, P_FE2CL_PC_NEW, sizeof(sP_FE2CL_PC_NEW));
@@ -155,8 +156,8 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_REQ_PC_ENTER* enter = (sP_CL2FE_REQ_PC_ENTER*)data->buf;
-    sP_FE2CL_REP_PC_ENTER_SUCC response;
-    sP_FE2CL_PC_MOTD_LOGIN motd;
+    INITSTRUCT(sP_FE2CL_REP_PC_ENTER_SUCC, response);
+    INITSTRUCT(sP_FE2CL_PC_MOTD_LOGIN, motd);
 
     // TODO: check if serialkey exists, if it doesn't send sP_FE2CL_REP_PC_ENTER_FAIL
     Player plr = CNSharedData::getPlayer(enter->iEnterSerialKey);
@@ -229,7 +230,7 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_REQ_PC_LOADING_COMPLETE* complete = (sP_CL2FE_REQ_PC_LOADING_COMPLETE*)data->buf;
-    sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC response;
+    INITSTRUCT(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, response);
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_LOADING_COMPLETE:" << std::endl;
@@ -251,7 +252,7 @@ void PlayerManager::movePlayer(CNSocket* sock, CNPacketData* data) {
     players[sock].plr.angle = moveData->iAngle;
     uint64_t tm = getTime();
 
-    sP_FE2CL_PC_MOVE moveResponse;
+    INITSTRUCT(sP_FE2CL_PC_MOVE, moveResponse);
 
     moveResponse.iID = players[sock].plr.iID;
     moveResponse.cKeyValue = moveData->cKeyValue;
@@ -282,7 +283,7 @@ void PlayerManager::stopPlayer(CNSocket* sock, CNPacketData* data) {
 
     uint64_t tm = getTime();
 
-    sP_FE2CL_PC_STOP stopResponse;
+    INITSTRUCT(sP_FE2CL_PC_STOP, stopResponse);
 
     stopResponse.iID = players[sock].plr.iID;
 
@@ -307,7 +308,7 @@ void PlayerManager::jumpPlayer(CNSocket* sock, CNPacketData* data) {
 
     uint64_t tm = getTime();
 
-    sP_FE2CL_PC_JUMP jumpResponse;
+    INITSTRUCT(sP_FE2CL_PC_JUMP, jumpResponse);
 
     jumpResponse.iID = players[sock].plr.iID;
     jumpResponse.cKeyValue = jumpData->cKeyValue;
@@ -338,7 +339,7 @@ void PlayerManager::jumppadPlayer(CNSocket* sock, CNPacketData* data) {
 
     uint64_t tm = getTime();
 
-    sP_FE2CL_PC_JUMPPAD jumppadResponse;
+    INITSTRUCT(sP_FE2CL_PC_JUMPPAD, jumppadResponse);
 
     jumppadResponse.iPC_ID = players[sock].plr.iID;
     jumppadResponse.cKeyValue = jumppadData->cKeyValue;
@@ -367,7 +368,7 @@ void PlayerManager::launchPlayer(CNSocket* sock, CNPacketData* data) {
 
     uint64_t tm = getTime();
 
-    sP_FE2CL_PC_LAUNCHER launchResponse;
+    INITSTRUCT(sP_FE2CL_PC_LAUNCHER, launchResponse);
 
     launchResponse.iPC_ID = players[sock].plr.iID;
 
@@ -397,7 +398,7 @@ void PlayerManager::ziplinePlayer(CNSocket* sock, CNPacketData* data) {
 
     uint64_t tm = getTime();
 
-    sP_FE2CL_PC_ZIPLINE ziplineResponse;
+    INITSTRUCT(sP_FE2CL_PC_ZIPLINE, ziplineResponse);
 
     ziplineResponse.iPC_ID = players[sock].plr.iID;
     ziplineResponse.iCliTime = ziplineData->iCliTime;
@@ -434,7 +435,7 @@ void PlayerManager::movePlatformPlayer(CNSocket* sock, CNPacketData* data) {
 
     uint64_t tm = getTime();
 
-    sP_FE2CL_PC_MOVEPLATFORM platResponse;
+    INITSTRUCT(sP_FE2CL_PC_MOVEPLATFORM, platResponse);
 
     platResponse.iPC_ID = players[sock].plr.iID;
     platResponse.iCliTime = platformData->iCliTime;
@@ -468,7 +469,7 @@ void PlayerManager::moveSlopePlayer(CNSocket* sock, CNPacketData* data) {
 
     uint64_t tm = getTime();
 
-    sP_FE2CL_PC_SLOPE slopeResponse;
+    INITSTRUCT(sP_FE2CL_PC_SLOPE, slopeResponse);
 
     slopeResponse.iPC_ID = players[sock].plr.iID;
     slopeResponse.iCliTime = slopeData->iCliTime;
@@ -494,7 +495,7 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_REQ_PC_GOTO* gotoData = (sP_CL2FE_REQ_PC_GOTO*)data->buf;
-    sP_FE2CL_REP_PC_GOTO_SUCC response;
+    INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, response);
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_GOTO:" << std::endl;
@@ -515,7 +516,7 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_GM_REQ_PC_SET_VALUE* setData = (sP_CL2FE_GM_REQ_PC_SET_VALUE*)data->buf;
-    sP_FE2CL_GM_REP_PC_SET_VALUE response;
+    INITSTRUCT(sP_FE2CL_GM_REP_PC_SET_VALUE, response);
 
     DEBUGLOG(
         std::cout << "P_CL2FE_GM_REQ_PC_SET_VALUE:" << std::endl;
@@ -540,7 +541,7 @@ void PlayerManager::exitGame(CNSocket* sock, CNPacketData* data) {
         return;
     
     sP_CL2FE_REQ_PC_EXIT* exitData = (sP_CL2FE_REQ_PC_EXIT*)data->buf;
-    sP_FE2CL_REP_PC_EXIT_SUCC response;
+    INITSTRUCT(sP_FE2CL_REP_PC_EXIT_SUCC, response);
 
     response.iID = exitData->iID;
     response.iExitCode = 1;

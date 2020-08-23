@@ -16,7 +16,7 @@ void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
     PlayerView plr = PlayerManager::players[sock];
 
     // send to client
-    sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC resp;
+    INITSTRUCT(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC, resp);
     memcpy(resp.szFreeChat, chat->szFreeChat, sizeof(chat->szFreeChat));
     resp.iPC_ID = plr.plr.iID;
     resp.iEmoteCode = chat->iEmoteCode;
@@ -35,7 +35,7 @@ void ChatManager::menuChatHandler(CNSocket* sock, CNPacketData* data) {
     PlayerView plr = PlayerManager::players[sock];
 
     // send to client
-    sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC resp;
+    INITSTRUCT(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, resp);
     memcpy(resp.szFreeChat, chat->szFreeChat, sizeof(chat->szFreeChat));
     resp.iPC_ID = plr.plr.iID;
     resp.iEmoteCode = chat->iEmoteCode;
@@ -56,7 +56,7 @@ void ChatManager::emoteHandler(CNSocket* sock, CNPacketData* data) {
     PlayerView plr = PlayerManager::players[sock];
     
     // send to client
-    sP_FE2CL_REP_PC_AVATAR_EMOTES_CHAT resp;
+    INITSTRUCT(sP_FE2CL_REP_PC_AVATAR_EMOTES_CHAT, resp);
     resp.iEmoteCode = emote->iEmoteCode;
     resp.iID_From = plr.plr.iID;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_AVATAR_EMOTES_CHAT, sizeof(sP_FE2CL_REP_PC_AVATAR_EMOTES_CHAT));

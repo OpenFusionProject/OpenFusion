@@ -49,7 +49,7 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
         }
     }
 
-    sP_FE2CL_NPC_EXIT exitData;
+    INITSTRUCT(sP_FE2CL_NPC_EXIT, exitData);
     std::list<int32_t>::iterator i = view.viewableNPCs.begin();
     while (i != view.viewableNPCs.end()) {
         int32_t id = *i;
@@ -67,7 +67,7 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
         ++i;
     }
 
-    sP_FE2CL_NPC_ENTER enterData;
+    INITSTRUCT(sP_FE2CL_NPC_ENTER, enterData);
     for (int32_t id : yesView) {
         if (std::find(view.viewableNPCs.begin(), view.viewableNPCs.end(), id) == view.viewableNPCs.end()) {
             // needs to be added to viewableNPCs! send NPC_ENTER

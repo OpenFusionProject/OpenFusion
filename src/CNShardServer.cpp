@@ -52,7 +52,7 @@ void CNShardServer::onTimer() {
         }
 
         // passed the heartbeat, send another
-        sP_FE2CL_REQ_LIVE_CHECK data;
+        INITSTRUCT(sP_FE2CL_REQ_LIVE_CHECK, data);
         pair.first->sendPacket((void*)&data, P_FE2CL_REQ_LIVE_CHECK, sizeof(sP_FE2CL_REQ_LIVE_CHECK));
     }
 }
