@@ -93,14 +93,13 @@ void NanoManager::nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
     sNano nano = plr.plr.Nanos[nanoId];
 
     // Send to other players
-    for (CNSocket *s : PlayerManager::players[sock].viewable) {
-	INITSTRUCT(sP_FE2CL_NANO_ACTIVE, pkt);
+    INITSTRUCT(sP_FE2CL_NANO_ACTIVE, pkt1);
 
-	pkt.iPC_ID = plr.plr.iID;
-	pkt.Nano = nano;
+    pkt1.iPC_ID = plr.plr.iID;
+    pkt1.Nano = nano;
 
-	s->sendPacket((void*)&pkt, P_FE2CL_NANO_ACTIVE, sizeof(sP_FE2CL_NANO_ACTIVE));
-    }
+    for (CNSocket *s : PlayerManager::players[sock].viewable)
+        s->sendPacket((void*)&pkt1, P_FE2CL_NANO_ACTIVE, sizeof(sP_FE2CL_NANO_ACTIVE));
 
     // update player
     plr.plr.nano = nanoId;
@@ -184,8 +183,8 @@ void NanoManager::setNanoSkill(CNSocket* sock, int16_t nanoId, int16_t skillId) 
         std::cout << U16toU8(plr.PCStyle.szFirstName) << U16toU8(plr.PCStyle.szLastName) << " set skill id " << skillId << " for nano: " << nanoId << std::endl;
     )
 
-        // Update the player
-        PlayerManager::updatePlayer(sock, plr);
+    // Update the player
+    PlayerManager::updatePlayer(sock, plr);
 }
 
 void NanoManager::resetNanoSkill(CNSocket* sock, int16_t nanoId) {
