@@ -1,5 +1,4 @@
-#ifndef _CNP_HPP
-#define _CNP_HPP
+#pragma once
 
 #define MAX_PACKETSIZE 8192
 #define DEBUGLOG(x) x 
@@ -152,5 +151,3 @@ public:
     virtual void killConnection(CNSocket* cns);
     virtual void onTimer(); // called every 2 seconds
 };
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef _SETT_HPP
-#define _SETT_HPP
+#pragma once
 
 namespace settings {
     extern bool VERBOSE;
@@ -17,5 +16,3 @@ namespace settings {
 
     void init();
 }
-
-#endif
