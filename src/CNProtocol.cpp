@@ -78,7 +78,7 @@ bool CNSocket::sendData(uint8_t* data, int size) {
     while (sentBytes < size) {
         int sent = send(sock, (buffer_t*)(data + sentBytes), size - sentBytes, 0); // no flags defined
         if (SOCKETERROR(sent)) {
-            if (errno == 11 && maxTries > 0) {
+            if (errno == EAGAIN && maxTries > 0) {
                 maxTries--;
                 continue; // try again
             }
@@ -181,6 +181,10 @@ void CNSocket::step() {
 
             // we'll just leave bufferIndex at 0 since we already have the packet size, it's safe to overwrite those bytes
             activelyReading = true;
+        } else if (errno != EAGAIN) {
+            // serious socket issue, disconnect connection
+            kill();
+            return;
         }
     }
     
@@ -189,6 +193,11 @@ void CNSocket::step() {
         int recved = recv(sock, (buffer_t*)(readBuffer + readBufferIndex), readSize - readBufferIndex, 0);
         if (!SOCKETERROR(recved))
             readBufferIndex += recved;
+        else if (errno != EAGAIN) {
+            // serious socket issue, disconnect connection
+            kill();
+            return;
+        }
     }
 
     if (activelyReading && readBufferIndex - readSize <= 0) {            
