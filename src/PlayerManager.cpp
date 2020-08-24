@@ -187,7 +187,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     std::cout << "\tPC_UID: " << plr.PCStyle.iPC_UID << std::endl;
     )
 
-    response.iID = rand();
+        response.iID = rand();
     response.uiSvrTime = getTime();
     response.PCLoadData2CL.iUserLevel = 1;
     response.PCLoadData2CL.iHP = 3625; //TODO: Check player levelupdata and get this right
@@ -595,7 +595,7 @@ void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     pkt.EquipSlotItem.iType = 1;
     pkt.iEquipSlotNum = 8;
     for (CNSocket* otherSock : plrv.viewable) {
-        otherSock->sendPacket((void*)&pkt, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
+        otherSock->sendPacket((void*)&pkt, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
     }
 
     plrv.plr.iPCState = 8;
@@ -614,7 +614,7 @@ void PlayerManager::exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     pkt.EquipSlotItem.iType = 1;
     pkt.iEquipSlotNum = 8;
     for (CNSocket* otherSock : plrv.viewable) {
-        otherSock->sendPacket((void*)&pkt, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
+        otherSock->sendPacket((void*)&pkt, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
     }
 
     plrv.plr.iPCState = 0;
