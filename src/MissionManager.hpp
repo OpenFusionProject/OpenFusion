@@ -1,5 +1,4 @@
-#ifndef _MM_HPP
-#define _MM_HPP
+#pragma once
 
 #include "CNShardServer.hpp"
 
@@ -11,5 +10,3 @@ namespace MissionManager {
     void setMission(CNSocket* sock, CNPacketData* data);
     void quitMission(CNSocket* sock, CNPacketData* data);
 }
-
-#endif

@@ -570,6 +570,7 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
 
     Player plr = PlayerManager::getPlayer(sock);
 
+    // players respawn at same spot they died at for now...
     sP_CL2FE_REQ_PC_REGEN* reviveData = (sP_CL2FE_REQ_PC_REGEN*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_REGEN_SUCC, response);
     response.bMoveLocation = reviveData->eIL;
