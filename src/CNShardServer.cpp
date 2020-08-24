@@ -29,7 +29,6 @@ void CNShardServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 }
 
 void CNShardServer::keepAliveTimer(CNServer* serv,  uint64_t currTime) {
-    std::cout << "keep alive called! " << currTime << std::endl;
     auto cachedPlayers = PlayerManager::players;
 
     for (auto pair : cachedPlayers) {
