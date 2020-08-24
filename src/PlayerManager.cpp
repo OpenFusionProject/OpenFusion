@@ -185,7 +185,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     std::cout << "\tPC_UID: " << plr.PCStyle.iPC_UID << std::endl;
     )
 
-        response.iID = rand();
+    response.iID = rand();
     response.uiSvrTime = getTime();
     response.PCLoadData2CL.iUserLevel = 1;
     response.PCLoadData2CL.iHP = 3625; //TODO: Check player levelupdata and get this right
