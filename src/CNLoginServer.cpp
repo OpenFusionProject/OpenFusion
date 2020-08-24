@@ -17,8 +17,7 @@ CNLoginServer::CNLoginServer(uint16_t p) {
 }
 
 void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
-    if (settings::VERBOSE)
-        std::cout << "OpenFusion: received " << Defines::p2str(CL2LS, data->type) << " (" << data->type << ")" << std::endl;
+    printPacket(data, CL2LS);
 
     switch (data->type) {
         case P_CL2LS_REQ_LOGIN: {
@@ -27,7 +26,6 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             sP_CL2LS_REQ_LOGIN* login = (sP_CL2LS_REQ_LOGIN*)data->buf;
             INITSTRUCT(sP_LS2CL_REP_LOGIN_SUCC, resp);
-            uint64_t cachedKey = sock->getEKey(); // so we can still send the resp packet with the correct key
             int charCount = 2; // send 4 randomly generated characters for now
 
             DEBUGLOG(
@@ -210,11 +208,11 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             resp.sPC_Style2.iAppearanceFlag = 1;
             resp.sPC_Style2.iTutorialFlag = 1;
             resp.sPC_Style2.iPayzoneFlag = 1;
-            resp.iLevel = 1;
+            resp.iLevel = 36;
             resp.sOn_Item = character->sOn_Item;
 
             loginSessions[sock].characters[UID] = Player();
-            loginSessions[sock].characters[UID].level = 1;
+            loginSessions[sock].characters[UID].level = 36;
             loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
             loginSessions[sock].characters[UID].PCStyle = character->PCStyle;
             loginSessions[sock].characters[UID].PCStyle2.iAppearanceFlag = 1;
@@ -281,7 +279,8 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             break;
         }
         default:
-            std::cerr << "OpenFusion: LOGIN UNIMPLM ERR. PacketType: " << Defines::p2str(CL2LS, data->type) << " (" << data->type << ")" << std::endl;
+            if (settings::VERBOSITY)
+                std::cerr << "OpenFusion: LOGIN UNIMPLM ERR. PacketType: " << Defines::p2str(CL2LS, data->type) << " (" << data->type << ")" << std::endl;
             break;
     }
 }

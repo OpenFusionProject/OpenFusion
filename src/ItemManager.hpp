@@ -1,5 +1,4 @@
-#ifndef _IM_HPP
-#define _IM_HPP
+#pragma once
 
 #include "CNShardServer.hpp"
 
@@ -9,5 +8,3 @@ namespace ItemManager {
     void itemDeleteHandler(CNSocket* sock, CNPacketData* data);   
     void itemGMGiveHandler(CNSocket* sock, CNPacketData* data);
 }
-
-#endif

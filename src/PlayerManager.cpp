@@ -188,7 +188,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
         response.iID = rand();
     response.uiSvrTime = getTime();
     response.PCLoadData2CL.iUserLevel = 1;
-    response.PCLoadData2CL.iHP = 1000 * plr.level;
+    response.PCLoadData2CL.iHP = 3625; //TODO: Check player levelupdata and get this right
     response.PCLoadData2CL.iLevel = plr.level;
     response.PCLoadData2CL.iMentor = 1;
     response.PCLoadData2CL.iMentorCount = 4;
