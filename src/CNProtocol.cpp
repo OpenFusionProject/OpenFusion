@@ -63,7 +63,7 @@ int CNSocketEncryption::decryptData(uint8_t* buffer, uint8_t* key, int size) {
 
 // ========================================================[[ CNPacketData ]]========================================================
 
-CNPacketData::CNPacketData(void* b, uint32_t t, int l): buf(b), type(t), size(l) {}
+CNPacketData::CNPacketData(void* b, uint32_t t, int l): buf(b), size(l), type(t) {}
 
 // ========================================================[[ CNSocket ]]========================================================
 
@@ -78,7 +78,7 @@ bool CNSocket::sendData(uint8_t* data, int size) {
     while (sentBytes < size) {
         int sent = send(sock, (buffer_t*)(data + sentBytes), size - sentBytes, 0); // no flags defined
         if (SOCKETERROR(sent)) {
-            if (errno == 11 && maxTries > 0) {
+            if (errno == EAGAIN && maxTries > 0) {
                 maxTries--;
                 continue; // try again
             }
@@ -181,6 +181,10 @@ void CNSocket::step() {
 
             // we'll just leave bufferIndex at 0 since we already have the packet size, it's safe to overwrite those bytes
             activelyReading = true;
+        } else if (errno != EAGAIN) {
+            // serious socket issue, disconnect connection
+            kill();
+            return;
         }
     }
     
@@ -189,6 +193,11 @@ void CNSocket::step() {
         int recved = recv(sock, (buffer_t*)(readBuffer + readBufferIndex), readSize - readBufferIndex, 0);
         if (!SOCKETERROR(recved))
             readBufferIndex += recved;
+        else if (errno != EAGAIN) {
+            // serious socket issue, disconnect connection
+            kill();
+            return;
+        }
     }
 
     if (activelyReading && readBufferIndex - readSize <= 0) {            
@@ -350,6 +359,28 @@ void CNServer::kill() {
     }
 
     connections.clear();
+}
+
+void CNServer::printPacket(CNPacketData *data, int type) {
+    if (settings::VERBOSITY < 2)
+        return;
+
+    if (settings::VERBOSITY < 3) switch (data->type) {
+    case P_CL2LS_REP_LIVE_CHECK:
+    case P_CL2FE_REP_LIVE_CHECK:
+    case P_CL2FE_REQ_PC_MOVE:
+    case P_CL2FE_REQ_PC_JUMP:
+    case P_CL2FE_REQ_PC_SLOPE:
+    case P_CL2FE_REQ_PC_MOVEPLATFORM:
+    case P_CL2FE_REQ_PC_MOVETRANSPORTATION:
+    case P_CL2FE_REQ_PC_ZIPLINE:
+    case P_CL2FE_REQ_PC_JUMPPAD:
+    case P_CL2FE_REQ_PC_LAUNCHER:
+    case P_CL2FE_REQ_PC_STOP:
+        return;
+    }
+
+    std::cout << "OpenFusion: received " << Defines::p2str(type, data->type) << " (" << data->type << ")" << std::endl;
 }
 
 void CNServer::newConnection(CNSocket* cns) {} // stubbed

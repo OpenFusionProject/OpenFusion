@@ -1,5 +1,4 @@
-#ifndef _PM_HPP
-#define _PM_HPP
+#pragma once
 
 #include "Player.hpp"
 #include "CNProtocol.hpp"
@@ -44,6 +43,9 @@ namespace PlayerManager {
     void heartbeatPlayer(CNSocket* sock, CNPacketData* data);
     void revivePlayer(CNSocket* sock, CNPacketData* data);
     void exitGame(CNSocket* sock, CNPacketData* data);
-}
 
-#endif
+    void setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data);
+
+    void enterPlayerVehicle(CNSocket* sock, CNPacketData* data);
+    void exitPlayerVehicle(CNSocket* sock, CNPacketData* data);
+}

@@ -100,3 +100,13 @@ To make your landwalking experience more pleasant, you can make use of a few adm
 * A `/jump` of about 50 will send you soaring
 * [This map](res/dong_number_map.png) (credit to Danny O) is useful for `/warp` coordinates.
 * `/goto` is useful for more precise teleportation (ie. for getting into Infected Zones, etc.).
+
+# Item commands
+* /itemN [type] [itemId] [amount]
+  (Refer to the [item list](https://docs.google.com/spreadsheets/d/1mpoJ9iTHl_xLI4wQ_9UvIDYNcsDYscdkyaGizs43TCg/))
+
+# Nano commands
+* /nano [id] (1-36)
+* /nano_equip [id] (1-36) [slot] (0-2)
+* /nano_unequip [slot] (0-2)
+* /nano_active [slot] (0-2)

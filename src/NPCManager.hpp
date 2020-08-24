@@ -1,5 +1,4 @@
-#ifndef _NPCMANAGER_HPP
-#define _NPCMANAGER_HPP
+#pragma once
 
 #include "CNProtocol.hpp"
 #include "PlayerManager.hpp"
@@ -20,5 +19,3 @@ namespace NPCManager {
     void npcWarpManager(CNSocket* sock, CNPacketData* data);
 
 }
-
-#endif
