@@ -1,10 +1,6 @@
 #include "CNProtocol.hpp"
 #include "CNStructs.hpp"
 
-#ifdef _MSC_VER
-    #define _WINSOCK_DEPRECATED_NO_WARNINGS
-#endif
-
 // ========================================================[[ CNSocketEncryption ]]========================================================
 
 // literally C/P from the client and converted to C++ (does some byte swapping /shrug)
@@ -78,11 +74,11 @@ bool CNSocket::sendData(uint8_t* data, int size) {
     while (sentBytes < size) {
         int sent = send(sock, (buffer_t*)(data + sentBytes), size - sentBytes, 0); // no flags defined
         if (SOCKETERROR(sent)) {
-            if (errno == EAGAIN && maxTries > 0) {
+            if (OF_ERRNO == OF_EWOULD && maxTries > 0) {
                 maxTries--;
                 continue; // try again
             }
-            std::cout << "[FATAL] SOCKET ERROR: " << errno << std::endl;
+            std::cout << "[FATAL] SOCKET ERROR: " << OF_ERRNO << std::endl;
             return false; // error occured while sending bytes
         }
         sentBytes += sent;
@@ -122,7 +118,7 @@ void CNSocket::kill() {
 #endif
 }
 
-// we don't own buf
+// we don't own buf, TODO: queue packets up to send in step()
 void CNSocket::sendPacket(void* buf, uint32_t type, size_t size) {
     if (!alive)
         return;
@@ -167,6 +163,8 @@ void CNSocket::setActiveKey(ACTIVEKEY key) {
 }
 
 void CNSocket::step() {
+    // read step
+
     if (readSize <= 0) {
         // we aren't reading a packet yet, try to start looking for one
         int recved = recv(sock, (buffer_t*)readBuffer, sizeof(int32_t), 0);
@@ -181,7 +179,7 @@ void CNSocket::step() {
 
             // we'll just leave bufferIndex at 0 since we already have the packet size, it's safe to overwrite those bytes
             activelyReading = true;
-        } else if (errno != EAGAIN) {
+        } else if (OF_ERRNO != OF_EWOULD) {
             // serious socket issue, disconnect connection
             kill();
             return;
@@ -193,7 +191,7 @@ void CNSocket::step() {
         int recved = recv(sock, (buffer_t*)(readBuffer + readBufferIndex), readSize - readBufferIndex, 0);
         if (!SOCKETERROR(recved))
             readBufferIndex += recved;
-        else if (errno != EAGAIN) {
+        else if (OF_ERRNO != OF_EWOULD) {
             // serious socket issue, disconnect connection
             kill();
             return;
