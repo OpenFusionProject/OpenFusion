@@ -31,8 +31,8 @@ void PlayerManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_EXIT, PlayerManager::exitGame);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SPECIAL_STATE_SWITCH, PlayerManager::setSpecialSwitchPlayer);
 
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_OFF, PlayerManager::exitPlayerVehicle);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_ON, PlayerManager::enterPlayerVehicle);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_OFF, PlayerManager::exitPlayerVehicle);
 }
 
 void PlayerManager::addPlayer(CNSocket* key, Player plr) {
@@ -187,7 +187,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     std::cout << "\tPC_UID: " << plr.PCStyle.iPC_UID << std::endl;
     )
 
-        response.iID = rand();
+    response.iID = rand();
     response.uiSvrTime = getTime();
     response.PCLoadData2CL.iUserLevel = 1;
     response.PCLoadData2CL.iHP = 3625; //TODO: Check player levelupdata and get this right

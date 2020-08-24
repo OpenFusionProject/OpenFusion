@@ -10,7 +10,7 @@
 #include "settings.hpp"
 
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
-#include "mingw/mingw.thread.h"
+    #include "mingw/mingw.thread.h"
 #else 
 #include <thread>
 #endif
