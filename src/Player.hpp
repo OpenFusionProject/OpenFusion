@@ -20,6 +20,7 @@ struct Player {
     sNano Nanos[37]; // acquired nanos
     int equippedNanos[3];
     int activeNano; // active nano (index into Nanos)
+    int8_t iPCState;
 
     int x, y, z, angle;
     sItemBase Equip[AEQUIP_COUNT];

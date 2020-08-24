@@ -93,14 +93,13 @@ void NanoManager::nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
     sNano nano = plr.Nanos[nanoId];
 
     // Send to other players
-    for (CNSocket* s : PlayerManager::players[sock].viewable) {
-        INITSTRUCT(sP_FE2CL_NANO_ACTIVE, pkt);
+    INITSTRUCT(sP_FE2CL_NANO_ACTIVE, pkt1);
 
-        pkt.iPC_ID = plr.iID;
-        pkt.Nano = nano;
+    pkt1.iPC_ID = plr.iID;
+    pkt1.Nano = nano;
 
-        s->sendPacket((void*)&pkt, P_FE2CL_NANO_ACTIVE, sizeof(sP_FE2CL_NANO_ACTIVE));
-    }
+    for (CNSocket* s : PlayerManager::players[sock].viewable)
+        s->sendPacket((void*)&pkt1, P_FE2CL_NANO_ACTIVE, sizeof(sP_FE2CL_NANO_ACTIVE));
 
     // update player
     plr.activeNano = nanoId;

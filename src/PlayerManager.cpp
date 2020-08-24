@@ -127,6 +127,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
             newPlayer.PCAppearanceData.iAngle = plr.angle;
             newPlayer.PCAppearanceData.PCStyle = plr.PCStyle;
             newPlayer.PCAppearanceData.Nano = plr.Nanos[plr.activeNano];
+            newPlayer.PCAppearanceData.iPCState = plr.iPCState;
             memcpy(newPlayer.PCAppearanceData.ItemEquip, plr.Equip, sizeof(sItemBase) * AEQUIP_COUNT);
 
             otherSock->sendPacket((void*)&newPlayer, P_FE2CL_PC_NEW, sizeof(sP_FE2CL_PC_NEW));
@@ -140,6 +141,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
             newPlayer.PCAppearanceData.iAngle = otherPlr.angle;
             newPlayer.PCAppearanceData.PCStyle = otherPlr.PCStyle;
             newPlayer.PCAppearanceData.Nano = otherPlr.Nanos[otherPlr.activeNano];
+            newPlayer.PCAppearanceData.iPCState = otherPlr.iPCState;
             memcpy(newPlayer.PCAppearanceData.ItemEquip, otherPlr.Equip, sizeof(sItemBase) * AEQUIP_COUNT);
 
             sock->sendPacket((void*)&newPlayer, P_FE2CL_PC_NEW, sizeof(sP_FE2CL_PC_NEW));
@@ -588,10 +590,16 @@ void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_SUCC, response);
     PlayerView plrv = PlayerManager::players[sock];
 
-    // send to other players
-    //for (CNSocket* otherSock : plrv.viewable) {
-    //    otherSock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_ON_SUCC));
-    //}
+    //send to other players
+    INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, pkt);
+    pkt.EquipSlotItem.iType = 1;
+    pkt.iEquipSlotNum = 8;
+    for (CNSocket* otherSock : plrv.viewable) {
+        otherSock->sendPacket((void*)&pkt, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
+    }
+
+    plrv.plr.iPCState = 8;
+    updatePlayer(sock, plrv.plr);
 
     sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_ON_SUCC));
 }
@@ -601,10 +609,16 @@ void PlayerManager::exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
     PlayerView plrv = PlayerManager::players[sock];
 
-    // send to other players
-    //for (CNSocket* otherSock : plrv.viewable) {
-    //    otherSock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_OFF_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_OFF_SUCC));
-    //}
+    //send to other players
+    INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, pkt);
+    pkt.EquipSlotItem.iType = 1;
+    pkt.iEquipSlotNum = 8;
+    for (CNSocket* otherSock : plrv.viewable) {
+        otherSock->sendPacket((void*)&pkt, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
+    }
+
+    plrv.plr.iPCState = 0;
+    updatePlayer(sock, plrv.plr);
 
     sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_OFF_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_OFF_SUCC));
 }
