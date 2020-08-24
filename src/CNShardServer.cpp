@@ -48,11 +48,15 @@ void CNShardServer::newConnection(CNSocket* cns) {
 }
 
 void CNShardServer::killConnection(CNSocket* cns) {
+    // check if the player ever sent a REQ_PC_ENTER
+    if (PlayerManager::players.find(cns) == PlayerManager::players.end())
+        return;
+
     // remove from CNSharedData
-    Player cachedPlr = PlayerManager::getPlayer(cns);
+    int64_t key = PlayerManager::getPlayer(cns)->SerialKey;
     PlayerManager::removePlayer(cns);
 
-    CNSharedData::erasePlayer(cachedPlr.SerialKey);
+    CNSharedData::erasePlayer(key);
 }
 
 void CNShardServer::onStep() {
