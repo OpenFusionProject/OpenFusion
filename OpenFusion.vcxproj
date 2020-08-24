@@ -28,6 +28,7 @@
     <ClCompile Include="src\Defines.cpp" />
     <ClCompile Include="src\ItemManager.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\MissionManager.cpp" />
     <ClCompile Include="src\NanoManager.cpp" />
     <ClCompile Include="src\NPCManager.cpp" />
     <ClCompile Include="src\Player.cpp" />
@@ -46,6 +47,7 @@
     <ClInclude Include="src\Defines.hpp" />
     <ClInclude Include="src\INIReader.hpp" />
     <ClInclude Include="src\ItemManager.hpp" />
+    <ClInclude Include="src\MissionManager.hpp" />
     <ClInclude Include="src\NanoManager.hpp" />
     <ClInclude Include="src\NPC.hpp" />
     <ClInclude Include="src\NPCManager.hpp" />
