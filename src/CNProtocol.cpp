@@ -1,10 +1,6 @@
 #include "CNProtocol.hpp"
 #include "CNStructs.hpp"
 
-#ifdef _MSC_VER
-    #define _WINSOCK_DEPRECATED_NO_WARNINGS
-#endif
-
 // ========================================================[[ CNSocketEncryption ]]========================================================
 
 // literally C/P from the client and converted to C++ (does some byte swapping /shrug)
@@ -63,11 +59,11 @@ int CNSocketEncryption::decryptData(uint8_t* buffer, uint8_t* key, int size) {
 
 // ========================================================[[ CNPacketData ]]========================================================
 
-CNPacketData::CNPacketData(void* b, uint32_t t, int l): buf(b), size(l), type(t) {}
+CNPacketData::CNPacketData(void* b, uint32_t t, int l) : buf(b), size(l), type(t) {}
 
 // ========================================================[[ CNSocket ]]========================================================
 
-CNSocket::CNSocket(SOCKET s, PacketHandler ph): sock(s), pHandler(ph) {
+CNSocket::CNSocket(SOCKET s, PacketHandler ph) : sock(s), pHandler(ph) {
     EKey = (uint64_t)(*(uint64_t*)&CNSocketEncryption::defaultKey[0]);
 }
 
@@ -78,16 +74,16 @@ bool CNSocket::sendData(uint8_t* data, int size) {
     while (sentBytes < size) {
         int sent = send(sock, (buffer_t*)(data + sentBytes), size - sentBytes, 0); // no flags defined
         if (SOCKETERROR(sent)) {
-            if (errno == EAGAIN && maxTries > 0) {
+            if (OF_ERRNO == OF_EWOULD && maxTries > 0) {
                 maxTries--;
                 continue; // try again
             }
-            std::cout << "[FATAL] SOCKET ERROR: " << errno << std::endl;
+            std::cout << "[FATAL] SOCKET ERROR: " << OF_ERRNO << std::endl;
             return false; // error occured while sending bytes
         }
         sentBytes += sent;
     }
-    
+
     return true; // it worked!
 }
 
@@ -122,33 +118,33 @@ void CNSocket::kill() {
 #endif
 }
 
-// we don't own buf
+// we don't own buf, TODO: queue packets up to send in step()
 void CNSocket::sendPacket(void* buf, uint32_t type, size_t size) {
     if (!alive)
         return;
-    
+
     int tmpSize = size + sizeof(uint32_t);
     uint8_t* tmpBuf = (uint8_t*)xmalloc(tmpSize);
 
     // copy packet type to the front of the buffer & then the actual buffer
     memcpy(tmpBuf, (void*)&type, sizeof(uint32_t));
-    memcpy(tmpBuf+sizeof(uint32_t), buf, size);
+    memcpy(tmpBuf + sizeof(uint32_t), buf, size);
 
     // encrypt the packet
     switch (activeKey) {
-        case SOCKETKEY_E:
-            CNSocketEncryption::encryptData((uint8_t*)tmpBuf, (uint8_t*)(&EKey), tmpSize);
-            break;
-        case SOCKETKEY_FE:
-            CNSocketEncryption::encryptData((uint8_t*)tmpBuf, (uint8_t*)(&FEKey), tmpSize);
-            break;
-        default: {
-            free(tmpBuf);
-            DEBUGLOG(
-                std::cout << "[WARN]: UNSET KEYTYPE FOR SOCKET!! ABORTING SEND" << std::endl;
-            )
+    case SOCKETKEY_E:
+        CNSocketEncryption::encryptData((uint8_t*)tmpBuf, (uint8_t*)(&EKey), tmpSize);
+        break;
+    case SOCKETKEY_FE:
+        CNSocketEncryption::encryptData((uint8_t*)tmpBuf, (uint8_t*)(&FEKey), tmpSize);
+        break;
+    default: {
+        free(tmpBuf);
+        DEBUGLOG(
+            std::cout << "[WARN]: UNSET KEYTYPE FOR SOCKET!! ABORTING SEND" << std::endl;
+        )
             return;
-        }
+    }
     }
 
     // send packet size
@@ -156,7 +152,7 @@ void CNSocket::sendPacket(void* buf, uint32_t type, size_t size) {
         kill();
 
     // send packet data!
-    if (alive && !sendData(tmpBuf, tmpSize)) 
+    if (alive && !sendData(tmpBuf, tmpSize))
         kill();
 
     free(tmpBuf); // free tmp buffer
@@ -167,6 +163,8 @@ void CNSocket::setActiveKey(ACTIVEKEY key) {
 }
 
 void CNSocket::step() {
+    // read step
+
     if (readSize <= 0) {
         // we aren't reading a packet yet, try to start looking for one
         int recved = recv(sock, (buffer_t*)readBuffer, sizeof(int32_t), 0);
@@ -181,32 +179,33 @@ void CNSocket::step() {
 
             // we'll just leave bufferIndex at 0 since we already have the packet size, it's safe to overwrite those bytes
             activelyReading = true;
-        } else if (errno != EAGAIN) {
+        }
+        else if (OF_ERRNO != OF_EWOULD) {
             // serious socket issue, disconnect connection
             kill();
             return;
         }
     }
-    
+
     if (readSize > 0 && readBufferIndex < readSize) {
         // read until the end of the packet! (or at least try too)
         int recved = recv(sock, (buffer_t*)(readBuffer + readBufferIndex), readSize - readBufferIndex, 0);
         if (!SOCKETERROR(recved))
             readBufferIndex += recved;
-        else if (errno != EAGAIN) {
+        else if (OF_ERRNO != OF_EWOULD) {
             // serious socket issue, disconnect connection
             kill();
             return;
         }
     }
 
-    if (activelyReading && readBufferIndex - readSize <= 0) {            
+    if (activelyReading && readBufferIndex - readSize <= 0) {
         // decrypt readBuffer and copy to CNPacketData
         CNSocketEncryption::decryptData(readBuffer, (uint8_t*)(&EKey), readSize);
 
-        void* tmpBuf = xmalloc(readSize-sizeof(int32_t));
-        memcpy(tmpBuf, readBuffer+sizeof(uint32_t), readSize-sizeof(int32_t));
-        CNPacketData tmp(tmpBuf, *((uint32_t*)readBuffer), readSize-sizeof(int32_t));
+        void* tmpBuf = xmalloc(readSize - sizeof(int32_t));
+        memcpy(tmpBuf, readBuffer + sizeof(uint32_t), readSize - sizeof(int32_t));
+        CNPacketData tmp(tmpBuf, *((uint32_t*)readBuffer), readSize - sizeof(int32_t));
 
         // call packet handler!!
         pHandler(this, &tmp);
@@ -226,36 +225,36 @@ void CNSocket::step() {
 void CNServer::init() {
     // create socket file descriptor 
     sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (SOCKETINVALID(sock)) { 
-        std::cerr << "[FATAL] OpenFusion: socket failed" << std::endl; 
-        exit(EXIT_FAILURE); 
+    if (SOCKETINVALID(sock)) {
+        std::cerr << "[FATAL] OpenFusion: socket failed" << std::endl;
+        exit(EXIT_FAILURE);
     }
 
     // attach socket to the port
     int opt = 1;
 #ifdef _WIN32
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt)) != 0) { 
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt)) != 0) {
 #else
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) != 0) { 
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) != 0) {
 #endif
-        std::cerr << "[FATAL] OpenFusion: setsockopt failed" << std::endl; 
-        exit(EXIT_FAILURE); 
-    } 
-    address.sin_family = AF_INET; 
-    address.sin_addr.s_addr = INADDR_ANY; 
-    address.sin_port = htons(port); 
+        std::cerr << "[FATAL] OpenFusion: setsockopt failed" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(port);
 
     addressSize = sizeof(address);
 
     // Bind to the port
-    if (SOCKETERROR(bind(sock, (struct sockaddr *)&address, addressSize))) { 
-        std::cerr << "[FATAL] OpenFusion: bind failed" << std::endl; 
-        exit(EXIT_FAILURE); 
+    if (SOCKETERROR(bind(sock, (struct sockaddr*)&address, addressSize))) {
+        std::cerr << "[FATAL] OpenFusion: bind failed" << std::endl;
+        exit(EXIT_FAILURE);
     }
 
     if (SOCKETERROR(listen(sock, SOMAXCONN))) {
-        std::cerr << "[FATAL] OpenFusion: listen failed" << std::endl; 
-        exit(EXIT_FAILURE); 
+        std::cerr << "[FATAL] OpenFusion: listen failed" << std::endl;
+        exit(EXIT_FAILURE);
     }
 
     // set server listener to non-blocking
@@ -265,15 +264,15 @@ void CNServer::init() {
 #else
     if (fcntl(sock, F_SETFL, (fcntl(sock, F_GETFL, 0) | O_NONBLOCK)) != 0) {
 #endif
-        std::cerr << "[FATAL] OpenFusion: fcntl failed" << std::endl; 
-        exit(EXIT_FAILURE); 
+        std::cerr << "[FATAL] OpenFusion: fcntl failed" << std::endl;
+        exit(EXIT_FAILURE);
     }
-}
+    }
 
 CNServer::CNServer() {
     lastTimer = getTime();
 };
-CNServer::CNServer(uint16_t p): port(p) {
+CNServer::CNServer(uint16_t p) : port(p) {
     lastTimer = getTime();
 }
 
@@ -284,7 +283,7 @@ void CNServer::start() {
         std::lock_guard<std::mutex> lock(activeCrit);
 
         // listen for a new connection
-        SOCKET newConnectionSocket = accept(sock, (struct sockaddr *)&(address), (socklen_t*)&(addressSize));
+        SOCKET newConnectionSocket = accept(sock, (struct sockaddr*)&(address), (socklen_t*)&(addressSize));
         if (!SOCKETINVALID(newConnectionSocket)) {
             // new connection! make sure to set non-blocking!
 #ifdef _WIN32
@@ -293,24 +292,24 @@ void CNServer::start() {
 #else
             if (fcntl(newConnectionSocket, F_SETFL, (fcntl(sock, F_GETFL, 0) | O_NONBLOCK)) != 0) {
 #endif
-                std::cerr << "[WARN] OpenFusion: fcntl failed on new connection" << std::endl; 
-                #ifdef _WIN32
-                    shutdown(newConnectionSocket, SD_BOTH);
-                    closesocket(newConnectionSocket);
-                #else
-                    shutdown(newConnectionSocket, SHUT_RDWR);
-                    close(newConnectionSocket);
-                #endif
+                std::cerr << "[WARN] OpenFusion: fcntl failed on new connection" << std::endl;
+#ifdef _WIN32
+                shutdown(newConnectionSocket, SD_BOTH);
+                closesocket(newConnectionSocket);
+#else
+                shutdown(newConnectionSocket, SHUT_RDWR);
+                close(newConnectionSocket);
+#endif
                 continue;
             }
 
             //std::cout << "New connection! " << inet_ntoa(address.sin_addr) << std::endl;
 
             // add connection to list!
-            CNSocket* tmp = new CNSocket(newConnectionSocket, pHandler); 
+            CNSocket* tmp = new CNSocket(newConnectionSocket, pHandler);
             connections.push_back(tmp);
             newConnection(tmp);
-        }
+            }
 
         // for each connection, check if it's alive, if not kill it!
         std::list<CNSocket*>::iterator i = connections.begin();
@@ -321,7 +320,8 @@ void CNServer::start() {
                 cSock->step();
 
                 ++i; // go to the next element
-            } else {
+            }
+            else {
                 killConnection(cSock);
                 connections.erase(i++);
                 delete cSock;
@@ -338,8 +338,8 @@ void CNServer::start() {
 #else
         sleep(0); // so your cpu isn't at 100% all the time, we don't need all of that! im not hacky! you're hacky!
 #endif
+        }
     }
-}
 
 void CNServer::kill() {
     std::lock_guard<std::mutex> lock(activeCrit); // the lock will be removed when the function ends
@@ -361,7 +361,7 @@ void CNServer::kill() {
     connections.clear();
 }
 
-void CNServer::printPacket(CNPacketData *data, int type) {
+void CNServer::printPacket(CNPacketData * data, int type) {
     if (settings::VERBOSITY < 2)
         return;
 
@@ -383,6 +383,6 @@ void CNServer::printPacket(CNPacketData *data, int type) {
     std::cout << "OpenFusion: received " << Defines::p2str(type, data->type) << " (" << data->type << ")" << std::endl;
 }
 
-void CNServer::newConnection(CNSocket* cns) {} // stubbed
-void CNServer::killConnection(CNSocket* cns) {} // stubbed
+void CNServer::newConnection(CNSocket * cns) {} // stubbed
+void CNServer::killConnection(CNSocket * cns) {} // stubbed
 void CNServer::onTimer() {} // stubbed

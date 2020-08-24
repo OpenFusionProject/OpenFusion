@@ -7,28 +7,32 @@
 #include <stdio.h>
 #include <stdint.h>
 #ifdef _WIN32 
-// windows (UNTESTED)
-    #include <winsock2.h>
-    #include <windows.h>
-    #include <ws2tcpip.h>
-    #pragma comment(lib, "Ws2_32.lib")
+// windows
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#include <winsock2.h>
+#include <windows.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "Ws2_32.lib")
 
-    typedef char buffer_t;
-    //#define errno WSAGetLastError()
-    #define SOCKETINVALID(x) (x == INVALID_SOCKET)
-    #define SOCKETERROR(x) (x == SOCKET_ERROR)
+typedef char buffer_t;
+#define OF_ERRNO WSAGetLastError()
+#define OF_EWOULD WSAEWOULDBLOCK
+#define SOCKETINVALID(x) (x == INVALID_SOCKET)
+#define SOCKETERROR(x) (x == SOCKET_ERROR)
 #else
 // posix platform
-    #include <sys/socket.h>
-    #include <netinet/in.h>
-    #include <arpa/inet.h>
-    #include <unistd.h>
-    #include <errno.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <errno.h>
 
-    typedef int SOCKET;
-    typedef void buffer_t;
-    #define SOCKETINVALID(x) (x < 0)
-    #define SOCKETERROR(x) (x == -1)
+typedef int SOCKET;
+typedef void buffer_t;
+#define OF_ERRNO errno
+#define OF_EWOULD EWOULDBLOCK
+#define SOCKETINVALID(x) (x < 0)
+#define SOCKETERROR(x) (x == -1)
 #endif
 #include <fcntl.h>
 
@@ -42,9 +46,9 @@
 #include "settings.hpp"
 
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
-    #include "mingw/mingw.mutex.h"
+#include "mingw/mingw.mutex.h"
 #else 
-    #include <mutex>
+#include <mutex>
 #endif
 
 /*
@@ -108,6 +112,7 @@ private:
     ACTIVEKEY activeKey;
 
     bool sendData(uint8_t* data, int size);
+    int recvData(buffer_t* data, int size);
 
 public:
     SOCKET sock;
@@ -150,7 +155,7 @@ public:
 
     void start();
     void kill();
-    static void printPacket(CNPacketData *data, int type);
+    static void printPacket(CNPacketData* data, int type);
     virtual void newConnection(CNSocket* cns);
     virtual void killConnection(CNSocket* cns);
     virtual void onTimer(); // called every 2 seconds
