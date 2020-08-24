@@ -1,5 +1,4 @@
-#ifndef _PM_HPP
-#define _PM_HPP
+#pragma once
 
 #include "Player.hpp"
 #include "CNProtocol.hpp"
@@ -13,7 +12,7 @@ struct PlayerView {
     std::list<CNSocket*> viewable;
     std::list<int32_t> viewableNPCs;
     Player plr;
-    int long lastHeartbeat;
+    uint64_t lastHeartbeat;
 };
 
 
@@ -25,7 +24,9 @@ namespace PlayerManager {
     void removePlayer(CNSocket* key);
     Player getPlayer(CNSocket* key);
 
+    void updatePlayer(CNSocket* key, Player plr);
     void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z);
+    std::list<CNSocket*> getNearbyPlayers(int X, int Y, int dist);
 
     void enterPlayer(CNSocket* sock, CNPacketData* data);
     void loadPlayer(CNSocket* sock, CNPacketData* data);
@@ -42,5 +43,3 @@ namespace PlayerManager {
     void heartbeatPlayer(CNSocket* sock, CNPacketData* data);
     void exitGame(CNSocket* sock, CNPacketData* data);
 }
-
-#endif

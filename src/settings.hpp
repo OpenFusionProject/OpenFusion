@@ -1,7 +1,7 @@
-#ifndef _SETT_HPP
-#define _SETT_HPP
+#pragma once
 
 namespace settings {
+    extern int VERBOSITY;
     extern int LOGINPORT;
     extern bool LOGINRANDCHARACTERS;
     extern int SHARDPORT;
@@ -16,5 +16,3 @@ namespace settings {
 
     void init();
 }
-
-#endif

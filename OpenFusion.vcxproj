@@ -25,6 +25,7 @@
     <ClCompile Include="src\CNShardServer.cpp" />
     <ClCompile Include="src\CNShared.cpp" />
     <ClCompile Include="src\CNStructs.cpp" />
+    <ClCompile Include="src\Defines.cpp" />
     <ClCompile Include="src\ItemManager.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\NanoManager.cpp" />
@@ -42,6 +43,7 @@
     <ClInclude Include="src\CNStructs.hpp" />
     <ClInclude Include="src\contrib\INIReader.hpp" />
     <ClInclude Include="src\contrib\JSON.hpp" />
+    <ClInclude Include="src\Defines.hpp" />
     <ClInclude Include="src\INIReader.hpp" />
     <ClInclude Include="src\ItemManager.hpp" />
     <ClInclude Include="src\NanoManager.hpp" />

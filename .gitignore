@@ -1,4 +1,4 @@
-.vscode
+.vscode/
 .vs/*
 bin/*
 x64/*
@@ -10,3 +10,7 @@ config.ini
 CMakeFiles/
 CMakeCache.txt
 build/
+.idea/
+*.o
+tags
+*~

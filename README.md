@@ -1,5 +1,8 @@
 ![](res/radiorave_logo.png)
 
+[![AppVeyor](https://ci.appveyor.com/api/projects/status/github/OpenFusionProject/OpenFusion?svg=true)](https://ci.appveyor.com/project/OpenFusionProject/openfusion)
+[![Discord](https://img.shields.io/badge/chat-on%20discord-7289da.svg?logo=discord)](https://discord.gg/DYavckB)
+
 OpenFusion is a landwalker server for FusionFall. It currently supports versions `beta-20100104` and `beta-20100728` of the original game.
 
 Further documentation pending.
@@ -20,6 +23,8 @@ Currently the client by default connects to a public server hosted by Cake. Chan
 
 You have two randomized characters available to you on the Character Selection screen, one boy, one girl.
 You can also make your own character and play through the tutorial. The tutorial can be skipped by pressing the ~ key.
+
+If you want, [compiled binaries (artifacts) for each new commit can be found on AppVeyor.](https://ci.appveyor.com/project/Raymonf/openfusion)
 
 For a more detailed overview of the game's architecture and how to configure it, read the following sections.
 

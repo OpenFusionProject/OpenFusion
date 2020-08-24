@@ -14,9 +14,12 @@ struct Player {
 
     int level;
     int HP;
-    int slot;
+    int slot; // player slot, not nano slot
     sPCStyle PCStyle;
     sPCStyle2 PCStyle2;
+    sNano Nanos[37];
+    int equippedNanos[3];
+    int nano; // active nano (index into Nanos)
 
     int x, y, z, angle;
     sItemBase Equip[AEQUIP_COUNT];

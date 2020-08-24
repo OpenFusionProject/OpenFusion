@@ -1,13 +1,17 @@
 CXX=clang++
 # -w suppresses all warnings (the part that's commented out helps me find memory leaks, it ruins performance though!)
-CXXFLAGS=-std=c++17 -O3 #-g3 -fsanitize=address
+CXXFLAGS=-Wall -std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
 LDFLAGS=-lpthread
 # specifies the name of our exectuable
 SERVER=bin/fusion
 
+# assign protocol version
+# this can be overriden by ex. make PROTOCOL_VERSION=728
+PROTOCOL_VERSION?=104
+
 # Windows-specific
 WIN_CXX=x86_64-w64-mingw32-g++
-WIN_CXXFLAGS=-std=c++17 -O3 #-g3 -fsanitize=address
+WIN_CXXFLAGS=-Wall -std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
 WIN_LDFLAGS=-static -lws2_32 -lwsock32
 WIN_SERVER=bin/winfusion.exe
 
@@ -19,8 +23,10 @@ SRC=\
 	src/CNShardServer.cpp\
 	src/CNShared.cpp\
 	src/CNStructs.cpp\
+	src/Defines.cpp\
 	src/main.cpp\
 	src/NanoManager.cpp\
+	src/ItemManager.cpp\
 	src/NPCManager.cpp\
 	src/Player.cpp\
 	src/PlayerManager.cpp\
@@ -34,8 +40,11 @@ HDR=\
 	src/CNShardServer.hpp\
 	src/CNShared.hpp\
 	src/CNStructs.hpp\
-	src/INIReader.hpp\
+	src/Defines.hpp\
+	src/contrib/INIReader.hpp\
+	src/contrib/JSON.hpp\
 	src/NanoManager.hpp\
+	src/ItemManager.hpp\
 	src/NPCManager.hpp\
 	src/Player.hpp\
 	src/PlayerManager.hpp\
@@ -47,7 +56,7 @@ all: $(SERVER)
 
 windows: $(SERVER)
 
-# Assign Windows-specific values if targeting Windows
+# assign Windows-specific values if targeting Windows
 windows : CXX=$(WIN_CXX)
 windows : CXXFLAGS=$(WIN_CXXFLAGS)
 windows : LDFLAGS=$(WIN_LDFLAGS)

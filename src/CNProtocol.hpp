@@ -1,8 +1,7 @@
-#ifndef _CNP_HPP
-#define _CNP_HPP
+#pragma once
 
 #define MAX_PACKETSIZE 8192
-#define DEBUGLOG(x) x 
+#define DEBUGLOG(x) if (settings::VERBOSITY) {x};
 
 #include <iostream>
 #include <stdio.h>
@@ -38,6 +37,9 @@
 #include <csignal>
 #include <list>
 #include <queue>
+
+#include "Defines.hpp"
+#include "settings.hpp"
 
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
     #include "mingw/mingw.mutex.h"
@@ -77,15 +79,17 @@ namespace CNSocketEncryption {
     int decryptData(uint8_t* buffer, uint8_t* key, int size);
 }
 
-class CNPacketData {
-public:
+struct CNPacketData {
     void* buf;
     int size;
     uint32_t type;
-    uint64_t key;
 
-    CNPacketData(void* b, uint32_t t, int l, uint64_t k);
-    ~CNPacketData();
+    CNPacketData(void* b, uint32_t t, int l);
+};
+
+enum ACTIVEKEY {
+    SOCKETKEY_E,
+    SOCKETKEY_FE
 };
 
 class CNSocket;
@@ -101,6 +105,8 @@ private:
     bool activelyReading = false;
     bool alive = true;
 
+    ACTIVEKEY activeKey;
+
     bool sendData(uint8_t* data, int size);
 
 public:
@@ -113,9 +119,10 @@ public:
     void setFEKey(uint64_t k);
     uint64_t getEKey();
     uint64_t getFEKey();
+    void setActiveKey(ACTIVEKEY t);
 
     void kill();
-    void sendPacket(CNPacketData* pak);
+    void sendPacket(void* buf, uint32_t packetType, size_t size);
     void step();
     bool isAlive();
 };
@@ -133,7 +140,7 @@ protected:
     void init();
 
     bool active = true;
-    long int lastTimer;
+    uint64_t lastTimer;
 
 public:
     PacketHandler pHandler;
@@ -143,8 +150,8 @@ public:
 
     void start();
     void kill();
+    static void printPacket(CNPacketData *data, int type);
+    virtual void newConnection(CNSocket* cns);
     virtual void killConnection(CNSocket* cns);
     virtual void onTimer(); // called every 2 seconds
 };
-
-#endif

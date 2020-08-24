@@ -3,6 +3,7 @@
 #include "CNShardServer.hpp"
 #include "PlayerManager.hpp"
 #include "CNShared.hpp"
+#include "settings.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -17,14 +18,20 @@ CNShardServer::CNShardServer(uint16_t p) {
 }
 
 void CNShardServer::handlePacket(CNSocket* sock, CNPacketData* data) {
+    printPacket(data, CL2FE);
+
     if (ShardPackets.find(data->type) != ShardPackets.end())
         ShardPackets[data->type](sock, data);
-    else
-        std::cerr << "OpenFusion: SHARD UNIMPLM ERR. PacketType: " << data->type << std::endl;
+    else if (settings::VERBOSITY)
+        std::cerr << "OpenFusion: SHARD UNIMPLM ERR. PacketType: " << Defines::p2str(CL2FE, data->type) << " (" << data->type << ")" << std::endl;
+}
+
+void CNShardServer::newConnection(CNSocket* cns) {
+    cns->setActiveKey(SOCKETKEY_E); // by default they accept keys encrypted with the default key
 }
 
 void CNShardServer::killConnection(CNSocket* cns) {
-    // remove from CNSharedData 
+    // remove from CNSharedData
     Player cachedPlr = PlayerManager::getPlayer(cns);
     PlayerManager::removePlayer(cns);
 
@@ -32,7 +39,7 @@ void CNShardServer::killConnection(CNSocket* cns) {
 }
 
 void CNShardServer::onTimer() {
-    long int currTime = getTime();
+    uint64_t currTime = getTime();
 
     auto cachedPlayers = PlayerManager::players;
 
@@ -43,7 +50,7 @@ void CNShardServer::onTimer() {
         }
 
         // passed the heartbeat, send another
-        sP_FE2CL_REQ_LIVE_CHECK* data = (sP_FE2CL_REQ_LIVE_CHECK*)xmalloc(sizeof(sP_FE2CL_REQ_LIVE_CHECK));
-        pair.first->sendPacket(new CNPacketData((void*)data, P_FE2CL_REQ_LIVE_CHECK, sizeof(sP_FE2CL_REQ_LIVE_CHECK), pair.first->getFEKey()));
+        INITSTRUCT(sP_FE2CL_REQ_LIVE_CHECK, data);
+        pair.first->sendPacket((void*)&data, P_FE2CL_REQ_LIVE_CHECK, sizeof(sP_FE2CL_REQ_LIVE_CHECK));
     }
 }
