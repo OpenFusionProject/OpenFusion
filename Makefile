@@ -25,6 +25,7 @@ SRC=\
 	src/CNStructs.cpp\
 	src/Defines.cpp\
 	src/main.cpp\
+	src/MissionManager.cpp\
 	src/NanoManager.cpp\
 	src/ItemManager.cpp\
 	src/NPCManager.cpp\
@@ -43,6 +44,7 @@ HDR=\
 	src/Defines.hpp\
 	src/contrib/INIReader.hpp\
 	src/contrib/JSON.hpp\
+	src/MissionManager.hpp\
 	src/NanoManager.hpp\
 	src/ItemManager.hpp\
 	src/NPCManager.hpp\
