@@ -7,14 +7,16 @@
 #include <stdio.h>
 #include <stdint.h>
 #ifdef _WIN32 
-// windows (UNTESTED)
+// windows
+    #define _WINSOCK_DEPRECATED_NO_WARNINGS
     #include <winsock2.h>
     #include <windows.h>
     #include <ws2tcpip.h>
     #pragma comment(lib, "Ws2_32.lib")
 
     typedef char buffer_t;
-    //#define errno WSAGetLastError()
+    #define OF_ERRNO WSAGetLastError()
+    #define OF_EWOULD WSAEWOULDBLOCK
     #define SOCKETINVALID(x) (x == INVALID_SOCKET)
     #define SOCKETERROR(x) (x == SOCKET_ERROR)
 #else
@@ -27,6 +29,8 @@
 
     typedef int SOCKET;
     typedef void buffer_t;
+    #define OF_ERRNO errno
+    #define OF_EWOULD EWOULDBLOCK
     #define SOCKETINVALID(x) (x < 0)
     #define SOCKETERROR(x) (x == -1)
 #endif
@@ -108,6 +112,7 @@ private:
     ACTIVEKEY activeKey;
 
     bool sendData(uint8_t* data, int size);
+    int recvData(buffer_t* data, int size);
 
 public:
     SOCKET sock;
