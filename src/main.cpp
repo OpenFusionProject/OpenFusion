@@ -28,7 +28,7 @@ int main() {
     }
 #endif
     settings::init();
-    std::cout << "[INFO] Protocol version: " << PROTOCOL_VERSION << std::endl;
+    //std::cout << "[INFO] Protocol version: " << PROTOCOL_VERSION << std::endl;
     std::cout << "[INFO] Intializing Packet Managers..." << std::endl;
     PlayerManager::init();
     ChatManager::init();

@@ -302,7 +302,7 @@ void CNServer::start() {
                 continue;
             }
 
-            std::cout << "New connection! " << inet_ntoa(address.sin_addr) << std::endl;
+            //std::cout << "New connection! " << inet_ntoa(address.sin_addr) << std::endl;
 
             // add connection to list!
             CNSocket* tmp = new CNSocket(newConnectionSocket, pHandler); 
