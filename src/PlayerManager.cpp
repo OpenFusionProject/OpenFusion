@@ -185,13 +185,13 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_ENTER:" << std::endl;
-    std::cout << "\tID: " << U16toU8(enter->szID) << std::endl;
-    std::cout << "\tSerial: " << enter->iEnterSerialKey << std::endl;
-    std::cout << "\tTemp: " << enter->iTempValue << std::endl;
-    std::cout << "\tPC_UID: " << plr.PCStyle.iPC_UID << std::endl;
+        std::cout << "\tID: " << U16toU8(enter->szID) << std::endl;
+        std::cout << "\tSerial: " << enter->iEnterSerialKey << std::endl;
+        std::cout << "\tTemp: " << enter->iTempValue << std::endl;
+        std::cout << "\tPC_UID: " << plr.PCStyle.iPC_UID << std::endl;
     )
 
-        response.iID = rand();
+    response.iID = rand();
     response.uiSvrTime = getTime();
     response.PCLoadData2CL.iUserLevel = 1;
     response.PCLoadData2CL.iHP = 3625; //TODO: Check player levelupdata and get this right
@@ -255,10 +255,10 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_LOADING_COMPLETE:" << std::endl;
-    std::cout << "\tPC_ID: " << complete->iPC_ID << std::endl;
+        std::cout << "\tPC_ID: " << complete->iPC_ID << std::endl;
     )
 
-        response.iPC_ID = complete->iPC_ID;
+    response.iPC_ID = complete->iPC_ID;
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC));
 }
@@ -520,12 +520,12 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_GOTO:" << std::endl;
-    std::cout << "\tX: " << gotoData->iToX << std::endl;
-    std::cout << "\tY: " << gotoData->iToY << std::endl;
-    std::cout << "\tZ: " << gotoData->iToZ << std::endl;
+        std::cout << "\tX: " << gotoData->iToX << std::endl;
+        std::cout << "\tY: " << gotoData->iToY << std::endl;
+        std::cout << "\tZ: " << gotoData->iToZ << std::endl;
     )
 
-        response.iX = gotoData->iToX;
+    response.iX = gotoData->iToX;
     response.iY = gotoData->iToY;
     response.iZ = gotoData->iToZ;
 
@@ -541,12 +541,12 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
 
     DEBUGLOG(
         std::cout << "P_CL2FE_GM_REQ_PC_SET_VALUE:" << std::endl;
-    std::cout << "\tPC_ID: " << setData->iPC_ID << std::endl;
-    std::cout << "\tSetValueType: " << setData->iSetValueType << std::endl;
-    std::cout << "\tSetValue: " << setData->iSetValue << std::endl;
+        std::cout << "\tPC_ID: " << setData->iPC_ID << std::endl;
+        std::cout << "\tSetValueType: " << setData->iSetValueType << std::endl;
+        std::cout << "\tSetValue: " << setData->iSetValue << std::endl;
     )
 
-        response.iPC_ID = setData->iPC_ID;
+    response.iPC_ID = setData->iPC_ID;
     response.iSetValue = setData->iSetValue;
     response.iSetValueType = setData->iSetValueType;
 
@@ -590,7 +590,6 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_VEHICLE_ON* vehicleData = (sP_CL2FE_REQ_PC_VEHICLE_ON*)data->buf;
     INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_SUCC, response);
     PlayerView plrv = PlayerManager::players[sock];
 
@@ -608,7 +607,6 @@ void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_VEHICLE_OFF* vehicleData = (sP_CL2FE_REQ_PC_VEHICLE_OFF*)data->buf;
     INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
     PlayerView plrv = PlayerManager::players[sock];
 
