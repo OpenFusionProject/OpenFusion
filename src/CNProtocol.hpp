@@ -6,15 +6,19 @@
 #include <iostream>
 #include <stdio.h>
 #include <stdint.h>
-#ifdef _WIN32 
-// windows (UNTESTED)
+#ifdef _WIN32
+// Windows
+#ifdef _MSC_VER
+    #define _WINSOCK_DEPRECATED_NO_WARNINGS
+#endif
     #include <winsock2.h>
     #include <windows.h>
     #include <ws2tcpip.h>
     #pragma comment(lib, "Ws2_32.lib")
 
     typedef char buffer_t;
-    //#define errno WSAGetLastError()
+    #define openfusion_errno WSAGetLastError()
+    #define openfusion_eagain WSAEWOULDBLOCK
     #define SOCKETINVALID(x) (x == INVALID_SOCKET)
     #define SOCKETERROR(x) (x == SOCKET_ERROR)
 #else
@@ -27,6 +31,8 @@
 
     typedef int SOCKET;
     typedef void buffer_t;
+    #define openfusion_errno errno
+    #define openfusion_eagain EAGAIN
     #define SOCKETINVALID(x) (x < 0)
     #define SOCKETERROR(x) (x == -1)
 #endif
