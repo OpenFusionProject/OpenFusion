@@ -3,10 +3,7 @@
 #include "CNStructs.hpp"
 
 #include "settings.hpp"
-
-/*
-    This is *not* connected to any database, so i'm sending dummy data just to get the client to work & connect to the shard <3
-*/
+#include "Database.hpp"
 
 std::map<CNSocket*, CNLoginData> CNLoginServer::loginSessions;
 
@@ -25,96 +22,131 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 return; // ignore the malformed packet
 
             sP_CL2LS_REQ_LOGIN* login = (sP_CL2LS_REQ_LOGIN*)data->buf;
-            INITSTRUCT(sP_LS2CL_REP_LOGIN_SUCC, resp);
-            int charCount = 2; // send 4 randomly generated characters for now
+            bool success = false;
+            int errorCode = 0;
+            std::string userLogin = U16toU8(login->szID);
+            std::string userPassword = U16toU8(login->szPassword);
+            
 
-            DEBUGLOG(
-                std::cout << "P_CL2LS_REQ_LOGIN:" << std::endl;
-                std::cout << "\tClient version: " << login->iClientVerA << "." << login->iClientVerB << "." << login->iClientVerC << std::endl;
-                std::cout << "\tLogin type: " << login->iLoginType << std::endl;
-                std::cout << "\tID: " << U16toU8(login->szID) << " Password: " << U16toU8(login->szPassword) << std::endl;
-            )
+            //checking regex
+            if (!Database::isLoginDataGood(userLogin, userPassword)) {
+                errorCode = login_error;
+            }
 
-            resp.iCharCount = charCount;
-            resp.iSlotNum = 1;
-            resp.iPaymentFlag = 1;
-            resp.iOpenBetaFlag = 0;
-            resp.uiSvrTime = getTime();
+            //if user does not exist in db, add him to and send succ
+            else if (!Database::doesUserExist(U16toU8(login->szID))) {
+                Database::addAccount(U16toU8(login->szID), U16toU8(login->szPassword));
+                success = true;
+            }
+            //if user exists, check if password is correct
+            else if (Database::isPasswordCorrect((U16toU8(login->szID)), U16toU8(login->szPassword))) {
+                success = true;
+            }
+            else {
+                errorCode = id_and_password_do_not_match;
+            }
 
-            // set username in resp packet
-            memcpy(resp.szID, login->szID, sizeof(char16_t) * 33);
+            if (success)
+            {
+                int UserID = Database::getUserID(userLogin);
+                int charCount = Database::getUserSlotsNum(UserID);
 
-            // send the resp in with original key
-            sock->sendPacket((void*)&resp, P_LS2CL_REP_LOGIN_SUCC, sizeof(sP_LS2CL_REP_LOGIN_SUCC));
+                INITSTRUCT(sP_LS2CL_REP_LOGIN_SUCC, resp);
+                // set username in resp packet
+                memcpy(resp.szID, login->szID, sizeof(char16_t) * 33);
 
-            // update keys
-            sock->setEKey(CNSocketEncryption::createNewKey(resp.uiSvrTime, resp.iCharCount + 1, resp.iSlotNum + 1));
-            sock->setFEKey(CNSocketEncryption::createNewKey((uint64_t)(*(uint64_t*)&CNSocketEncryption::defaultKey[0]), login->iClientVerC, 1));
+                resp.iCharCount = charCount;
+                resp.iSlotNum = 1;
+                resp.iPaymentFlag = 1;
+                resp.iOpenBetaFlag = 0;
+                resp.uiSvrTime = getTime();
 
-            loginSessions[sock] = CNLoginData();
+                // send the resp in with original key
+                sock->sendPacket((void*)&resp, P_LS2CL_REP_LOGIN_SUCC, sizeof(sP_LS2CL_REP_LOGIN_SUCC));
 
-            if (settings::LOGINRANDCHARACTERS) {
+                // update keys
+                sock->setEKey(CNSocketEncryption::createNewKey(resp.uiSvrTime, resp.iCharCount + 1, resp.iSlotNum + 1));
+                sock->setFEKey(CNSocketEncryption::createNewKey((uint64_t)(*(uint64_t*)&CNSocketEncryption::defaultKey[0]), login->iClientVerC, 1));
+
+                loginSessions[sock] = CNLoginData();
+                loginSessions[sock].UserID = UserID;
+
                 // now send the characters :)
-                for (int i = 0; i < charCount; i++) {
-                    sP_LS2CL_REP_CHAR_INFO charInfo = sP_LS2CL_REP_CHAR_INFO();
-                    charInfo.iSlot = (int8_t)i + 1;
-                    charInfo.iLevel = (int16_t)1;
-                    charInfo.sPC_Style.iPC_UID = rand(); // unique identifier for the character
-                    charInfo.sPC_Style.iNameCheck = 1;
-                    charInfo.sPC_Style.iGender = (i%2)+1; // can be 1(boy) or 2(girl)
-                    charInfo.sPC_Style.iFaceStyle = 1;
-                    charInfo.sPC_Style.iHairStyle = 1;
-                    charInfo.sPC_Style.iHairColor = (rand()%19) + 1; // 1 - 19
-                    charInfo.sPC_Style.iSkinColor = (rand()%13) + 1; // 1 - 13
-                    charInfo.sPC_Style.iEyeColor = (rand()%6) + 1; // 1 - 6
-                    charInfo.sPC_Style.iHeight = (rand()%6); // 0 -5
-                    charInfo.sPC_Style.iBody = (rand()%4); // 0 - 3
-                    charInfo.sPC_Style.iClass = 0;
-                    charInfo.sPC_Style2.iAppearanceFlag = 1;
-                    charInfo.sPC_Style2.iPayzoneFlag = 1;
-                    charInfo.sPC_Style2.iTutorialFlag = 1;
 
-                    // past's town hall
-                    charInfo.iX = settings::SPAWN_X;
-                    charInfo.iY = settings::SPAWN_Y;
-                    charInfo.iZ = settings::SPAWN_Z;
+                if (charCount > 0) {
 
-                    U8toU16(std::string("Player"), charInfo.sPC_Style.szFirstName);
-                    U8toU16(std::to_string(i + 1), charInfo.sPC_Style.szLastName);
+                    std::list<Player> characters = Database::getCharacters(loginSessions[sock].UserID);
+                    std::list<Player>::iterator it;
+                    for (it = characters.begin(); it != characters.end(); it++)
+                    {
+                        sP_LS2CL_REP_CHAR_INFO charInfo = sP_LS2CL_REP_CHAR_INFO();
 
-                    int64_t UID = charInfo.sPC_Style.iPC_UID;
-                    loginSessions[sock].characters[UID] = Player();
-                    loginSessions[sock].characters[UID].level = charInfo.iLevel;
-                    loginSessions[sock].characters[UID].slot = charInfo.iSlot;
-                    loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
-                    loginSessions[sock].characters[UID].x = charInfo.iX;
-                    loginSessions[sock].characters[UID].y = charInfo.iY;
-                    loginSessions[sock].characters[UID].z = charInfo.iZ;
-                    loginSessions[sock].characters[UID].PCStyle = charInfo.sPC_Style;
-                    loginSessions[sock].characters[UID].PCStyle2 = charInfo.sPC_Style2;
-                    loginSessions[sock].characters[UID].IsGM = false;
+                        charInfo.iSlot = (int8_t)it->slot;
+                        charInfo.iLevel = (int16_t)it->level;
+                        charInfo.sPC_Style = it->PCStyle;
+                        charInfo.sPC_Style2 = it->PCStyle2;
 
-                    for (int i = 0; i < AEQUIP_COUNT; i++) {
-                        // setup equips
-                        charInfo.aEquip[i].iID = 0;
-                        charInfo.aEquip[i].iType = i;
-                        charInfo.aEquip[i].iOpt = 0;
-                        loginSessions[sock].characters[UID].Equip[i] = charInfo.aEquip[i];
+                        // position
+                        charInfo.iX = it->x;
+                        charInfo.iY = it->y;
+                        charInfo.iZ = it->z;
+
+                        //save character in session (for char select)
+                        int64_t UID = charInfo.sPC_Style.iPC_UID;
+                        loginSessions[sock].characters[UID] = Player();
+                        loginSessions[sock].characters[UID].level = charInfo.iLevel;
+                        loginSessions[sock].characters[UID].slot = charInfo.iSlot;
+                        loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
+                        loginSessions[sock].characters[UID].x = charInfo.iX;
+                        loginSessions[sock].characters[UID].y = charInfo.iY;
+                        loginSessions[sock].characters[UID].z = charInfo.iZ;
+                        loginSessions[sock].characters[UID].PCStyle = charInfo.sPC_Style;
+                        loginSessions[sock].characters[UID].PCStyle2 = charInfo.sPC_Style2;
+                        loginSessions[sock].characters[UID].IsGM = false;
+
+
+
+                        Player test = loginSessions[sock].characters[UID];
+
+                        for (int i = 0; i < 4; i++) {
+                            //equip char creation clothes and lightning rifle
+                            charInfo.aEquip[i] = it->Equip[i];
+                            loginSessions[sock].characters[UID].Equip[i] = charInfo.aEquip[i];
+                        }
+
+                        for (int i = 5; i < AEQUIP_COUNT; i++) {
+                            // empty equips
+                            charInfo.aEquip[i].iID = 0;
+                            charInfo.aEquip[i].iType = i;
+                            charInfo.aEquip[i].iOpt = 0;
+                            loginSessions[sock].characters[UID].Equip[i] = charInfo.aEquip[i];
+                        }
+
+
+                        for (int i = 0; i < AINVEN_COUNT; i++) {
+                            // setup inventories
+                            loginSessions[sock].characters[UID].Inven[i].iID = 0;
+                            loginSessions[sock].characters[UID].Inven[i].iType = 0;
+                            loginSessions[sock].characters[UID].Inven[i].iOpt = 0;
+                        }
+
+                        // set default to the first character
+                        if (it == characters.begin())
+                            loginSessions[sock].selectedChar = UID;
+
+                        sock->sendPacket((void*)&charInfo, P_LS2CL_REP_CHAR_INFO, sizeof(sP_LS2CL_REP_CHAR_INFO));
                     }
-                    
-                    for (int i = 0; i < AINVEN_COUNT; i++) {
-                        // setup inventories
-                        loginSessions[sock].characters[UID].Inven[i].iID = 0;
-                        loginSessions[sock].characters[UID].Inven[i].iType = 0;
-                        loginSessions[sock].characters[UID].Inven[i].iOpt = 0;
-                    }
-                    
-                    // set default to the first character
-                    if (i == 0)
-                        loginSessions[sock].selectedChar = UID;
-
-                    sock->sendPacket((void*)&charInfo, P_LS2CL_REP_CHAR_INFO, sizeof(sP_LS2CL_REP_CHAR_INFO));
                 }
+            }
+            //Failure
+            else {
+
+                INITSTRUCT(sP_LS2CL_REP_LOGIN_FAIL, resp);
+
+                memcpy(resp.szID, login->szID, sizeof(char16_t) * 33);
+                resp.iErrorCode = errorCode;
+
+                sock->sendPacket((void*)&resp, P_LS2CL_REP_LOGIN_FAIL, sizeof(sP_LS2CL_REP_LOGIN_FAIL));               
             }
 
             break;
@@ -148,17 +180,19 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 return;
             
             sP_CL2LS_REQ_SAVE_CHAR_NAME* save = (sP_CL2LS_REQ_SAVE_CHAR_NAME*)data->buf;
+            Database::createCharacter(save, loginSessions[sock].UserID);
+
             INITSTRUCT(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC, resp);
 
             DEBUGLOG(
                 std::cout << "P_CL2LS_REQ_SAVE_CHAR_NAME:" << std::endl;
                 std::cout << "\tSlot: " << (int)save->iSlotNum << std::endl;
-                std::cout << "\tGender: " << (int)save->iGender << std::endl;
                 std::cout << "\tName: " << U16toU8(save->szFirstName) << " " << U16toU8(save->szLastName) << std::endl;
-            )
+            )          
 
             resp.iSlotNum = save->iSlotNum;
             resp.iGender = save->iGender;
+            resp.iPC_UID = Database::getCharacterID(loginSessions[sock].UserID, save->iSlotNum);
             memcpy(resp.szFirstName, save->szFirstName, sizeof(char16_t) * 9);
             memcpy(resp.szLastName, save->szLastName, sizeof(char16_t) * 17);
 
@@ -170,6 +204,8 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 return;
             
             sP_CL2LS_REQ_CHAR_CREATE* character = (sP_CL2LS_REQ_CHAR_CREATE*)data->buf;
+            Database::finishCharacter(character);
+
             INITSTRUCT(sP_LS2CL_REP_CHAR_CREATE_SUCC, resp);
 
             DEBUGLOG(
@@ -206,7 +242,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             character->PCStyle.iNameCheck = 1;
             resp.sPC_Style = character->PCStyle;
             resp.sPC_Style2.iAppearanceFlag = 1;
-            resp.sPC_Style2.iTutorialFlag = 1;
+            resp.sPC_Style2.iTutorialFlag = 0;
             resp.sPC_Style2.iPayzoneFlag = 1;
             resp.iLevel = 36;
             resp.sOn_Item = character->sOn_Item;
@@ -217,7 +253,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             loginSessions[sock].characters[UID].PCStyle = character->PCStyle;
             loginSessions[sock].characters[UID].PCStyle2.iAppearanceFlag = 1;
             loginSessions[sock].characters[UID].PCStyle2.iPayzoneFlag = 1;
-            loginSessions[sock].characters[UID].PCStyle2.iTutorialFlag = 1;
+            loginSessions[sock].characters[UID].PCStyle2.iTutorialFlag = 0;
             loginSessions[sock].characters[UID].x = settings::SPAWN_X;
             loginSessions[sock].characters[UID].y = settings::SPAWN_Y;
             loginSessions[sock].characters[UID].z = settings::SPAWN_Z;
@@ -230,6 +266,29 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             loginSessions[sock].characters[UID].IsGM = false;
 
             sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_CREATE_SUCC, sizeof(sP_LS2CL_REP_CHAR_CREATE_SUCC));
+            break;
+        }
+        case P_CL2LS_REQ_CHAR_DELETE: {
+            if (data->size != sizeof(sP_CL2LS_REQ_CHAR_DELETE))
+                return;
+
+            sP_CL2LS_REQ_CHAR_DELETE* del = (sP_CL2LS_REQ_CHAR_DELETE*)data->buf;
+            int operationResult = Database::deleteCharacter(del->iPC_UID, loginSessions[sock].UserID);
+
+            //success
+            if (operationResult > 0) {
+                INITSTRUCT(sP_LS2CL_REP_CHAR_DELETE_SUCC, resp);
+                resp.iSlotNum = operationResult;
+                sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_DELETE_SUCC, sizeof(sP_LS2CL_REP_CHAR_DELETE_SUCC));
+            }
+            //failure
+            else {
+                //client doesnt't care about this packet and softlocks
+                INITSTRUCT(sP_LS2CL_REP_CHAR_DELETE_FAIL, resp);
+                resp.iErrorCode = 0;
+                sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_DELETE_FAIL, sizeof(sP_LS2CL_REP_CHAR_DELETE_FAIL));
+            }
+
             break;
         }
         case P_CL2LS_REQ_CHAR_SELECT: {
@@ -277,6 +336,16 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             sock->sendPacket((void*)&resp, P_LS2CL_REP_SHARD_SELECT_SUCC, sizeof(sP_LS2CL_REP_SHARD_SELECT_SUCC));
             sock->kill(); // client should connect to the Shard server now
             break;
+        }
+        case P_CL2LS_REQ_SAVE_CHAR_TUTOR: {
+            if (data->size != sizeof(sP_CL2LS_REQ_SAVE_CHAR_TUTOR))
+                return;
+            sP_CL2LS_REQ_SAVE_CHAR_TUTOR* save = (sP_CL2LS_REQ_SAVE_CHAR_TUTOR*)data->buf;
+            Database::finishTutorial(save->iPC_UID);
+            loginSessions[sock].characters[save->iPC_UID].PCStyle2.iTutorialFlag = 1;
+            loginSessions[sock].characters[save->iPC_UID].Equip[0].iID = 328;
+            loginSessions[sock].characters[save->iPC_UID].Equip[0].iType = 0;
+            loginSessions[sock].characters[save->iPC_UID].Equip[0].iOpt = 1;
         }
         default:
             if (settings::VERBOSITY)

@@ -6,6 +6,7 @@
 #include "MissionManager.hpp"
 #include "NanoManager.hpp"
 #include "NPCManager.hpp"
+#include "Database.hpp"
 
 #include "settings.hpp"
 
@@ -37,6 +38,9 @@ int main() {
     MissionManager::init();
     NanoManager::init();
     NPCManager::init();
+
+    Database::open();
+    
 
     std::cout << "[INFO] Starting Server Threads..." << std::endl;
     CNLoginServer loginServer(settings::LOGINPORT);
