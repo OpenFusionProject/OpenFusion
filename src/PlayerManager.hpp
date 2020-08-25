@@ -8,6 +8,8 @@
 #include <map>
 #include <list>
 
+struct WarpLocation;
+
 struct PlayerView {
     std::list<CNSocket*> viewable;
     std::list<int32_t> viewableNPCs;
@@ -22,7 +24,6 @@ namespace PlayerManager {
 
     void addPlayer(CNSocket* key, Player plr);
     void removePlayer(CNSocket* key);
-    Player *getPlayer(CNSocket* key);
 
     void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z);
     std::list<CNSocket*> getNearbyPlayers(int X, int Y, int dist);
@@ -47,4 +48,7 @@ namespace PlayerManager {
 
     void enterPlayerVehicle(CNSocket* sock, CNPacketData* data);
     void exitPlayerVehicle(CNSocket* sock, CNPacketData* data);
+
+    Player *getPlayer(CNSocket* key);
+    WarpLocation getRespawnPoint(Player *plr);
 }
