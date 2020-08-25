@@ -16,39 +16,56 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_ITEM_MOVE* itemmove = (sP_CL2FE_REQ_ITEM_MOVE*)data->buf;
     INITSTRUCT(sP_FE2CL_PC_ITEM_MOVE_SUCC, resp);
-
+    
     PlayerView& plr = PlayerManager::players[sock];
+    
+    if (itemmove->eFrom == 0 && itemmove->eTo == 0) {
+        // this packet should never happen, tell the client to do nothing and do nothing ourself
+        resp.eTo = itemmove->eFrom;
+        resp.iToSlotNum = itemmove->iFromSlotNum;
+        resp.ToSlotItem = plr.plr->Equip[itemmove->iToSlotNum];
+        resp.eFrom = itemmove->eTo;
+        resp.iFromSlotNum = itemmove->iToSlotNum;
+        resp.FromSlotItem = plr.plr->Equip[itemmove->iFromSlotNum];
+        
+        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_ITEM_DELETE_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC));
+        return;
+    }
+    
+    if (itemmove->iToSlotNum > AINVEN_COUNT) 
+        return; // sanity checks
+    
     sItemBase fromItem;
     sItemBase toItem;
 
     // eFrom 0 means from equip
     if (itemmove->eFrom == 0) {
         // unequiping an item
-        fromItem = plr.plr.Equip[itemmove->iFromSlotNum];
+        fromItem = plr.plr->Equip[itemmove->iFromSlotNum];
     } else {
-        fromItem = plr.plr.Inven[itemmove->iFromSlotNum];
+        fromItem = plr.plr->Inven[itemmove->iFromSlotNum];
     }
 
     // eTo 0 means to equip
     if (itemmove->eTo == 0) {
         // equiping an item
-        toItem = plr.plr.Equip[itemmove->iToSlotNum];
-        plr.plr.Equip[itemmove->iToSlotNum] = fromItem;
+        toItem = plr.plr->Equip[itemmove->iToSlotNum];
+        plr.plr->Equip[itemmove->iToSlotNum] = fromItem;
     } else {
-        toItem = plr.plr.Inven[itemmove->iToSlotNum];
-        plr.plr.Inven[itemmove->iToSlotNum] = fromItem;
+        toItem = plr.plr->Inven[itemmove->iToSlotNum];
+        plr.plr->Inven[itemmove->iToSlotNum] = fromItem;
     }
 
     if (itemmove->eFrom == 0) {
-        plr.plr.Equip[itemmove->iFromSlotNum] = toItem;
+        plr.plr->Equip[itemmove->iFromSlotNum] = toItem;
     } else {
-        plr.plr.Inven[itemmove->iFromSlotNum] = toItem;
+        plr.plr->Inven[itemmove->iFromSlotNum] = toItem;
     }
 
     if (itemmove->eFrom == 0 || itemmove->eTo == 0) {
         INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, equipChange);
 
-        equipChange.iPC_ID = plr.plr.iID;
+        equipChange.iPC_ID = plr.plr->iID;
         if (itemmove->eFrom == 0) {
             equipChange.iEquipSlotNum = itemmove->iFromSlotNum;
             equipChange.EquipSlotItem = toItem;
@@ -86,9 +103,9 @@ void ItemManager::itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
     resp.iSlotNum = itemdel->iSlotNum;
 
     // so, im not sure what this eIL thing does since you always delete items in inventory and not equips
-    plr.plr.Inven[itemdel->iSlotNum].iID = 0;
-    plr.plr.Inven[itemdel->iSlotNum].iType = 0;
-    plr.plr.Inven[itemdel->iSlotNum].iOpt = 0;
+    plr.plr->Inven[itemdel->iSlotNum].iID = 0;
+    plr.plr->Inven[itemdel->iSlotNum].iType = 0;
+    plr.plr->Inven[itemdel->iSlotNum].iOpt = 0;
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_ITEM_DELETE_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC));
 }
@@ -101,7 +118,7 @@ void ItemManager::itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
     PlayerView& plr = PlayerManager::players[sock];
 
     // Commented and disabled for future use
-    //if (!plr.plr.IsGM) {
+    //if (!plr.plr->IsGM) {
     	// TODO: send fail packet
     //    return;
     //}
@@ -109,25 +126,27 @@ void ItemManager::itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
     if (itemreq->eIL == 2) {
         // Quest item, not a real item, handle this later, stubbed for now
         // sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_PC_GIVE_ITEM_FAIL, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_FAIL), sock->getFEKey()));
-    } else if (itemreq->eIL == 1) {
+    } else if (itemreq->eIL == 1 && itemreq->Item.iType >= 0 && itemreq->Item.iType <= 8) {
+        
         INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp);
 
         resp.eIL = itemreq->eIL;
         resp.iSlotNum = itemreq->iSlotNum;
         resp.Item = itemreq->Item;
 
-        plr.plr.Inven[itemreq->iSlotNum] = itemreq->Item;
-        plr.plr.level = 36;
+        plr.plr->Inven[itemreq->iSlotNum] = itemreq->Item;
 
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_GIVE_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC));
 
         // some items require a level, for now we're just going to bypass this by setting your level to 36
+        //plr.plr->level = 36;
         
-        sP_FE2CL_REP_PC_CHANGE_LEVEL resp2;
+        //sP_FE2CL_REP_PC_CHANGE_LEVEL resp2;
 
-        resp2.iPC_ID = plr.plr.iID;
-        resp2.iPC_Level = 36;
+        //resp2.iPC_ID = plr.plr->iID;
+        //resp2.iPC_Level = 36;
 
-        sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+        //sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+        // saving this for later use on a /level command
     }
 }

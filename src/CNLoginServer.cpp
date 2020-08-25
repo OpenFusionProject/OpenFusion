@@ -208,11 +208,11 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             resp.sPC_Style2.iAppearanceFlag = 1;
             resp.sPC_Style2.iTutorialFlag = 1;
             resp.sPC_Style2.iPayzoneFlag = 1;
-            resp.iLevel = 1;
+            resp.iLevel = 36;
             resp.sOn_Item = character->sOn_Item;
 
             loginSessions[sock].characters[UID] = Player();
-            loginSessions[sock].characters[UID].level = 1;
+            loginSessions[sock].characters[UID].level = 36;
             loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
             loginSessions[sock].characters[UID].PCStyle = character->PCStyle;
             loginSessions[sock].characters[UID].PCStyle2.iAppearanceFlag = 1;
@@ -275,7 +275,6 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             CNSharedData::setPlayer(resp.iEnterSerialKey, loginSessions[sock].characters[loginSessions[sock].selectedChar]);
 
             sock->sendPacket((void*)&resp, P_LS2CL_REP_SHARD_SELECT_SUCC, sizeof(sP_LS2CL_REP_SHARD_SELECT_SUCC));
-            sock->kill(); // client should connect to the Shard server now
             break;
         }
         default:

@@ -58,8 +58,8 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
     std::list<int32_t> noView;
 
     for (auto& pair : NPCs) {
-        int diffX = abs(view.plr.x - pair.second.appearanceData.iX);
-        int diffY = abs(view.plr.y - pair.second.appearanceData.iY);
+        int diffX = abs(view.plr->x - pair.second.appearanceData.iX);
+        int diffY = abs(view.plr->y - pair.second.appearanceData.iY);
 
         if (diffX < settings::VIEWDISTANCE && diffY < settings::VIEWDISTANCE) {
             yesView.push_back(pair.first);
