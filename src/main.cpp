@@ -3,6 +3,7 @@
 #include "PlayerManager.hpp"
 #include "ChatManager.hpp"
 #include "ItemManager.hpp"
+#include "MissionManager.hpp"
 #include "NanoManager.hpp"
 #include "NPCManager.hpp"
 
@@ -11,7 +12,7 @@
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
     #include "mingw/mingw.thread.h"
 #else 
-    #include <thread>
+#include <thread>
 #endif
 #include <string>
 
@@ -22,9 +23,9 @@ void startShard(CNShardServer* server) {
 int main() {
 #ifdef _WIN32
     WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(1,1), &wsaData) != 0) {
-        std::cerr << "OpenFusion: WSAStartup failed" << std::endl; 
-        exit(EXIT_FAILURE); 
+    if (WSAStartup(MAKEWORD(1, 1), &wsaData) != 0) {
+        std::cerr << "OpenFusion: WSAStartup failed" << std::endl;
+        exit(EXIT_FAILURE);
     }
 #endif
     settings::init();
@@ -33,6 +34,7 @@ int main() {
     PlayerManager::init();
     ChatManager::init();
     ItemManager::init();
+    MissionManager::init();
     NanoManager::init();
     NPCManager::init();
 
@@ -41,12 +43,12 @@ int main() {
     CNShardServer shardServer(settings::SHARDPORT);
 
     std::thread shardThread(startShard, (CNShardServer*)&shardServer);
-    
+
     loginServer.start();
 
     shardServer.kill();
     shardThread.join();
-    
+
 #ifdef _WIN32
     WSACleanup();
 #endif

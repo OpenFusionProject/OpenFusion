@@ -1,10 +1,6 @@
 #include "CNProtocol.hpp"
 #include "CNStructs.hpp"
 
-#ifdef _MSC_VER
-    #define _WINSOCK_DEPRECATED_NO_WARNINGS
-#endif
-
 // ========================================================[[ CNSocketEncryption ]]========================================================
 
 // literally C/P from the client and converted to C++ (does some byte swapping /shrug)
@@ -63,7 +59,7 @@ int CNSocketEncryption::decryptData(uint8_t* buffer, uint8_t* key, int size) {
 
 // ========================================================[[ CNPacketData ]]========================================================
 
-CNPacketData::CNPacketData(void* b, uint32_t t, int l): buf(b), type(t), size(l) {}
+CNPacketData::CNPacketData(void* b, uint32_t t, int l): buf(b), size(l), type(t) {}
 
 // ========================================================[[ CNSocket ]]========================================================
 
@@ -78,11 +74,11 @@ bool CNSocket::sendData(uint8_t* data, int size) {
     while (sentBytes < size) {
         int sent = send(sock, (buffer_t*)(data + sentBytes), size - sentBytes, 0); // no flags defined
         if (SOCKETERROR(sent)) {
-            if (errno == 11 && maxTries > 0) {
+            if (OF_ERRNO == OF_EWOULD && maxTries > 0) {
                 maxTries--;
                 continue; // try again
             }
-            std::cout << "[FATAL] SOCKET ERROR: " << errno << std::endl;
+            std::cout << "[FATAL] SOCKET ERROR: " << OF_ERRNO << std::endl;
             return false; // error occured while sending bytes
         }
         sentBytes += sent;
@@ -122,7 +118,7 @@ void CNSocket::kill() {
 #endif
 }
 
-// we don't own buf
+// we don't own buf, TODO: queue packets up to send in step()
 void CNSocket::sendPacket(void* buf, uint32_t type, size_t size) {
     if (!alive)
         return;
@@ -167,6 +163,8 @@ void CNSocket::setActiveKey(ACTIVEKEY key) {
 }
 
 void CNSocket::step() {
+    // read step
+
     if (readSize <= 0) {
         // we aren't reading a packet yet, try to start looking for one
         int recved = recv(sock, (buffer_t*)readBuffer, sizeof(int32_t), 0);
@@ -181,6 +179,10 @@ void CNSocket::step() {
 
             // we'll just leave bufferIndex at 0 since we already have the packet size, it's safe to overwrite those bytes
             activelyReading = true;
+        } else if (OF_ERRNO != OF_EWOULD) {
+            // serious socket issue, disconnect connection
+            kill();
+            return;
         }
     }
     
@@ -189,6 +191,11 @@ void CNSocket::step() {
         int recved = recv(sock, (buffer_t*)(readBuffer + readBufferIndex), readSize - readBufferIndex, 0);
         if (!SOCKETERROR(recved))
             readBufferIndex += recved;
+        else if (OF_ERRNO != OF_EWOULD) {
+            // serious socket issue, disconnect connection
+            kill();
+            return;
+        }
     }
 
     if (activelyReading && readBufferIndex - readSize <= 0) {            
@@ -261,12 +268,8 @@ void CNServer::init() {
     }
 }
 
-CNServer::CNServer() {
-    lastTimer = getTime();
-};
-CNServer::CNServer(uint16_t p): port(p) {
-    lastTimer = getTime();
-}
+CNServer::CNServer() {};
+CNServer::CNServer(uint16_t p): port(p) {}
 
 void CNServer::start() {
     std::cout << "Starting server at *:" << port << std::endl;
@@ -319,10 +322,7 @@ void CNServer::start() {
             }
         }
 
-        if (getTime() - lastTimer > 2000) { // every 2 seconds call the onTimer method
-            onTimer();
-            lastTimer = getTime();
-        }
+        onStep();
 
 #ifdef _WIN32
         Sleep(0);
@@ -352,6 +352,28 @@ void CNServer::kill() {
     connections.clear();
 }
 
+void CNServer::printPacket(CNPacketData *data, int type) {
+    if (settings::VERBOSITY < 2)
+        return;
+
+    if (settings::VERBOSITY < 3) switch (data->type) {
+    case P_CL2LS_REP_LIVE_CHECK:
+    case P_CL2FE_REP_LIVE_CHECK:
+    case P_CL2FE_REQ_PC_MOVE:
+    case P_CL2FE_REQ_PC_JUMP:
+    case P_CL2FE_REQ_PC_SLOPE:
+    case P_CL2FE_REQ_PC_MOVEPLATFORM:
+    case P_CL2FE_REQ_PC_MOVETRANSPORTATION:
+    case P_CL2FE_REQ_PC_ZIPLINE:
+    case P_CL2FE_REQ_PC_JUMPPAD:
+    case P_CL2FE_REQ_PC_LAUNCHER:
+    case P_CL2FE_REQ_PC_STOP:
+        return;
+    }
+
+    std::cout << "OpenFusion: received " << Defines::p2str(type, data->type) << " (" << data->type << ")" << std::endl;
+}
+
 void CNServer::newConnection(CNSocket* cns) {} // stubbed
 void CNServer::killConnection(CNSocket* cns) {} // stubbed
-void CNServer::onTimer() {} // stubbed
+void CNServer::onStep() {} // stubbed

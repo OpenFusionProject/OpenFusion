@@ -1,5 +1,4 @@
-#ifndef _CNLS_HPP
-#define _CNLS_HPP
+#pragma once
 
 #include "CNProtocol.hpp"
 #include "Defines.hpp"
@@ -24,5 +23,3 @@ public:
     void newConnection(CNSocket* cns);
     void killConnection(CNSocket* cns);
 };
-
-#endif

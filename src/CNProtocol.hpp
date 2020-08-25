@@ -1,21 +1,22 @@
-#ifndef _CNP_HPP
-#define _CNP_HPP
+#pragma once
 
 #define MAX_PACKETSIZE 8192
-#define DEBUGLOG(x) x 
+#define DEBUGLOG(x) if (settings::VERBOSITY) {x};
 
 #include <iostream>
 #include <stdio.h>
 #include <stdint.h>
 #ifdef _WIN32 
-// windows (UNTESTED)
+// windows
+    #define _WINSOCK_DEPRECATED_NO_WARNINGS
     #include <winsock2.h>
     #include <windows.h>
     #include <ws2tcpip.h>
     #pragma comment(lib, "Ws2_32.lib")
 
     typedef char buffer_t;
-    //#define errno WSAGetLastError()
+    #define OF_ERRNO WSAGetLastError()
+    #define OF_EWOULD WSAEWOULDBLOCK
     #define SOCKETINVALID(x) (x == INVALID_SOCKET)
     #define SOCKETERROR(x) (x == SOCKET_ERROR)
 #else
@@ -28,6 +29,8 @@
 
     typedef int SOCKET;
     typedef void buffer_t;
+    #define OF_ERRNO errno
+    #define OF_EWOULD EWOULDBLOCK
     #define SOCKETINVALID(x) (x < 0)
     #define SOCKETERROR(x) (x == -1)
 #endif
@@ -38,6 +41,9 @@
 #include <csignal>
 #include <list>
 #include <queue>
+
+#include "Defines.hpp"
+#include "settings.hpp"
 
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
     #include "mingw/mingw.mutex.h"
@@ -106,6 +112,7 @@ private:
     ACTIVEKEY activeKey;
 
     bool sendData(uint8_t* data, int size);
+    int recvData(buffer_t* data, int size);
 
 public:
     SOCKET sock;
@@ -125,6 +132,20 @@ public:
     bool isAlive();
 };
 
+class CNServer;
+typedef void (*TimerHandler)(CNServer* serv, uint64_t time);
+
+// timer struct
+struct TimerEvent {
+    TimerHandler handlr;
+    uint64_t delta; // time to be added to the current time on reset
+    uint64_t scheduledEvent; // time to call handlr()
+
+    TimerEvent(TimerHandler h, uint64_t d): handlr(h), delta(d) {
+        scheduledEvent = 0;
+    }
+};
+
 // in charge of accepting new connections and making sure each connection is kept alive
 class CNServer {
 protected:
@@ -138,7 +159,6 @@ protected:
     void init();
 
     bool active = true;
-    uint64_t lastTimer;
 
 public:
     PacketHandler pHandler;
@@ -148,9 +168,8 @@ public:
 
     void start();
     void kill();
+    static void printPacket(CNPacketData *data, int type);
     virtual void newConnection(CNSocket* cns);
     virtual void killConnection(CNSocket* cns);
-    virtual void onTimer(); // called every 2 seconds
+    virtual void onStep(); // called every 2 seconds
 };
-
-#endif
