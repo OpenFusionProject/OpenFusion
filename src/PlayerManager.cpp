@@ -575,6 +575,7 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
         return;
 
     Player *plr = PlayerManager::getPlayer(sock);
+    WarpLocation target = PlayerManager::getRespawnPoint(plr);
 
     // players respawn at same spot they died at for now...
     sP_CL2FE_REQ_PC_REGEN* reviveData = (sP_CL2FE_REQ_PC_REGEN*)data->buf;
@@ -582,9 +583,9 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     response.bMoveLocation = reviveData->eIL;
     response.PCRegenData.iMapNum = reviveData->iIndex;
     response.PCRegenData.iHP = 1000 * plr->level;
-    response.PCRegenData.iX = plr->x;
-    response.PCRegenData.iY = plr->y;
-    response.PCRegenData.iZ = plr->z;
+    response.PCRegenData.iX = target.x;
+    response.PCRegenData.iY = target.y;
+    response.PCRegenData.iZ = target.z;
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_REGEN_SUCC, sizeof(sP_FE2CL_REP_PC_REGEN_SUCC));
 }
@@ -635,5 +636,20 @@ void PlayerManager::setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {
 #pragma region Helper methods
 Player *PlayerManager::getPlayer(CNSocket* key) {
     return players[key].plr;
+}
+
+WarpLocation PlayerManager::getRespawnPoint(Player *plr) {
+    WarpLocation best;
+    uint32_t curDist, bestDist = UINT32_MAX;
+
+    for (auto targ : NPCManager::RespawnPoints) {
+        curDist = sqrt(pow(plr->x - targ.x, 2) + pow(plr->y - targ.y, 2));
+        if (curDist < bestDist) {
+            best = targ;
+            bestDist = curDist;
+        }
+    }
+
+    return best;
 }
 #pragma endregion

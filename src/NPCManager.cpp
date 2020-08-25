@@ -5,11 +5,13 @@
 #include <algorithm>
 #include <list>
 #include <fstream>
+#include <vector>
 
 #include "contrib/JSON.hpp"
 
 std::map<int32_t, BaseNPC> NPCManager::NPCs;
 std::map<int32_t, WarpLocation> NPCManager::Warps;
+std::vector<WarpLocation> NPCManager::RespawnPoints;
 
 void NPCManager::init() {
     // load NPCs from NPCs.json into our NPC manager
@@ -24,6 +26,9 @@ void NPCManager::init() {
         for (nlohmann::json::iterator npc = npcData.begin(); npc != npcData.end(); npc++) {
             BaseNPC tmp(npc.value()["x"], npc.value()["y"], npc.value()["z"], npc.value()["id"]);
             NPCs[tmp.appearanceData.iNPC_ID] = tmp;
+
+            if (npc.value()["id"] == 641 || npc.value()["id"] == 642)
+                RespawnPoints.push_back({npc.value()["x"], npc.value()["y"], ((int)npc.value()["z"]) + RESURRECT_HEIGHT});
         }
 
         std::cout << "[INFO] populated " << NPCs.size() << " NPCs" << std::endl;
