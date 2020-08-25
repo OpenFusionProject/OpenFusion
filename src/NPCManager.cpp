@@ -17,7 +17,7 @@ void NPCManager::init() {
     // load NPCs from NPCs.json into our NPC manager
 
     try {
-        std::ifstream inFile("NPCs.json");
+        std::ifstream inFile(settings::NPCJSON);
         nlohmann::json npcData;
 
         // read file into json
@@ -37,7 +37,7 @@ void NPCManager::init() {
     }
 
     try {
-        std::ifstream infile("warps.json");
+        std::ifstream infile(settings::WARPJSON);
         nlohmann::json warpData;
 
         // read file into json

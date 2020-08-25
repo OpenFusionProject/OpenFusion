@@ -18,6 +18,7 @@ int settings::SPAWN_Y = 268451;
 int settings::SPAWN_Z = -4210;
 std::string settings::GMPASS = "pass";
 std::string settings::NPCJSON = "NPCs.json";
+std::string settings::WARPJSON = "warps.json";
 std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
 
 void settings::init() {
@@ -43,6 +44,7 @@ void settings::init() {
     SPAWN_Z = reader.GetInteger("shard", "spawnz", SPAWN_Z);
     GMPASS = reader.Get("login", "pass", GMPASS);
     NPCJSON = reader.Get("shard", "npcdata", NPCJSON);
+    WARPJSON = reader.Get("shard", "warpdata", WARPJSON);
     MOTDSTRING = reader.Get("shard", "motd", MOTDSTRING);
 
 }
