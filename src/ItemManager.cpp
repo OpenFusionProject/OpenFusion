@@ -19,7 +19,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     
     PlayerView& plr = PlayerManager::players[sock];
     
-    if (plr.plr->Equip[itemmove->iFromSlotNum].iType == 0 && itemmove->eFrom == 0 && itemmove->eTo == 0) {
+    if (plr.plr->Equip[itemmove->iFromSlotNum].iType != 0 && itemmove->eFrom == 0 && itemmove->eTo == 0) {
         // this packet should never happen unless it is a weapon, tell the client to do nothing and do nothing ourself
         resp.eTo = itemmove->eFrom;
         resp.iToSlotNum = itemmove->iFromSlotNum;
