@@ -275,7 +275,6 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             CNSharedData::setPlayer(resp.iEnterSerialKey, loginSessions[sock].characters[loginSessions[sock].selectedChar]);
 
             sock->sendPacket((void*)&resp, P_LS2CL_REP_SHARD_SELECT_SUCC, sizeof(sP_LS2CL_REP_SHARD_SELECT_SUCC));
-            sock->kill(); // client should connect to the Shard server now
             break;
         }
         default:

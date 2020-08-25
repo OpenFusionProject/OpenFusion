@@ -96,6 +96,7 @@ It's what's called a landwalker; enough of the server has been implemented to al
 
 To make your landwalking experience more pleasant, you can make use of a few admin commands to get around easier:
 
+### Movement commands
 * A `/speed` of around 2400 or 3000 is nice.
 * A `/jump` of about 50 will send you soaring
 * [This map](res/dong_number_map.png) (credit to Danny O) is useful for `/warp` coordinates.
