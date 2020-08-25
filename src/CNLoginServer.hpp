@@ -12,7 +12,7 @@ struct CNLoginData {
     int UserID;
 };
 
-enum LOGINERRORID {
+enum class LOGINERRORID {
     database_error = 0,
     id_doesnt_exist = 1,
     id_and_password_do_not_match = 2,

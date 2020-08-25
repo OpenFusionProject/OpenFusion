@@ -30,7 +30,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             //checking regex
             if (!Database::isLoginDataGood(userLogin, userPassword)) {
-                errorCode = login_error;
+                errorCode = (int)LOGINERRORID::login_error;
             }
 
             //if user does not exist in db, add him to and send succ
@@ -43,7 +43,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 success = true;
             }
             else {
-                errorCode = id_and_password_do_not_match;
+                errorCode = (int)LOGINERRORID::id_and_password_do_not_match;
             }
 
             if (success)
