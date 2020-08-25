@@ -127,7 +127,7 @@ int Database::getUserSlotsNum(int AccountId) {
 
 bool Database::isNameFree(std::string First, std::string Second) {
 	std::string q = "SELECT COUNT(PlayerID) FROM Players WHERE FirstName = \""
-		+ First + "\" AND LastName = \"" + Second + "\"";
+		+ First + "\"COLLATE nocase AND LastName = \"" + Second + "\" COLLATE nocase";
 	const char* query = q.c_str();
 	sqlite3pp::query qry(
 		db, query
