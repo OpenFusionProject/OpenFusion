@@ -268,12 +268,8 @@ void CNServer::init() {
     }
 }
 
-CNServer::CNServer() {
-    lastTimer = getTime();
-};
-CNServer::CNServer(uint16_t p): port(p) {
-    lastTimer = getTime();
-}
+CNServer::CNServer() {};
+CNServer::CNServer(uint16_t p): port(p) {}
 
 void CNServer::start() {
     std::cout << "Starting server at *:" << port << std::endl;
@@ -326,10 +322,7 @@ void CNServer::start() {
             }
         }
 
-        if (getTime() - lastTimer > 2000) { // every 2 seconds call the onTimer method
-            onTimer();
-            lastTimer = getTime();
-        }
+        onStep();
 
 #ifdef _WIN32
         Sleep(0);
@@ -383,4 +376,4 @@ void CNServer::printPacket(CNPacketData *data, int type) {
 
 void CNServer::newConnection(CNSocket* cns) {} // stubbed
 void CNServer::killConnection(CNSocket* cns) {} // stubbed
-void CNServer::onTimer() {} // stubbed
+void CNServer::onStep() {} // stubbed

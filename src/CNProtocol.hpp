@@ -132,6 +132,20 @@ public:
     bool isAlive();
 };
 
+class CNServer;
+typedef void (*TimerHandler)(CNServer* serv, uint64_t time);
+
+// timer struct
+struct TimerEvent {
+    TimerHandler handlr;
+    uint64_t delta; // time to be added to the current time on reset
+    uint64_t scheduledEvent; // time to call handlr()
+
+    TimerEvent(TimerHandler h, uint64_t d): handlr(h), delta(d) {
+        scheduledEvent = 0;
+    }
+};
+
 // in charge of accepting new connections and making sure each connection is kept alive
 class CNServer {
 protected:
@@ -145,7 +159,6 @@ protected:
     void init();
 
     bool active = true;
-    uint64_t lastTimer;
 
 public:
     PacketHandler pHandler;
@@ -158,5 +171,5 @@ public:
     static void printPacket(CNPacketData *data, int type);
     virtual void newConnection(CNSocket* cns);
     virtual void killConnection(CNSocket* cns);
-    virtual void onTimer(); // called every 2 seconds
+    virtual void onStep(); // called every 2 seconds
 };
