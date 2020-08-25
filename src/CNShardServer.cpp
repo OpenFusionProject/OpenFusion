@@ -46,7 +46,7 @@ void CNShardServer::onTimer() {
     auto cachedPlayers = PlayerManager::players;
 
     for (auto pair : cachedPlayers) {
-        if (pair.second.lastHeartbeat != 0 && currTime - pair.second.lastHeartbeat > 4000) { // if the client hadn't responded in 4 seconds, its a dead connection so throw it out
+        if (pair.second.lastHeartbeat != 0 && currTime - pair.second.lastHeartbeat > 30000) { // if the client hadn't responded in 4 seconds, its a dead connection so throw it out
             pair.first->kill();
             continue;
         }

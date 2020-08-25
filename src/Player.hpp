@@ -25,7 +25,10 @@ struct Player {
     int x, y, z, angle;
     sItemBase Equip[AEQUIP_COUNT];
     sItemBase Inven[AINVEN_COUNT];
-    sItemBase Trade[5];
+    sItemTrade Trade[12];
+    int32_t moneyInTrade;
+    bool IsTrading;
+    bool IsTradeConfirm;
     bool IsGM;
 };
 
