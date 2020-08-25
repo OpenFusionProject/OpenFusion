@@ -55,7 +55,8 @@ void NPCManager::init() {
     }
 
 
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_NPC, npcWarpManager);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_NPC, npcWarpHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_NPC_SUMMON, npcSummonHandler);
 }
 
 void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
@@ -107,8 +108,7 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
     PlayerManager::players[sock].viewableNPCs = view.viewableNPCs;
 }
 
-void NPCManager::npcWarpManager(CNSocket* sock, CNPacketData* data)
-{
+void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_WARP_USE_NPC))
         return; // malformed packet
 
@@ -126,4 +126,26 @@ void NPCManager::npcWarpManager(CNSocket* sock, CNPacketData* data)
     
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
 
+}
+
+void NPCManager::npcSummonHandler(CNSocket *sock, CNPacketData *data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_NPC_SUMMON))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_NPC_SUMMON* req = (sP_CL2FE_REQ_NPC_SUMMON*)data->buf;
+    INITSTRUCT(sP_FE2CL_NPC_ENTER, resp);
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    // permission & sanity check
+    if (!plr->IsGM || req->iNPCType >= NPCs.size())
+        return;
+
+    resp.NPCAppearanceData.iNPC_ID = rand(); // cpunch-style
+    resp.NPCAppearanceData.iNPCType = req->iNPCType;
+    resp.NPCAppearanceData.iHP = 1000; // TODO: placeholder
+    resp.NPCAppearanceData.iX = plr->x;
+    resp.NPCAppearanceData.iY = plr->y;
+    resp.NPCAppearanceData.iZ = plr->z;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
 }

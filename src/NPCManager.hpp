@@ -21,5 +21,6 @@ namespace NPCManager {
     void init();
 
     void updatePlayerNPCS(CNSocket* sock, PlayerView& plr);
-    void npcWarpManager(CNSocket* sock, CNPacketData* data);
+    void npcWarpHandler(CNSocket* sock, CNPacketData* data);
+    void npcSummonHandler(CNSocket* sock, CNPacketData* data);
 }

@@ -20,6 +20,7 @@ std::string settings::GMPASS = "pass";
 std::string settings::NPCJSON = "NPCs.json";
 std::string settings::WARPJSON = "warps.json";
 std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
+bool settings::GM = false;
 
 void settings::init() {
     INIReader reader("config.ini");
@@ -46,5 +47,5 @@ void settings::init() {
     NPCJSON = reader.Get("shard", "npcdata", NPCJSON);
     WARPJSON = reader.Get("shard", "warpdata", WARPJSON);
     MOTDSTRING = reader.Get("shard", "motd", MOTDSTRING);
-
+    GM = reader.GetBoolean("shard", "gm", GM);
 }

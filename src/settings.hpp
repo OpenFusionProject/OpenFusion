@@ -14,6 +14,7 @@ namespace settings {
     extern std::string NPCJSON;
     extern std::string WARPJSON;
     extern std::string GMPASS;
+    extern bool GM;
 
     void init();
 }
