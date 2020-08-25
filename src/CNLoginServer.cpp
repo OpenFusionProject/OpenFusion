@@ -356,6 +356,8 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             loginSessions[sock].characters[save->iPC_UID].Equip[0].iID = 328;
             loginSessions[sock].characters[save->iPC_UID].Equip[0].iType = 0;
             loginSessions[sock].characters[save->iPC_UID].Equip[0].iOpt = 1;
+
+            break;
         }
         default:
             if (settings::VERBOSITY)
