@@ -13,6 +13,7 @@ namespace Database {
 	int getUserID(std::string login);
 	int getUserSlotsNum(int AccountId);
 
+	bool isNameFree(std::string First, std::string Second);
 	//after chosing name
 	void createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID);
 	//after finishing creation

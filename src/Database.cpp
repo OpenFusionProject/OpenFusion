@@ -40,7 +40,7 @@ void Database::open() {
 		)
 		db = sqlite3pp::database("data.db");
 		db.execute("CREATE TABLE Accounts(AccountID INTEGER PRIMARY KEY AUTOINCREMENT, Login TEXT NOT NULL, Password TEXT NOT NULL);");
-		db.execute("CREATE TABLE Players(PlayerID INTEGER PRIMARY KEY AUTOINCREMENT, AccountID INTEGER NOT NULL, Slot INTEGER NOT NULL, CharData TEXT NOT NULL);");
+		db.execute("CREATE TABLE Players(PlayerID INTEGER PRIMARY KEY AUTOINCREMENT, AccountID INTEGER NOT NULL, Slot INTEGER NOT NULL, FirstName TEXT NOT NULL, LastName TEXT NOT NULL, CharData TEXT NOT NULL);");
 		DEBUGLOG(
 			std::cout << "Done" << std::endl;
 		)
@@ -125,17 +125,35 @@ int Database::getUserSlotsNum(int AccountId) {
 	return result;
 }
 
+bool Database::isNameFree(std::string First, std::string Second) {
+	std::string q = "SELECT COUNT(PlayerID) FROM Players WHERE FirstName = \""
+		+ First + "\" AND LastName = \"" + Second + "\"";
+	const char* query = q.c_str();
+	sqlite3pp::query qry(
+		db, query
+	);
+
+	sqlite3pp::query::iterator i = qry.begin();
+	int result;
+	std::tie(result) =
+		(*i).get_columns<int>(0);
+	return (result == 0);
+}
+
 void Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) {
 	std::string charData = CharacterToJson(save);
 
 	sqlite3pp::command cmd(
-		db, "INSERT INTO Players (AccountID, Slot, CharData) VALUES (:AccountID, :Slot, :CharData)"
+		db, "INSERT INTO Players (AccountID, Slot, FirstName, LastName, CharData) VALUES (:AccountID, :Slot, :FirstName, :LastName, :CharData)"
 	);
-
+	std::string first = U16toU8(save->szFirstName);
+	std::string last = U16toU8(save->szLastName);
 
 	cmd.bind(":AccountID", AccountID);
 	cmd.bind(":Slot", save->iSlotNum);
 	cmd.bind(":CharData", charData, sqlite3pp::nocopy);
+	cmd.bind(":FirstName", first, sqlite3pp::nocopy);
+	cmd.bind(":LastName", last, sqlite3pp::nocopy);
 
 	cmd.execute();
 
@@ -256,9 +274,9 @@ std::list <Player> Database::getCharacters(int UserID) {
 
 		for (sqlite3pp::query::iterator i = qry.begin(); i != qry.end(); ++i) {
 			int ID, AccountID, slot;
-			char const* charData;
-			std::tie(ID, AccountID, slot, charData) =
-				(*i).get_columns<int, int, int, char const*>(0, 1, 2, 3);
+			char const* charData, *first, *second;
+			std::tie(ID, AccountID, slot, first, second, charData) =
+				(*i).get_columns<int, int, int, char const*, char const*, char const*>(0, 1, 2, 3,4,5);
 			Player toadd = JsonToPlayer(charData, ID);
 			toadd.slot = slot;
 			Result.push_back(toadd);

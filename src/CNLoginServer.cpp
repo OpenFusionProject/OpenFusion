@@ -158,21 +158,31 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
         case P_CL2LS_REQ_CHECK_CHAR_NAME: {
             if (data->size != sizeof(sP_CL2LS_REQ_CHECK_CHAR_NAME))
                 return;
-            
-            // naughty words allowed!!!!!!!! (also for some reason, the client will always show 'Player 0' if you manually type a name. It will show up for other connected players though)
             sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck = (sP_CL2LS_REQ_CHECK_CHAR_NAME*)data->buf;
-            INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC, resp);
+            //check if name is occupied
+            if (Database::isNameFree(U16toU8(nameCheck->szFirstName), U16toU8(nameCheck->szLastName)))
+            {
 
-            DEBUGLOG(
-                std::cout << "P_CL2LS_REQ_CHECK_CHAR_NAME:" << std::endl;
+                // naughty words allowed!!!!!!!! (also for some reason, the client will always show 'Player + ID' if you manually type a name. It will show up for other connected players though)
+
+                INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC, resp);
+
+                DEBUGLOG(
+                    std::cout << "P_CL2LS_REQ_CHECK_CHAR_NAME:" << std::endl;
                 std::cout << "\tFirstName: " << U16toU8(nameCheck->szFirstName) << " LastName: " << U16toU8(nameCheck->szLastName) << std::endl;
-            )
+                )
 
-            memcpy(resp.szFirstName, nameCheck->szFirstName, sizeof(char16_t) * 9);
-            memcpy(resp.szLastName, nameCheck->szLastName, sizeof(char16_t) * 17);
+                    memcpy(resp.szFirstName, nameCheck->szFirstName, sizeof(char16_t) * 9);
+                memcpy(resp.szLastName, nameCheck->szLastName, sizeof(char16_t) * 17);
 
-            // fr*ck allowed!!!
-            sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC));
+                // fr*ck allowed!!!
+                sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC));
+            }
+            else {
+                INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL, resp);
+                resp.iErrorCode = 1;
+                sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_FAIL, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL));
+            }
             break;
         }
         case P_CL2LS_REQ_SAVE_CHAR_NAME: {
