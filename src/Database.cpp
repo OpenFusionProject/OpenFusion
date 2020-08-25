@@ -69,11 +69,13 @@ void Database::addAccount(std::string login, std::string password) {
 
 bool Database::doesUserExist(std::string login) {
 
-	std::string q = "SELECT COUNT(AccountID) FROM Accounts WHERE Login = \"" + login + "\"";
+	std::string q = "SELECT COUNT(AccountID) FROM Accounts WHERE Login = :login";
 	const char* query = q.c_str();
 	sqlite3pp::query qry(
 		db, query
 	);
+	qry.bind(":login", login,sqlite3pp::nocopy);
+	
 	
 	sqlite3pp::query::iterator i = qry.begin();
 	int result;
@@ -83,11 +85,13 @@ bool Database::doesUserExist(std::string login) {
 }
 
 bool Database::isPasswordCorrect(std::string login, std::string password) {
-	std::string q = "SELECT Password FROM Accounts WHERE Login = \"" + login + "\"";
+	std::string q = "SELECT Password FROM Accounts WHERE Login = :login";
 	const char* query = q.c_str();
 	sqlite3pp::query qry(
 		db, query
 	);
+
+	qry.bind(":login", login, sqlite3pp::nocopy);
 
 	sqlite3pp::query::iterator i = qry.begin();
 	const char* actual;
@@ -98,11 +102,13 @@ bool Database::isPasswordCorrect(std::string login, std::string password) {
 }
 
 int Database::getUserID(std::string login) {
-	std::string q = "SELECT AccountID FROM Accounts WHERE Login = \"" + login + "\"";
+	std::string q = "SELECT AccountID FROM Accounts WHERE Login = :login";
 	const char* query = q.c_str();
 	sqlite3pp::query qry(
 		db, query
 	);
+
+	qry.bind(":login", login, sqlite3pp::nocopy);
 
 	sqlite3pp::query::iterator i = qry.begin();
 	int result;
@@ -112,11 +118,12 @@ int Database::getUserID(std::string login) {
 }
 
 int Database::getUserSlotsNum(int AccountId) {
-	std::string q = "SELECT COUNT(PlayerID) FROM Players WHERE AccountID = "+ std::to_string(AccountId);
+	std::string q = "SELECT COUNT(PlayerID) FROM Players WHERE AccountID = :ID";
 	const char* query = q.c_str();
 	sqlite3pp::query qry(
 		db, query
 	);
+	qry.bind(":ID", AccountId);
 
 	sqlite3pp::query::iterator i = qry.begin();
 	int result;
@@ -126,12 +133,13 @@ int Database::getUserSlotsNum(int AccountId) {
 }
 
 bool Database::isNameFree(std::string First, std::string Second) {
-	std::string q = "SELECT COUNT(PlayerID) FROM Players WHERE FirstName = \""
-		+ First + "\"COLLATE nocase AND LastName = \"" + Second + "\" COLLATE nocase";
+	std::string q = "SELECT COUNT(PlayerID) FROM Players WHERE FirstName = :First COLLATE nocase AND LastName = :Second COLLATE nocase";
 	const char* query = q.c_str();
 	sqlite3pp::query qry(
 		db, query
 	);
+	qry.bind(":First", First, sqlite3pp::nocopy);
+	qry.bind(":Second", Second, sqlite3pp::nocopy);
 
 	sqlite3pp::query::iterator i = qry.begin();
 	int result;
@@ -178,11 +186,13 @@ void Database::finishTutorial(int PlayerID) {
 
 	std::string json;
 
-	std::string q = "SELECT CharData FROM Players WHERE PlayerID = " + std::to_string(PlayerID);
+	std::string q = "SELECT CharData FROM Players WHERE PlayerID = :ID";
 	const char* query = q.c_str();
 	sqlite3pp::query qry(
 		db, query
 	);
+	qry.bind(":ID", PlayerID);
+
 
 	sqlite3pp::query::iterator i = qry.begin();
 
@@ -206,12 +216,13 @@ void Database::finishTutorial(int PlayerID) {
 }
 
 int Database::getCharacterID(int AccountID, int slot) {
-	std::string q = "SELECT PlayerID FROM Players WHERE AccountID = " +
-		std::to_string(AccountID) + " AND Slot = " + std::to_string(slot);
+	std::string q = "SELECT PlayerID FROM Players WHERE AccountID = :ID AND Slot = :Slot";
 	const char* query = q.c_str();
 	sqlite3pp::query qry(
 		db, query
 	);
+	qry.bind(":ID", AccountID);
+	qry.bind(":Slot", slot);
 
 	sqlite3pp::query::iterator i = qry.begin();
 	int result;
@@ -223,12 +234,14 @@ int Database::getCharacterID(int AccountID, int slot) {
 int Database::deleteCharacter(int characterID, int accountID) {
 
 	//checking if requested player exist and is bound to the account
-	std::string q = "SELECT COUNT(AccountID) FROM Players WHERE AccountID = " + std::to_string(accountID)
-		+ " AND PlayerID = " + std::to_string(characterID);
+	std::string q = "SELECT COUNT(AccountID) FROM Players WHERE AccountID = :AccID AND PlayerID = :PID";
 	const char* query = q.c_str();
 	sqlite3pp::query qry(
 		db, query
 	);
+
+	qry.bind(":AccID", accountID);
+	qry.bind(":PID", characterID);
 
 	sqlite3pp::query::iterator i = qry.begin();
 	int result;
@@ -237,12 +250,14 @@ int Database::deleteCharacter(int characterID, int accountID) {
 
 	if (result>0) {
 		//get player character slot
-		q = "SELECT Slot FROM Players WHERE PlayerID = " + std::to_string(characterID);
+		q = "SELECT Slot FROM Players WHERE PlayerID = :PID";
 
 		query = q.c_str();
 		sqlite3pp::query qry(
 			db, query
 		);
+		qry.bind(":PID", characterID);
+
 
 		sqlite3pp::query::iterator i = qry.begin();
 		int slot;
@@ -264,13 +279,15 @@ std::list <Player> Database::getCharacters(int UserID) {
 	std::list<Player> Result = std::list<Player>();
 
 	
-		std::string q = "SELECT * FROM Players WHERE AccountID =" + std::to_string(UserID);
+	std::string q = "SELECT * FROM Players WHERE AccountID = :ID";
 		
 		const char* query = q.c_str();
 
 		sqlite3pp::query qry(
 			db, query
 		);
+		qry.bind(":ID", UserID);
+
 
 		for (sqlite3pp::query::iterator i = qry.begin(); i != qry.end(); ++i) {
 			int ID, AccountID, slot;
