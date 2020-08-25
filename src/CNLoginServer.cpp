@@ -58,7 +58,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 for (int i = 0; i < charCount; i++) {
                     sP_LS2CL_REP_CHAR_INFO charInfo = sP_LS2CL_REP_CHAR_INFO();
                     charInfo.iSlot = (int8_t)i + 1;
-                    charInfo.iLevel = (int16_t)1;
+                    charInfo.iLevel = (int16_t)36;
                     charInfo.sPC_Style.iPC_UID = rand(); // unique identifier for the character
                     charInfo.sPC_Style.iNameCheck = 1;
                     charInfo.sPC_Style.iGender = (i%2)+1; // can be 1(boy) or 2(girl)
