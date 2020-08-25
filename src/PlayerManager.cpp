@@ -227,6 +227,10 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     response.PCLoadData2CL.aQuestFlag[0] = -1;
 
+    // shut computress up
+    response.PCLoadData2CL.iFirstUseFlag1 = UINT64_MAX;
+    response.PCLoadData2CL.iFirstUseFlag2 = UINT64_MAX;
+
     plr.iID = response.iID;
     plr.SerialKey = enter->iEnterSerialKey;
     plr.HP = response.PCLoadData2CL.iHP;
