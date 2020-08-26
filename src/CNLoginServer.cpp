@@ -58,7 +58,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 for (int i = 0; i < charCount; i++) {
                     sP_LS2CL_REP_CHAR_INFO charInfo = sP_LS2CL_REP_CHAR_INFO();
                     charInfo.iSlot = (int8_t)i + 1;
-                    charInfo.iLevel = (int16_t)1;
+                    charInfo.iLevel = (int16_t)36;
                     charInfo.sPC_Style.iPC_UID = rand(); // unique identifier for the character
                     charInfo.sPC_Style.iNameCheck = 1;
                     charInfo.sPC_Style.iGender = (i%2)+1; // can be 1(boy) or 2(girl)
@@ -85,6 +85,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     int64_t UID = charInfo.sPC_Style.iPC_UID;
                     loginSessions[sock].characters[UID] = Player();
                     loginSessions[sock].characters[UID].level = charInfo.iLevel;
+                    loginSessions[sock].characters[UID].money = 9001;
                     loginSessions[sock].characters[UID].slot = charInfo.iSlot;
                     loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
                     loginSessions[sock].characters[UID].x = charInfo.iX;
@@ -92,7 +93,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     loginSessions[sock].characters[UID].z = charInfo.iZ;
                     loginSessions[sock].characters[UID].PCStyle = charInfo.sPC_Style;
                     loginSessions[sock].characters[UID].PCStyle2 = charInfo.sPC_Style2;
-                    loginSessions[sock].characters[UID].IsGM = false;
+                    loginSessions[sock].characters[UID].IsGM = settings::GM;
 
                     for (int i = 0; i < AEQUIP_COUNT; i++) {
                         // setup equips
@@ -213,6 +214,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             loginSessions[sock].characters[UID] = Player();
             loginSessions[sock].characters[UID].level = 36;
+            loginSessions[sock].characters[UID].money = 9001;
             loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
             loginSessions[sock].characters[UID].PCStyle = character->PCStyle;
             loginSessions[sock].characters[UID].PCStyle2.iAppearanceFlag = 1;
@@ -227,7 +229,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             loginSessions[sock].characters[UID].Equip[2].iType = 2;
             loginSessions[sock].characters[UID].Equip[3].iID = character->sOn_Item.iEquipFootID; // foot!
             loginSessions[sock].characters[UID].Equip[3].iType = 3; 
-            loginSessions[sock].characters[UID].IsGM = false;
+            loginSessions[sock].characters[UID].IsGM = settings::GM;
 
             sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_CREATE_SUCC, sizeof(sP_LS2CL_REP_CHAR_CREATE_SUCC));
             break;

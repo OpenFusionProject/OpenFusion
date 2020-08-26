@@ -55,18 +55,18 @@ void PlayerManager::removePlayer(CNSocket* key) {
     for (CNSocket* otherSock : players[key].viewable) {
         players[otherSock].viewable.remove(key); // gone
 
-        // now sent PC_EXIT packet
+        // now send PC_EXIT packet
         sP_FE2CL_PC_EXIT exitPacket;
         exitPacket.iID = players[key].plr->iID;
 
         otherSock->sendPacket((void*)&exitPacket, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT));
     }
 
-    delete cachedView.plr;
-    players.erase(key);
-
     std::cout << U16toU8(cachedView.plr->PCStyle.szFirstName) << U16toU8(cachedView.plr->PCStyle.szLastName) << " has left!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
+
+    delete cachedView.plr;
+    players.erase(key);
 }
 
 void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
@@ -85,7 +85,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
         int diffX = abs(pair.second.plr->x - X); // the map is like a grid, X and Y are your position on the map, Z is the height. very different from other games...
         int diffY = abs(pair.second.plr->y - Y);
 
-        if (diffX < settings::VIEWDISTANCE && diffY < settings::VIEWDISTANCE) {
+        if (diffX < settings::PLAYERDISTANCE && diffY < settings::PLAYERDISTANCE) {
             yesView.push_back(pair.first);
         }
         else {
@@ -196,12 +196,14 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iUserLevel = 1;
     response.PCLoadData2CL.iHP = 3625; //TODO: Check player levelupdata and get this right
     response.PCLoadData2CL.iLevel = plr.level;
+    response.PCLoadData2CL.iCandy = plr.money;
     response.PCLoadData2CL.iMentor = 1;
     response.PCLoadData2CL.iMentorCount = 4;
     response.PCLoadData2CL.iMapNum = 0;
     response.PCLoadData2CL.iX = plr.x;
     response.PCLoadData2CL.iY = plr.y;
     response.PCLoadData2CL.iZ = plr.z;
+    response.PCLoadData2CL.iAngle = 130;
     response.PCLoadData2CL.iActiveNanoSlotNum = -1;
     response.PCLoadData2CL.iFatigue = 50;
     response.PCLoadData2CL.PCStyle = plr.PCStyle;
@@ -226,6 +228,10 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     //response.PCLoadData2CL.aNanoSlots[2] = 3;
 
     response.PCLoadData2CL.aQuestFlag[0] = -1;
+
+    // shut computress up
+    response.PCLoadData2CL.iFirstUseFlag1 = UINT64_MAX;
+    response.PCLoadData2CL.iFirstUseFlag2 = UINT64_MAX;
 
     plr.iID = response.iID;
     plr.SerialKey = enter->iEnterSerialKey;
@@ -252,6 +258,7 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_LOADING_COMPLETE* complete = (sP_CL2FE_REQ_PC_LOADING_COMPLETE*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, response);
+    Player *plr = getPlayer(sock);
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_LOADING_COMPLETE:" << std::endl;
@@ -259,6 +266,9 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
     )
 
     response.iPC_ID = complete->iPC_ID;
+
+    // reload players & NPCs
+    updatePlayerPosition(sock, plr->x, plr->y, plr->z);
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC));
 }
@@ -575,6 +585,7 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
         return;
 
     Player *plr = PlayerManager::getPlayer(sock);
+    WarpLocation target = PlayerManager::getRespawnPoint(plr);
 
     // players respawn at same spot they died at for now...
     sP_CL2FE_REQ_PC_REGEN* reviveData = (sP_CL2FE_REQ_PC_REGEN*)data->buf;
@@ -582,9 +593,9 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     response.bMoveLocation = reviveData->eIL;
     response.PCRegenData.iMapNum = reviveData->iIndex;
     response.PCRegenData.iHP = 1000 * plr->level;
-    response.PCRegenData.iX = plr->x;
-    response.PCRegenData.iY = plr->y;
-    response.PCRegenData.iZ = plr->z;
+    response.PCRegenData.iX = target.x;
+    response.PCRegenData.iY = target.y;
+    response.PCRegenData.iZ = target.z;
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_REGEN_SUCC, sizeof(sP_FE2CL_REP_PC_REGEN_SUCC));
 }
@@ -635,5 +646,20 @@ void PlayerManager::setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {
 #pragma region Helper methods
 Player *PlayerManager::getPlayer(CNSocket* key) {
     return players[key].plr;
+}
+
+WarpLocation PlayerManager::getRespawnPoint(Player *plr) {
+    WarpLocation best;
+    uint32_t curDist, bestDist = UINT32_MAX;
+
+    for (auto targ : NPCManager::RespawnPoints) {
+        curDist = sqrt(pow(plr->x - targ.x, 2) + pow(plr->y - targ.y, 2));
+        if (curDist < bestDist) {
+            best = targ;
+            bestDist = curDist;
+        }
+    }
+
+    return best;
 }
 #pragma endregion

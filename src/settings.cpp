@@ -10,7 +10,8 @@ bool settings::LOGINRANDCHARACTERS = false;
 
 int settings::SHARDPORT = 8002;
 std::string settings::SHARDSERVERIP = "127.0.0.1";
-int settings::VIEWDISTANCE = 20000;
+int settings::PLAYERDISTANCE = 20000;
+int settings::NPCDISTANCE = 16000;
 
 // default spawn point is city hall
 int settings::SPAWN_X = 179213;
@@ -18,7 +19,9 @@ int settings::SPAWN_Y = 268451;
 int settings::SPAWN_Z = -4210;
 std::string settings::GMPASS = "pass";
 std::string settings::NPCJSON = "NPCs.json";
+std::string settings::WARPJSON = "warps.json";
 std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
+bool settings::GM = false;
 
 void settings::init() {
     INIReader reader("config.ini");
@@ -37,12 +40,14 @@ void settings::init() {
     LOGINRANDCHARACTERS = reader.GetBoolean("login", "randomcharacters", LOGINRANDCHARACTERS);
     SHARDPORT = reader.GetInteger("shard", "port", SHARDPORT);
     SHARDSERVERIP = reader.Get("shard", "ip", "127.0.0.1");
-    VIEWDISTANCE = reader.GetInteger("shard", "view", VIEWDISTANCE);
+    PLAYERDISTANCE = reader.GetInteger("shard", "playerdistance", PLAYERDISTANCE);
+    NPCDISTANCE = reader.GetInteger("shard", "npcdistance", NPCDISTANCE);
     SPAWN_X = reader.GetInteger("shard", "spawnx", SPAWN_X);
     SPAWN_Y = reader.GetInteger("shard", "spawny", SPAWN_Y);
     SPAWN_Z = reader.GetInteger("shard", "spawnz", SPAWN_Z);
     GMPASS = reader.Get("login", "pass", GMPASS);
     NPCJSON = reader.Get("shard", "npcdata", NPCJSON);
+    WARPJSON = reader.Get("shard", "warpdata", WARPJSON);
     MOTDSTRING = reader.Get("shard", "motd", MOTDSTRING);
-
+    GM = reader.GetBoolean("shard", "gm", GM);
 }
