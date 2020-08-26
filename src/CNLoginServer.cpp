@@ -96,6 +96,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     loginSessions[sock].characters[UID].PCStyle = charInfo.sPC_Style;
                     loginSessions[sock].characters[UID].PCStyle2 = charInfo.sPC_Style2;
                     loginSessions[sock].characters[UID].IsGM = false;
+                    loginSessions[sock].characters[UID].IsTrading = false;
 
                     for (int i = 0; i < AEQUIP_COUNT; i++) {
                         // setup equips
@@ -232,6 +233,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             loginSessions[sock].characters[UID].Equip[3].iID = character->sOn_Item.iEquipFootID; // foot!
             loginSessions[sock].characters[UID].Equip[3].iType = 3; 
             loginSessions[sock].characters[UID].IsGM = false;
+            loginSessions[sock].characters[UID].IsTrading = false;
 
             sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_CREATE_SUCC, sizeof(sP_LS2CL_REP_CHAR_CREATE_SUCC));
             break;

@@ -132,6 +132,14 @@ void ItemManager::itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
     if (itemreq->eIL == 2) {
         // Quest item, not a real item, handle this later, stubbed for now
         // sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_PC_GIVE_ITEM_FAIL, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_FAIL), sock->getFEKey()));
+        INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER, resp);
+       
+        resp.iID_Request = plr.plr.iID;
+        resp.iID_From = plr.plr.iID;
+        resp.iID_To = plr.plr.iID;
+        
+        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER));
+        
     } else if (itemreq->eIL == 1 && itemreq->Item.iType >= 0 && itemreq->Item.iType <= 8) {
         
         INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp);
@@ -163,8 +171,6 @@ void ItemManager::itemTradeOfferHandler(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_TRADE_OFFER* pacdat = (sP_CL2FE_REQ_PC_TRADE_OFFER*)data->buf;
     
-    //PlayerView& plr = PlayerManager::players[sock];
-    
     int iID_Check;
     
     if (pacdat->iID_Request == pacdat->iID_From) {
@@ -181,30 +187,13 @@ void ItemManager::itemTradeOfferHandler(CNSocket* sock, CNPacketData* data) {
         }
     }
     
-    //if (!plr.plr.IsTrading) {
-    //    INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, resp);
-    //   
-    //    resp.iID_Request = pacdat->iID_To;
-    //    resp.iID_From = pacdat->iID_From;
-    //    resp.iID_To = pacdat->iID_To;
-    //    
-    //    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL));
-    //    plr.plr.IsTrading = false;
-    //    
-    //    return; //prevent trading with a player already trading
-    //}
+    PlayerView& plr = PlayerManager::players[otherSock];
     
     INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER, resp);
 
     resp.iID_Request = pacdat->iID_Request;
     resp.iID_From = pacdat->iID_From;
     resp.iID_To = pacdat->iID_To;
-    
-    //DEBUGLOG(
-    //            std::cout << (int)resp.iID_Request << std::endl;
-    //            std::cout << (int)resp.iID_From << std::endl;
-    //            std::cout << (int)resp.iID_To << std::endl;
-    //        )
     
     otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER));
 }
@@ -231,20 +220,6 @@ void ItemManager::itemTradeOfferAcceptHandler(CNSocket* sock, CNPacketData* data
         }
     }
     
-    PlayerView& plr2 = PlayerManager::players[otherSock];
-    
-    //if (!plr2.plr.IsTrading) {
-    //    INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, resp);
-    //    
-    //    resp.iID_Request = pacdat->iID_To;
-    //    resp.iID_From = pacdat->iID_From;
-    //    resp.iID_To = pacdat->iID_To;
-    //    
-    //    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL));
-    //    
-    //    return; //prevent trading with a player already trading
-    //}
-    
     INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER, resp);
 
     resp.iID_Request = pacdat->iID_Request;
@@ -254,6 +229,7 @@ void ItemManager::itemTradeOfferAcceptHandler(CNSocket* sock, CNPacketData* data
     // Clearing up trade slots
     
     PlayerView& plr = PlayerManager::players[sock];
+    PlayerView& plr2 = PlayerManager::players[otherSock];
     
     plr.plr.IsTradeConfirm = false;
     plr2.plr.IsTradeConfirm = false;
@@ -312,7 +288,6 @@ void ItemManager::itemTradeConfirmHandler(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_REQ_PC_TRADE_CONFIRM* pacdat = (sP_CL2FE_REQ_PC_TRADE_CONFIRM*)data->buf;
-    PlayerView& plr = PlayerManager::players[sock];
     
     int iID_Check;
     
@@ -330,37 +305,164 @@ void ItemManager::itemTradeConfirmHandler(CNSocket* sock, CNPacketData* data) {
         }
     }
     
-    
+    PlayerView& plr = PlayerManager::players[sock];
     PlayerView& plr2 = PlayerManager::players[otherSock];
     
     if (plr2.plr.IsTradeConfirm) {
-        INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CONFIRM, resp2);
-        INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CONFIRM_SUCC, resp);
         
         plr.plr.IsTrading = false;
         plr2.plr.IsTrading = false;
         plr.plr.IsTradeConfirm = false;
         plr2.plr.IsTradeConfirm = false;
         
+        // Check if we have enough free slots
+        int freeSlots = 0;
+        int freeSlotsNeeded = 0;
+        int freeSlots2 = 0;
+        int freeSlotsNeeded2 = 0;
+        
+        for (int i = 0; i < AINVEN_COUNT; i++) {
+            if (plr.plr.Inven[i].iID == 0)
+                freeSlots++;
+        }
+        
+        for (int i = 0; i < 5; i++) {
+            if (plr.plr.Trade[i].iID != 0)
+                freeSlotsNeeded++;
+        }
+        
+        for (int i = 0; i < AINVEN_COUNT; i++) {
+            if (plr2.plr.Inven[i].iID == 0)
+                freeSlots2++;
+        }
+        
+        for (int i = 0; i < 5; i++) {
+            if (plr2.plr.Trade[i].iID != 0)
+                freeSlotsNeeded2++;
+        }
+        
+        DEBUGLOG(
+                std::cout << "Slots Free and Needed:" << std::endl;
+                std::cout << "\tfreeSlots: " << (int)freeSlots << std::endl;
+                std::cout << "\tfreeSlotsNeeded: " << (int)freeSlotsNeeded << std::endl;
+                std::cout << "\tfreeSlots2: " << (int)freeSlots2 << std::endl;
+                std::cout << "\tfreeSlotsNeeded2: " << (int)freeSlotsNeeded2 << std::endl;
+                )
+        
+        if (freeSlotsNeeded2 - freeSlotsNeeded > freeSlots) {
+            INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL, resp);
+            
+            resp.iID_Request = pacdat->iID_Request;
+            resp.iID_From = pacdat->iID_From;
+            resp.iID_To = pacdat->iID_To;
+            
+            sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL));
+            otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL));
+            return; // Fail trade because of the lack of slots
+        }
+        
+        if (freeSlotsNeeded - freeSlotsNeeded2 > freeSlots2) {
+            INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL, resp);
+            
+            resp.iID_Request = pacdat->iID_Request;
+            resp.iID_From = pacdat->iID_From;
+            resp.iID_To = pacdat->iID_To;
+            
+            sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL));
+            otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL));
+            return; // Fail trade because of the lack of slots
+        }
+        
+        INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CONFIRM, resp);
+        
         resp.iID_Request = pacdat->iID_Request;
         resp.iID_From = pacdat->iID_From;
         resp.iID_To = pacdat->iID_To;
+        
+        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM));
+        // ^^ this is a must have or else the player won't accept a succ packet for some reason
+        
+        for (int i = 0; i < freeSlotsNeeded; i++) {
+            plr.plr.Inven[plr.plr.Trade[i].iInvenNum].iID = 0;
+            plr.plr.Inven[plr.plr.Trade[i].iInvenNum].iType = 0;
+            plr.plr.Inven[plr.plr.Trade[i].iInvenNum].iOpt = 0;
+        }
+        
+        for (int i = 0; i < freeSlotsNeeded2; i++) {
+            plr2.plr.Inven[plr2.plr.Trade[i].iInvenNum].iID = 0;
+            plr2.plr.Inven[plr2.plr.Trade[i].iInvenNum].iType = 0;
+            plr2.plr.Inven[plr2.plr.Trade[i].iInvenNum].iOpt = 0;
+        }
+        
+        for (int i = 0; i < AINVEN_COUNT; i++) {
+            if (freeSlotsNeeded <= 0)
+                    break;
+                
+            if (plr2.plr.Inven[i].iID == 0) {
+                
+                plr2.plr.Inven[i].iID = plr.plr.Trade[freeSlotsNeeded - 1].iID;
+                plr2.plr.Inven[i].iType = plr.plr.Trade[freeSlotsNeeded - 1].iType;
+                plr2.plr.Inven[i].iOpt = plr.plr.Trade[freeSlotsNeeded - 1].iOpt;
+                plr.plr.Trade[freeSlotsNeeded - 1].iInvenNum = i;
+                DEBUGLOG(
+                std::cout << "Player 1 Trade Item #" << (int)freeSlotsNeeded << std::endl;
+                std::cout << "\tiID: " << (int)plr.plr.Trade[freeSlotsNeeded - 1].iID << std::endl;
+                std::cout << "\tiType: " << (int)plr.plr.Trade[freeSlotsNeeded - 1].iType << std::endl;
+                std::cout << "\tiOpt: " << (int)plr.plr.Trade[freeSlotsNeeded - 1].iOpt << std::endl;
+                std::cout << "\tiInvenNum: " << (int)plr.plr.Trade[freeSlotsNeeded - 1].iInvenNum << std::endl;
+                std::cout << "\tiSlotNum: " << (int)plr.plr.Trade[freeSlotsNeeded - 1].iSlotNum << std::endl;
+                std::cout << "\t added item " << (int)plr2.plr.Inven[i].iID << " to slot " << (int)i << std::endl;
+                )
+                freeSlotsNeeded--;
+            }
+        }
+        
+        for (int i = 0; i < AINVEN_COUNT; i++) {                   
+            if (freeSlotsNeeded2 <= 0)
+                break;
+            
+            if (plr.plr.Inven[i].iID == 0) {
+                
+                plr.plr.Inven[i].iID = plr2.plr.Trade[freeSlotsNeeded2 - 1].iID;
+                plr.plr.Inven[i].iType = plr2.plr.Trade[freeSlotsNeeded2 - 1].iType;
+                plr.plr.Inven[i].iOpt = plr2.plr.Trade[freeSlotsNeeded2 - 1].iOpt;
+                plr2.plr.Trade[freeSlotsNeeded2 - 1].iInvenNum = i;
+                DEBUGLOG(
+                std::cout << "Player 2 Trade Item #" << (int)freeSlotsNeeded2 << std::endl;
+                std::cout << "\tiID: " << (int)plr2.plr.Trade[freeSlotsNeeded2 - 1].iID << std::endl;
+                std::cout << "\tiType: " << (int)plr2.plr.Trade[freeSlotsNeeded2 - 1].iType << std::endl;
+                std::cout << "\tiOpt: " << (int)plr2.plr.Trade[freeSlotsNeeded2 - 1].iOpt << std::endl;
+                std::cout << "\tiInvenNum: " << (int)plr2.plr.Trade[freeSlotsNeeded2 - 1].iInvenNum << std::endl;
+                std::cout << "\tiSlotNum: " << (int)plr2.plr.Trade[freeSlotsNeeded2 - 1].iSlotNum << std::endl;
+                std::cout << "\t added item " << (int)plr.plr.Inven[i].iID << " to slot " << (int)i << std::endl;
+                )
+                freeSlotsNeeded2--;
+            }
+        }
+        
+        INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CONFIRM_SUCC, resp2);
+        
         resp2.iID_Request = pacdat->iID_Request;
         resp2.iID_From = pacdat->iID_From;
         resp2.iID_To = pacdat->iID_To;
-        memcpy(resp.Item, plr2.plr.Trade, sizeof(plr2.plr.Trade));
-        resp.iCandy = plr2.plr.moneyInTrade - plr.plr.moneyInTrade;
-        memcpy(resp.ItemStay, plr.plr.Trade, sizeof(plr.plr.Trade));
         
-        sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_TRADE_CONFIRM, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM));
-        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_SUCC));
+        plr.plr.money = plr.plr.money + plr2.plr.moneyInTrade - plr.plr.moneyInTrade;
+        resp2.iCandy = plr.plr.money;
         
-        memcpy(resp.Item, plr.plr.Trade, sizeof(plr.plr.Trade));
-        resp.iCandy = plr.plr.moneyInTrade - plr2.plr.moneyInTrade;
-        memcpy(resp.ItemStay, plr2.plr.Trade, sizeof(plr2.plr.Trade));
+        memcpy(resp2.Item, plr2.plr.Trade, sizeof(plr2.plr.Trade));
+        memcpy(resp2.ItemStay, plr.plr.Trade, sizeof(plr.plr.Trade));
         
-        otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_SUCC));
+        sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_TRADE_CONFIRM_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_SUCC));
+        
+        plr2.plr.money = plr2.plr.money + plr.plr.moneyInTrade - plr2.plr.moneyInTrade;
+        resp2.iCandy = plr2.plr.money;
+        
+        memcpy(resp2.Item, plr.plr.Trade, sizeof(plr.plr.Trade));
+        memcpy(resp2.ItemStay, plr2.plr.Trade, sizeof(plr2.plr.Trade));
+        
+        otherSock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_TRADE_CONFIRM_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_SUCC));
     } else {
+        
         INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CONFIRM, resp);
 
         resp.iID_Request = pacdat->iID_Request;
@@ -368,7 +470,7 @@ void ItemManager::itemTradeConfirmHandler(CNSocket* sock, CNPacketData* data) {
         resp.iID_To = pacdat->iID_To;
         
         plr.plr.IsTradeConfirm = true;
-        plr2.plr.IsTradeConfirm = true;
+        
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM));
         otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM));
     }
