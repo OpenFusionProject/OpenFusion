@@ -358,6 +358,18 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             break;
         }
+        case P_CL2LS_REQ_SAVE_CHAR_TUTOR: {
+            if (data->size != sizeof(sP_CL2LS_REQ_SAVE_CHAR_TUTOR))
+                return;
+            sP_CL2LS_REQ_SAVE_CHAR_TUTOR* save = (sP_CL2LS_REQ_SAVE_CHAR_TUTOR*)data->buf;
+            Database::finishTutorial(save->iPC_UID);
+            loginSessions[sock].characters[save->iPC_UID].PCStyle2.iTutorialFlag = 1;
+            loginSessions[sock].characters[save->iPC_UID].Equip[0].iID = 328;
+            loginSessions[sock].characters[save->iPC_UID].Equip[0].iType = 0;
+            loginSessions[sock].characters[save->iPC_UID].Equip[0].iOpt = 1;
+
+            break;
+        }
         default:
             if (settings::VERBOSITY)
                 std::cerr << "OpenFusion: LOGIN UNIMPLM ERR. PacketType: " << Defines::p2str(CL2LS, data->type) << " (" << data->type << ")" << std::endl;
