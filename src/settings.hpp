@@ -6,7 +6,8 @@ namespace settings {
     extern bool LOGINRANDCHARACTERS;
     extern int SHARDPORT;
     extern std::string SHARDSERVERIP;
-    extern int VIEWDISTANCE;
+    extern int PLAYERDISTANCE;
+    extern int NPCDISTANCE;
     extern int SPAWN_X;
     extern int SPAWN_Y;
     extern int SPAWN_Z;
