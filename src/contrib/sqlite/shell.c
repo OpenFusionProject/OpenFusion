@@ -261,7 +261,11 @@ static sqlite3_int64 timeOfDay(void){
 /* VxWorks does not support getrusage() as far as we can determine */
 #if defined(_WRS_KERNEL) || defined(__RTP__)
 struct rusage {
-  struct timeval ru_utime; /* user CPU time used */
+  struct timeval ru_utime; /* 
+                           
+                           
+                           
+                           CPU time used */
   struct timeval ru_stime; /* system CPU time used */
 };
 #define getrusage(A,B) memset(B,0,sizeof(*B))

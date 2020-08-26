@@ -9,7 +9,7 @@
 struct CNLoginData {
     std::map<int64_t, Player> characters;
     int64_t selectedChar;
-    int UserID;
+    int userID;
 };
 
 enum class LOGINERRORID {

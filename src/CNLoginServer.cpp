@@ -46,8 +46,8 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             if (success)
             {
-                int UserID = Database::getUserID(userLogin);
-                int charCount = Database::getUserSlotsNum(UserID);
+                int userID = Database::getUserID(userLogin);
+                int charCount = Database::getUserSlotsNum(userID);
 
                 INITSTRUCT(sP_LS2CL_REP_LOGIN_SUCC, resp);
                 // set username in resp packet
@@ -67,12 +67,12 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 sock->setFEKey(CNSocketEncryption::createNewKey((uint64_t)(*(uint64_t*)&CNSocketEncryption::defaultKey[0]), login->iClientVerC, 1));
 
                 loginSessions[sock] = CNLoginData();
-                loginSessions[sock].UserID = UserID;
+                loginSessions[sock].userID = userID;
 
                 // now send the characters :)
                 if (charCount > 0) {
 
-                    std::list<Player> characters = Database::getCharacters(loginSessions[sock].UserID);
+                    std::list<Player> characters = Database::getCharacters(loginSessions[sock].userID);
                     std::list<Player>::iterator it;
                     for (it = characters.begin(); it != characters.end(); it++)
                     {
@@ -191,7 +191,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 return;
             
             sP_CL2LS_REQ_SAVE_CHAR_NAME* save = (sP_CL2LS_REQ_SAVE_CHAR_NAME*)data->buf;
-            Database::createCharacter(save, loginSessions[sock].UserID);
+            Database::createCharacter(save, loginSessions[sock].userID);
 
             INITSTRUCT(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC, resp);
 
@@ -203,7 +203,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             resp.iSlotNum = save->iSlotNum;
             resp.iGender = save->iGender;
-            resp.iPC_UID = Database::getCharacterID(loginSessions[sock].UserID, save->iSlotNum);
+            resp.iPC_UID = Database::getCharacterID(loginSessions[sock].userID, save->iSlotNum);
             memcpy(resp.szFirstName, save->szFirstName, sizeof(char16_t) * 9);
             memcpy(resp.szLastName, save->szLastName, sizeof(char16_t) * 17);
 
@@ -285,7 +285,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 return;
 
             sP_CL2LS_REQ_CHAR_DELETE* del = (sP_CL2LS_REQ_CHAR_DELETE*)data->buf;
-            int operationResult = Database::deleteCharacter(del->iPC_UID, loginSessions[sock].UserID);
+            int operationResult = Database::deleteCharacter(del->iPC_UID, loginSessions[sock].userID);
 
             //success
             if (operationResult > 0) {
