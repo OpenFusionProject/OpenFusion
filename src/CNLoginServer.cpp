@@ -70,7 +70,6 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 loginSessions[sock].UserID = UserID;
 
                 // now send the characters :)
-
                 if (charCount > 0) {
 
                     std::list<Player> characters = Database::getCharacters(loginSessions[sock].UserID);
@@ -260,6 +259,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             loginSessions[sock].characters[UID] = Player();
             loginSessions[sock].characters[UID].level = 36;
+            loginSessions[sock].characters[UID].money = 9001;
             loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
             loginSessions[sock].characters[UID].PCStyle = character->PCStyle;
             loginSessions[sock].characters[UID].PCStyle2.iAppearanceFlag = 1;
