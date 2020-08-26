@@ -24,7 +24,7 @@ Currently the client by default connects to a public server hosted by Cake. Chan
 You have two randomized characters available to you on the Character Selection screen, one boy, one girl.
 You can also make your own character and play through the tutorial. The tutorial can be skipped by pressing the ~ key.
 
-If you want, [compiled binaries (artifacts) for each new commit can be found on AppVeyor.](https://ci.appveyor.com/project/Raymonf/openfusion)
+If you want, [compiled binaries (artifacts) for each new commit can be found on AppVeyor.](https://ci.appveyor.com/project/OpenFusionProject/openfusion)
 
 For a more detailed overview of the game's architecture and how to configure it, read the following sections.
 

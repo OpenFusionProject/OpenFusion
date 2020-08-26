@@ -104,7 +104,7 @@ private:
     uint64_t EKey;
     uint64_t FEKey;
     int32_t readSize = 0;
-    uint8_t* readBuffer = new uint8_t[MAX_PACKETSIZE];
+    uint8_t readBuffer[MAX_PACKETSIZE];
     int readBufferIndex = 0;
     bool activelyReading = false;
     bool alive = true;

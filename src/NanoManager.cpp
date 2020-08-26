@@ -20,15 +20,19 @@ void NanoManager::nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_NANO_EQUIP_SUCC, resp);
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (nano->iNanoSlotNum > 2)
+    // sanity check
+    if (nano->iNanoSlotNum > 2 || nano->iNanoSlotNum < 0)
         return;
 
     resp.iNanoID = nano->iNanoID;
     resp.iNanoSlotNum = nano->iNanoSlotNum;
 
-
     // Update player
     plr->equippedNanos[nano->iNanoSlotNum] = nano->iNanoID;
+
+    // unsummon nano if replaced
+    if (plr->activeNano == plr->equippedNanos[nano->iNanoSlotNum])
+        summonNano(sock, -1);
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_EQUIP_SUCC, sizeof(sP_FE2CL_REP_NANO_EQUIP_SUCC));
 }
@@ -41,10 +45,15 @@ void NanoManager::nanoUnEquipHandler(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_NANO_UNEQUIP_SUCC, resp);
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (nano->iNanoSlotNum > 2)
+    // sanity check
+    if (nano->iNanoSlotNum > 2 || nano->iNanoSlotNum < 0)
         return;
 
     resp.iNanoSlotNum = nano->iNanoSlotNum;
+
+    // unsummon nano if removed
+    if (plr->equippedNanos[nano->iNanoSlotNum] == plr->activeNano)
+        summonNano(sock, -1);
 
     // update player
     plr->equippedNanos[nano->iNanoSlotNum] = 0;
@@ -75,33 +84,9 @@ void NanoManager::nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_NANO_ACTIVE* pkt = (sP_CL2FE_REQ_NANO_ACTIVE*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
+    summonNano(sock, pkt->iNanoSlotNum);
+
     // Send to client
-    INITSTRUCT(sP_FE2CL_REP_NANO_ACTIVE_SUCC, resp);
-    resp.iActiveNanoSlotNum = pkt->iNanoSlotNum;
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_ACTIVE_SUCC, sizeof(sP_FE2CL_REP_NANO_ACTIVE_SUCC));
-
-    if (pkt->iNanoSlotNum > 2)
-        return;
-
-    int nanoId = plr->equippedNanos[pkt->iNanoSlotNum];
-
-    if (nanoId > 36)
-        return; // sanity check
-
-    sNano nano = plr->Nanos[nanoId];
-
-    // Send to other players
-    INITSTRUCT(sP_FE2CL_NANO_ACTIVE, pkt1);
-
-    pkt1.iPC_ID = plr->iID;
-    pkt1.Nano = nano;
-
-    for (CNSocket* s : PlayerManager::players[sock].viewable)
-        s->sendPacket((void*)&pkt1, P_FE2CL_NANO_ACTIVE, sizeof(sP_FE2CL_NANO_ACTIVE));
-
-    // update player
-    plr->activeNano = nanoId;
-
     DEBUGLOG(
         std::cout << U16toU8(plr->PCStyle.szFirstName) << U16toU8(plr->PCStyle.szLastName) << " requested to summon nano slot: " << pkt->iNanoSlotNum << std::endl;
     )
@@ -156,6 +141,37 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
 
     // Update player
     plr->Nanos[nanoId] = resp.Nano;
+}
+
+void NanoManager::summonNano(CNSocket *sock, int slot) {
+    INITSTRUCT(sP_FE2CL_REP_NANO_ACTIVE_SUCC, resp);
+    resp.iActiveNanoSlotNum = slot;
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_ACTIVE_SUCC, sizeof(sP_FE2CL_REP_NANO_ACTIVE_SUCC));
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    std::cout << "summon nano\n";
+
+    if (slot > 2 || slot < 0)
+        return; //sanity check
+
+    int nanoId = plr->equippedNanos[slot];
+
+    if (nanoId > 36 || nanoId < 0)
+        return; // sanity check
+
+    sNano nano = plr->Nanos[nanoId];
+
+    // Send to other players
+    INITSTRUCT(sP_FE2CL_NANO_ACTIVE, pkt1);
+
+    pkt1.iPC_ID = plr->iID;
+    pkt1.Nano = nano;
+
+    for (CNSocket* s : PlayerManager::players[sock].viewable)
+        s->sendPacket((void*)&pkt1, P_FE2CL_NANO_ACTIVE, sizeof(sP_FE2CL_NANO_ACTIVE));
+
+    // update player
+    plr->activeNano = nanoId;
 }
 
 void NanoManager::setNanoSkill(CNSocket* sock, int16_t nanoId, int16_t skillId) {
