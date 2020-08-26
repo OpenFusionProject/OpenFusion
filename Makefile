@@ -1,6 +1,7 @@
-CXX=clang++
 CC=clang
+CXX=clang++
 # -w suppresses all warnings (the part that's commented out helps me find memory leaks, it ruins performance though!)
+CCFLAGS=-O3 #-g3 -fsanitize=address
 CXXFLAGS=-Wall -std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
 LDFLAGS=-lpthread -ldl
 # specifies the name of our exectuable
@@ -11,14 +12,12 @@ SERVER=bin/fusion
 PROTOCOL_VERSION?=104
 
 # Windows-specific
+WIN_CC=x86_64-w64-mingw32-gcc
 WIN_CXX=x86_64-w64-mingw32-g++
+WIN_CCFLAGS=-O3 #-g3 -fsanitize=address
 WIN_CXXFLAGS=-Wall -std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
 WIN_LDFLAGS=-static -lws2_32 -lwsock32
 WIN_SERVER=bin/winfusion.exe
-
-# source files
-ASM_SRC=\
-	src/contrib/bcrypt/x86.S\
 
 CC_SRC=\
 	src/contrib/bcrypt/bcrypt.c\
@@ -83,28 +82,25 @@ CXX_HDR=\
 	src/PlayerManager.hpp\
 	src/settings.hpp\
 
-ASM_OBJ=$(ASM_SRC:.S=.o)
 CC_OBJ=$(CC_SRC:.c=.o)
 CXX_OBJ=$(CXX_SRC:.cpp=.o)
 
-OBJ=$(ASM_OBJ) $(CC_OBJ) $(CXX_OBJ)
+OBJ=$(CC_OBJ) $(CXX_OBJ)
 
 all: $(SERVER)
 
 windows: $(SERVER)
 
 # assign Windows-specific values if targeting Windows
-windows : CXX=$(WIN_CXX)
 windows : CC=$(WIN_CC)
+windows : CXX=$(WIN_CXX)
+windows : CCFLAGS=$(WIN_CCFLAGS)
 windows : CXXFLAGS=$(WIN_CXXFLAGS)
 windows : LDFLAGS=$(WIN_LDFLAGS)
 windows : SERVER=$(WIN_SERVER)
 
-$(ASM_OBJ): %.o: %.S
-	$(CC) -c -o $@ $<
-
 $(CC_OBJ): %.o: %.c $(CC_HDR)
-	$(CC) -c -O3 -o $@ $<
+	$(CC) -c $(CCFLAGS) -o $@ $<
 
 $(CXX_OBJ): %.o: %.cpp $(CXX_HDR)
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
