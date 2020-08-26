@@ -273,7 +273,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             loginSessions[sock].characters[UID].Equip[2].iType = 2;
             loginSessions[sock].characters[UID].Equip[3].iID = character->sOn_Item.iEquipFootID; // foot!
             loginSessions[sock].characters[UID].Equip[3].iType = 3; 
-            loginSessions[sock].characters[UID].IsGM = false;
+            loginSessions[sock].characters[UID].IsGM = settings::GM;
 
             sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_CREATE_SUCC, sizeof(sP_LS2CL_REP_CHAR_CREATE_SUCC));
             break;
@@ -344,7 +344,18 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             CNSharedData::setPlayer(resp.iEnterSerialKey, loginSessions[sock].characters[loginSessions[sock].selectedChar]);
 
             sock->sendPacket((void*)&resp, P_LS2CL_REP_SHARD_SELECT_SUCC, sizeof(sP_LS2CL_REP_SHARD_SELECT_SUCC));
-            sock->kill(); // client should connect to the Shard server now
+            break;
+        }
+        case P_CL2LS_REQ_SAVE_CHAR_TUTOR: {
+            if (data->size != sizeof(sP_CL2LS_REQ_SAVE_CHAR_TUTOR))
+                return;
+            sP_CL2LS_REQ_SAVE_CHAR_TUTOR* save = (sP_CL2LS_REQ_SAVE_CHAR_TUTOR*)data->buf;
+            Database::finishTutorial(save->iPC_UID);
+            loginSessions[sock].characters[save->iPC_UID].PCStyle2.iTutorialFlag = 1;
+            loginSessions[sock].characters[save->iPC_UID].Equip[0].iID = 328;
+            loginSessions[sock].characters[save->iPC_UID].Equip[0].iType = 0;
+            loginSessions[sock].characters[save->iPC_UID].Equip[0].iOpt = 1;
+
             break;
         }
         case P_CL2LS_REQ_SAVE_CHAR_TUTOR: {

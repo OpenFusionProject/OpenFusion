@@ -1,20 +1,16 @@
-#include "Database.hpp"
 #include "contrib/sqlite/sqlite3pp.h"
-#include "contrib/bcrypt/BCrypt.hpp">
+#include "contrib/bcrypt/BCrypt.hpp"
 #include "contrib/json11.hpp"
-#include <fstream>
-#include <iostream>
-#include "CNProtocol.hpp"
-#include <string>
 
-#include <regex>
+#include "CNProtocol.hpp"
+#include "Database.hpp"
 #include "CNStructs.hpp"
 #include "settings.hpp"
 #include "Player.hpp"
-#include <list>
-#include "CNStructs.hpp"
 
-using namespace json11;
+#include <regex>
+#include <fstream>
+
 
 //TODO: replace this sqlite wrapper with something better, clean up queries, get rid of json
 
@@ -305,7 +301,7 @@ std::list <Player> Database::getCharacters(int UserID) {
 }
 
 std::string Database::CharacterToJson(sP_CL2LS_REQ_SAVE_CHAR_NAME* save) {
-	Json json = Json::object{
+	json11::Json json = json11::Json::object{
 		{"Level",1},
 		//to check
 		{"HP",1000},
@@ -343,7 +339,7 @@ std::string Database::CharacterToJson(sP_CL2LS_REQ_SAVE_CHAR_NAME* save) {
 }
 
 std::string Database::PlayerToJson(Player player) {
-	Json json = Json::object{
+	json11::Json json = json11::Json::object{
 		{"Level",1},
 		//to check
 		{"HP",100},
@@ -383,7 +379,7 @@ std::string Database::PlayerToJson(Player player) {
 
 Player Database::JsonToPlayer(std::string input, int PC_UID) {
 	std::string err;
-	const auto json = Json::parse(input, err);
+	const auto json = json11::Json::parse(input, err);
 	Player player;
 
 
@@ -438,7 +434,7 @@ Player Database::JsonToPlayer(std::string input, int PC_UID) {
 }
 
 std::string Database::CharacterToJson(sP_CL2LS_REQ_CHAR_CREATE* character) {
-	Json json = Json::object{
+	json11::Json json = json11::Json::object{
 		{"Level",1},
 		//to check
 		{"HP",1000},

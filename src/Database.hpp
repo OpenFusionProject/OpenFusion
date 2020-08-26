@@ -1,7 +1,10 @@
-#include<string>
+#pragma once
+
 #include "CNStructs.hpp"
-#include"Player.hpp"
+#include "Player.hpp"
+
 #include <list>
+#include <string>
 
 namespace Database {
 	void open();

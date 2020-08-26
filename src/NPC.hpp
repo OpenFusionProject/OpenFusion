@@ -1,5 +1,4 @@
-#ifndef _NPCCLASS_HPP
-#define _NPCCLASS_HPP
+#pragma once
 
 #include "CNStructs.hpp"
 
@@ -22,5 +21,3 @@ public:
         appearanceData.iNPC_ID = (int32_t)rand();
     };
 };
-
-#endif
