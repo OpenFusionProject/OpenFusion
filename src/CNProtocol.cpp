@@ -202,15 +202,11 @@ void CNSocket::step() {
         // decrypt readBuffer and copy to CNPacketData
         CNSocketEncryption::decryptData((uint8_t*)&readBuffer, (uint8_t*)(&EKey), readSize);
 
-        void* tmpBuf = xmalloc(readSize-sizeof(int32_t));
-        memcpy(tmpBuf, readBuffer+sizeof(uint32_t), readSize-sizeof(int32_t));
+        void* tmpBuf = readBuffer+sizeof(uint32_t);
         CNPacketData tmp(tmpBuf, *((uint32_t*)readBuffer), readSize-sizeof(int32_t));
 
         // call packet handler!!
         pHandler(this, &tmp);
-
-        // clean up the buffer :)
-        free(tmpBuf);
 
         // reset vars :)
         readSize = 0;
