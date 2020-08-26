@@ -85,7 +85,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
         int diffX = abs(pair.second.plr->x - X); // the map is like a grid, X and Y are your position on the map, Z is the height. very different from other games...
         int diffY = abs(pair.second.plr->y - Y);
 
-        if (diffX < settings::VIEWDISTANCE && diffY < settings::VIEWDISTANCE) {
+        if (diffX < settings::PLAYERDISTANCE && diffY < settings::PLAYERDISTANCE) {
             yesView.push_back(pair.first);
         }
         else {
@@ -203,6 +203,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iX = plr.x;
     response.PCLoadData2CL.iY = plr.y;
     response.PCLoadData2CL.iZ = plr.z;
+    response.PCLoadData2CL.iAngle = 130;
     response.PCLoadData2CL.iActiveNanoSlotNum = -1;
     response.PCLoadData2CL.iFatigue = 50;
     response.PCLoadData2CL.PCStyle = plr.PCStyle;

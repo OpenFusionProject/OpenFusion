@@ -28,8 +28,8 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     
     PlayerView& plr = PlayerManager::players[sock];
     
-    if (itemmove->eFrom == 0 && itemmove->eTo == 0) {
-        // this packet should never happen, tell the client to do nothing and do nothing ourself
+    if (plr.plr->Equip[itemmove->iFromSlotNum].iType != 0 && itemmove->eFrom == 0 && itemmove->eTo == 0) {
+        // this packet should never happen unless it is a weapon, tell the client to do nothing and do nothing ourself
         resp.eTo = itemmove->eFrom;
         resp.iToSlotNum = itemmove->iFromSlotNum;
         resp.ToSlotItem = plr.plr->Equip[itemmove->iToSlotNum];
@@ -37,7 +37,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         resp.iFromSlotNum = itemmove->iToSlotNum;
         resp.FromSlotItem = plr.plr->Equip[itemmove->iFromSlotNum];
         
-        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_ITEM_DELETE_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC));
+        sock->sendPacket((void*)&resp, P_FE2CL_PC_ITEM_MOVE_SUCC, sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC));
         return;
     }
     
