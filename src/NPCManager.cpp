@@ -31,9 +31,28 @@ void NPCManager::init() {
                 RespawnPoints.push_back({npc.value()["x"], npc.value()["y"], ((int)npc.value()["z"]) + RESURRECT_HEIGHT});
         }
 
-        std::cout << "[INFO] populated " << NPCs.size() << " NPCs" << std::endl;
     } catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed NPCs.json file! Reason:" << err.what() << std::endl;
+    }
+
+    // load temporary mob dump
+    try {
+        std::ifstream inFile("mobs.json"); // not in settings, since it's temp
+        nlohmann::json npcData;
+
+        // read file into json
+        inFile >> npcData;
+
+        for (nlohmann::json::iterator npc = npcData.begin(); npc != npcData.end(); npc++) {
+            BaseNPC tmp(npc.value()["iX"], npc.value()["iY"], npc.value()["iZ"], npc.value()["iNPCType"],
+                    npc.value()["iHP"], npc.value()["iConditionBitFlag"], npc.value()["iAngle"], npc.value()["iBarkerType"]);
+
+            NPCs[tmp.appearanceData.iNPC_ID] = tmp;
+        }
+
+        std::cout << "[INFO] populated " << NPCs.size() << " NPCs" << std::endl;
+    } catch (const std::exception& err) {
+        std::cerr << "[WARN] Malformed mobs.json file! Reason:" << err.what() << std::endl;
     }
 
     try {
@@ -67,7 +86,7 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
         int diffX = abs(view.plr->x - pair.second.appearanceData.iX);
         int diffY = abs(view.plr->y - pair.second.appearanceData.iY);
 
-        if (diffX < settings::VIEWDISTANCE && diffY < settings::VIEWDISTANCE) {
+        if (diffX < settings::NPCDISTANCE && diffY < settings::NPCDISTANCE) {
             yesView.push_back(pair.first);
         } else {
             noView.push_back(pair.first);
@@ -81,10 +100,10 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
 
         if (std::find(noView.begin(), noView.end(), id) != noView.end()) {
             // it shouldn't be visible, send NPC_EXIT
-            
+
             exitData.iNPC_ID = id;
             sock->sendPacket((void*)&exitData, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
-            
+
             // remove from view
             view.viewableNPCs.erase(i++);
         }
@@ -99,7 +118,7 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
 
             enterData.NPCAppearanceData = NPCs[id].appearanceData;
             sock->sendPacket((void*)&enterData, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
-            
+
             // add to viewable
             view.viewableNPCs.push_back(id);
         }
@@ -128,7 +147,7 @@ void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
     // force player & NPC reload
     plrv.viewable.clear();
     plrv.viewableNPCs.clear();
-    
+
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
 
 }
@@ -142,7 +161,7 @@ void NPCManager::npcSummonHandler(CNSocket *sock, CNPacketData *data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     // permission & sanity check
-    if (!plr->IsGM || req->iNPCType >= NPCs.size())
+    if (!plr->IsGM || req->iNPCType >= 3314)
         return;
 
     resp.NPCAppearanceData.iNPC_ID = rand(); // cpunch-style
