@@ -1,8 +1,7 @@
+#pragma once
+
 #include <string>
 #include <cstring>
-
-#ifndef _PLR_HPP
-#define _PLR_HPP
 
 #include "CNProtocol.hpp"
 #include "CNStructs.hpp"
@@ -27,5 +26,3 @@ struct Player {
     sItemBase Inven[AINVEN_COUNT];
     bool IsGM;
 };
-
-#endif

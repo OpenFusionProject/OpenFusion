@@ -5,17 +5,19 @@
 #include <algorithm>
 #include <list>
 #include <fstream>
+#include <vector>
 
 #include "contrib/JSON.hpp"
 
 std::map<int32_t, BaseNPC> NPCManager::NPCs;
 std::map<int32_t, WarpLocation> NPCManager::Warps;
+std::vector<WarpLocation> NPCManager::RespawnPoints;
 
 void NPCManager::init() {
     // load NPCs from NPCs.json into our NPC manager
 
     try {
-        std::ifstream inFile("NPCs.json");
+        std::ifstream inFile(settings::NPCJSON);
         nlohmann::json npcData;
 
         // read file into json
@@ -24,6 +26,9 @@ void NPCManager::init() {
         for (nlohmann::json::iterator npc = npcData.begin(); npc != npcData.end(); npc++) {
             BaseNPC tmp(npc.value()["x"], npc.value()["y"], npc.value()["z"], npc.value()["id"]);
             NPCs[tmp.appearanceData.iNPC_ID] = tmp;
+
+            if (npc.value()["id"] == 641 || npc.value()["id"] == 642)
+                RespawnPoints.push_back({npc.value()["x"], npc.value()["y"], ((int)npc.value()["z"]) + RESURRECT_HEIGHT});
         }
 
         std::cout << "[INFO] populated " << NPCs.size() << " NPCs" << std::endl;
@@ -32,7 +37,7 @@ void NPCManager::init() {
     }
 
     try {
-        std::ifstream infile("warps.json");
+        std::ifstream infile(settings::WARPJSON);
         nlohmann::json warpData;
 
         // read file into json
@@ -50,7 +55,8 @@ void NPCManager::init() {
     }
 
 
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_NPC, npcWarpManager);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_NPC, npcWarpHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_NPC_SUMMON, npcSummonHandler);
 }
 
 void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
@@ -102,12 +108,12 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
     PlayerManager::players[sock].viewableNPCs = view.viewableNPCs;
 }
 
-void NPCManager::npcWarpManager(CNSocket* sock, CNPacketData* data)
-{
+void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_WARP_USE_NPC))
         return; // malformed packet
 
     sP_CL2FE_REQ_PC_WARP_USE_NPC* warpNpc = (sP_CL2FE_REQ_PC_WARP_USE_NPC*)data->buf;
+    PlayerView& plrv = PlayerManager::players[sock];
 
     // sanity check
     if (Warps.find(warpNpc->iWarpID) == Warps.end())
@@ -118,7 +124,33 @@ void NPCManager::npcWarpManager(CNSocket* sock, CNPacketData* data)
     resp.iX = Warps[warpNpc->iWarpID].x;
     resp.iY = Warps[warpNpc->iWarpID].y;
     resp.iZ = Warps[warpNpc->iWarpID].z;
+
+    // force player & NPC reload
+    plrv.viewable.clear();
+    plrv.viewableNPCs.clear();
     
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
 
+}
+
+void NPCManager::npcSummonHandler(CNSocket *sock, CNPacketData *data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_NPC_SUMMON))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_NPC_SUMMON* req = (sP_CL2FE_REQ_NPC_SUMMON*)data->buf;
+    INITSTRUCT(sP_FE2CL_NPC_ENTER, resp);
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    // permission & sanity check
+    if (!plr->IsGM || req->iNPCType >= NPCs.size())
+        return;
+
+    resp.NPCAppearanceData.iNPC_ID = rand(); // cpunch-style
+    resp.NPCAppearanceData.iNPCType = req->iNPCType;
+    resp.NPCAppearanceData.iHP = 1000; // TODO: placeholder
+    resp.NPCAppearanceData.iX = plr->x;
+    resp.NPCAppearanceData.iY = plr->y;
+    resp.NPCAppearanceData.iZ = plr->z;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
 }
