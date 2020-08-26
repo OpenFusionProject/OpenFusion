@@ -55,18 +55,18 @@ void PlayerManager::removePlayer(CNSocket* key) {
     for (CNSocket* otherSock : players[key].viewable) {
         players[otherSock].viewable.remove(key); // gone
 
-        // now sent PC_EXIT packet
+        // now send PC_EXIT packet
         sP_FE2CL_PC_EXIT exitPacket;
         exitPacket.iID = players[key].plr->iID;
 
         otherSock->sendPacket((void*)&exitPacket, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT));
     }
 
-    delete cachedView.plr;
-    players.erase(key);
-
     std::cout << U16toU8(cachedView.plr->PCStyle.szFirstName) << U16toU8(cachedView.plr->PCStyle.szLastName) << " has left!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
+
+    delete cachedView.plr;
+    players.erase(key);
 }
 
 void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
