@@ -12,7 +12,6 @@ PROTOCOL_VERSION?=104
 
 # Windows-specific
 WIN_CXX=x86_64-w64-mingw32-g++
-WIN_CC=x86_64-w64-mingw32-gcc
 WIN_CXXFLAGS=-Wall -std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
 WIN_LDFLAGS=-static -lws2_32 -lwsock32
 WIN_SERVER=bin/winfusion.exe
