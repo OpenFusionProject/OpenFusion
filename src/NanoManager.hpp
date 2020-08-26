@@ -1,5 +1,4 @@
-#ifndef _NM_HPP
-#define _NM_HPP
+#pragma once
 
 #include "CNShardServer.hpp"
 
@@ -14,8 +13,7 @@ namespace NanoManager {
 
     // Helper methods
     void addNano(CNSocket* sock, int16_t nanoId, int16_t slot);
+    void summonNano(CNSocket* sock, int slot);
     void setNanoSkill(CNSocket* sock, int16_t nanoId, int16_t skillId);
     void resetNanoSkill(CNSocket* sock, int16_t nanoId);
 }
-
-#endif

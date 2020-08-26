@@ -18,7 +18,7 @@ void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC, resp);
     memcpy(resp.szFreeChat, chat->szFreeChat, sizeof(chat->szFreeChat));
-    resp.iPC_ID = plr.plr.iID;
+    resp.iPC_ID = plr.plr->iID;
     resp.iEmoteCode = chat->iEmoteCode;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC));
 
@@ -36,7 +36,7 @@ void ChatManager::menuChatHandler(CNSocket* sock, CNPacketData* data) {
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, resp);
     memcpy(resp.szFreeChat, chat->szFreeChat, sizeof(chat->szFreeChat));
-    resp.iPC_ID = PlayerManager::players[sock].plr.iID;
+    resp.iPC_ID = PlayerManager::players[sock].plr->iID;
     resp.iEmoteCode = chat->iEmoteCode;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC));
 
@@ -57,7 +57,7 @@ void ChatManager::emoteHandler(CNSocket* sock, CNPacketData* data) {
     // send to client
     INITSTRUCT(sP_FE2CL_REP_PC_AVATAR_EMOTES_CHAT, resp);
     resp.iEmoteCode = emote->iEmoteCode;
-    resp.iID_From = plr.plr.iID;
+    resp.iID_From = plr.plr->iID;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_AVATAR_EMOTES_CHAT, sizeof(sP_FE2CL_REP_PC_AVATAR_EMOTES_CHAT));
 
     // send to visible players (players within render distance)

@@ -27,13 +27,21 @@ void PlayerManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GOTO, PlayerManager::gotoPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_SET_VALUE, PlayerManager::setSpecialPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REP_LIVE_CHECK, PlayerManager::heartbeatPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_REGEN, PlayerManager::revivePlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_EXIT, PlayerManager::exitGame);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SPECIAL_STATE_SWITCH, PlayerManager::setSpecialSwitchPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_ON, PlayerManager::enterPlayerVehicle);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_OFF, PlayerManager::exitPlayerVehicle);
 }
 
 void PlayerManager::addPlayer(CNSocket* key, Player plr) {
+    Player *p = new Player();
+
+    memcpy(p, &plr, sizeof(Player));
+
     players[key] = PlayerView();
     players[key].viewable = std::list<CNSocket*>();
-    players[key].plr = plr;
+    players[key].plr = p;
     players[key].lastHeartbeat = 0;
 
     std::cout << U16toU8(plr.PCStyle.szFirstName) << " " << U16toU8(plr.PCStyle.szLastName) << " has joined!" << std::endl;
@@ -47,27 +55,24 @@ void PlayerManager::removePlayer(CNSocket* key) {
     for (CNSocket* otherSock : players[key].viewable) {
         players[otherSock].viewable.remove(key); // gone
 
-        // now sent PC_EXIT packet
+        // now send PC_EXIT packet
         sP_FE2CL_PC_EXIT exitPacket;
-        exitPacket.iID = players[key].plr.iID;
+        exitPacket.iID = players[key].plr->iID;
 
         otherSock->sendPacket((void*)&exitPacket, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT));
     }
 
-    players.erase(key);
-
-    std::cout << U16toU8(cachedView.plr.PCStyle.szFirstName) << U16toU8(cachedView.plr.PCStyle.szLastName) << " has left!" << std::endl;
+    std::cout << U16toU8(cachedView.plr->PCStyle.szFirstName) << U16toU8(cachedView.plr->PCStyle.szLastName) << " has left!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
-}
 
-Player PlayerManager::getPlayer(CNSocket* key) {
-    return players[key].plr;
+    delete cachedView.plr;
+    players.erase(key);
 }
 
 void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
-    players[sock].plr.x = X;
-    players[sock].plr.y = Y;
-    players[sock].plr.z = Z;
+    players[sock].plr->x = X;
+    players[sock].plr->y = Y;
+    players[sock].plr->z = Z;
 
     std::vector<CNSocket*> noView;
     std::vector<CNSocket*> yesView;
@@ -77,8 +82,8 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
         if (pair.first == sock)
             continue; // ignore our own connection
 
-        int diffX = abs(pair.second.plr.x - X); // the map is like a grid, X and Y are your position on the map, Z is the height. very different from other games...
-        int diffY = abs(pair.second.plr.y - Y);
+        int diffX = abs(pair.second.plr->x - X); // the map is like a grid, X and Y are your position on the map, Z is the height. very different from other games...
+        int diffY = abs(pair.second.plr->y - Y);
 
         if (diffX < settings::VIEWDISTANCE && diffY < settings::VIEWDISTANCE) {
             yesView.push_back(pair.first);
@@ -95,9 +100,9 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
         if (std::find(noView.begin(), noView.end(), otherSock) != noView.end()) {
 
             // sock shouldn't be visible, send PC_EXIT packet
-            exitPacket.iID = players[sock].plr.iID;
+            exitPacket.iID = players[sock].plr->iID;
             otherSock->sendPacket((void*)&exitPacket, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT));
-            exitPacket.iID = players[otherSock].plr.iID;
+            exitPacket.iID = players[otherSock].plr->iID;
             sock->sendPacket((void*)&exitPacket, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT));
 
             // remove them from the viewable list
@@ -114,32 +119,34 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
         if (std::find(players[sock].viewable.begin(), players[sock].viewable.end(), otherSock) == players[sock].viewable.end()) {
             // this needs to be added to the viewable players, send PC_ENTER
 
-            Player otherPlr = players[otherSock].plr;
-            Player plr = players[sock].plr;
+            Player *otherPlr = players[otherSock].plr;
+            Player *plr = players[sock].plr;
 
-            newPlayer.PCAppearanceData.iID = plr.iID;
-            newPlayer.PCAppearanceData.iHP = plr.HP;
-            newPlayer.PCAppearanceData.iLv = plr.level;
-            newPlayer.PCAppearanceData.iX = plr.x;
-            newPlayer.PCAppearanceData.iY = plr.y;
-            newPlayer.PCAppearanceData.iZ = plr.z;
-            newPlayer.PCAppearanceData.iAngle = plr.angle;
-            newPlayer.PCAppearanceData.PCStyle = plr.PCStyle;
-            newPlayer.PCAppearanceData.Nano = plr.Nanos[plr.nano];
-            memcpy(newPlayer.PCAppearanceData.ItemEquip, plr.Equip, sizeof(sItemBase) * AEQUIP_COUNT);
+            newPlayer.PCAppearanceData.iID = plr->iID;
+            newPlayer.PCAppearanceData.iHP = plr->HP;
+            newPlayer.PCAppearanceData.iLv = plr->level;
+            newPlayer.PCAppearanceData.iX = plr->x;
+            newPlayer.PCAppearanceData.iY = plr->y;
+            newPlayer.PCAppearanceData.iZ = plr->z;
+            newPlayer.PCAppearanceData.iAngle = plr->angle;
+            newPlayer.PCAppearanceData.PCStyle = plr->PCStyle;
+            newPlayer.PCAppearanceData.Nano = plr->Nanos[plr->activeNano];
+            newPlayer.PCAppearanceData.iPCState = plr->iPCState;
+            memcpy(newPlayer.PCAppearanceData.ItemEquip, plr->Equip, sizeof(sItemBase) * AEQUIP_COUNT);
 
             otherSock->sendPacket((void*)&newPlayer, P_FE2CL_PC_NEW, sizeof(sP_FE2CL_PC_NEW));
 
-            newPlayer.PCAppearanceData.iID = otherPlr.iID;
-            newPlayer.PCAppearanceData.iHP = otherPlr.HP;
-            newPlayer.PCAppearanceData.iLv = otherPlr.level;
-            newPlayer.PCAppearanceData.iX = otherPlr.x;
-            newPlayer.PCAppearanceData.iY = otherPlr.y;
-            newPlayer.PCAppearanceData.iZ = otherPlr.z;
-            newPlayer.PCAppearanceData.iAngle = otherPlr.angle;
-            newPlayer.PCAppearanceData.PCStyle = otherPlr.PCStyle;
-            newPlayer.PCAppearanceData.Nano = otherPlr.Nanos[otherPlr.nano];
-            memcpy(newPlayer.PCAppearanceData.ItemEquip, otherPlr.Equip, sizeof(sItemBase) * AEQUIP_COUNT);
+            newPlayer.PCAppearanceData.iID = otherPlr->iID;
+            newPlayer.PCAppearanceData.iHP = otherPlr->HP;
+            newPlayer.PCAppearanceData.iLv = otherPlr->level;
+            newPlayer.PCAppearanceData.iX = otherPlr->x;
+            newPlayer.PCAppearanceData.iY = otherPlr->y;
+            newPlayer.PCAppearanceData.iZ = otherPlr->z;
+            newPlayer.PCAppearanceData.iAngle = otherPlr->angle;
+            newPlayer.PCAppearanceData.PCStyle = otherPlr->PCStyle;
+            newPlayer.PCAppearanceData.Nano = otherPlr->Nanos[otherPlr->activeNano];
+            newPlayer.PCAppearanceData.iPCState = otherPlr->iPCState;
+            memcpy(newPlayer.PCAppearanceData.ItemEquip, otherPlr->Equip, sizeof(sItemBase) * AEQUIP_COUNT);
 
             sock->sendPacket((void*)&newPlayer, P_FE2CL_PC_NEW, sizeof(sP_FE2CL_PC_NEW));
 
@@ -155,8 +162,8 @@ std::list<CNSocket*> PlayerManager::getNearbyPlayers(int x, int y, int dist) {
     std::list<CNSocket*> plrs;
 
     for (auto pair : players) {
-        int diffX = abs(pair.second.plr.x - x);
-        int diffY = abs(pair.second.plr.x - x);
+        int diffX = abs(pair.second.plr->x - x);
+        int diffY = abs(pair.second.plr->x - x);
 
         if (diffX < dist && diffY < dist)
             plrs.push_back(pair.first);
@@ -178,10 +185,10 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_ENTER:" << std::endl;
-    std::cout << "\tID: " << U16toU8(enter->szID) << std::endl;
-    std::cout << "\tSerial: " << enter->iEnterSerialKey << std::endl;
-    std::cout << "\tTemp: " << enter->iTempValue << std::endl;
-    std::cout << "\tPC_UID: " << plr.PCStyle.iPC_UID << std::endl;
+        std::cout << "\tID: " << U16toU8(enter->szID) << std::endl;
+        std::cout << "\tSerial: " << enter->iEnterSerialKey << std::endl;
+        std::cout << "\tTemp: " << enter->iTempValue << std::endl;
+        std::cout << "\tPC_UID: " << plr.PCStyle.iPC_UID << std::endl;
     )
 
     response.iID = rand();
@@ -204,7 +211,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     for (int i = 0; i < AEQUIP_COUNT; i++)
         response.PCLoadData2CL.aEquip[i] = plr.Equip[i];
 
-    for (int i = 0; i < AINVEN_COUNT; i++) 
+    for (int i = 0; i < AINVEN_COUNT; i++)
         response.PCLoadData2CL.aInven[i] = plr.Inven[i];
 
     // don't ask..
@@ -220,6 +227,10 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     //response.PCLoadData2CL.aNanoSlots[2] = 3;
 
     response.PCLoadData2CL.aQuestFlag[0] = -1;
+
+    // shut computress up
+    response.PCLoadData2CL.iFirstUseFlag1 = UINT64_MAX;
+    response.PCLoadData2CL.iFirstUseFlag2 = UINT64_MAX;
 
     plr.iID = response.iID;
     plr.SerialKey = enter->iEnterSerialKey;
@@ -246,13 +257,17 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_LOADING_COMPLETE* complete = (sP_CL2FE_REQ_PC_LOADING_COMPLETE*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, response);
+    Player *plr = getPlayer(sock);
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_LOADING_COMPLETE:" << std::endl;
-    std::cout << "\tPC_ID: " << complete->iPC_ID << std::endl;
+        std::cout << "\tPC_ID: " << complete->iPC_ID << std::endl;
     )
 
     response.iPC_ID = complete->iPC_ID;
+
+    // reload players & NPCs
+    updatePlayerPosition(sock, plr->x, plr->y, plr->z);
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC));
 }
@@ -264,12 +279,12 @@ void PlayerManager::movePlayer(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_MOVE* moveData = (sP_CL2FE_REQ_PC_MOVE*)data->buf;
     updatePlayerPosition(sock, moveData->iX, moveData->iY, moveData->iZ);
 
-    players[sock].plr.angle = moveData->iAngle;
+    players[sock].plr->angle = moveData->iAngle;
     uint64_t tm = getTime();
 
     INITSTRUCT(sP_FE2CL_PC_MOVE, moveResponse);
 
-    moveResponse.iID = players[sock].plr.iID;
+    moveResponse.iID = players[sock].plr->iID;
     moveResponse.cKeyValue = moveData->cKeyValue;
 
     moveResponse.iX = moveData->iX;
@@ -300,7 +315,7 @@ void PlayerManager::stopPlayer(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_PC_STOP, stopResponse);
 
-    stopResponse.iID = players[sock].plr.iID;
+    stopResponse.iID = players[sock].plr->iID;
 
     stopResponse.iX = stopData->iX;
     stopResponse.iY = stopData->iY;
@@ -325,7 +340,7 @@ void PlayerManager::jumpPlayer(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_PC_JUMP, jumpResponse);
 
-    jumpResponse.iID = players[sock].plr.iID;
+    jumpResponse.iID = players[sock].plr->iID;
     jumpResponse.cKeyValue = jumpData->cKeyValue;
 
     jumpResponse.iX = jumpData->iX;
@@ -356,7 +371,7 @@ void PlayerManager::jumppadPlayer(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_PC_JUMPPAD, jumppadResponse);
 
-    jumppadResponse.iPC_ID = players[sock].plr.iID;
+    jumppadResponse.iPC_ID = players[sock].plr->iID;
     jumppadResponse.cKeyValue = jumppadData->cKeyValue;
 
     jumppadResponse.iX = jumppadData->iX;
@@ -385,7 +400,7 @@ void PlayerManager::launchPlayer(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_PC_LAUNCHER, launchResponse);
 
-    launchResponse.iPC_ID = players[sock].plr.iID;
+    launchResponse.iPC_ID = players[sock].plr->iID;
 
     launchResponse.iX = launchData->iX;
     launchResponse.iY = launchData->iY;
@@ -415,7 +430,7 @@ void PlayerManager::ziplinePlayer(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_PC_ZIPLINE, ziplineResponse);
 
-    ziplineResponse.iPC_ID = players[sock].plr.iID;
+    ziplineResponse.iPC_ID = players[sock].plr->iID;
     ziplineResponse.iCliTime = ziplineData->iCliTime;
     ziplineResponse.iSvrTime = tm;
     ziplineResponse.iX = ziplineData->iX;
@@ -452,7 +467,7 @@ void PlayerManager::movePlatformPlayer(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_PC_MOVEPLATFORM, platResponse);
 
-    platResponse.iPC_ID = players[sock].plr.iID;
+    platResponse.iPC_ID = players[sock].plr->iID;
     platResponse.iCliTime = platformData->iCliTime;
     platResponse.iSvrTime = tm;
     platResponse.iX = platformData->iX;
@@ -486,7 +501,7 @@ void PlayerManager::moveSlopePlayer(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_PC_SLOPE, slopeResponse);
 
-    slopeResponse.iPC_ID = players[sock].plr.iID;
+    slopeResponse.iPC_ID = players[sock].plr->iID;
     slopeResponse.iCliTime = slopeData->iCliTime;
     slopeResponse.iSvrTime = tm;
     slopeResponse.iX = slopeData->iX;
@@ -514,9 +529,9 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_GOTO:" << std::endl;
-    std::cout << "\tX: " << gotoData->iToX << std::endl;
-    std::cout << "\tY: " << gotoData->iToY << std::endl;
-    std::cout << "\tZ: " << gotoData->iToZ << std::endl;
+        std::cout << "\tX: " << gotoData->iToX << std::endl;
+        std::cout << "\tY: " << gotoData->iToY << std::endl;
+        std::cout << "\tZ: " << gotoData->iToZ << std::endl;
     )
 
     response.iX = gotoData->iToX;
@@ -535,9 +550,9 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
 
     DEBUGLOG(
         std::cout << "P_CL2FE_GM_REQ_PC_SET_VALUE:" << std::endl;
-    std::cout << "\tPC_ID: " << setData->iPC_ID << std::endl;
-    std::cout << "\tSetValueType: " << setData->iSetValueType << std::endl;
-    std::cout << "\tSetValue: " << setData->iSetValue << std::endl;
+        std::cout << "\tPC_ID: " << setData->iPC_ID << std::endl;
+        std::cout << "\tSetValueType: " << setData->iSetValueType << std::endl;
+        std::cout << "\tSetValue: " << setData->iSetValue << std::endl;
     )
 
     response.iPC_ID = setData->iPC_ID;
@@ -554,7 +569,7 @@ void PlayerManager::heartbeatPlayer(CNSocket* sock, CNPacketData* data) {
 void PlayerManager::exitGame(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_EXIT))
         return;
-    
+
     sP_CL2FE_REQ_PC_EXIT* exitData = (sP_CL2FE_REQ_PC_EXIT*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_EXIT_SUCC, response);
 
@@ -564,9 +579,86 @@ void PlayerManager::exitGame(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_EXIT_SUCC, sizeof(sP_FE2CL_REP_PC_EXIT_SUCC));
 }
 
-void PlayerManager::updatePlayer(CNSocket* key, Player plr) {
-    PlayerView plrv = players[key];
-    plrv.plr = plr;
+void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_REGEN))
+        return;
 
-    players[key] = plrv;
+    Player *plr = PlayerManager::getPlayer(sock);
+    WarpLocation target = PlayerManager::getRespawnPoint(plr);
+
+    // players respawn at same spot they died at for now...
+    sP_CL2FE_REQ_PC_REGEN* reviveData = (sP_CL2FE_REQ_PC_REGEN*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_PC_REGEN_SUCC, response);
+    response.bMoveLocation = reviveData->eIL;
+    response.PCRegenData.iMapNum = reviveData->iIndex;
+    response.PCRegenData.iHP = 1000 * plr->level;
+    response.PCRegenData.iX = target.x;
+    response.PCRegenData.iY = target.y;
+    response.PCRegenData.iZ = target.z;
+
+    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_REGEN_SUCC, sizeof(sP_FE2CL_REP_PC_REGEN_SUCC));
 }
+
+void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
+    INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_SUCC, response);
+    PlayerView plrv = PlayerManager::players[sock];
+
+    //send to other players
+    INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, pkt);
+    pkt.EquipSlotItem.iType = 1;
+    pkt.iEquipSlotNum = 8;
+    for (CNSocket* otherSock : plrv.viewable) {
+        otherSock->sendPacket((void*)&pkt, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
+    }
+
+    plrv.plr->iPCState = 8;
+
+    sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_ON_SUCC));
+}
+
+void PlayerManager::exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
+    INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
+    PlayerView plrv = PlayerManager::players[sock];
+
+    //send to other players
+    INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, pkt);
+    pkt.EquipSlotItem.iType = 1;
+    pkt.iEquipSlotNum = 8;
+    for (CNSocket* otherSock : plrv.viewable) {
+        otherSock->sendPacket((void*)&pkt, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
+    }
+
+    plrv.plr->iPCState = 0;
+
+    sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_OFF_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_OFF_SUCC));
+}
+
+void PlayerManager::setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {
+    sP_CL2FE_REQ_PC_SPECIAL_STATE_SWITCH* specialData = (sP_CL2FE_REQ_PC_SPECIAL_STATE_SWITCH*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC, response);
+
+    response.iPC_ID = specialData->iPC_ID;
+    response.iReqSpecialStateFlag = specialData->iSpecialStateFlag;
+    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC, sizeof(sP_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC));
+}
+
+#pragma region Helper methods
+Player *PlayerManager::getPlayer(CNSocket* key) {
+    return players[key].plr;
+}
+
+WarpLocation PlayerManager::getRespawnPoint(Player *plr) {
+    WarpLocation best;
+    uint32_t curDist, bestDist = UINT32_MAX;
+
+    for (auto targ : NPCManager::RespawnPoints) {
+        curDist = sqrt(pow(plr->x - targ.x, 2) + pow(plr->y - targ.y, 2));
+        if (curDist < bestDist) {
+            best = targ;
+            bestDist = curDist;
+        }
+    }
+
+    return best;
+}
+#pragma endregion

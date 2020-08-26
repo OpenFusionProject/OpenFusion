@@ -1,8 +1,7 @@
+#pragma once
+
 #include <string>
 #include <cstring>
-
-#ifndef _PLR_HPP
-#define _PLR_HPP
 
 #include "CNProtocol.hpp"
 #include "CNStructs.hpp"
@@ -18,9 +17,10 @@ struct Player {
     int32_t money;
     sPCStyle PCStyle;
     sPCStyle2 PCStyle2;
-    sNano Nanos[37];
+    sNano Nanos[37]; // acquired nanos
     int equippedNanos[3];
-    int nano; // active nano (index into Nanos)
+    int activeNano; // active nano (index into Nanos)
+    int8_t iPCState;
 
     int x, y, z, angle;
     sItemBase Equip[AEQUIP_COUNT];
@@ -31,5 +31,3 @@ struct Player {
     bool IsTradeConfirm;
     bool IsGM;
 };
-
-#endif

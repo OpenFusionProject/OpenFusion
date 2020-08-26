@@ -3,8 +3,7 @@
         There's some data shared between the Login Server and the Shard Server. Of course all of this needs to be thread-safe. No mucking about on this one!
 */
 
-#ifndef _CNSD_HPP
-#define _CNSD_HPP
+#pragma once
 
 #include <map>
 #include <string>
@@ -19,5 +18,3 @@ namespace CNSharedData {
     Player getPlayer(int64_t sk);
     void erasePlayer(int64_t sk);
 }
-
-#endif

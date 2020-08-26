@@ -3,7 +3,7 @@
 #include "contrib/INIReader.hpp"
 
 // defaults :)
-bool settings::VERBOSE = false;
+int settings::VERBOSITY = 1;
 
 int settings::LOGINPORT = 8001;
 bool settings::LOGINRANDCHARACTERS = false;
@@ -18,7 +18,9 @@ int settings::SPAWN_Y = 268451;
 int settings::SPAWN_Z = -4210;
 std::string settings::GMPASS = "pass";
 std::string settings::NPCJSON = "NPCs.json";
+std::string settings::WARPJSON = "warps.json";
 std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
+bool settings::GM = false;
 
 void settings::init() {
     INIReader reader("config.ini");
@@ -32,7 +34,7 @@ void settings::init() {
         return;
     }
 
-    VERBOSE = reader.GetBoolean("", "verbose", VERBOSE);
+    VERBOSITY = reader.GetInteger("", "verbosity", VERBOSITY);
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);
     LOGINRANDCHARACTERS = reader.GetBoolean("login", "randomcharacters", LOGINRANDCHARACTERS);
     SHARDPORT = reader.GetInteger("shard", "port", SHARDPORT);
@@ -43,6 +45,7 @@ void settings::init() {
     SPAWN_Z = reader.GetInteger("shard", "spawnz", SPAWN_Z);
     GMPASS = reader.Get("login", "pass", GMPASS);
     NPCJSON = reader.Get("shard", "npcdata", NPCJSON);
+    WARPJSON = reader.Get("shard", "warpdata", WARPJSON);
     MOTDSTRING = reader.Get("shard", "motd", MOTDSTRING);
-
+    GM = reader.GetBoolean("shard", "gm", GM);
 }

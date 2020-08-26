@@ -1,8 +1,7 @@
-#ifndef _SETT_HPP
-#define _SETT_HPP
+#pragma once
 
 namespace settings {
-    extern bool VERBOSE;
+    extern int VERBOSITY;
     extern int LOGINPORT;
     extern bool LOGINRANDCHARACTERS;
     extern int SHARDPORT;
@@ -13,9 +12,9 @@ namespace settings {
     extern int SPAWN_Z;
     extern std::string MOTDSTRING;
     extern std::string NPCJSON;
+    extern std::string WARPJSON;
     extern std::string GMPASS;
+    extern bool GM;
 
     void init();
 }
-
-#endif

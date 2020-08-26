@@ -17,8 +17,7 @@ CNLoginServer::CNLoginServer(uint16_t p) {
 }
 
 void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
-    if (settings::VERBOSE)
-        std::cout << "OpenFusion: received " << Defines::p2str(CL2LS, data->type) << " (" << data->type << ")" << std::endl;
+    printPacket(data, CL2LS);
 
     switch (data->type) {
         case P_CL2LS_REQ_LOGIN: {
@@ -27,7 +26,6 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             sP_CL2LS_REQ_LOGIN* login = (sP_CL2LS_REQ_LOGIN*)data->buf;
             INITSTRUCT(sP_LS2CL_REP_LOGIN_SUCC, resp);
-            uint64_t cachedKey = sock->getEKey(); // so we can still send the resp packet with the correct key
             int charCount = 2; // send 4 randomly generated characters for now
 
             DEBUGLOG(
@@ -60,7 +58,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 for (int i = 0; i < charCount; i++) {
                     sP_LS2CL_REP_CHAR_INFO charInfo = sP_LS2CL_REP_CHAR_INFO();
                     charInfo.iSlot = (int8_t)i + 1;
-                    charInfo.iLevel = (int16_t)1;
+                    charInfo.iLevel = (int16_t)36;
                     charInfo.sPC_Style.iPC_UID = rand(); // unique identifier for the character
                     charInfo.sPC_Style.iNameCheck = 1;
                     charInfo.sPC_Style.iGender = (i%2)+1; // can be 1(boy) or 2(girl)
@@ -95,8 +93,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     loginSessions[sock].characters[UID].z = charInfo.iZ;
                     loginSessions[sock].characters[UID].PCStyle = charInfo.sPC_Style;
                     loginSessions[sock].characters[UID].PCStyle2 = charInfo.sPC_Style2;
-                    loginSessions[sock].characters[UID].IsGM = false;
-                    loginSessions[sock].characters[UID].IsTrading = false;
+                    loginSessions[sock].characters[UID].IsGM = settings::GM;
 
                     for (int i = 0; i < AEQUIP_COUNT; i++) {
                         // setup equips
@@ -232,8 +229,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             loginSessions[sock].characters[UID].Equip[2].iType = 2;
             loginSessions[sock].characters[UID].Equip[3].iID = character->sOn_Item.iEquipFootID; // foot!
             loginSessions[sock].characters[UID].Equip[3].iType = 3; 
-            loginSessions[sock].characters[UID].IsGM = false;
-            loginSessions[sock].characters[UID].IsTrading = false;
+            loginSessions[sock].characters[UID].IsGM = settings::GM;
 
             sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_CREATE_SUCC, sizeof(sP_LS2CL_REP_CHAR_CREATE_SUCC));
             break;
@@ -281,11 +277,11 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             CNSharedData::setPlayer(resp.iEnterSerialKey, loginSessions[sock].characters[loginSessions[sock].selectedChar]);
 
             sock->sendPacket((void*)&resp, P_LS2CL_REP_SHARD_SELECT_SUCC, sizeof(sP_LS2CL_REP_SHARD_SELECT_SUCC));
-            sock->kill(); // client should connect to the Shard server now
             break;
         }
         default:
-            std::cerr << "OpenFusion: LOGIN UNIMPLM ERR. PacketType: " << Defines::p2str(CL2LS, data->type) << " (" << data->type << ")" << std::endl;
+            if (settings::VERBOSITY)
+                std::cerr << "OpenFusion: LOGIN UNIMPLM ERR. PacketType: " << Defines::p2str(CL2LS, data->type) << " (" << data->type << ")" << std::endl;
             break;
     }
 }

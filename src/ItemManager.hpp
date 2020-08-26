@@ -1,5 +1,4 @@
-#ifndef _IM_HPP
-#define _IM_HPP
+#pragma once
 
 #include "CNShardServer.hpp"
 
@@ -18,5 +17,3 @@ namespace ItemManager {
     void itemTradeUnregisterItemHandler(CNSocket* sock, CNPacketData* data);
     void itemTradeRegisterCashHandler(CNSocket* sock, CNPacketData* data);
 }
-
-#endif
