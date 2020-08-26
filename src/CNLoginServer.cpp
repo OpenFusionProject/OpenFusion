@@ -100,6 +100,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                         loginSessions[sock].characters[UID].PCStyle = charInfo.sPC_Style;
                         loginSessions[sock].characters[UID].PCStyle2 = charInfo.sPC_Style2;
                         loginSessions[sock].characters[UID].IsGM = false;
+                        loginSessions[sock].characters[UID].money = 9001;
 
 
 
