@@ -86,7 +86,7 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
         int diffX = abs(view.plr->x - pair.second.appearanceData.iX);
         int diffY = abs(view.plr->y - pair.second.appearanceData.iY);
 
-        if (diffX < settings::VIEWDISTANCE && diffY < settings::VIEWDISTANCE) {
+        if (diffX < settings::NPCDISTANCE && diffY < settings::NPCDISTANCE) {
             yesView.push_back(pair.first);
         } else {
             noView.push_back(pair.first);
