@@ -9,6 +9,19 @@
 struct CNLoginData {
     std::map<int64_t, Player> characters;
     int64_t selectedChar;
+    int UserID;
+};
+
+enum class LOGINERRORID {
+    database_error = 0,
+    id_doesnt_exist = 1,
+    id_and_password_do_not_match = 2,
+    id_already_in_use = 3,
+    login_error = 4,
+    client_version_outdated = 6,
+    you_are_not_an_authorized_beta_tester = 7,
+    authentication_connection_error = 8,
+    updated_euala_required = 9
 };
 
 // WARNING: THERE CAN ONLY BE ONE OF THESE SERVERS AT A TIME!!!!!! TODO: change loginSessions & packet handlers to be non-static

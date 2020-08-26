@@ -256,6 +256,7 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_LOADING_COMPLETE* complete = (sP_CL2FE_REQ_PC_LOADING_COMPLETE*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, response);
+    Player *plr = getPlayer(sock);
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_LOADING_COMPLETE:" << std::endl;
@@ -263,6 +264,9 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
     )
 
     response.iPC_ID = complete->iPC_ID;
+
+    // reload players & NPCs
+    updatePlayerPosition(sock, plr->x, plr->y, plr->z);
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC));
 }

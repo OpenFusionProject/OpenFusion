@@ -113,6 +113,7 @@ void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_PC_WARP_USE_NPC* warpNpc = (sP_CL2FE_REQ_PC_WARP_USE_NPC*)data->buf;
+    PlayerView& plrv = PlayerManager::players[sock];
 
     // sanity check
     if (Warps.find(warpNpc->iWarpID) == Warps.end())
@@ -123,6 +124,10 @@ void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
     resp.iX = Warps[warpNpc->iWarpID].x;
     resp.iY = Warps[warpNpc->iWarpID].y;
     resp.iZ = Warps[warpNpc->iWarpID].z;
+
+    // force player & NPC reload
+    plrv.viewable.clear();
+    plrv.viewableNPCs.clear();
     
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
 
