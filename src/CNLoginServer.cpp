@@ -85,6 +85,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     int64_t UID = charInfo.sPC_Style.iPC_UID;
                     loginSessions[sock].characters[UID] = Player();
                     loginSessions[sock].characters[UID].level = charInfo.iLevel;
+                    loginSessions[sock].characters[UID].money = 9001;
                     loginSessions[sock].characters[UID].slot = charInfo.iSlot;
                     loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
                     loginSessions[sock].characters[UID].x = charInfo.iX;
@@ -213,6 +214,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             loginSessions[sock].characters[UID] = Player();
             loginSessions[sock].characters[UID].level = 36;
+            loginSessions[sock].characters[UID].money = 9001;
             loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
             loginSessions[sock].characters[UID].PCStyle = character->PCStyle;
             loginSessions[sock].characters[UID].PCStyle2.iAppearanceFlag = 1;
