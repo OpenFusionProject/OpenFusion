@@ -35,7 +35,7 @@ include_directories(src)
 
 file(GLOB_RECURSE SOURCES src/**.cpp src/**.hpp)
 
-add_executable(openfusion ${SOURCES})
+add_executable(openfusion ${SOURCES} "src/Database.cpp" "src/contrib/sqlite/shell.c" "src/contrib/sqlite/sqlite3.c" "src/contrib/sqlite/sqlite3pp.cpp" "src/contrib/sqlite/sqlite3ppext.cpp" "src/contrib/bcrypt/bcrypt.c" "src/contrib/bcrypt/crypt_blowfish.c" "src/contrib/bcrypt/crypt_gensalt.c" "src/contrib/bcrypt/wrapper.c")
 
 set_target_properties(openfusion PROPERTIES OUTPUT_NAME ${BIN_NAME})
 
