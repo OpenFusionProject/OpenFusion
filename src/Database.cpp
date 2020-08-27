@@ -1,6 +1,5 @@
 #include "contrib/sqlite/sqlite3pp.h"
 #include "contrib/bcrypt/BCrypt.hpp"
-#include "contrib/json11.hpp"
 #include "CNProtocol.hpp"
 #include "Database.hpp"
 #include "CNStructs.hpp"
@@ -8,6 +7,7 @@
 #include "Player.hpp"
 #include <regex>
 #include <fstream>
+#include "contrib/JSON.hpp"
 
 
 //TODO: replace this sqlite wrapper with something better, clean up queries, get rid of json
@@ -206,7 +206,7 @@ std::list <Player> Database::getCharacters(int userID) {
 }
 
 std::string Database::CharacterToJson(sP_CL2LS_REQ_SAVE_CHAR_NAME* save) {
-	json11::Json json = json11::Json::object{
+	nlohmann::json json = {
 		{"Level",1},
 		//to check
 		{"HP",1000},
@@ -238,7 +238,7 @@ std::string Database::CharacterToJson(sP_CL2LS_REQ_SAVE_CHAR_NAME* save) {
 }
 
 std::string Database::PlayerToJson(Player player) {
-	json11::Json json = json11::Json::object{
+	nlohmann::json json = {
 		{"Level",1},
 		//to check
 		{"HP",100},
@@ -271,14 +271,14 @@ std::string Database::PlayerToJson(Player player) {
 
 Player Database::JsonToPlayer(std::string input, int PC_UID) {
 	std::string err;
-	const auto json = json11::Json::parse(input, err);
+	const auto json = nlohmann::json::parse(input, err);
 	Player player;
 	player.PCStyle.iPC_UID = (int64_t)PC_UID;
 	player.level = std::stoi(json["Level"].dump());
 	player.HP = std::stoi(json["HP"].dump());
 	player.PCStyle.iNameCheck = std::stoi(json["NameCheck"].dump());
-	U8toU16(json["FirstName"].string_value(), player.PCStyle.szFirstName);
-	U8toU16(json["LastName"].string_value(), player.PCStyle.szLastName);
+	U8toU16(json["FirstName"].get<std::string>(), player.PCStyle.szFirstName);
+	U8toU16(json["LastName"].get<std::string>(), player.PCStyle.szLastName);
 	player.PCStyle.iGender = std::stoi(json["Gender"].dump());
 	player.PCStyle.iFaceStyle = std::stoi(json["FaceStyle"].dump());
 	player.PCStyle.iHairStyle = std::stoi(json["HairStyle"].dump());
@@ -313,7 +313,7 @@ Player Database::JsonToPlayer(std::string input, int PC_UID) {
 }
 
 std::string Database::CharacterToJson(sP_CL2LS_REQ_CHAR_CREATE* character) {
-	json11::Json json = json11::Json::object{
+	nlohmann::json json = {
 		{"Level",1},
 		//to check
 		{"HP",1000},
