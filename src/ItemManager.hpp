@@ -16,4 +16,5 @@ namespace ItemManager {
     void itemTradeRegisterItemHandler(CNSocket* sock, CNPacketData* data);
     void itemTradeUnregisterItemHandler(CNSocket* sock, CNPacketData* data);
     void itemTradeRegisterCashHandler(CNSocket* sock, CNPacketData* data);
+    void itemTradeChatHandler(CNSocket* sock, CNPacketData* data);
 }

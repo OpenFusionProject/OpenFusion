@@ -93,6 +93,8 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     loginSessions[sock].characters[UID].z = charInfo.iZ;
                     loginSessions[sock].characters[UID].PCStyle = charInfo.sPC_Style;
                     loginSessions[sock].characters[UID].PCStyle2 = charInfo.sPC_Style2;
+                    loginSessions[sock].characters[UID].isTrading = false;
+                    loginSessions[sock].characters[UID].isTradeConfirm = false;
                     loginSessions[sock].characters[UID].IsGM = settings::GM;
 
                     for (int i = 0; i < AEQUIP_COUNT; i++) {
@@ -228,7 +230,9 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             loginSessions[sock].characters[UID].Equip[2].iID = character->sOn_Item.iEquipLBID; // lower body
             loginSessions[sock].characters[UID].Equip[2].iType = 2;
             loginSessions[sock].characters[UID].Equip[3].iID = character->sOn_Item.iEquipFootID; // foot!
-            loginSessions[sock].characters[UID].Equip[3].iType = 3; 
+            loginSessions[sock].characters[UID].Equip[3].iType = 3;
+            loginSessions[sock].characters[UID].isTrading = false;
+            loginSessions[sock].characters[UID].isTradeConfirm = false;
             loginSessions[sock].characters[UID].IsGM = settings::GM;
 
             sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_CREATE_SUCC, sizeof(sP_LS2CL_REP_CHAR_CREATE_SUCC));
