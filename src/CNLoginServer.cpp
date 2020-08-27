@@ -70,8 +70,8 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 loginSessions[sock].userID = userID;
 
                 // now send the characters :)
-
-                if (charCount > 0) {
+                
+                /*if (charCount > 0) {
 
                     std::list<Player> characters = Database::getCharacters(loginSessions[sock].userID);
                     std::list<Player>::iterator it;
@@ -192,7 +192,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                         loginSessions[sock].characters[UID].Inven[i].iOpt = 0;
 
                     }
-                }
+                }*/
             }
             //Failure
             else {
