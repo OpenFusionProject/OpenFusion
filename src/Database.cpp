@@ -1,13 +1,11 @@
 #include "contrib/sqlite/sqlite3pp.h"
 #include "contrib/bcrypt/BCrypt.hpp"
 #include "contrib/json11.hpp"
-
 #include "CNProtocol.hpp"
 #include "Database.hpp"
 #include "CNStructs.hpp"
 #include "settings.hpp"
 #include "Player.hpp"
-
 #include <regex>
 #include <fstream>
 
