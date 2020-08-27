@@ -2,6 +2,7 @@
 #include "CNShardServer.hpp"
 #include "PlayerManager.hpp"
 #include "ChatManager.hpp"
+#include "CombatManager.hpp"
 #include "ItemManager.hpp"
 #include "MissionManager.hpp"
 #include "NanoManager.hpp"
@@ -49,6 +50,7 @@ int main() {
     std::cout << "[INFO] Intializing Packet Managers..." << std::endl;
     PlayerManager::init();
     ChatManager::init();
+    CombatManager::init();
     ItemManager::init();
     MissionManager::init();
     NanoManager::init();

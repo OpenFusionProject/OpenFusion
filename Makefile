@@ -30,6 +30,7 @@ CXX_SRC=\
 	src/contrib/sqlite/sqlite3pp.cpp\
 	src/contrib/sqlite/sqlite3ppext.cpp\
 	src/ChatManager.cpp\
+	src/CombatManager.cpp\
 	src/CNLoginServer.cpp\
 	src/CNProtocol.cpp\
 	src/CNShardServer.cpp\
@@ -63,6 +64,7 @@ CXX_HDR=\
 	src/contrib/INIReader.hpp\
 	src/contrib/JSON.hpp\
 	src/ChatManager.hpp\
+	src/CombatManager.hpp\
 	src/CNLoginServer.hpp\
 	src/CNProtocol.hpp\
 	src/CNShardServer.hpp\

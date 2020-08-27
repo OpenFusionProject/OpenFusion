@@ -15,6 +15,7 @@ struct Player {
     int HP;
     int slot; // player slot, not nano slot
     int32_t money;
+    int32_t fusionmatter;
     sPCStyle PCStyle;
     sPCStyle2 PCStyle2;
     sNano Nanos[37]; // acquired nanos
