@@ -48,11 +48,9 @@ void Database::addAccount(std::string login, std::string password) {
 	cmd.bind(":login", login, sqlite3pp::nocopy);
 	cmd.bind(":password", password, sqlite3pp::nocopy);
 	cmd.execute();
-
 }
 
 bool Database::doesUserExist(std::string login) {
-
 	std::string q = "SELECT COUNT(AccountID) FROM Accounts WHERE Login = :login";
 	const char* query = q.c_str();
 	sqlite3pp::query qry(db, query);
@@ -162,7 +160,6 @@ int Database::getCharacterID(int AccountID, int slot) {
 }
 
 int Database::deleteCharacter(int characterID, int accountID) {
-
 	//checking if requested player exist and is bound to the account
 	std::string q = "SELECT COUNT(AccountID) FROM Players WHERE AccountID = :AccID AND PlayerID = :PID";
 	const char* query = q.c_str();
