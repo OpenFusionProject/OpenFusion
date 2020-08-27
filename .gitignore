@@ -10,5 +10,4 @@ CMakeCache.txt
 build/
 .vs/
 .idea/
-CMakeSettings.json
 *.db
