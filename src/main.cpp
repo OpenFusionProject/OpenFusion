@@ -17,8 +17,19 @@
 #endif
 #include <string>
 
+CNShardServer *shardServer;
+std::thread *shardThread;
+
 void startShard(CNShardServer* server) {
     server->start();
+}
+
+// terminate gracefully on SIGINT (for gprof)
+void terminate(int arg) {
+    std::cout << "OpenFusion: terminating" << std::endl;
+    shardServer->kill();
+    shardThread->join();
+    exit(0);
 }
 
 int main() {
@@ -31,6 +42,7 @@ int main() {
 #else
     // tell the OS to not kill us if you use a broken pipe, just let us know thru recv() or send()
     signal(SIGPIPE, SIG_IGN);
+    signal(SIGINT, terminate); // TODO: use sigaction() instead
 #endif
     settings::init();
     std::cout << "[INFO] Protocol version: " << PROTOCOL_VERSION << std::endl;
@@ -46,14 +58,14 @@ int main() {
 
     std::cout << "[INFO] Starting Server Threads..." << std::endl;
     CNLoginServer loginServer(settings::LOGINPORT);
-    CNShardServer shardServer(settings::SHARDPORT);
+    shardServer = new CNShardServer(settings::SHARDPORT);
 
-    std::thread shardThread(startShard, (CNShardServer*)&shardServer);
+    shardThread = new std::thread(startShard, (CNShardServer*)shardServer);
 
     loginServer.start();
 
-    shardServer.kill();
-    shardThread.join();
+    shardServer->kill();
+    shardThread->join();
 
 #ifdef _WIN32
     WSACleanup();
