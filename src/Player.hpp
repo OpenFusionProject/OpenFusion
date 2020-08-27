@@ -27,7 +27,7 @@ struct Player {
     sItemBase Inven[AINVEN_COUNT];
     sItemTrade Trade[12];
     int32_t moneyInTrade;
-    bool IsTrading;
-    bool IsTradeConfirm;
+    bool isTrading;
+    bool isTradeConfirm;
     bool IsGM;
 };
