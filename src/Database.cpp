@@ -271,7 +271,7 @@ std::string Database::PlayerToJson(Player player) {
 
 Player Database::JsonToPlayer(std::string input, int PC_UID) {
 	std::string err;
-	const auto json = nlohmann::json::parse(input, err);
+	const auto json = nlohmann::json::parse(input);
 	Player player;
 	player.PCStyle.iPC_UID = (int64_t)PC_UID;
 	player.level = std::stoi(json["Level"].dump());
