@@ -1,7 +1,7 @@
 CC=clang
 CXX=clang++
 # -w suppresses all warnings (the part that's commented out helps me find memory leaks, it ruins performance though!)
-CCFLAGS=-O3 #-g3 -fsanitize=address
+CFLAGS=-O3 #-g3 -fsanitize=address
 CXXFLAGS=-Wall -std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
 LDFLAGS=-lpthread -ldl
 # specifies the name of our exectuable
@@ -14,19 +14,19 @@ PROTOCOL_VERSION?=104
 # Windows-specific
 WIN_CC=x86_64-w64-mingw32-gcc
 WIN_CXX=x86_64-w64-mingw32-g++
-WIN_CCFLAGS=-O3 #-g3 -fsanitize=address
+WIN_CFLAGS=-O3 #-g3 -fsanitize=address
 WIN_CXXFLAGS=-Wall -std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
 WIN_LDFLAGS=-static -lws2_32 -lwsock32
 WIN_SERVER=bin/winfusion.exe
 
-CC_SRC=\
+CSRC=\
 	src/contrib/bcrypt/bcrypt.c\
 	src/contrib/bcrypt/crypt_blowfish.c\
 	src/contrib/bcrypt/crypt_gensalt.c\
 	src/contrib/bcrypt/wrapper.c\
 	src/contrib/sqlite/sqlite3.c\
 
-CXX_SRC=\
+CXXSRC=\
 	src/contrib/sqlite/sqlite3pp.cpp\
 	src/contrib/sqlite/sqlite3ppext.cpp\
 	src/ChatManager.cpp\
@@ -48,7 +48,7 @@ CXX_SRC=\
 	src/settings.cpp\
 
 # headers (for timestamp purposes)
-CC_HDR=\
+CHDR=\
 	src/contrib/bcrypt/bcrypt.h\
 	src/contrib/bcrypt/crypt_blowfish.h\
 	src/contrib/bcrypt/crypt_gensalt.h\
@@ -57,7 +57,7 @@ CC_HDR=\
 	src/contrib/sqlite/sqlite3.h\
 	src/contrib/sqlite/sqlite3ext.h\
 
-CXX_HDR=\
+CXXHDR=\
 	src/contrib/bcrypt/BCrypt.hpp\
 	src/contrib/sqlite/sqlite3pp.h\
 	src/contrib/sqlite/sqlite3ppext.h\
@@ -82,10 +82,10 @@ CXX_HDR=\
 	src/PlayerManager.hpp\
 	src/settings.hpp\
 
-CC_OBJ=$(CC_SRC:.c=.o)
-CXX_OBJ=$(CXX_SRC:.cpp=.o)
+COBJ=$(CSRC:.c=.o)
+CXXOBJ=$(CXXSRC:.cpp=.o)
 
-OBJ=$(CC_OBJ) $(CXX_OBJ)
+OBJ=$(COBJ) $(CXXOBJ)
 
 all: $(SERVER)
 
@@ -94,18 +94,20 @@ windows: $(SERVER)
 # assign Windows-specific values if targeting Windows
 windows : CC=$(WIN_CC)
 windows : CXX=$(WIN_CXX)
-windows : CCFLAGS=$(WIN_CCFLAGS)
+windows : CFLAGS=$(WIN_CFLAGS)
 windows : CXXFLAGS=$(WIN_CXXFLAGS)
 windows : LDFLAGS=$(WIN_LDFLAGS)
 windows : SERVER=$(WIN_SERVER)
 
-$(CC_OBJ): %.o: %.c $(CC_HDR)
-	$(CC) -c $(CCFLAGS) -o $@ $<
+.SUFFIX: .o .c .cpp .hpp
 
-$(CXX_OBJ): %.o: %.cpp $(CXX_HDR)
+.c.o: $(CHDR)
+	$(CC) -c $(CFLAGS) -o $@ $<
+
+.cpp.o: $(CXXHDR)
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
-$(SERVER): $(OBJ) $(CC_HDR) $(CXX_HDR)
+$(SERVER): $(OBJ) $(CHDR) $(CXXHDR)
 	mkdir -p bin
 	$(CXX) $(OBJ) $(LDFLAGS) -o $(SERVER)
 
