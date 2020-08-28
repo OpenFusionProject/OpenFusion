@@ -26,7 +26,8 @@ void CombatManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
     /*
      * Due to the possibility of multiplication overflow (and regular buffer overflow),
-     * both incoming and outgoing variable-length packets must be validated.
+     * both incoming and outgoing variable-length packets must be validated, at least if
+     * the number of trailing structs isn't well known (ie. it's from the client).
      */
     if (!validOutVarPacket(sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC), pkt->iNPCCnt, sizeof(sAttackResult))) {
         std::cout << "[WARN] bad sP_FE2CL_PC_ATTACK_NPCs_SUCC packet size\n";
@@ -56,6 +57,7 @@ void CombatManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
         if (mob.appearanceData.iHP <= 0)
             giveReward(sock);
+        // TODO: despawn mobs when they die
 
         respdata[i].iID = mob.appearanceData.iNPC_ID;
         respdata[i].iDamage = 100;
