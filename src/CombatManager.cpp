@@ -15,6 +15,7 @@ void CombatManager::init() {
 
 void CombatManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_REQ_PC_ATTACK_NPCs* pkt = (sP_CL2FE_REQ_PC_ATTACK_NPCs*)data->buf;
+    Player *plr = PlayerManager::getPlayer(sock);
 
     // sanity check
     if (!validInVarPacket(sizeof(sP_CL2FE_REQ_PC_ATTACK_NPCs), pkt->iNPCCnt, sizeof(int32_t), data->size)) {
@@ -66,6 +67,20 @@ void CombatManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     }
 
     sock->sendPacket((void*)respbuf, P_FE2CL_PC_ATTACK_NPCs_SUCC, resplen);
+
+    // a bit of a hack: these are the same size, so we can reuse the output packet
+    assert(sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC) == sizeof(sP_FE2CL_PC_ATTACK_NPCs));
+    sP_FE2CL_PC_ATTACK_NPCs *resp1 = (sP_FE2CL_PC_ATTACK_NPCs*)respbuf;
+
+    resp1->iPC_ID = plr->iID;
+
+    // send to other players
+    for (CNSocket *s : PlayerManager::players[sock].viewable) {
+        if (s == sock)
+            continue;
+
+        s->sendPacket((void*)respbuf, P_FE2CL_PC_ATTACK_NPCs, resplen);
+    }
 }
 
 void CombatManager::combatBegin(CNSocket *sock, CNPacketData *data) {} // stub
