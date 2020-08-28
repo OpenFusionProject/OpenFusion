@@ -106,9 +106,9 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
 
             // remove from view
             view.viewableNPCs.erase(i++);
+        } else {
+            i++;
         }
-
-        ++i;
     }
 
     INITSTRUCT(sP_FE2CL_NPC_ENTER, enterData);

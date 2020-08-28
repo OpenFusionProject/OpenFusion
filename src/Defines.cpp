@@ -204,13 +204,13 @@ std::string Defines::p2str(int type, int val) {
     switch (type) {
     case CL2LS:
        val = val - CL2LS - 1;
-       if (val > N_CL2LS)
+       if (val > N_CL2LS || val < 0)
            break;
 
        return cl2ls_map[val].name;
     case CL2FE:
        val = val - CL2FE - 1;
-       if (val > N_CL2FE)
+       if (val > N_CL2FE || val < 0)
            break;
 
        return cl2fe_map[val].name;

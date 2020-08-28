@@ -27,6 +27,9 @@ int main() {
         std::cerr << "OpenFusion: WSAStartup failed" << std::endl;
         exit(EXIT_FAILURE);
     }
+#else
+    // tell the OS to not kill us if you use a broken pipe, just let us know thru recv() or send()
+    signal(SIGPIPE, SIG_IGN);
 #endif
     settings::init();
     std::cout << "[INFO] Protocol version: " << PROTOCOL_VERSION << std::endl;
