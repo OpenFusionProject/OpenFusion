@@ -239,9 +239,9 @@ std::string Database::CharacterToJson(sP_CL2LS_REQ_SAVE_CHAR_NAME* save) {
 
 std::string Database::PlayerToJson(Player player) {
     nlohmann::json json = {
-        {"Level",36},
+        {"Level",player.level},
         //to check
-        {"HP",100},
+        {"HP",player.HP},
         {"NameCheck", 1},
         {"FirstName",U16toU8(player.PCStyle.szFirstName)},
         {"LastName",U16toU8(player.PCStyle.szLastName)},
