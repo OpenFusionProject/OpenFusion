@@ -10,3 +10,4 @@ CMakeCache.txt
 build/
 .vs/
 .idea/
+*.db
