@@ -1,8 +1,9 @@
 #include "CombatManager.hpp"
 #include "PlayerManager.hpp"
 #include "NPCManager.hpp"
+#include "ItemManager.hpp"
 
-#include <cstdio>
+#include <assert.h>
 
 void CombatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ATTACK_NPCs, pcAttackNpcs);
@@ -28,7 +29,7 @@ void CombatManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
      * both incoming and outgoing variable-length packets must be validated.
      */
     if (!validOutVarPacket(sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC), pkt->iNPCCnt, sizeof(sAttackResult))) {
-        std::cout << "[WARN] bad sP_CL2FE_REQ_PC_ATTACK_NPCs packet size\n";
+        std::cout << "[WARN] bad sP_FE2CL_PC_ATTACK_NPCs_SUCC packet size\n";
         return;
     }
 
@@ -44,8 +45,6 @@ void CombatManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     resp->iNPCCnt = pkt->iNPCCnt;
 
     for (int i = 0; i < pkt->iNPCCnt; i++) {
-        std::cout << pktdata[i] << std::endl;
-
         if (NPCManager::NPCs.find(pktdata[i]) == NPCManager::NPCs.end()) {
             // not sure how to best handle this
             std::cout << "[WARN] pcAttackNpcs: mob ID not found" << std::endl;
@@ -72,18 +71,44 @@ void CombatManager::combatEnd(CNSocket *sock, CNPacketData *data) {} // stub
 void CombatManager::dotDamageOnOff(CNSocket *sock, CNPacketData *data) {} // stub
 
 void CombatManager::giveReward(CNSocket *sock) {
-    // reward testing
-    INITSTRUCT(sP_FE2CL_REP_REWARD_ITEM, reward);
     Player *plr = PlayerManager::getPlayer(sock);
+
+    const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
+    assert(resplen < CN_PACKET_BUFFER_SIZE);
+    // we know it's only one trailing struct, so we can skip full validation
+
+    uint8_t respbuf[resplen]; // not a variable length array, don't worry
+    sP_FE2CL_REP_REWARD_ITEM *reward = (sP_FE2CL_REP_REWARD_ITEM *)respbuf;
+    sItemReward *item = (sItemReward *)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
+
+    // don't forget to zero the buffer!
+    memset(respbuf, 0, resplen);
 
     // update player
     plr->money += 50;
     plr->fusionmatter += 70;
 
-    reward.m_iCandy = plr->money;
-    reward.m_iFusionMatter = plr->fusionmatter;
-    reward.iFatigue = 100; // prevents warning message
-    reward.iFatigue_Level = 1;
+    // simple rewards
+    reward->m_iCandy = plr->money;
+    reward->m_iFusionMatter = plr->fusionmatter;
+    reward->iFatigue = 100; // prevents warning message
+    reward->iFatigue_Level = 1;
+    reward->iItemCnt = 1; // remember to update resplen if you change this
 
-    sock->sendPacket((void*)&reward, P_FE2CL_REP_REWARD_ITEM, sizeof(sP_FE2CL_REP_REWARD_ITEM));
+    int slot = ItemManager::findFreeSlot(plr);
+    if (slot == -1) {
+        // no room for an item, but you still get FM and taros
+        sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, sizeof(sP_FE2CL_REP_REWARD_ITEM));
+    } else {
+        // item reward
+        item->sItem.iType = 9;
+        item->sItem.iID = 1;
+        item->iSlotNum = slot;
+        item->eIL = 1; // Inventory Location. 1 means player inventory.
+
+        // update player
+        plr->Inven[slot] = item->sItem;
+
+        sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
+    }
 }

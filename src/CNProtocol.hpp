@@ -82,7 +82,7 @@ inline bool validOutVarPacket(size_t base, int32_t npayloads, size_t plsize) {
     size_t trailing = npayloads * plsize;
 
     // does it fit in a packet?
-    if (base + trailing <= CN_PACKET_BUFFER_SIZE)
+    if (base + trailing > CN_PACKET_BUFFER_SIZE)
         return false;
 
     // everything is a-ok!
