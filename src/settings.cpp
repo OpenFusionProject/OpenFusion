@@ -18,8 +18,8 @@ int settings::SPAWN_X = 179213;
 int settings::SPAWN_Y = 268451;
 int settings::SPAWN_Z = -4210;
 std::string settings::GMPASS = "pass";
-std::string settings::NPCJSON = "NPCs.json";
-std::string settings::WARPJSON = "warps.json";
+std::string settings::NPCJSON = "data/NPCs.json";
+std::string settings::WARPJSON = "data/warps.json";
 std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
 bool settings::GM = false;
 
