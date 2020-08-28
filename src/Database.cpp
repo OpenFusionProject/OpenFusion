@@ -314,7 +314,7 @@ Player Database::JsonToPlayer(std::string input, int PC_UID) {
 
 std::string Database::CharacterToJson(sP_CL2LS_REQ_CHAR_CREATE* character) {
     nlohmann::json json = {
-        {"Level",1},
+        {"Level",36},
         //to check
         {"HP",1000},
         {"NameCheck", 1},
