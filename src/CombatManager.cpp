@@ -13,22 +13,31 @@ void CombatManager::init() {
 }
 
 void CombatManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
-    // generic malformed packet checks are not applicable to variable-length packets
     sP_CL2FE_REQ_PC_ATTACK_NPCs* pkt = (sP_CL2FE_REQ_PC_ATTACK_NPCs*)data->buf;
 
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_ATTACK_NPCs) + pkt->iNPCCnt * 4) {
-        std::cout << "bad sP_CL2FE_REQ_PC_ATTACK_NPCs packet size\n";
+    // sanity check
+    if (!validInVarPacket(sizeof(sP_CL2FE_REQ_PC_ATTACK_NPCs), pkt->iNPCCnt, sizeof(int32_t), data->size)) {
+        std::cout << "[WARN] bad sP_CL2FE_REQ_PC_ATTACK_NPCs packet size\n";
         return;
     }
+
     int32_t *pktdata = (int32_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_PC_ATTACK_NPCs));
 
-    std::printf("iNPCCnt: %d\n", pkt->iNPCCnt);
+    /*
+     * Due to the possibility of multiplication overflow (and regular buffer overflow),
+     * both incoming and outgoing variable-length packets must be validated.
+     */
+    if (!validOutVarPacket(sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC), pkt->iNPCCnt, sizeof(sAttackResult))) {
+        std::cout << "[WARN] bad sP_CL2FE_REQ_PC_ATTACK_NPCs packet size\n";
+        return;
+    }
 
     // initialize response struct
-    // IMPORTANT TODO: verify that resplen doesn't overflow!!!
     size_t resplen = sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC) + pkt->iNPCCnt * sizeof(sAttackResult);
-    uint8_t *respbuf = (uint8_t*)xmalloc(resplen);
+    uint8_t respbuf[4096];
+
     memset(respbuf, 0, resplen);
+
     sP_FE2CL_PC_ATTACK_NPCs_SUCC *resp = (sP_FE2CL_PC_ATTACK_NPCs_SUCC*)respbuf;
     sAttackResult *respdata = (sAttackResult*)(respbuf+sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC));
 
@@ -45,7 +54,6 @@ void CombatManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         BaseNPC& mob = NPCManager::NPCs[pktdata[i]];
 
         mob.appearanceData.iHP -= 100;
-        std::cout << "mob health is now " << mob.appearanceData.iHP << std::endl;
 
         if (mob.appearanceData.iHP <= 0)
             giveReward(sock);
@@ -56,10 +64,7 @@ void CombatManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         respdata[i].iHitFlag = 2;
     }
 
-    std::cout << "sending packet of length " << resplen << std::endl;
     sock->sendPacket((void*)respbuf, P_FE2CL_PC_ATTACK_NPCs_SUCC, resplen);
-
-    free(respbuf);
 }
 
 void CombatManager::combatBegin(CNSocket *sock, CNPacketData *data) {} // stub
