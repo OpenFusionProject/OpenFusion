@@ -32,6 +32,7 @@ void PlayerManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SPECIAL_STATE_SWITCH, PlayerManager::setSpecialSwitchPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_ON, PlayerManager::enterPlayerVehicle);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_OFF, PlayerManager::exitPlayerVehicle);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_CHANGE_MENTOR, PlayerManager::changePlayerGuide);
 }
 
 void PlayerManager::addPlayer(CNSocket* key, Player plr) {
@@ -649,6 +650,21 @@ void PlayerManager::setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {
     response.iPC_ID = specialData->iPC_ID;
     response.iReqSpecialStateFlag = specialData->iSpecialStateFlag;
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC, sizeof(sP_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC));
+}
+
+void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_CHANGE_MENTOR))
+        return;
+
+    sP_CL2FE_REQ_PC_CHANGE_MENTOR *pkt = (sP_CL2FE_REQ_PC_CHANGE_MENTOR*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_PC_CHANGE_MENTOR_SUCC, resp);
+    Player *plr = getPlayer(sock);
+
+    resp.iMentor = pkt->iMentor;
+    resp.iMentorCnt = 1;
+    resp.iFusionMatter = plr->fusionmatter; // no cost
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_CHANGE_MENTOR_SUCC, sizeof(sP_FE2CL_REP_PC_CHANGE_MENTOR_SUCC));
 }
 
 #pragma region Helper methods

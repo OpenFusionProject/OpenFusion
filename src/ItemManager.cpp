@@ -4,6 +4,9 @@
 #include "PlayerManager.hpp"
 #include "Player.hpp"
 
+#include <string.h> // for memset() and memcmp()
+#include <assert.h>
+
 void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_DELETE, itemDeleteHandler);
@@ -18,6 +21,7 @@ void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_ITEM_UNREGISTER, itemTradeUnregisterItemHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_CASH_REGISTER, itemTradeRegisterCashHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_EMOTES_CHAT, itemTradeChatHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_CHEST_OPEN, chestOpenHandler);
 }
 
 void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
@@ -664,4 +668,64 @@ void ItemManager::itemTradeChatHandler(CNSocket* sock, CNPacketData* data) {
     
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_EMOTES_CHAT, sizeof(sP_FE2CL_REP_PC_TRADE_EMOTES_CHAT));
     otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_EMOTES_CHAT, sizeof(sP_FE2CL_REP_PC_TRADE_EMOTES_CHAT));
+}
+
+void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_ITEM_CHEST_OPEN))
+        return; // ignore the malformed packet
+
+    sP_CL2FE_REQ_ITEM_CHEST_OPEN *pkt = (sP_CL2FE_REQ_ITEM_CHEST_OPEN *)data->buf;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    // item giving packet
+    const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
+    assert(resplen < CN_PACKET_BUFFER_SIZE);
+    // we know it's only one trailing struct, so we can skip full validation
+
+    uint8_t respbuf[resplen]; // not a variable length array, don't worry
+    sP_FE2CL_REP_REWARD_ITEM *reward = (sP_FE2CL_REP_REWARD_ITEM *)respbuf;
+    sItemReward *item = (sItemReward *)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
+
+    // don't forget to zero the buffer!
+    memset(respbuf, 0, resplen);
+
+    // simple rewards
+    reward->iFatigue = 100; // prevents warning message
+    reward->iFatigue_Level = 1;
+    reward->iItemCnt = 1; // remember to update resplen if you change this
+
+    // item reward
+    item->sItem.iType = 0;
+    item->sItem.iID = 96;
+    item->iSlotNum = pkt->iSlotNum;
+    item->eIL = pkt->eIL;
+
+    // update player
+    plr->Inven[pkt->iSlotNum] = item->sItem;
+
+    // transmit item
+    sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
+
+    // chest opening acknowledgement packet
+    INITSTRUCT(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, resp);
+
+    resp.iSlotNum = pkt->iSlotNum;
+
+    std::cout << "opening chest..." << std::endl;
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, sizeof(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC));
+}
+
+// TODO: use this in cleaned up ItemManager
+int ItemManager::findFreeSlot(Player *plr) {
+    int i;
+    sItemBase free;
+
+    memset((void*)&free, 0, sizeof(sItemBase));
+
+    for (i = 0; i < AINVEN_COUNT; i++)
+        if (memcmp((void*)&plr->Inven[i], (void*)&free, sizeof(sItemBase)) == 0)
+            return i;
+
+    // not found
+    return -1;
 }

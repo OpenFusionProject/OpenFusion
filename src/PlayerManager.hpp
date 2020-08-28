@@ -45,6 +45,7 @@ namespace PlayerManager {
     void exitGame(CNSocket* sock, CNPacketData* data);
 
     void setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data);
+    void changePlayerGuide(CNSocket *sock, CNPacketData *data);
 
     void enterPlayerVehicle(CNSocket* sock, CNPacketData* data);
     void exitPlayerVehicle(CNSocket* sock, CNPacketData* data);

@@ -123,23 +123,25 @@ void CNSocket::sendPacket(void* buf, uint32_t type, size_t size) {
     if (!alive)
         return;
     
-    int tmpSize = size + sizeof(uint32_t);
-    uint8_t* tmpBuf = (uint8_t*)xmalloc(tmpSize);
+    size_t bodysize = size + sizeof(uint32_t);
+    uint8_t* fullpkt = (uint8_t*)xmalloc(bodysize+4);
+    uint8_t* body = fullpkt+4;
+    memcpy(fullpkt, (void*)&bodysize, 4);
 
     // copy packet type to the front of the buffer & then the actual buffer
-    memcpy(tmpBuf, (void*)&type, sizeof(uint32_t));
-    memcpy(tmpBuf+sizeof(uint32_t), buf, size);
+    memcpy(body, (void*)&type, sizeof(uint32_t));
+    memcpy(body+sizeof(uint32_t), buf, size);
 
     // encrypt the packet
     switch (activeKey) {
         case SOCKETKEY_E:
-            CNSocketEncryption::encryptData((uint8_t*)tmpBuf, (uint8_t*)(&EKey), tmpSize);
+            CNSocketEncryption::encryptData((uint8_t*)body, (uint8_t*)(&EKey), bodysize);
             break;
         case SOCKETKEY_FE:
-            CNSocketEncryption::encryptData((uint8_t*)tmpBuf, (uint8_t*)(&FEKey), tmpSize);
+            CNSocketEncryption::encryptData((uint8_t*)body, (uint8_t*)(&FEKey), bodysize);
             break;
         default: {
-            free(tmpBuf);
+            free(fullpkt);
             DEBUGLOG(
                 std::cout << "[WARN]: UNSET KEYTYPE FOR SOCKET!! ABORTING SEND" << std::endl;
             )
@@ -147,15 +149,11 @@ void CNSocket::sendPacket(void* buf, uint32_t type, size_t size) {
         }
     }
 
-    // send packet size
-    if (!sendData((uint8_t*)&tmpSize, sizeof(uint32_t)))
-        kill();
-
     // send packet data!
-    if (alive && !sendData(tmpBuf, tmpSize)) 
+    if (alive && !sendData(fullpkt, bodysize+4)) 
         kill();
 
-    free(tmpBuf); // free tmp buffer
+    free(fullpkt);
 }
 
 void CNSocket::setActiveKey(ACTIVEKEY key) {
@@ -172,7 +170,7 @@ void CNSocket::step() {
             // we got out packet size!!!!
             readSize = *((int32_t*)readBuffer);
             // sanity check
-            if (readSize > MAX_PACKETSIZE) {
+            if (readSize > CN_PACKET_BUFFER_SIZE) {
                 kill();
                 return;
             }

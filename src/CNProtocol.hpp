@@ -1,6 +1,5 @@
 #pragma once
 
-#define MAX_PACKETSIZE 8192
 #define DEBUGLOG(x) if (settings::VERBOSITY) {x};
 
 #include <iostream>
@@ -56,7 +55,8 @@
         [4 bytes] - size of packet including the 4 byte packet type
         [size bytes] - Encrypted packet (byte swapped && xor'd with 8 byte key; see CNSocketEncryption)
             [4 bytes] - packet type (which is a combination of the first 4 bytes of the packet and a checksum in some versions)
-            [structure]
+            [structure] - one member contains length of trailing data (expressed in packet-dependant structures)
+            [trailing data] - optional variable-length data that only some packets make use of
 */
 
 // error checking calloc wrapper
@@ -69,6 +69,42 @@ inline void* xmalloc(size_t sz) {
     }
 
     return res;
+}
+
+// overflow-safe validation of variable-length packets
+// for outbound packets
+inline bool validOutVarPacket(size_t base, int32_t npayloads, size_t plsize) {
+    // check for multiplication overflow
+    if (npayloads > 0 && CN_PACKET_BUFFER_SIZE / (size_t)npayloads < plsize)
+        return false;
+
+    // it's safe to multiply
+    size_t trailing = npayloads * plsize;
+
+    // does it fit in a packet?
+    if (base + trailing > CN_PACKET_BUFFER_SIZE)
+        return false;
+
+    // everything is a-ok!
+    return true;
+}
+
+// for inbound packets
+inline bool validInVarPacket(size_t base, int32_t npayloads, size_t plsize, size_t datasize) {
+    // check for multiplication overflow
+    if (npayloads > 0 && CN_PACKET_BUFFER_SIZE / (size_t)npayloads < plsize)
+        return false;
+
+    // it's safe to multiply
+    size_t trailing = npayloads * plsize;
+
+    // make sure size is exact
+    // datasize has already been validated against CN_PACKET_BUFFER_SIZE
+    if (datasize != base + trailing)
+        return false;
+
+    // everything is a-ok!
+    return true;
 }
 
 namespace CNSocketEncryption {
@@ -104,7 +140,7 @@ private:
     uint64_t EKey;
     uint64_t FEKey;
     int32_t readSize = 0;
-    uint8_t readBuffer[MAX_PACKETSIZE];
+    uint8_t readBuffer[CN_PACKET_BUFFER_SIZE];
     int readBufferIndex = 0;
     bool activelyReading = false;
     bool alive = true;
