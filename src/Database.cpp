@@ -23,11 +23,11 @@ void Database::open() {
         file.close();
         // if exists, assign it		
         db = sqlite3pp::database("data.db");
-        DEBUGLOG(std::cout << "Database in operation" << std::endl; )
+        DEBUGLOG(std::cout << "[DB] Database in operation" << std::endl; )
     }
     else {
         // if doesn't, create all the tables
-        DEBUGLOG(std::cout << "Creating new database" << std::endl;)
+        DEBUGLOG(std::cout << "[DB] Creating new database" << std::endl;)
             db = sqlite3pp::database("data.db");
 
         // creates accounts
