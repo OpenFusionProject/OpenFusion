@@ -104,11 +104,7 @@ git fetch upstream
 4. Edit the files as you like!
 5. Use `git add` and `git commit` commands to commit to your local repository. Smaller commits are easier to read.
 6. If you're adding new source or header files, make sure you add the relative paths of those files to the `Makefile` under the correct category with a `\` character at the end. C++ sources, C++ header files, C sources, and C header files should all be put under different categories in the `Makefile`. Use `make` (or `mingw32-make.exe` for Windows MinGW) to make sure your code compiles.
-7. Run
-```
-git pull upstream master
-```
-to make sure your changes don't create conflicts with this repository. If they do, resolve them.
+7. Run `git pull upstream master` to make sure your changes don't create conflicts with this repository. If they do, resolve them.
 8. Push your local changes to your fork of this repository.
 9. Make a Pull Request to this repository from your repository.
 
