@@ -7,6 +7,7 @@
 #include "MissionManager.hpp"
 #include "NanoManager.hpp"
 #include "NPCManager.hpp"
+#include "TransportManager.hpp"
 #include "Database.hpp"
 
 #include "settings.hpp"
@@ -55,6 +56,7 @@ int main() {
     MissionManager::init();
     NanoManager::init();
     NPCManager::init();
+    TransportManager::init();
 
     Database::open();
 
