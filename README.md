@@ -16,7 +16,7 @@ tl;dr:
 
 From then on, any time you want to run the "game":
 
-3. Run `OpenFusionRelease/winfusion.exe`
+3. Run `Server/winfusion.exe`
 4. Run `FreeClient/OpenFusionClient.exe`
 
 Currently the client by default connects to a public server hosted by Cake. Change the loginInfo.php to point to your own server if you want to host your own.
@@ -61,7 +61,7 @@ When the player clicks "ENTER THE GAME" (or completes the tutorial), the login s
 
 ## Configuration
 
-You can change the ports the FusionFall server listens on in `OpenFusion/config.ini`. Make sure the login server port is in sync with `loginInfo.php`.
+You can change the ports the FusionFall server listens on in `Server/config.ini`. Make sure the login server port is in sync with `loginInfo.php`.
 The shard port needs no such synchronization.
 You can also configure the distance at which you'll be able to see other players, though by default it's already as high as you'll want it.
 
@@ -103,11 +103,11 @@ To make your landwalking experience more pleasant, you can make use of a few adm
 * `/goto` is useful for more precise teleportation (ie. for getting into Infected Zones, etc.).
 
 ### Item commands
-* /itemN [type] [itemId] [amount]
+* `/itemN [type] [itemId] [amount]`
   (Refer to the [item list](https://docs.google.com/spreadsheets/d/1mpoJ9iTHl_xLI4wQ_9UvIDYNcsDYscdkyaGizs43TCg/))
 
 ### Nano commands
-* /nano [id] (1-36)
-* /nano_equip [id] (1-36) [slot] (0-2)
-* /nano_unequip [slot] (0-2)
-* /nano_active [slot] (0-2)
+* `/nano [id] (1-36)`
+* `/nano_equip [id] (1-36) [slot] (0-2)`
+* `/nano_unequip [slot] (0-2)`
+* `/nano_active [slot] (0-2)`
