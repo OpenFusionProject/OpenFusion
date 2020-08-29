@@ -5,7 +5,7 @@
 #define STRINGIFY(x) PacketMap(x, #x)
 
 /*
- * Turns out there's not better way to do this...
+ * Turns out there isn't better way to do this...
  * We'll only support CL2* packets for now, since we only
  * need to print those.
  */

@@ -1,9 +1,11 @@
 #pragma once
 
 #include "CNShardServer.hpp"
+#include "Player.hpp"
 
 namespace ItemManager {
     void init();	
+
     void itemMoveHandler(CNSocket* sock, CNPacketData* data);   
     void itemDeleteHandler(CNSocket* sock, CNPacketData* data);   
     void itemGMGiveHandler(CNSocket* sock, CNPacketData* data);
@@ -16,4 +18,8 @@ namespace ItemManager {
     void itemTradeRegisterItemHandler(CNSocket* sock, CNPacketData* data);
     void itemTradeUnregisterItemHandler(CNSocket* sock, CNPacketData* data);
     void itemTradeRegisterCashHandler(CNSocket* sock, CNPacketData* data);
+    void itemTradeChatHandler(CNSocket* sock, CNPacketData* data);
+    void chestOpenHandler(CNSocket* sock, CNPacketData* data);
+
+    int findFreeSlot(Player *plr);
 }

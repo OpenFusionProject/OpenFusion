@@ -32,6 +32,7 @@ void PlayerManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SPECIAL_STATE_SWITCH, PlayerManager::setSpecialSwitchPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_ON, PlayerManager::enterPlayerVehicle);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_OFF, PlayerManager::exitPlayerVehicle);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_CHANGE_MENTOR, PlayerManager::changePlayerGuide);
 }
 
 void PlayerManager::addPlayer(CNSocket* key, Player plr) {
@@ -601,37 +602,45 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
-    INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_SUCC, response);
-    PlayerView plrv = PlayerManager::players[sock];
-
-    //send to other players
-    INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, pkt);
-    pkt.EquipSlotItem.iType = 1;
-    pkt.iEquipSlotNum = 8;
-    for (CNSocket* otherSock : plrv.viewable) {
-        otherSock->sendPacket((void*)&pkt, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
+    
+    PlayerView& plr = PlayerManager::players[sock];
+ 
+    if (plr.plr->Equip[8].iID > 0) {
+        INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_SUCC, response);
+        sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_ON_SUCC));
+        
+        //send to other players
+        plr.plr->iPCState = 8;
+        INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
+        response2.iPC_ID = plr.plr->iID;
+        response2.iState = 8;
+        
+        for (CNSocket* otherSock : plr.viewable) {
+            otherSock->sendPacket((void*)&response2, P_FE2CL_PC_STATE_CHANGE, sizeof(sP_FE2CL_PC_STATE_CHANGE));
+        }
+    
+    } else {
+        INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_FAIL, response);
+        sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_FAIL, sizeof(sP_FE2CL_PC_VEHICLE_ON_FAIL));
     }
-
-    plrv.plr->iPCState = 8;
-
-    sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_ON_SUCC));
 }
 
 void PlayerManager::exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
+    
     INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
-    PlayerView plrv = PlayerManager::players[sock];
+    sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_OFF_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_OFF_SUCC));
+    
+    PlayerView plr = PlayerManager::players[sock];
 
     //send to other players
-    INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, pkt);
-    pkt.EquipSlotItem.iType = 1;
-    pkt.iEquipSlotNum = 8;
-    for (CNSocket* otherSock : plrv.viewable) {
-        otherSock->sendPacket((void*)&pkt, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
-    }
-
-    plrv.plr->iPCState = 0;
-
-    sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_OFF_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_OFF_SUCC));
+    plr.plr->iPCState = 0;
+    INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
+    response2.iPC_ID = plr.plr->iID;
+    response2.iState = 0;
+        
+    for (CNSocket* otherSock : plr.viewable) {
+        otherSock->sendPacket((void*)&response2, P_FE2CL_PC_STATE_CHANGE, sizeof(sP_FE2CL_PC_STATE_CHANGE));
+    }    
 }
 
 void PlayerManager::setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {
@@ -641,6 +650,21 @@ void PlayerManager::setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {
     response.iPC_ID = specialData->iPC_ID;
     response.iReqSpecialStateFlag = specialData->iSpecialStateFlag;
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC, sizeof(sP_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC));
+}
+
+void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_CHANGE_MENTOR))
+        return;
+
+    sP_CL2FE_REQ_PC_CHANGE_MENTOR *pkt = (sP_CL2FE_REQ_PC_CHANGE_MENTOR*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_PC_CHANGE_MENTOR_SUCC, resp);
+    Player *plr = getPlayer(sock);
+
+    resp.iMentor = pkt->iMentor;
+    resp.iMentorCnt = 1;
+    resp.iFusionMatter = plr->fusionmatter; // no cost
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_CHANGE_MENTOR_SUCC, sizeof(sP_FE2CL_REP_PC_CHANGE_MENTOR_SUCC));
 }
 
 #pragma region Helper methods

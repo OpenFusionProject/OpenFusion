@@ -33,7 +33,7 @@ endif()
 
 include_directories(src)
 
-file(GLOB_RECURSE SOURCES src/**.cpp src/**.hpp)
+file(GLOB_RECURSE SOURCES src/**.cpp src/**.hpp src/**.c src/**.h)
 
 add_executable(openfusion ${SOURCES})
 
