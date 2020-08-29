@@ -28,10 +28,11 @@ void NPCManager::init() {
             NPCs[tmp.appearanceData.iNPC_ID] = tmp;
 
             if (npc.value()["id"] == 641 || npc.value()["id"] == 642)
-                RespawnPoints.push_back({npc.value()["x"], npc.value()["y"], ((int)npc.value()["z"]) + RESURRECT_HEIGHT});
+                RespawnPoints.push_back({ npc.value()["x"], npc.value()["y"], ((int)npc.value()["z"]) + RESURRECT_HEIGHT });
         }
 
-    } catch (const std::exception& err) {
+    }
+    catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed NPCs.json file! Reason:" << err.what() << std::endl;
     }
 
@@ -45,13 +46,14 @@ void NPCManager::init() {
 
         for (nlohmann::json::iterator npc = npcData.begin(); npc != npcData.end(); npc++) {
             BaseNPC tmp(npc.value()["iX"], npc.value()["iY"], npc.value()["iZ"], npc.value()["iNPCType"],
-                    npc.value()["iHP"], npc.value()["iConditionBitFlag"], npc.value()["iAngle"], npc.value()["iBarkerType"]);
+                npc.value()["iHP"], npc.value()["iConditionBitFlag"], npc.value()["iAngle"], npc.value()["iBarkerType"]);
 
             NPCs[tmp.appearanceData.iNPC_ID] = tmp;
         }
 
         std::cout << "[INFO] populated " << NPCs.size() << " NPCs" << std::endl;
-    } catch (const std::exception& err) {
+    }
+    catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed mobs.json file! Reason:" << err.what() << std::endl;
     }
 
@@ -63,19 +65,21 @@ void NPCManager::init() {
         infile >> warpData;
 
         for (nlohmann::json::iterator warp = warpData.begin(); warp != warpData.end(); warp++) {
-            WarpLocation warpLoc = {warp.value()["m_iToX"], warp.value()["m_iToY"], warp.value()["m_iToZ"]};
+            WarpLocation warpLoc = { warp.value()["m_iToX"], warp.value()["m_iToY"], warp.value()["m_iToZ"] };
             int warpID = atoi(warp.key().c_str());
             Warps[warpID] = warpLoc;
         }
 
         std::cout << "[INFO] populated " << Warps.size() << " Warps" << std::endl;
-    } catch (const std::exception& err) {
+    }
+    catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed warps.json file! Reason:" << err.what() << std::endl;
     }
 
 
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_NPC, npcWarpHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NPC_SUMMON, npcSummonHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_BARKER, npcBarkHandler);
 }
 
 void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
@@ -88,7 +92,8 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
 
         if (diffX < settings::NPCDISTANCE && diffY < settings::NPCDISTANCE) {
             yesView.push_back(pair.first);
-        } else {
+        }
+        else {
             noView.push_back(pair.first);
         }
     }
@@ -106,7 +111,8 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
 
             // remove from view
             view.viewableNPCs.erase(i++);
-        } else {
+        }
+        else {
             i++;
         }
     }
@@ -125,6 +131,45 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
     }
 
     PlayerManager::players[sock].viewableNPCs = view.viewableNPCs;
+}
+
+void NPCManager::npcBarkHandler(CNSocket* sock, CNPacketData* data) {
+    sP_CL2FE_REQ_BARKER* bark = (sP_CL2FE_REQ_BARKER*)data->buf;
+    PlayerView& plr = PlayerManager::players[sock];
+
+    INITSTRUCT(sP_FE2CL_REP_BARKER, resp);
+    resp.iMissionStringID = bark->iMissionTaskID;
+    resp.iNPC_ID = bark->iNPC_ID;
+
+    // Send bark to other players.
+    for (CNSocket* otherSock : plr.viewable) {
+        otherSock->sendPacket((void*)&resp, P_FE2CL_REP_BARKER, sizeof(sP_FE2CL_REP_BARKER));
+    }
+
+    // Then ourself.
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_BARKER, sizeof(sP_FE2CL_REP_BARKER));
+}
+
+void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_NPC_SUMMON))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_NPC_SUMMON* req = (sP_CL2FE_REQ_NPC_SUMMON*)data->buf;
+    INITSTRUCT(sP_FE2CL_NPC_ENTER, resp);
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    // permission & sanity check
+    if (!plr->IsGM || req->iNPCType >= 3314)
+        return;
+
+    resp.NPCAppearanceData.iNPC_ID = rand(); // cpunch-style
+    resp.NPCAppearanceData.iNPCType = req->iNPCType;
+    resp.NPCAppearanceData.iHP = 1000; // TODO: placeholder
+    resp.NPCAppearanceData.iX = plr->x;
+    resp.NPCAppearanceData.iY = plr->y;
+    resp.NPCAppearanceData.iZ = plr->z;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
 }
 
 void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
@@ -149,27 +194,4 @@ void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
     plrv.viewableNPCs.clear();
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
-
-}
-
-void NPCManager::npcSummonHandler(CNSocket *sock, CNPacketData *data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_NPC_SUMMON))
-        return; // malformed packet
-
-    sP_CL2FE_REQ_NPC_SUMMON* req = (sP_CL2FE_REQ_NPC_SUMMON*)data->buf;
-    INITSTRUCT(sP_FE2CL_NPC_ENTER, resp);
-    Player *plr = PlayerManager::getPlayer(sock);
-
-    // permission & sanity check
-    if (!plr->IsGM || req->iNPCType >= 3314)
-        return;
-
-    resp.NPCAppearanceData.iNPC_ID = rand(); // cpunch-style
-    resp.NPCAppearanceData.iNPCType = req->iNPCType;
-    resp.NPCAppearanceData.iHP = 1000; // TODO: placeholder
-    resp.NPCAppearanceData.iX = plr->x;
-    resp.NPCAppearanceData.iY = plr->y;
-    resp.NPCAppearanceData.iZ = plr->z;
-
-    sock->sendPacket((void*)&resp, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
 }
