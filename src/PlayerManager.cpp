@@ -63,7 +63,7 @@ void PlayerManager::removePlayer(CNSocket* key) {
         otherSock->sendPacket((void*)&exitPacket, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT));
     }
 
-    std::cout << U16toU8(cachedView.plr->PCStyle.szFirstName) << U16toU8(cachedView.plr->PCStyle.szLastName) << " has left!" << std::endl;
+    std::cout << U16toU8(cachedView.plr->PCStyle.szFirstName) << " " << U16toU8(cachedView.plr->PCStyle.szLastName) << " has left!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
 
     delete cachedView.plr;
