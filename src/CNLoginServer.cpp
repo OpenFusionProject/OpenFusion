@@ -349,15 +349,14 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             sP_CL2LS_REQ_CHAR_DELETE* del = (sP_CL2LS_REQ_CHAR_DELETE*)data->buf;
             int operationResult = Database::deleteCharacter(del->iPC_UID, loginSessions[sock].userID);
 
-            //success
+            // success
             if (operationResult > 0) {
                 INITSTRUCT(sP_LS2CL_REP_CHAR_DELETE_SUCC, resp);
                 resp.iSlotNum = operationResult;
                 sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_DELETE_SUCC, sizeof(sP_LS2CL_REP_CHAR_DELETE_SUCC));
-            }
-            //failure
-            else {
-                //client doesnt't care about this packet and softlocks
+            } else {
+                // failure
+                // client doesnt't care about this packet and softlocks
                 INITSTRUCT(sP_LS2CL_REP_CHAR_DELETE_FAIL, resp);
                 resp.iErrorCode = 0;
                 sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_DELETE_FAIL, sizeof(sP_LS2CL_REP_CHAR_DELETE_FAIL));
