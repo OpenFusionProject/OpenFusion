@@ -20,7 +20,9 @@ namespace NPCManager {
     extern std::vector<WarpLocation> RespawnPoints;
     void init();
 
-    void updatePlayerNPCS(CNSocket* sock, PlayerView& plr);
-    void npcWarpHandler(CNSocket* sock, CNPacketData* data);
+    void npcBarkHandler(CNSocket* sock, CNPacketData* data);
     void npcSummonHandler(CNSocket* sock, CNPacketData* data);
+    void npcWarpHandler(CNSocket* sock, CNPacketData* data);
+
+    void updatePlayerNPCS(CNSocket* sock, PlayerView& plr);
 }
