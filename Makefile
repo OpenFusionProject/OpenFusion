@@ -3,7 +3,7 @@ CXX=clang++
 # -w suppresses all warnings (the part that's commented out helps me find memory leaks, it ruins performance though!)
 CFLAGS=-O3 #-g3 -fsanitize=address
 CXXFLAGS=-Wall -std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
-LDFLAGS=-lpthread -ldl
+LDFLAGS=-lpthread -ldl #-g3 -fsanitize=address
 # specifies the name of our exectuable
 SERVER=bin/fusion
 
@@ -16,7 +16,7 @@ WIN_CC=x86_64-w64-mingw32-gcc
 WIN_CXX=x86_64-w64-mingw32-g++
 WIN_CFLAGS=-O3 #-g3 -fsanitize=address
 WIN_CXXFLAGS=-Wall -std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
-WIN_LDFLAGS=-static -lws2_32 -lwsock32
+WIN_LDFLAGS=-static -lws2_32 -lwsock32 #-g3 -fsanitize=address
 WIN_SERVER=bin/winfusion.exe
 
 CSRC=\
@@ -101,7 +101,7 @@ windows : CXXFLAGS=$(WIN_CXXFLAGS)
 windows : LDFLAGS=$(WIN_LDFLAGS)
 windows : SERVER=$(WIN_SERVER)
 
-.SUFFIX: .o .c .cpp .hpp
+.SUFFIX: .o .c .cpp .h .hpp
 
 .c.o: $(CHDR)
 	$(CC) -c $(CFLAGS) -o $@ $<
@@ -113,7 +113,13 @@ $(SERVER): $(OBJ) $(CHDR) $(CXXHDR)
 	mkdir -p bin
 	$(CXX) $(OBJ) $(LDFLAGS) -o $(SERVER)
 
-.PHONY: all windows clean
+.PHONY: all windows clean nuke
 
+# only gets rid of OpenFusion objects, so we don't need to
+# recompile the libs every time
 clean:
+	rm -f src/*.o $(SERVER) $(WIN_SERVER)
+
+# gets rid of all compiled objects, including the libraries
+nuke:
 	rm -f $(OBJ) $(SERVER) $(WIN_SERVER)
