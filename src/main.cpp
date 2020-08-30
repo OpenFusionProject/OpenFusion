@@ -18,6 +18,7 @@
 #include <thread>
 #endif
 #include <string>
+#include <signal.h>
 
 CNShardServer *shardServer;
 std::thread *shardThread;
@@ -26,13 +27,35 @@ void startShard(CNShardServer* server) {
     server->start();
 }
 
+#ifndef _WIN32
 // terminate gracefully on SIGINT (for gprof)
 void terminate(int arg) {
-    std::cout << "OpenFusion: terminating" << std::endl;
+    std::cout << "OpenFusion: terminating." << std::endl;
     shardServer->kill();
     shardThread->join();
     exit(0);
 }
+
+void initsignals() {
+    struct sigaction act;
+
+    memset((void*)&act, 0, sizeof(act));
+    sigemptyset(&act.sa_mask);
+
+    // tell the OS to not kill us if you use a broken pipe, just let us know thru recv() or send()
+    act.sa_handler = SIG_IGN;
+    if (sigaction(SIGPIPE, &act, NULL) < 0) {
+        perror("sigaction");
+        exit(1);
+    }
+
+    act.sa_handler = terminate;
+    if (sigaction(SIGINT, &act, NULL) < 0) {
+        perror("sigaction");
+        exit(1);
+    }
+}
+#endif
 
 int main() {
 #ifdef _WIN32
@@ -42,9 +65,7 @@ int main() {
         exit(EXIT_FAILURE);
     }
 #else
-    // tell the OS to not kill us if you use a broken pipe, just let us know thru recv() or send()
-    signal(SIGPIPE, SIG_IGN);
-    signal(SIGINT, terminate); // TODO: use sigaction() instead
+    initsignals();
 #endif
     settings::init();
     std::cout << "[INFO] Protocol version: " << PROTOCOL_VERSION << std::endl;
