@@ -89,6 +89,8 @@ CXXOBJ=$(CXXSRC:.cpp=.o)
 
 OBJ=$(COBJ) $(CXXOBJ)
 
+HDR=$(CHDR) $(CXXHDR)
+
 all: $(SERVER)
 
 windows: $(SERVER)
@@ -103,11 +105,14 @@ windows : SERVER=$(WIN_SERVER)
 
 .SUFFIX: .o .c .cpp .h .hpp
 
-.c.o: $(CHDR)
+.c.o:
 	$(CC) -c $(CFLAGS) -o $@ $<
 
-.cpp.o: $(CXXHDR)
+.cpp.o:
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
+
+# header timestamps are a prerequisite for OF object files
+$(CXXOBJ): $(CXXHDR)
 
 $(SERVER): $(OBJ) $(CHDR) $(CXXHDR)
 	mkdir -p bin
