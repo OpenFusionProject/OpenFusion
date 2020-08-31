@@ -143,7 +143,7 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
     plr->Nanos[nanoId] = resp.Nano;
     
     // After a nano gets added, setting the level seems to be important so we are doing that
-    INITSTRUCT(sP_FE2CL_REP_PC_NANO_CREATE_SUCC, resp2);
+    INITSTRUCT(sP_FE2CL_REP_PC_CHANGE_LEVEL, resp2);
 
     resp2.iPC_ID = plr->iID;
     resp2.iPC_Level = nanoId;
@@ -175,12 +175,20 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
 
     pkt1.iPC_ID = plr->iID;
     pkt1.Nano = nano;
-
+    int skillId = plr->Nanos[nanoId].iSkillID;
+    
+    if (skillId == 4 || skillId == 8 || skillId == 62 || skillId == 68 || skillId == 73 || skillId == 86) {
+        pkt1.iConditionBitFlag = 1;
+        pkt1.eCSTB___Add = 1;
+        DEBUGLOG(
+        std::cout << "run was used" << std::endl;
+        )
+    }
+    
+    sock->sendPacket((void*)&pkt1, P_FE2CL_NANO_ACTIVE, sizeof(sP_FE2CL_NANO_ACTIVE));
+    
     for (CNSocket* s : PlayerManager::players[sock].viewable)
         s->sendPacket((void*)&pkt1, P_FE2CL_NANO_ACTIVE, sizeof(sP_FE2CL_NANO_ACTIVE));
-
-    // update player
-    plr->activeNano = nanoId;
 }
 
 void NanoManager::setNanoSkill(CNSocket* sock, int16_t nanoId, int16_t skillId) {
