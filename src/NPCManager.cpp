@@ -16,7 +16,7 @@ std::vector<WarpLocation> NPCManager::RespawnPoints;
 void NPCManager::init() {
     // load NPCs from NPCs.json into our NPC manager
     // Temporary fix, IDs will be pulled from json later
-    int i;
+    int i = 0;
     
     try {
         std::ifstream inFile(settings::NPCJSON);
