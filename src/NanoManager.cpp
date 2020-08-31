@@ -141,6 +141,15 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
 
     // Update player
     plr->Nanos[nanoId] = resp.Nano;
+    
+    // After a nano gets added, setting the level seems to be important so we are doing that
+    INITSTRUCT(sP_FE2CL_REP_PC_NANO_CREATE_SUCC, resp2);
+
+    resp2.iPC_ID = plr->iID;
+    resp2.iPC_Level = nanoId;
+
+    sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+    plr->level = nanoId;
 }
 
 void NanoManager::summonNano(CNSocket *sock, int slot) {
@@ -151,7 +160,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
 
     std::cout << "summon nano\n";
 
-    if (slot > 2 || slot < 0)
+    if (slot > 2 || slot < -1)
         return; //sanity check
 
     int nanoId = plr->equippedNanos[slot];

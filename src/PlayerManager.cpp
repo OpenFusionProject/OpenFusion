@@ -218,9 +218,9 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     // don't ask..
     for (int i = 1; i < 37; i++) {
-        response.PCLoadData2CL.aNanoBank[i].iID = i;
-        response.PCLoadData2CL.aNanoBank[i].iSkillID = 1;
-        response.PCLoadData2CL.aNanoBank[i].iStamina = 150;
+        response.PCLoadData2CL.aNanoBank[i].iID = 0;
+        response.PCLoadData2CL.aNanoBank[i].iSkillID = 0;
+        response.PCLoadData2CL.aNanoBank[i].iStamina = 0;
     }
 
     // temporarily not add nanos for nano add test through commands
