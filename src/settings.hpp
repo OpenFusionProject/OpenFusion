@@ -4,6 +4,7 @@ namespace settings {
     extern int VERBOSITY;
     extern int LOGINPORT;
     extern bool LOGINRANDCHARACTERS;
+    extern bool APPROVEALLNAMES;
     extern int SHARDPORT;
     extern std::string SHARDSERVERIP;
     extern int PLAYERDISTANCE;

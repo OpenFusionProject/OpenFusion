@@ -9,7 +9,7 @@
 struct CNLoginData {
     std::map<int64_t, Player> characters;
     int64_t selectedChar;
-    int userID;
+    int userID; int slot;
 };
 
 enum class LOGINERRORID {
@@ -29,10 +29,15 @@ class CNLoginServer : public CNServer {
 private:
     static void handlePacket(CNSocket* sock, CNPacketData* data);
     static std::map<CNSocket*, CNLoginData> loginSessions;
-
+      
+    static bool isLoginDataGood(std::string login, std::string password);
+    static bool isPasswordCorrect(std::string actualPassword, std::string tryPassword);
+    static bool isAccountInUse(int accountId);
+    //returns true if success
+    static bool exitDuplicate(int accountId);
 public:
     CNLoginServer(uint16_t p);
 
     void newConnection(CNSocket* cns);
-    void killConnection(CNSocket* cns);
+    void killConnection(CNSocket* cns);   
 };

@@ -52,4 +52,7 @@ namespace PlayerManager {
 
     Player *getPlayer(CNSocket* key);
     WarpLocation getRespawnPoint(Player *plr);
+
+    bool isAccountInUse(int accountId);
+    void exitDuplicate(int accountId);
 }
