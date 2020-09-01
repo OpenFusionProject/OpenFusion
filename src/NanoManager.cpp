@@ -102,10 +102,10 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
     int16_t nanoId = plr->activeNano;
     int skillId = plr->Nanos[nanoId].iSkillID;
     
-    if (skillId == 1)
+    if (skillId == 1 || skillId == 13 || skillId == 42 || skillId == 59 || skillId == 78 || skillId == 103)
         nanoStun(sock, data, nanoId, skillId);
     
-    if (skillId == 2)
+    if (skillId == 2 || skillId == 7 || skillId == 12 || skillId == 38 || skillId == 53 || skillId == 61 || skillId == 82 || skillId == 92 ||  skillId == 98 )
         nanoHeal(sock, data, nanoId, skillId);
 
     DEBUGLOG(
@@ -180,7 +180,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
             resp1.eCSTB = 1; //eCharStatusTimeBuffID
             resp1.eTBU = 2; //eTimeBuffUpdate
             resp1.eTBT = 1; //eTimeBuffType 1 means nano
-            resp1.TimeBuff.iValue = 150; //adds up to a total of 750(600+150)
+            resp1.TimeBuff.iValue = 200; //adds up to a total of 800(600+200)
             resp1.iConditionBitFlag = 0;
     
             sock->sendPacket((void*)&resp1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
@@ -193,12 +193,12 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
     if (slot > -1) {
         plr->activeNano = nanoId;
         
-        if (skillId == 3) {
+        if (skillId == 3 || skillId == 50 || skillId == 99) {
             nanoScavenge(sock, nanoId, skillId);
             resp.eCSTB___Add = 1;
         }
         
-        if (skillId == 4) {
+        if (skillId == 4 || skillId == 8 || skillId == 62 || skillId == 68 || skillId == 73 || skillId == 86) {
             nanoRun(sock, nanoId, skillId);
             resp.eCSTB___Add = 1;
         }
@@ -434,7 +434,7 @@ void NanoManager::nanoRun(CNSocket* sock, int16_t nanoId, int skillId) {
         pkt1.eCSTB = 1; //eCharStatusTimeBuffID
         pkt1.eTBU = 1; //eTimeBuffUpdate
         pkt1.eTBT = 1; //eTimeBuffType 1 means nano
-        pkt1.TimeBuff.iValue = 150; //adds up to a total of 750(600+150)
+        pkt1.TimeBuff.iValue = 200; //adds up to a total of 800(600+200)
         pkt1.iConditionBitFlag = 1;
     
         sock->sendPacket((void*)&pkt1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
