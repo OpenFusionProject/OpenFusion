@@ -20,6 +20,7 @@ WIN_LDFLAGS=-static -lws2_32 -lwsock32 #-g3 -fsanitize=address
 WIN_SERVER=bin/winfusion.exe
 
 CSRC=\
+	src/contrib/sqlite/sqlite3.c\
 	src/contrib/bcrypt/bcrypt.c\
 	src/contrib/bcrypt/crypt_blowfish.c\
 	src/contrib/bcrypt/crypt_gensalt.c\
@@ -47,6 +48,7 @@ CXXSRC=\
 
 # headers (for timestamp purposes)
 CHDR=\
+	src/contrib/sqlite/sqlite3.h\
 	src/contrib/sqlite/sqlite_orm.h\
 	src/contrib/bcrypt/bcrypt.h\
 	src/contrib/bcrypt/crypt_blowfish.h\
