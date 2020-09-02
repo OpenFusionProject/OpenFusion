@@ -51,6 +51,7 @@ namespace Database {
         int x_coordinates;
         int y_coordinates;
         int z_coordinates;
+        int angle;
     };
 
     
@@ -88,4 +89,5 @@ namespace Database {
     //getting players
     DbPlayer getDbPlayerById(int id);
 
+    void updatePlayer(Player player);
 }

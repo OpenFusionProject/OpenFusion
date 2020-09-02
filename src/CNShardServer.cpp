@@ -4,6 +4,7 @@
 #include "PlayerManager.hpp"
 #include "CNShared.hpp"
 #include "settings.hpp"
+#include "Database.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -51,6 +52,9 @@ void CNShardServer::killConnection(CNSocket* cns) {
     // check if the player ever sent a REQ_PC_ENTER
     if (PlayerManager::players.find(cns) == PlayerManager::players.end())
         return;
+
+    //save player to DB
+    Database::updatePlayer(*PlayerManager::players[cns].plr);
 
     // remove from CNSharedData
     int64_t key = PlayerManager::getPlayer(cns)->SerialKey;

@@ -31,7 +31,8 @@ auto db = make_storage("database.db",
         make_column("PayZoneFlag", &Database::DbPlayer::PayZoneFlag),
         make_column("XCoordinates", &Database::DbPlayer::x_coordinates),
         make_column("YCoordinates", &Database::DbPlayer::y_coordinates),
-        make_column("ZCoordinates", &Database::DbPlayer::z_coordinates),        
+        make_column("ZCoordinates", &Database::DbPlayer::z_coordinates), 
+        make_column("Angle", &Database::DbPlayer::angle),
         make_column("Body", &Database::DbPlayer::Body),
         make_column("Class", &Database::DbPlayer::Class),
         make_column("EquipFoot", &Database::DbPlayer::EquipFoot),
@@ -241,7 +242,7 @@ Database::DbPlayer Database::playerToDb(Player player)
     result.EyeColor = player.PCStyle.iEyeColor;
     result.FaceStyle = player.PCStyle.iFaceStyle;
     result.FirstName = U16toU8( player.PCStyle.szFirstName);
-    //fm
+    result.FusionMatter = player.fusionmatter;
     result.Gender = player.PCStyle.iGender;
     result.HairColor = player.PCStyle.iHairColor;
     result.HairStyle = player.PCStyle.iHairStyle;
@@ -255,12 +256,19 @@ Database::DbPlayer Database::playerToDb(Player player)
     result.PlayerID = player.PCStyle.iPC_UID;
     result.SkinColor = player.PCStyle.iSkinColor;
     result.slot = player.slot;
-    //taros
+    result.Taros = player.money;
     result.TutorialFlag = player.PCStyle2.iTutorialFlag;
     result.x_coordinates = player.x;
     result.y_coordinates = player.y;
     result.z_coordinates = player.z;
-
+    result.angle = player.angle;
+    
+    //temporary inventory stuff
+    result.EquipWeapon1 = player.Equip[0].iID;
+    result.EquipUB = player.Equip[1].iID;
+    result.EquipLB = player.Equip[2].iID;
+    result.EquipFoot = player.Equip[3].iID;
+        
     return result;
 }
 
@@ -292,6 +300,7 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.x = player.x_coordinates;
     result.y = player.y_coordinates;
     result.z = player.z_coordinates;
+    result.angle = player.angle;
 
     //TODO:: implement all of below
     result.SerialKey = 0;
@@ -354,3 +363,8 @@ Database::DbPlayer Database::getDbPlayerById(int id) {
 }
 
 #pragma endregion LoginServer
+
+void Database::updatePlayer(Player player) {
+    DbPlayer toUpdate = playerToDb(player);
+    db.update(toUpdate);
+}
