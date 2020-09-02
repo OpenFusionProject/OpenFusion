@@ -31,7 +31,8 @@ auto db = make_storage("database.db",
         make_column("PayZoneFlag", &Database::DbPlayer::PayZoneFlag),
         make_column("XCoordinates", &Database::DbPlayer::x_coordinates),
         make_column("YCoordinates", &Database::DbPlayer::y_coordinates),
-        make_column("ZCoordinates", &Database::DbPlayer::z_coordinates),        
+        make_column("ZCoordinates", &Database::DbPlayer::z_coordinates),
+        make_column("Angle", &Database::DbPlayer::angle),
         make_column("Body", &Database::DbPlayer::Body),
         make_column("Class", &Database::DbPlayer::Class),
         make_column("EquipFoot", &Database::DbPlayer::EquipFoot),
@@ -49,7 +50,8 @@ auto db = make_storage("database.db",
         make_column("SkinColor", &Database::DbPlayer::SkinColor),        
         make_column("isGM", &Database::DbPlayer::isGM),
         make_column("FusionMatter", &Database::DbPlayer::FusionMatter),
-        make_column("Taros", &Database::DbPlayer::Taros)
+        make_column("Taros", &Database::DbPlayer::Taros),
+        make_column("PCState", &Database::DbPlayer::PCState)
     ),
     make_table("Inventory",
         make_column("AccountID", &Database::Inventory::AccountID, primary_key())
@@ -152,9 +154,11 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     
     create.FusionMatter= 0;
     create.Taros= 0;
+    create.PCState = 0;
     create.x_coordinates = settings::SPAWN_X;
     create.y_coordinates= settings::SPAWN_Y;
     create.z_coordinates= settings::SPAWN_Z;
+    create.angle = 0;
     return db.insert(create);
 }
 
@@ -238,11 +242,10 @@ Database::DbPlayer Database::playerToDb(Player player)
     result.AppearanceFlag = player.PCStyle2.iAppearanceFlag;
     result.Body = player.PCStyle.iBody;
     result.Class = player.PCStyle.iClass;
-    //equipment
     result.EyeColor = player.PCStyle.iEyeColor;
     result.FaceStyle = player.PCStyle.iFaceStyle;
     result.FirstName = U16toU8( player.PCStyle.szFirstName);
-    //fm
+    result.FusionMatter = player.fusionmatter;
     result.Gender = player.PCStyle.iGender;
     result.HairColor = player.PCStyle.iHairColor;
     result.HairStyle = player.PCStyle.iHairStyle;
@@ -256,11 +259,19 @@ Database::DbPlayer Database::playerToDb(Player player)
     result.PlayerID = player.PCStyle.iPC_UID;
     result.SkinColor = player.PCStyle.iSkinColor;
     result.slot = player.slot;
-    //taros
+    result.Taros = player.money;
     result.TutorialFlag = player.PCStyle2.iTutorialFlag;
     result.x_coordinates = player.x;
     result.y_coordinates = player.y;
     result.z_coordinates = player.z;
+    result.angle = player.angle;
+    result.PCState = player.iPCState;
+
+    //temporary inventory stuff
+    result.EquipWeapon1 = player.Equip[0].iID;
+    result.EquipUB = player.Equip[1].iID;
+    result.EquipLB = player.Equip[2].iID;
+    result.EquipFoot = player.Equip[3].iID;
 
     return result;
 }
@@ -268,6 +279,7 @@ Database::DbPlayer Database::playerToDb(Player player)
 Player Database::DbToPlayer(DbPlayer player) {
     Player result = {}; // fixes some weird memory errors, this zeros out the members (not the padding inbetween though)
     
+    result.iID = player.PlayerID;
     result.accountId = player.AccountID;
     result.PCStyle2.iAppearanceFlag = player.AppearanceFlag;
     result.PCStyle.iBody = player.Body;
@@ -293,11 +305,12 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.x = player.x_coordinates;
     result.y = player.y_coordinates;
     result.z = player.z_coordinates;
+    result.angle = player.angle;
+    result.money = player.Taros;
+    result.fusionmatter = player.FusionMatter;
 
     //TODO:: implement all of below
-    result.SerialKey = 0;
-    result.money = 0;
-    result.fusionmatter = 0;
+    result.SerialKey = 0;  
     result.activeNano = 0;
     result.iPCState = 0;
     result.equippedNanos[0] = 1;
@@ -305,17 +318,25 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.equippedNanos[2] = 0;
     result.isTrading = false;
     result.isTradeConfirm = false;
+    //TODO:: implement all of below
+    
+    //Nanos    
+    result.activeNano = -1;
+    result.equippedNanos[0] = 0;
+    result.equippedNanos[1] = 0;
+    result.equippedNanos[2] = 0;
 
-    result.Nanos[1].iID = 1;
-    result.Nanos[1].iSkillID = 1;
-    result.Nanos[1].iStamina = 150;
+    result.Nanos[0].iID = 0;
+    result.Nanos[0].iSkillID = 0;
+    result.Nanos[0].iStamina = 0;
 
-    for (int i = 0; i < 37; i++) {
-        result.Nanos[i].iID = 0;
-        result.Nanos[i].iSkillID = 0;
-        result.Nanos[i].iStamina = 0;
+    for (int i = 1; i < 37; i++) {
+        result.Nanos[i].iID = i;
+        result.Nanos[i].iSkillID = 1;
+        result.Nanos[i].iStamina = 150;
     }
     
+    //equip
     result.Equip[0].iID = player.EquipWeapon1;
     result.Equip[0].iType = 0;
     (player.EquipWeapon1) ? result.Equip[0].iOpt = 1 : result.Equip[0].iOpt = 0;
@@ -331,8 +352,6 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.Equip[3].iID = player.EquipFoot;
     result.Equip[3].iType = 3;
     (player.EquipFoot) ? result.Equip[3].iOpt = 1 : result.Equip[3].iOpt = 0;
-
-
 
     for (int i = 4; i < AEQUIP_COUNT; i++) {
         // empty equips
@@ -355,3 +374,8 @@ Database::DbPlayer Database::getDbPlayerById(int id) {
 }
 
 #pragma endregion LoginServer
+
+void Database::updatePlayer(Player player) {
+    DbPlayer toUpdate = playerToDb(player);
+    db.update(toUpdate);
+}

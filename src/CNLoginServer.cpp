@@ -100,7 +100,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 resp.iPaymentFlag = 1;
                 resp.iOpenBetaFlag = 0;
                 resp.uiSvrTime = getTime();
-                
+
                 // send the resp in with original key
                 sock->sendPacket((void*)&resp, P_LS2CL_REP_LOGIN_SUCC, sizeof(sP_LS2CL_REP_LOGIN_SUCC));
 
@@ -133,13 +133,6 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     for (int i = 0; i < 4; i++) {
                         //equip char creation clothes and lightning rifle
                         charInfo.aEquip[i] = it->Equip[i];
-                    }
-
-                    for (int i = 5; i < AEQUIP_COUNT; i++) {
-                        // empty equips
-                        charInfo.aEquip[i].iID = 0;
-                        charInfo.aEquip[i].iType = 0;
-                        charInfo.aEquip[i].iOpt = 0;
                     }
 
                     // set default to the first character
@@ -291,8 +284,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             DEBUGLOG(
                 std::cout << "P_CL2LS_REQ_CHAR_SELECT:" << std::endl;
                 std::cout << "\tPC_UID: " << chararacter->iPC_UID << std::endl;
-            )
-
+            )     
             loginSessions[sock].selectedChar = chararacter->iPC_UID;
             Database::updateSelected(loginSessions[sock].userID, loginSessions[sock].characters[chararacter->iPC_UID].slot);
             sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_SELECT_SUCC, sizeof(sP_LS2CL_REP_CHAR_SELECT_SUCC));
