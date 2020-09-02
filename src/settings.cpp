@@ -36,7 +36,7 @@ void settings::init() {
         return;
     }
 
-    APPROVEALLNAMES = reader.GetInteger("", "acceptallcustomnames", APPROVEALLNAMES);
+    APPROVEALLNAMES = reader.GetBoolean("", "acceptallcustomnames", APPROVEALLNAMES);
     VERBOSITY = reader.GetInteger("", "verbosity", VERBOSITY);
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);
     LOGINRANDCHARACTERS = reader.GetBoolean("login", "randomcharacters", LOGINRANDCHARACTERS);
