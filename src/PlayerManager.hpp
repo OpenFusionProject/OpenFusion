@@ -26,7 +26,7 @@ namespace PlayerManager {
     void removePlayer(CNSocket* key);
 
     void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z);
-    std::list<CNSocket*> getNearbyPlayers(int X, int Y, int dist);
+    std::list<CNSocket*> getNearbyPlayers(int X, int Y, int dist, int mapNum);
 
     void enterPlayer(CNSocket* sock, CNPacketData* data);
     void loadPlayer(CNSocket* sock, CNPacketData* data);
@@ -49,6 +49,7 @@ namespace PlayerManager {
 
     void enterPlayerVehicle(CNSocket* sock, CNPacketData* data);
     void exitPlayerVehicle(CNSocket* sock, CNPacketData* data);
+    void warpToMap(CNSocket* sock, CNPacketData* data);
 
     Player *getPlayer(CNSocket* key);
     WarpLocation getRespawnPoint(Player *plr);

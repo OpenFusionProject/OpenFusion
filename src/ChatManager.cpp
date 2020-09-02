@@ -2,6 +2,8 @@
 #include "CNStructs.hpp"
 #include "ChatManager.hpp"
 #include "PlayerManager.hpp"
+#include "NPCManager.hpp"
+
 
 void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
@@ -14,7 +16,43 @@ void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
     sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE*)data->buf;
     PlayerView plr = PlayerManager::players[sock];
+    if (chat->szFreeChat[0] == '/')
+    {
+        std::string text = "";
+        std::string temp = "";
+        std::string mapNum = "";
+        int space = 0;
+        for (int x = 0; x < 14; x++)
+        {
 
+            if (chat->szFreeChat[x] == ' ')
+                space = 1;
+            if (space == 0)
+            {
+                temp = chat->szFreeChat[x];
+                text += temp;
+            }
+            if (space == 1)
+            {
+                temp = chat->szFreeChat[x];
+                mapNum += temp;
+            }
+
+        }
+        if (text == "/sendToMap" && std::stoi(mapNum) > -1)
+        {
+            NPCManager::changeNPCMAP(sock, PlayerManager::players[sock], std::stoi(mapNum));
+            std::cout << text << std::endl;
+            std::cout << mapNum << std::endl;
+        }
+        if (text == "/SummonW" && std::stoi(mapNum) > -1)
+        {
+            NPCManager::changeNPCMAP(sock, PlayerManager::players[sock], std::stoi(mapNum));
+            std::cout << text << std::endl;
+            std::cout << "Summoned and Wrote to Json: " << mapNum << std::endl;
+        }
+        return;
+    }
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC, resp);
     memcpy(resp.szFreeChat, chat->szFreeChat, sizeof(chat->szFreeChat));

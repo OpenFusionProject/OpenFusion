@@ -33,6 +33,8 @@ void PlayerManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_ON, PlayerManager::enterPlayerVehicle);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_OFF, PlayerManager::exitPlayerVehicle);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_CHANGE_MENTOR, PlayerManager::changePlayerGuide);
+    REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_TARGET_PC_TELEPORT, PlayerManager::warpToMap);
+
 }
 
 void PlayerManager::addPlayer(CNSocket* key, Player plr) {
@@ -98,7 +100,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
     std::list<CNSocket*>::iterator i = players[sock].viewable.begin();
     while (i != players[sock].viewable.end()) {
         CNSocket* otherSock = *i;
-        if (std::find(noView.begin(), noView.end(), otherSock) != noView.end()) {
+        if (std::find(noView.begin(), noView.end(), otherSock) != noView.end() || players[sock].plr->mapNum != players[otherSock].plr->mapNum) {
 
             // sock shouldn't be visible, send PC_EXIT packet
             exitPacket.iID = players[sock].plr->iID;
@@ -117,7 +119,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
 
     INITSTRUCT(sP_FE2CL_PC_NEW, newPlayer);
     for (CNSocket* otherSock : yesView) {
-        if (std::find(players[sock].viewable.begin(), players[sock].viewable.end(), otherSock) == players[sock].viewable.end()) {
+        if (std::find(players[sock].viewable.begin(), players[sock].viewable.end(), otherSock) == players[sock].viewable.end() && players[sock].plr->mapNum == players[otherSock].plr->mapNum) {
             // this needs to be added to the viewable players, send PC_ENTER
 
             Player *otherPlr = players[otherSock].plr;
@@ -159,10 +161,11 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
     NPCManager::updatePlayerNPCS(sock, players[sock]);
 }
 
-std::list<CNSocket*> PlayerManager::getNearbyPlayers(int x, int y, int dist) {
+std::list<CNSocket*> PlayerManager::getNearbyPlayers(int x, int y, int dist, int mapNum) {
     std::list<CNSocket*> plrs;
 
     for (auto pair : players) {
+        
         int diffX = abs(pair.second.plr->x - x);
         int diffY = abs(pair.second.plr->x - x);
 
@@ -677,13 +680,78 @@ WarpLocation PlayerManager::getRespawnPoint(Player *plr) {
     uint32_t curDist, bestDist = UINT32_MAX;
 
     for (auto targ : NPCManager::RespawnPoints) {
-        curDist = sqrt(pow(plr->x - targ.x, 2) + pow(plr->y - targ.y, 2));
-        if (curDist < bestDist) {
-            best = targ;
-            bestDist = curDist;
+        if (plr->mapNum == targ.mapNum)
+        {
+            curDist = sqrt(pow(plr->x - targ.x, 2) + pow(plr->y - targ.y, 2));
+            if (curDist < bestDist) {
+                best = targ;
+                bestDist = curDist;
+            }
         }
     }
 
     return best;
+}
+void PlayerManager::warpToMap(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_GM_REQ_TARGET_PC_TELEPORT))
+        return; // malformed packet
+
+    sP_CL2FE_GM_REQ_TARGET_PC_TELEPORT* teleport = (sP_CL2FE_GM_REQ_TARGET_PC_TELEPORT*)data->buf;
+
+    PlayerView plrv = PlayerManager::players[sock];
+    std::cout << "sP_CL2FE_GM_REQ_TARGET_PC_TELEPORT:" << std::endl;
+    if (teleport->eTargetPCSearchBy == 0)
+    {
+        std::cout << "\tX: " << teleport->iToX << std::endl;
+        std::cout << "\tY: " << teleport->iToY << std::endl;
+        std::cout << "\tZ: " << teleport->iToZ << std::endl;
+        std::cout << "\tMapNum: " << teleport->iToMap << std::endl;
+        std::cout << "\tTarget Search Type: " << teleport->eTargetPCSearchBy << std::endl;
+        std::cout << "\tTeleportType: " << teleport->eTeleportType << std::endl;
+        std::cout << "\tPC_ID: " << teleport->iPC_ID << std::endl;
+        std::cout << "\tTarget ID: " << teleport->iTargetPC_ID << std::endl;
+    }
+    if (teleport->eTeleportType == 1) {
+        INITSTRUCT(sP_FE2CL_INSTANCE_MAP_INFO, instanceInfo);
+
+        if (teleport->iToMap != 0)
+        {
+            INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, response);
+
+            response.iX = teleport->iToX;
+            response.iY = teleport->iToY;
+            response.iZ = teleport->iToZ;
+            players[sock].plr->mapNum = teleport->iToMap;
+            instanceInfo.iInstanceMapNum = teleport->iToMap;
+            sock->sendPacket((void*)&response, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
+            sock->sendPacket((void*)&instanceInfo, P_FE2CL_INSTANCE_MAP_INFO, sizeof(sP_FE2CL_INSTANCE_MAP_INFO));
+        }
+        else
+        {
+            INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC, resp); //Can only be used for exiting instances because it sets the instance flag to false
+            resp.iX = teleport->iToX;
+            resp.iY = teleport->iToY;
+            resp.iZ = teleport->iToZ;
+            players[sock].plr->mapNum = 0;
+            sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
+        }
+    }
+    /* if (teleport->eTeleportType == 4)
+     {
+         INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, response);
+         response.iX = players[sock].plr->x;
+         response.iY = players[sock].plr->y;
+         response.iZ = players[sock].plr->z + 800;
+         plrv.viewable.clear();
+         plrv.viewableNPCs.clear();
+         PlayerView plr = PlayerManager::players[sock];
+         Player* otherPlr = players[otherSock].plr;
+         if(plrv.plr->iID != teleport->iTargetPC_ID)
+             for (CNSocket* otherSock : plr.plr->iID) {
+                 otherSock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC));
+             }
+         sock->sendPacket((void*)&response, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
+     }
+     */
 }
 #pragma endregion
