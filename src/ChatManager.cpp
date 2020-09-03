@@ -41,12 +41,16 @@ void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
         }
         if (text == "/sendToMap" && std::stoi(mapNum) > -1)
         {
+            if (!plr->IsGM)
+            return;
             NPCManager::changeNPCMAP(sock, PlayerManager::players[sock], std::stoi(mapNum));
             std::cout << text << std::endl;
             std::cout << mapNum << std::endl;
         }
         if (text == "/SummonW" && std::stoi(mapNum) > -1)
         {
+             if (!plr->IsGM)
+            return;
             NPCManager::changeNPCMAP(sock, PlayerManager::players[sock], std::stoi(mapNum));
             std::cout << text << std::endl;
             std::cout << "Summoned and Wrote to Json: " << mapNum << std::endl;
