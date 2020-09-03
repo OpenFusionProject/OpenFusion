@@ -83,7 +83,49 @@ void CombatManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     }
 }
 
-void CombatManager::combatBegin(CNSocket *sock, CNPacketData *data) {} // stub
+void CombatManager::combatBegin(CNSocket *sock, CNPacketData *data) {
+    sP_CL2FE_REQ_PC_COMBAT_BEGIN* pkt = (sP_CL2FE_REQ_PC_COMBAT_BEGIN*)data->buf;
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    int32_t* pktdata = (int32_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_PC_COMBAT_BEGIN));
+
+    size_t resplen = sizeof(sP_FE2CL_NPC_ATTACK_PCs) + sizeof(sAttackResult);
+    uint8_t respbuf[4096];
+
+    memset(respbuf, 0, resplen);
+
+    sP_FE2CL_NPC_ATTACK_PCs* resp = (sP_FE2CL_NPC_ATTACK_PCs*)respbuf;
+    sAttackResult* respdata = (sAttackResult*)(respbuf + sizeof(sP_FE2CL_NPC_ATTACK_PCs));
+
+    pkt->iPC_ID = plr->iID;
+    resp->iPCCnt = 1;
+    for (int i = 0; i < 2; i++) {
+        BaseNPC& mob = NPCManager::NPCs[pktdata[i]];
+
+        plr->HP -= 100;
+        respdata[i].iID = plr->iID;
+        respdata[i].iDamage = 10;
+        respdata[i].iHP = plr->HP;
+        respdata[i].iHitFlag = 1;
+    }
+
+    sock->sendPacket((void*)respbuf, P_FE2CL_NPC_ATTACK_PCs, resplen);
+
+    assert(sizeof(sP_FE2CL_NPC_ATTACK_PCs) == sizeof(sP_FE2CL_NPC_ATTACK_CHARs));
+    sP_FE2CL_NPC_ATTACK_CHARs* resp1 = (sP_FE2CL_NPC_ATTACK_CHARs*)respbuf;
+
+    resp1->iNPC_ID = resp->iNPC_ID;
+    resp1->iTargetCnt = resp->iPCCnt;
+
+    // send to other players
+    for (CNSocket* s : PlayerManager::players[sock].viewable) {
+        if (s == sock)
+            continue;
+
+        s->sendPacket((void*)respbuf, P_FE2CL_NPC_ATTACK_CHARs, resplen);
+    }
+
+}
 void CombatManager::combatEnd(CNSocket *sock, CNPacketData *data) {} // stub
 void CombatManager::dotDamageOnOff(CNSocket *sock, CNPacketData *data) {} // stub
 
