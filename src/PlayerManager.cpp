@@ -754,7 +754,7 @@ void PlayerManager::warpToMap(CNSocket* sock, CNPacketData* data) {
          sock->sendPacket((void*)&response, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
      }
      */
-
+}
 bool PlayerManager::isAccountInUse(int accountId) {
     std::map<CNSocket*, PlayerView>::iterator it;
     for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++)
