@@ -52,6 +52,7 @@ namespace Database {
         int y_coordinates;
         int z_coordinates;
         int angle;
+        short int PCState;
     };
 
     

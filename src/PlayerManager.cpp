@@ -190,12 +190,12 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tSerial: " << enter->iEnterSerialKey << std::endl;
         std::cout << "\tTemp: " << enter->iTempValue << std::endl;
         std::cout << "\tPC_UID: " << plr.PCStyle.iPC_UID << std::endl;
-    )
+        )
 
-    response.iID = rand();
+    response.iID = plr.iID;
     response.uiSvrTime = getTime();
     response.PCLoadData2CL.iUserLevel = 1;
-    response.PCLoadData2CL.iHP = 3625; //TODO: Check player levelupdata and get this right
+    response.PCLoadData2CL.iHP = plr.HP;
     response.PCLoadData2CL.iLevel = plr.level;
     response.PCLoadData2CL.iCandy = plr.money;
     response.PCLoadData2CL.iMentor = 1;
@@ -204,7 +204,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iX = plr.x;
     response.PCLoadData2CL.iY = plr.y;
     response.PCLoadData2CL.iZ = plr.z;
-    response.PCLoadData2CL.iAngle = 130;
+    response.PCLoadData2CL.iAngle = plr.angle;
     response.PCLoadData2CL.iActiveNanoSlotNum = -1;
     response.PCLoadData2CL.iFatigue = 50;
     response.PCLoadData2CL.PCStyle = plr.PCStyle;
@@ -234,9 +234,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iFirstUseFlag1 = UINT64_MAX;
     response.PCLoadData2CL.iFirstUseFlag2 = UINT64_MAX;
 
-    plr.iID = response.iID;
     plr.SerialKey = enter->iEnterSerialKey;
-    plr.HP = response.PCLoadData2CL.iHP;
 
     motd.iType = 1;
     U8toU16(settings::MOTDSTRING, (char16_t*)motd.szSystemMsg);

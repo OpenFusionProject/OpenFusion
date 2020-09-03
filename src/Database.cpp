@@ -50,7 +50,8 @@ auto db = make_storage("database.db",
         make_column("SkinColor", &Database::DbPlayer::SkinColor),        
         make_column("isGM", &Database::DbPlayer::isGM),
         make_column("FusionMatter", &Database::DbPlayer::FusionMatter),
-        make_column("Taros", &Database::DbPlayer::Taros)
+        make_column("Taros", &Database::DbPlayer::Taros),
+        make_column("PCState", &Database::DbPlayer::PCState)
     ),
     make_table("Inventory",
         make_column("AccountID", &Database::Inventory::AccountID, primary_key())
@@ -153,9 +154,11 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     
     create.FusionMatter= 0;
     create.Taros= 0;
+    create.PCState = 0;
     create.x_coordinates = settings::SPAWN_X;
     create.y_coordinates= settings::SPAWN_Y;
     create.z_coordinates= settings::SPAWN_Z;
+    create.angle = 0;
     return db.insert(create);
 }
 
@@ -262,7 +265,8 @@ Database::DbPlayer Database::playerToDb(Player player)
     result.y_coordinates = player.y;
     result.z_coordinates = player.z;
     result.angle = player.angle;
-    
+    result.PCState = player.iPCState;
+
     //temporary inventory stuff
     result.EquipWeapon1 = player.Equip[0].iID;
     result.EquipUB = player.Equip[1].iID;
@@ -301,18 +305,21 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.y = player.y_coordinates;
     result.z = player.z_coordinates;
     result.angle = player.angle;
+    result.fusionmatter = player.FusionMatter;
+    result.money = player.Taros;
+    result.iPCState = player.PCState;
 
-    //TODO:: implement all of below
+    //junk
     result.SerialKey = 0;
-    result.money = 0;
-    result.fusionmatter = 0;
+    result.isTrading = false;
+    result.isTradeConfirm = false;
+    //TODO:: implement all of below
+    
+    //Nanos    
     result.activeNano = 0;
-    result.iPCState = 0;
     result.equippedNanos[0] = 1;
     result.equippedNanos[1] = 0;
     result.equippedNanos[2] = 0;
-    result.isTrading = false;
-    result.isTradeConfirm = false;
 
     result.Nanos[1].iID = 1;
     result.Nanos[1].iSkillID = 1;
@@ -324,6 +331,7 @@ Player Database::DbToPlayer(DbPlayer player) {
         result.Nanos[i].iStamina = 0;
     }
     
+    //equip
     result.Equip[0].iID = player.EquipWeapon1;
     result.Equip[0].iType = 0;
     (player.EquipWeapon1) ? result.Equip[0].iOpt = 1 : result.Equip[0].iOpt = 0;
