@@ -16,6 +16,7 @@ void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
     sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE*)data->buf;
     PlayerView plr = PlayerManager::players[sock];
+
     if (chat->szFreeChat[0] == '/')
     {
         std::string text = "";
@@ -41,19 +42,29 @@ void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
         }
         if (text == "/sendToMap" && std::stoi(mapNum) > -1)
         {
-            if (!plr->IsGM)
+            if (!plr.plr->IsGM)
             return;
             NPCManager::changeNPCMAP(sock, PlayerManager::players[sock], std::stoi(mapNum));
             std::cout << text << std::endl;
             std::cout << mapNum << std::endl;
         }
-        if (text == "/SummonW" && std::stoi(mapNum) > -1)
+        else if (text == "/summonW" && std::stoi(mapNum) > -1)
         {
-             if (!plr->IsGM)
+             if (!plr.plr->IsGM)
             return;
-            NPCManager::changeNPCMAP(sock, PlayerManager::players[sock], std::stoi(mapNum));
-            std::cout << text << std::endl;
+
+            NPCManager::SummonWrite(sock, PlayerManager::players[sock], std::stoi(mapNum));
+                std::cout << text << std::endl;
+
             std::cout << "Summoned and Wrote to Json: " << mapNum << std::endl;
+        }
+        else if (text == "/unSummonW")
+        {
+            if (!plr.plr->IsGM)
+                return;
+            NPCManager::unSummonWrite(sock, PlayerManager::players[sock]);
+            std::cout << text << std::endl;
+            std::cout << "Unsummoned and Wrote to Json: " << std::endl;
         }
         return;
     }

@@ -28,6 +28,7 @@ namespace NPCManager {
     void changeNPCMAP(CNSocket* sock, PlayerView& view, int mapNum);
     void reloadNPCs();
     void SummonWrite(CNSocket* sock, PlayerView& view, int NPCID);
+    void unSummonWrite(CNSocket* sock, PlayerView& view);
 
 
 }
