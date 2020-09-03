@@ -692,6 +692,7 @@ WarpLocation PlayerManager::getRespawnPoint(Player *plr) {
 
     return best;
 }
+
 void PlayerManager::warpToMap(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_GM_REQ_TARGET_PC_TELEPORT))
         return; // malformed packet
@@ -753,5 +754,30 @@ void PlayerManager::warpToMap(CNSocket* sock, CNPacketData* data) {
          sock->sendPacket((void*)&response, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
      }
      */
+
+bool PlayerManager::isAccountInUse(int accountId) {
+    std::map<CNSocket*, PlayerView>::iterator it;
+    for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++)
+    {
+        if (it->second.plr->accountId == accountId)
+            return true;
+    }
+    return false;
+}
+
+void PlayerManager::exitDuplicate(int accountId) {
+    std::map<CNSocket*, PlayerView>::iterator it;
+    for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++)
+    {
+        if (it->second.plr->accountId == accountId)
+        {
+            CNSocket* sock = it->first;
+            INITSTRUCT(sP_FE2CL_REP_PC_EXIT_DUPLICATE, resp);
+            resp.iErrorCode = 0;
+            sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_EXIT_DUPLICATE, sizeof(sP_FE2CL_REP_PC_EXIT_DUPLICATE));
+            sock->kill();
+        }
+    }
+
 }
 #pragma endregion

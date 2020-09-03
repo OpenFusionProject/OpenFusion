@@ -2,7 +2,7 @@ CC=clang
 CXX=clang++
 # -w suppresses all warnings (the part that's commented out helps me find memory leaks, it ruins performance though!)
 CFLAGS=-O3 #-g3 -fsanitize=address
-CXXFLAGS=-Wall -std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
+CXXFLAGS=-Wall -std=c++17 -O2 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
 LDFLAGS=-lpthread -ldl #-g3 -fsanitize=address
 # specifies the name of our exectuable
 SERVER=bin/fusion
@@ -15,20 +15,18 @@ PROTOCOL_VERSION?=104
 WIN_CC=x86_64-w64-mingw32-gcc
 WIN_CXX=x86_64-w64-mingw32-g++
 WIN_CFLAGS=-O3 #-g3 -fsanitize=address
-WIN_CXXFLAGS=-Wall -std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
+WIN_CXXFLAGS=-Wall -std=c++17 -O2 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
 WIN_LDFLAGS=-static -lws2_32 -lwsock32 #-g3 -fsanitize=address
 WIN_SERVER=bin/winfusion.exe
 
 CSRC=\
+	src/contrib/sqlite/sqlite3.c\
 	src/contrib/bcrypt/bcrypt.c\
 	src/contrib/bcrypt/crypt_blowfish.c\
 	src/contrib/bcrypt/crypt_gensalt.c\
 	src/contrib/bcrypt/wrapper.c\
-	src/contrib/sqlite/sqlite3.c\
 
 CXXSRC=\
-	src/contrib/sqlite/sqlite3pp.cpp\
-	src/contrib/sqlite/sqlite3ppext.cpp\
 	src/ChatManager.cpp\
 	src/CombatManager.cpp\
 	src/CNLoginServer.cpp\
@@ -50,18 +48,16 @@ CXXSRC=\
 
 # headers (for timestamp purposes)
 CHDR=\
+	src/contrib/sqlite/sqlite3.h\
+	src/contrib/sqlite/sqlite_orm.h\
 	src/contrib/bcrypt/bcrypt.h\
 	src/contrib/bcrypt/crypt_blowfish.h\
 	src/contrib/bcrypt/crypt_gensalt.h\
 	src/contrib/bcrypt/ow-crypt.h\
 	src/contrib/bcrypt/winbcrypt.h\
-	src/contrib/sqlite/sqlite3.h\
-	src/contrib/sqlite/sqlite3ext.h\
 
 CXXHDR=\
 	src/contrib/bcrypt/BCrypt.hpp\
-	src/contrib/sqlite/sqlite3pp.h\
-	src/contrib/sqlite/sqlite3ppext.h\
 	src/contrib/INIReader.hpp\
 	src/contrib/JSON.hpp\
 	src/ChatManager.hpp\

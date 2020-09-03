@@ -15,7 +15,10 @@ std::vector<WarpLocation> NPCManager::RespawnPoints;
 
 void NPCManager::init() {
     // load NPCs from NPCs.json into our NPC manager
+
+    // Temporary fix, IDs will be pulled from json later
     int i = 0;
+    
     try {
         std::ifstream inFile(settings::NPCJSON);
         nlohmann::json npcData;
@@ -24,10 +27,12 @@ void NPCManager::init() {
         inFile >> npcData;
 
         for (nlohmann::json::iterator npc = npcData.begin(); npc != npcData.end(); npc++) {
+
             BaseNPC tmp(npc.value()["x"], npc.value()["y"], npc.value()["z"], npc.value()["id"], npc.value()["mapNum"], std::stoi(npc.key()));
             // Temporary fix, IDs will be pulled from json later
             tmp.appearanceData.iNPC_ID = i;
             i++;
+
 
             NPCs[tmp.appearanceData.iNPC_ID] = tmp;
 
@@ -50,10 +55,12 @@ void NPCManager::init() {
 
         for (nlohmann::json::iterator npc = npcData.begin(); npc != npcData.end(); npc++) {
             BaseNPC tmp(npc.value()["iX"], npc.value()["iY"], npc.value()["iZ"], npc.value()["iNPCType"],
-                npc.value()["iHP"], npc.value()["iConditionBitFlag"], npc.value()["iAngle"], npc.value()["iBarkerType"], npc.value()["mapNum"], std::stoi(npc.key()));
+
+            npc.value()["iHP"], npc.value()["iConditionBitFlag"], npc.value()["iAngle"], npc.value()["iBarkerType"], npc.value()["mapNum"], std::stoi(npc.key()));
             // Temporary fix, IDs will be pulled from json later
             tmp.appearanceData.iNPC_ID = i;
             i++;
+
 
             NPCs[tmp.appearanceData.iNPC_ID] = tmp;
         }

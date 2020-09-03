@@ -7,6 +7,7 @@
 #include "CNStructs.hpp"
 
 struct Player {
+    int accountId;
     int64_t SerialKey;
     int32_t iID;
     uint64_t FEKey;
