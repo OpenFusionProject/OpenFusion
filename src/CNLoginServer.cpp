@@ -4,7 +4,7 @@
 #include "Database.hpp"
 #include "PlayerManager.hpp"
 #include <regex>
-#include "contrib/bcrypt/BCrypt.hpp">
+#include "contrib/bcrypt/BCrypt.hpp"
 
 #include "settings.hpp"
 

@@ -1,5 +1,5 @@
 #include "Database.hpp"
-#include "contrib/bcrypt/BCrypt.hpp">
+#include "contrib/bcrypt/BCrypt.hpp"
 #include "CNProtocol.hpp"
 #include <string>
 #include "contrib/JSON.hpp"
