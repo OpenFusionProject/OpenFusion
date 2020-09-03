@@ -112,7 +112,7 @@ bool Database::isNameFree(sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck)
 
 int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
 {
-    DbPlayer create;
+    DbPlayer create = {};
     //save packet data
     create.FirstName = U16toU8(save->szFirstName);
     create.LastName = U16toU8(save->szLastName);
@@ -231,7 +231,8 @@ void Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save) {
 
 Database::DbPlayer Database::playerToDb(Player player) 
 {
-    DbPlayer result;
+    DbPlayer result = {};  // fixes some weird memory errors, this zeros out the members (not the padding inbetween though)
+
     result.PlayerID = player.iID;
     result.AccountID = player.accountId;
     result.AppearanceFlag = player.PCStyle2.iAppearanceFlag;
@@ -265,7 +266,7 @@ Database::DbPlayer Database::playerToDb(Player player)
 }
 
 Player Database::DbToPlayer(DbPlayer player) {
-    Player result;
+    Player result = {}; // fixes some weird memory errors, this zeros out the members (not the padding inbetween though)
     
     result.accountId = player.AccountID;
     result.PCStyle2.iAppearanceFlag = player.AppearanceFlag;
@@ -309,7 +310,7 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.Nanos[1].iSkillID = 1;
     result.Nanos[1].iStamina = 150;
 
-    for (int i = 2; i < 37; i++) {
+    for (int i = 0; i < 37; i++) {
         result.Nanos[i].iID = 0;
         result.Nanos[i].iSkillID = 0;
         result.Nanos[i].iStamina = 0;
