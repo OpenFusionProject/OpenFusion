@@ -7,6 +7,7 @@ int settings::VERBOSITY = 1;
 
 int settings::LOGINPORT = 8001;
 bool settings::LOGINRANDCHARACTERS = false;
+bool settings::APPROVEALLNAMES = true;
 
 int settings::SHARDPORT = 8002;
 std::string settings::SHARDSERVERIP = "127.0.0.1";
@@ -35,6 +36,7 @@ void settings::init() {
         return;
     }
 
+    APPROVEALLNAMES = reader.GetBoolean("", "acceptallcustomnames", APPROVEALLNAMES);
     VERBOSITY = reader.GetInteger("", "verbosity", VERBOSITY);
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);
     LOGINRANDCHARACTERS = reader.GetBoolean("login", "randomcharacters", LOGINRANDCHARACTERS);
