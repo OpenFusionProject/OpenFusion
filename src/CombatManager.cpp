@@ -156,9 +156,9 @@ void CombatManager::combatBegin(CNSocket* sock, BaseNPC& mob) {
         respdata->iHP = plr->HP;
         respdata->iHitFlag = 2;
 
-        std::cout << respdata->iID << std::endl;
+     //   std::cout << respdata->iID << std::endl;
 
-        NPCManager::npcSkillHandler(sock, mob, respdata->iDamage);
+      //  NPCManager::npcSkillHandler(sock, mob, respdata->iDamage); W.I.P NPC skills
     }
 
     sock->sendPacket((void*)respbuf, P_FE2CL_NPC_ATTACK_PCs, resplen);
