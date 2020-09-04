@@ -239,8 +239,9 @@ void NPCManager::changeNPCMAP(CNSocket* sock, PlayerView& view, int mapNum) {
     // read file into json
     inFile >> npcData;
     inFile.close();
+   
     for (auto& pair : NPCs) {
-        if (view.plr->mapNum == pair.second.imapNum)
+        if (view.plr->mapNum == pair.second.imapNum && pair.second.appearanceData.iNPCType == npcData[std::to_string(pair.second.jsonRef)]["id"])
         {
             //std::cout << "aaa"  << std::endl;
             int diffX = abs(view.plr->x - pair.second.appearanceData.iX);
@@ -248,7 +249,7 @@ void NPCManager::changeNPCMAP(CNSocket* sock, PlayerView& view, int mapNum) {
 
             if (diffX < 100 && diffY < 100)
             {
-                std::cout << "ChangeNpcMap Map ID: " << mapNum << "NPCID: " << pair.second.jsonRef << "Name" << npcData[std::to_string(pair.second.jsonRef)]["name"] << std::endl;
+                std::cout <<"npcId"<< pair.second.appearanceData.iNPCType << " ChangeNpcMap Map ID: " << mapNum << "NPCID: " << pair.second.jsonRef << "Name" << npcData[std::to_string(pair.second.jsonRef)]["name"] << std::endl;
                 npcData[std::to_string(pair.second.jsonRef)]["mapNum"] = (mapNum);
                 std::cout << npcData[std::to_string(pair.second.jsonRef)]["mapNum"] << std::endl;
                 std::cout << npcData[std::to_string(pair.second.jsonRef)] << std::endl;
@@ -384,13 +385,12 @@ void NPCManager::unSummonWrite(CNSocket* sock, PlayerView& view) {
     inFile >> npcData;
     inFile.close();
     for (auto& pair : NPCs) {
-        if (view.plr->mapNum == pair.second.imapNum)
+        if (view.plr->mapNum == pair.second.imapNum && pair.second.appearanceData.iNPCType == npcData[std::to_string(pair.second.jsonRef)]["id"])
         {
             //std::cout << "aaa"  << std::endl;
             int diffX = abs(view.plr->x - pair.second.appearanceData.iX);
             int diffY = abs(view.plr->y - pair.second.appearanceData.iY);
 
-            if (diffX < 100 && diffY < 100)
             if (diffX < 100 && diffY < 100)
             {
                 std::cout << std::to_string(pair.second.jsonRef) << npcData[std::to_string(pair.second.jsonRef)] << std::endl;
