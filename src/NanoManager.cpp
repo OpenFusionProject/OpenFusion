@@ -12,6 +12,7 @@ void NanoManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GIVE_NANO, nanoGMGiveHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_TUNE, nanoSkillSetHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_SKILL_USE, nanoSkillUseHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_WARP_USE_RECALL, nanoRecallHandler);
 }
 
 void NanoManager::nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
@@ -107,6 +108,13 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
     
     if (skillId == 2 || skillId == 7 || skillId == 12 || skillId == 38 || skillId == 53 || skillId == 61 || skillId == 82 || skillId == 92 ||  skillId == 98 )
         nanoHeal(sock, data, nanoId, skillId);
+    
+    if (skillId == 5) {
+        // add recall stuff here
+    }
+    
+    if (skillId == 10 )
+        nanoDrain(sock, data, nanoId, skillId);
 
     DEBUGLOG(
         std::cout << U16toU8(plr->PCStyle.szFirstName) << U16toU8(plr->PCStyle.szLastName) << " requested to summon nano skill " << std::endl;
@@ -119,6 +127,16 @@ void NanoManager::nanoSkillSetHandler(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_NANO_TUNE* skill = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
     setNanoSkill(sock, skill->iNanoID, skill->iTuneID);
+}
+
+void NanoManager::nanoRecallHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_WARP_USE_RECALL))
+        return;
+    
+    INITSTRUCT(sP_FE2CL_REP_WARP_USE_RECALL_FAIL, resp);
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_WARP_USE_RECALL_FAIL, sizeof(sP_FE2CL_REP_WARP_USE_RECALL_FAIL));
+    // stubbed for now
 }
 
 #pragma region Helper methods
@@ -143,9 +161,12 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
     INITSTRUCT(sP_FE2CL_REP_PC_CHANGE_LEVEL, resp2);
 
     resp2.iPC_ID = plr->iID;
-    resp2.iPC_Level = 36;
+    resp2.iPC_Level = nanoId;
 
     sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+    for (CNSocket* s : PlayerManager::players[sock].viewable)
+        s->sendPacket((void*)&resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+    
     plr->level = nanoId;
 }
 
@@ -155,12 +176,6 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     std::cout << "summon nano\n";
-    
-    struct sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT {
-	int32_t eCT;
-	int32_t iID;
-	int32_t iConditionBitFlag;
-    };
 
     if (slot > 2 || slot < -1)
         return; //sanity check
@@ -177,11 +192,13 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
         if (skillId == 4) {
             INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, resp1);
     
+            plr->iConditionBitFlag -= 1
+    
             resp1.eCSTB = 1; //eCharStatusTimeBuffID
             resp1.eTBU = 2; //eTimeBuffUpdate
             resp1.eTBT = 1; //eTimeBuffType 1 means nano
-            resp1.TimeBuff.iValue = 200; //adds up to a total of 800(600+200)
-            resp1.iConditionBitFlag = 0;
+            resp1.TimeBuff.iValue = 200; //subtracts to a total of 600(800-200)
+            resp1.iConditionBitFlag = plr->iConditionBitFlag;
     
             sock->sendPacket((void*)&resp1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
         }
@@ -202,6 +219,22 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
             nanoRun(sock, nanoId, skillId);
             resp.eCSTB___Add = 1;
         }
+        
+        if (skillId == 6) {
+            nanoBonus(sock, nanoId, skillId);
+            resp.eCSTB___Add = 1;
+        }
+        
+        if (skillId == 9) {
+            nanoGuard(sock, nanoId, skillId);
+            resp.eCSTB___Add = 1;
+        }
+        
+        if (skillId == 11) {
+            nanoRadar(sock, nanoId, skillId);
+            resp.eCSTB___Add = 1;
+        }
+        
     } else
         plr->activeNano = 0;
     
@@ -351,13 +384,17 @@ void NanoManager::nanoHeal(CNSocket* sock, CNPacketData* data, int16_t nanoId, i
         for (auto pair : PlayerManager::players) {
             if (pair.second.plr->iID == pktdata[i]) { 
                 Player* plr = pair.second.plr;
-                
-                plr->HP += 300;
+                               
+                if (plr->HP + 300 > 3625)
+                    plr->HP = 3625;
+                else
+                    plr->HP += 300;
                 
                 respdata[i].eCT = 1;
                 respdata[i].iID = plr->iID;
                 respdata[i].iHP = plr->HP;
                 respdata[i].iHealHP = 300;
+                
                 std::cout << (int)plr->iID << " was healed" << std::endl;
             }
         }   
@@ -388,8 +425,19 @@ void NanoManager::nanoScavenge(CNSocket* sock, int16_t nanoId, int skillId) {
     resp->iSkillID = skillId;
     resp->iNanoID = nanoId;
     resp->iNanoStamina = 150;
-    resp->eST = 20; //scavenge enum TODO: Send these enums to Defines
+    resp->eST = 19; //scavenge enum TODO: Send these enums to Defines
     resp->iTargetCnt = 1;
+    
+    plr->iConditionBitFlag += 16384;
+    
+    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt1);
+    
+    pkt1.eCSTB = 1; //eCharStatusTimeBuffID
+    pkt1.eTBU = 1; //eTimeBuffUpdate
+    pkt1.eTBT = 1; //eTimeBuffType 1 means nano
+    pkt1.iConditionBitFlag = plr->iConditionBitFlag;
+    
+    sock->sendPacket((void*)&pkt1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
         
     respdata[1].eCT = 1;
     respdata[1].iID = plr->iID;
@@ -423,8 +471,11 @@ void NanoManager::nanoRun(CNSocket* sock, int16_t nanoId, int skillId) {
     resp->eST = 11; //run enum TODO: Send these enums to Defines
     resp->iTargetCnt = 1;
         
-    // this looks stupid but in the future there will be more cnts
+    // this looks stupid but in the future there will be more counts
     for (int i = 0; i < 1; i++) {
+        
+        plr->iConditionBitFlag += 1
+        
         respdata[i].eCT = 1;
         respdata[i].iID = plr->iID;
         respdata[i].iConditionBitFlag = 1;
@@ -435,10 +486,245 @@ void NanoManager::nanoRun(CNSocket* sock, int16_t nanoId, int skillId) {
         pkt1.eTBU = 1; //eTimeBuffUpdate
         pkt1.eTBT = 1; //eTimeBuffType 1 means nano
         pkt1.TimeBuff.iValue = 200; //adds up to a total of 800(600+200)
-        pkt1.iConditionBitFlag = 1;
+        pkt1.iConditionBitFlag = plr->iConditionBitFlag;
     
         sock->sendPacket((void*)&pkt1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
     }
+
+    sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
+    for (CNSocket* s : PlayerManager::players[sock].viewable)
+        s->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
+}
+
+void NanoManager::nanoBonus(CNSocket* sock, int16_t nanoId, int skillId) {
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE), 1, sizeof(sSkillResult_Buff))) {
+        std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size\n";
+        return;
+    }
+    
+    size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE) + sizeof(sSkillResult_Buff);
+    uint8_t respbuf[4096];
+        
+    memset(respbuf, 0, resplen);
+        
+    sP_FE2CL_NANO_SKILL_USE *resp = (sP_FE2CL_NANO_SKILL_USE*)respbuf;
+    sSkillResult_Buff *respdata = (sSkillResult_Buff*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE));
+        
+    resp->iPC_ID = plr->iID;
+    resp->iSkillID = skillId;
+    resp->iNanoID = nanoId;
+    resp->iNanoStamina = 150;
+    resp->eST = 20; //bonus enum TODO: Send these enums to Defines
+    resp->iTargetCnt = 1;
+    
+    plr->iConditionBitFlag += 32768;
+    
+    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt1);
+    
+    pkt1.eCSTB = 1; //eCharStatusTimeBuffID
+    pkt1.eTBU = 1; //eTimeBuffUpdate
+    pkt1.eTBT = 1; //eTimeBuffType 1 means nano
+    pkt1.iConditionBitFlag = plr->iConditionBitFlag;
+    
+    sock->sendPacket((void*)&pkt1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+        
+    respdata[1].eCT = 1;
+    respdata[1].iID = plr->iID;
+    respdata[1].iConditionBitFlag = 32768;
+
+    sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
+    for (CNSocket* s : PlayerManager::players[sock].viewable)
+        s->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
+}
+
+void NanoManager::nanoGuard(CNSocket* sock, int16_t nanoId, int skillId) {
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE), 1, sizeof(sSkillResult_Buff))) {
+        std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size\n";
+        return;
+    }
+    
+    size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE) + sizeof(sSkillResult_Buff);
+    uint8_t respbuf[4096];
+        
+    memset(respbuf, 0, resplen);
+        
+    sP_FE2CL_NANO_SKILL_USE *resp = (sP_FE2CL_NANO_SKILL_USE*)respbuf;
+    sSkillResult_Buff *respdata = (sSkillResult_Buff*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE));
+        
+    resp->iPC_ID = plr->iID;
+    resp->iSkillID = skillId;
+    resp->iNanoID = nanoId;
+    resp->iNanoStamina = 150;
+    resp->eST = 17; //run enum TODO: Send these enums to Defines
+    resp->iTargetCnt = 1;
+        
+    // this looks stupid but in the future there will be more counts
+        
+    plr->iConditionBitFlag += 32;
+        
+    respdata[1].eCT = 1;
+    respdata[1].iID = plr->iID;
+    respdata[1].iConditionBitFlag = 32;
+        
+    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt1);
+    
+    pkt1.eCSTB = 1; //eCharStatusTimeBuffID
+    pkt1.eTBU = 1; //eTimeBuffUpdate
+    pkt1.eTBT = 1; //eTimeBuffType 1 means nano
+    pkt1.iConditionBitFlag = plr->iConditionBitFlag;
+    
+    sock->sendPacket((void*)&pkt1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+
+    sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
+    for (CNSocket* s : PlayerManager::players[sock].viewable)
+        s->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
+}
+
+void NanoManager::nanoDrain(CNSocket* sock, CNPacketData* data, int16_t nanoId, int skillId) {
+    sP_CL2FE_REQ_NANO_SKILL_USE* pkt = (sP_CL2FE_REQ_NANO_SKILL_USE*)data->buf;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    // sanity check
+    if (!validInVarPacket(sizeof(sP_CL2FE_REQ_NANO_SKILL_USE), pkt->iTargetCnt, sizeof(int32_t), data->size)) {
+        std::cout << "[WARN] bad sP_CL2FE_REQ_NANO_SKILL_USE packet size\n";
+        return;
+    }
+
+    int32_t *pktdata = (int32_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_NANO_SKILL_USE));
+
+    /*
+     * Due to the possibility of multiplication overflow (and regular buffer overflow),
+     * both incoming and outgoing variable-length packets must be validated, at least if
+     * the number of trailing structs isn't well known (ie. it's from the client).
+     */
+    if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE), pkt->iTargetCnt, sizeof(sSkillResult_Damage_N_Debuff))) {
+        std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size\n";
+        return;
+    }
+    
+    size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE) + pkt->iTargetCnt * sizeof(sSkillResult_Damage_N_Debuff);
+    uint8_t respbuf[4096];
+        
+    memset(respbuf, 0, resplen);
+        
+    sP_FE2CL_NANO_SKILL_USE *resp = (sP_FE2CL_NANO_SKILL_USE*)respbuf;
+    sSkillResult_Damage_N_Debuff *respdata = (sSkillResult_Damage_N_Debuff*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE));
+        
+    resp->iPC_ID = plr->iID;
+    resp->iSkillID = skillId;
+    resp->iNanoID = nanoId;
+    resp->iNanoStamina = 150;
+    resp->eST = 3; //stun enum TODO: Send these enums to Defines
+    resp->iTargetCnt = pkt->iTargetCnt;
+        
+    for (int i = 0; i < pkt->iTargetCnt; i++) {
+        if (NPCManager::NPCs.find(pktdata[i]) == NPCManager::NPCs.end()) {
+            // not sure how to best handle this
+            std::cout << "[WARN] nanoStun: mob ID not found" << std::endl;
+            return;
+        }
+        BaseNPC& mob = NPCManager::NPCs[pktdata[i]];
+        
+        respdata[i].eCT = 4;
+        respdata[i].iID = mob.appearanceData.iNPC_ID;
+        respdata[i].iHP = mob.appearanceData.iHP;
+        respdata[i].iConditionBitFlag = 2048;
+        std::cout << (int)mob.appearanceData.iNPC_ID << " was drained" << std::endl;
+    }
+
+    sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
+    for (CNSocket* s : PlayerManager::players[sock].viewable)
+        s->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
+}
+
+void NanoManager::nanoRadar(CNSocket* sock, int16_t nanoId, int skillId) {
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE), 1, sizeof(sSkillResult_Buff))) {
+        std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size\n";
+        return;
+    }
+    
+    size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE) + sizeof(sSkillResult_Buff);
+    uint8_t respbuf[4096];
+        
+    memset(respbuf, 0, resplen);
+        
+    sP_FE2CL_NANO_SKILL_USE *resp = (sP_FE2CL_NANO_SKILL_USE*)respbuf;
+    sSkillResult_Buff *respdata = (sSkillResult_Buff*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE));
+        
+    resp->iPC_ID = plr->iID;
+    resp->iSkillID = skillId;
+    resp->iNanoID = nanoId;
+    resp->iNanoStamina = 150;
+    resp->eST = 14; //run enum TODO: Send these enums to Defines
+    resp->iTargetCnt = 1;
+        
+    // this looks stupid but in the future there will be more counts
+        
+    plr->iConditionBitFlag += 4096;
+        
+    respdata[1].eCT = 1;
+    respdata[1].iID = plr->iID;
+    respdata[1].iConditionBitFlag = 4096;
+        
+    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt1);
+    
+    pkt1.eCSTB = 1; //eCharStatusTimeBuffID
+    pkt1.eTBU = 1; //eTimeBuffUpdate
+    pkt1.eTBT = 1; //eTimeBuffType 1 means nano
+    pkt1.iConditionBitFlag = plr->iConditionBitFlag;
+    
+    sock->sendPacket((void*)&pkt1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+
+    sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
+    for (CNSocket* s : PlayerManager::players[sock].viewable)
+        s->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
+}
+
+void NanoManager::nanoAntidote(CNSocket* sock, int16_t nanoId, int skillId) {
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE), 1, sizeof(sSkillResult_Buff))) {
+        std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size\n";
+        return;
+    }
+    
+    size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE) + sizeof(sSkillResult_Buff);
+    uint8_t respbuf[4096];
+        
+    memset(respbuf, 0, resplen);
+        
+    sP_FE2CL_NANO_SKILL_USE *resp = (sP_FE2CL_NANO_SKILL_USE*)respbuf;
+    sSkillResult_Buff *respdata = (sSkillResult_Buff*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE));
+        
+    resp->iPC_ID = plr->iID;
+    resp->iSkillID = skillId;
+    resp->iNanoID = nanoId;
+    resp->iNanoStamina = 150;
+    resp->eST = 18; //run enum TODO: Send these enums to Defines
+    resp->iTargetCnt = 1;
+        
+    // this looks stupid but in the future there will be more counts
+        
+    plr->iConditionBitFlag += 64;
+        
+    respdata[1].eCT = 1;
+    respdata[1].iID = plr->iID;
+    respdata[1].iConditionBitFlag = 64;
+        
+    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt1);
+    
+    pkt1.eCSTB = 1; //eCharStatusTimeBuffID
+    pkt1.eTBU = 1; //eTimeBuffUpdate
+    pkt1.eTBT = 1; //eTimeBuffType 1 means nano
+    pkt1.iConditionBitFlag = plr->iConditionBitFlag;
+    
+    sock->sendPacket((void*)&pkt1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
 
     sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
     for (CNSocket* s : PlayerManager::players[sock].viewable)
