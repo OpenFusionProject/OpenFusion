@@ -279,6 +279,7 @@ Database::DbPlayer Database::playerToDb(Player player)
 Player Database::DbToPlayer(DbPlayer player) {
     Player result;
     
+    result.iID = player.PlayerID;
     result.accountId = player.AccountID;
     result.PCStyle2.iAppearanceFlag = player.AppearanceFlag;
     result.PCStyle.iBody = player.Body;
@@ -316,19 +317,19 @@ Player Database::DbToPlayer(DbPlayer player) {
     //TODO:: implement all of below
     
     //Nanos    
-    result.activeNano = 0;
-    result.equippedNanos[0] = 1;
+    result.activeNano = -1;
+    result.equippedNanos[0] = 0;
     result.equippedNanos[1] = 0;
     result.equippedNanos[2] = 0;
 
-    result.Nanos[1].iID = 1;
-    result.Nanos[1].iSkillID = 1;
-    result.Nanos[1].iStamina = 150;
+    result.Nanos[0].iID = 0;
+    result.Nanos[0].iSkillID = 0;
+    result.Nanos[0].iStamina = 0;
 
-    for (int i = 2; i < 37; i++) {
-        result.Nanos[i].iID = 0;
-        result.Nanos[i].iSkillID = 0;
-        result.Nanos[i].iStamina = 0;
+    for (int i = 1; i < 37; i++) {
+        result.Nanos[i].iID = i;
+        result.Nanos[i].iSkillID = 1;
+        result.Nanos[i].iStamina = 150;
     }
     
     //equip

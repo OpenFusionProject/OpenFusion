@@ -194,6 +194,8 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     response.iID = plr.iID;
     response.uiSvrTime = getTime();
+    std::cout << "PC ENTER: ";
+    std::cout << response.uiSvrTime << std::endl;
     response.PCLoadData2CL.iUserLevel = 1;
     response.PCLoadData2CL.iHP = plr.HP;
     response.PCLoadData2CL.iLevel = plr.level;
@@ -205,7 +207,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iY = plr.y;
     response.PCLoadData2CL.iZ = plr.z;
     response.PCLoadData2CL.iAngle = plr.angle;
-    response.PCLoadData2CL.iActiveNanoSlotNum = -1;
+    response.PCLoadData2CL.iActiveNanoSlotNum = plr.activeNano;
     response.PCLoadData2CL.iFatigue = 50;
     response.PCLoadData2CL.PCStyle = plr.PCStyle;
     response.PCLoadData2CL.PCStyle2 = plr.PCStyle2;
@@ -218,9 +220,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     // don't ask..
     for (int i = 1; i < 37; i++) {
-        response.PCLoadData2CL.aNanoBank[i].iID = i;
-        response.PCLoadData2CL.aNanoBank[i].iSkillID = 1;
-        response.PCLoadData2CL.aNanoBank[i].iStamina = 150;
+        response.PCLoadData2CL.aNanoBank[i] = plr.Nanos[i];
     }
 
     // temporarily not add nanos for nano add test through commands
@@ -281,6 +281,8 @@ void PlayerManager::movePlayer(CNSocket* sock, CNPacketData* data) {
 
     players[sock].plr->angle = moveData->iAngle;
     uint64_t tm = getTime();
+    std::cout << "PC MOVE: ";
+    std::cout << tm << std::endl;
 
     INITSTRUCT(sP_FE2CL_PC_MOVE, moveResponse);
 
@@ -312,6 +314,8 @@ void PlayerManager::stopPlayer(CNSocket* sock, CNPacketData* data) {
     updatePlayerPosition(sock, stopData->iX, stopData->iY, stopData->iZ);
 
     uint64_t tm = getTime();
+    std::cout << "PC STOP: ";
+    std::cout << tm << std::endl;
 
     INITSTRUCT(sP_FE2CL_PC_STOP, stopResponse);
 
@@ -337,6 +341,8 @@ void PlayerManager::jumpPlayer(CNSocket* sock, CNPacketData* data) {
     updatePlayerPosition(sock, jumpData->iX, jumpData->iY, jumpData->iZ);
 
     uint64_t tm = getTime();
+    std::cout << "PC JUMP: ";
+    std::cout << tm << std::endl;
 
     INITSTRUCT(sP_FE2CL_PC_JUMP, jumpResponse);
 
@@ -368,6 +374,8 @@ void PlayerManager::jumppadPlayer(CNSocket* sock, CNPacketData* data) {
     updatePlayerPosition(sock, jumppadData->iX, jumppadData->iY, jumppadData->iZ);
 
     uint64_t tm = getTime();
+    std::cout << "PC JUMPPAD: ";
+    std::cout << tm << std::endl;
 
     INITSTRUCT(sP_FE2CL_PC_JUMPPAD, jumppadResponse);
 
@@ -564,6 +572,8 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
 
 void PlayerManager::heartbeatPlayer(CNSocket* sock, CNPacketData* data) {
     players[sock].lastHeartbeat = getTime();
+    std::cout << "Heartbeat: ";
+    std::cout << players[sock].lastHeartbeat << std::endl;
 }
 
 void PlayerManager::exitGame(CNSocket* sock, CNPacketData* data) {

@@ -87,7 +87,9 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 resp.iPaymentFlag = 1;
                 resp.iOpenBetaFlag = 0;
                 resp.uiSvrTime = getTime();
-                
+                std::cout << "LOGIN SUCC: ";
+                std::cout << resp.uiSvrTime << std::endl;
+
                 // send the resp in with original key
                 sock->sendPacket((void*)&resp, P_LS2CL_REP_LOGIN_SUCC, sizeof(sP_LS2CL_REP_LOGIN_SUCC));
 
@@ -110,7 +112,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     charInfo.iX = it->x;
                     charInfo.iY = it->y;
                     charInfo.iZ = it->z;
-
+                    
                     //save character in session (for char select)
                     int UID = it->iID;
                     loginSessions[sock].characters[UID] = Player(*it);                      
