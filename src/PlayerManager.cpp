@@ -217,7 +217,11 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
         response.PCLoadData2CL.aInven[i] = plr.Inven[i];
 
     // don't ask..
-    for (int i = 1; i < 37; i++) {
+    response.PCLoadData2CL.aNanoBank[1].iID = 1;
+    response.PCLoadData2CL.aNanoBank[1].iSkillID = 1;
+    response.PCLoadData2CL.aNanoBank[1].iStamina = 150;
+    
+    for (int i = 2; i < 37; i++) {
         response.PCLoadData2CL.aNanoBank[i].iID = 0;
         response.PCLoadData2CL.aNanoBank[i].iSkillID = 0;
         response.PCLoadData2CL.aNanoBank[i].iStamina = 0;

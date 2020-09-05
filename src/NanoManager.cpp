@@ -104,24 +104,23 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
     int16_t skillId = plr->Nanos[nanoId].iSkillID;
     
     if (skillId == 1 || skillId == 13 || skillId == 42 || skillId == 59 || skillId == 78 || skillId == 103)
-        nanoDebuff(sock, data, nanoId, skillId, 8, 512);
+        nanoDebuff(sock, data, nanoId, skillId, 8, 512); // Stun
     else if (skillId == 2 || skillId == 7 || skillId == 12 || skillId == 38 || skillId == 53 || skillId == 61 || skillId == 82 || skillId == 92 ||  skillId == 98 )
-        nanoHeal(sock, data, nanoId, skillId, 333);
+        nanoHeal(sock, data, nanoId, skillId, 333); // Heal
     else if (skillId == 5 || skillId == 25 || skillId == 66 || skillId == 69 || skillId == 75 || skillId == 87) {
-        // add recall stuff here
+        // Recall
     } else if (skillId == 10 || skillId == 34 || skillId == 37 || skillId == 56 || skillId == 93 || skillId == 97)
-        nanoDebuff(sock, data, nanoId, skillId, 3, 262144);
+        nanoDebuff(sock, data, nanoId, skillId, 3, 262144); // Drain
     else if (skillId == 17 || skillId == 18 || skillId == 27 || skillId == 41 || skillId == 43 || skillId == 47 || skillId == 90 || skillId == 96 || skillId == 106)
-        nanoDebuff(sock, data, nanoId, skillId, 5, 128);
+        nanoDebuff(sock, data, nanoId, skillId, 5, 128); // Snare
     else if (skillId == 19 || skillId == 21 || skillId == 33 || skillId == 45 || skillId == 46 || skillId == 52 || skillId == 101 || skillId == 105 || skillId == 108)
-        nanoDamage(sock, data, nanoId, skillId, 133);
+        nanoDamage(sock, data, nanoId, skillId, 133); // Damage
     else if (skillId == 20 || skillId == 63 || skillId == 91) {
-        // add group revive stuff here
+        // Group Revive
     } else if (skillId == 24 || skillId == 51 || skillId == 89) {
-        nanoLeech(sock, data, nanoId, skillId, 133);
-    }
-    else if (skillId == 28 || skillId == 30 || skillId == 32 || skillId == 49 || skillId == 70 || skillId == 71 || skillId == 81 || skillId == 85 || skillId == 94)
-        nanoDebuff(sock, data, nanoId, skillId, 4, 1024);
+        nanoLeech(sock, data, nanoId, skillId, 133); // Leech
+    } else if (skillId == 28 || skillId == 30 || skillId == 32 || skillId == 49 || skillId == 70 || skillId == 71 || skillId == 81 || skillId == 85 || skillId == 94)
+        nanoDebuff(sock, data, nanoId, skillId, 4, 1024); // Sleep
 
     DEBUGLOG(
         std::cout << U16toU8(plr->PCStyle.szFirstName) << U16toU8(plr->PCStyle.szLastName) << " requested to summon nano skill " << std::endl;
@@ -198,27 +197,27 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
     if (plr->activeNano > 0) {
         skillId = plr->Nanos[plr->activeNano].iSkillID;
         if (skillId == 3 || skillId == 50 || skillId == 99)
-            nanoUnbuff(sock, 16384, 15);
+            nanoUnbuff(sock, 16384, 15); // Scavenge
         else if (skillId == 4 || skillId == 8 || skillId == 62 || skillId == 68 || skillId == 73 || skillId == 86)
-            nanoUnbuff(sock, 1, 1, 200);
+            nanoUnbuff(sock, 1, 1, 200); // Run
         else if (skillId == 6 || skillId == 54 || skillId == 104)
-            nanoUnbuff(sock, 32768, 16);
+            nanoUnbuff(sock, 32768, 16); // Bonus
         else if (skillId == 9 || skillId == 57 || skillId == 76)
-            nanoUnbuff(sock, 32, 6);
+            nanoUnbuff(sock, 32, 6); // Guard
         else if (skillId == 11 || skillId == 67 || skillId == 95)
-            nanoUnbuff(sock, 4096, 13);
+            nanoUnbuff(sock, 4096, 13); // Radar
         else if (skillId == 14 || skillId == 58 || skillId == 102)
-            nanoUnbuff(sock, 64, 7);
+            nanoUnbuff(sock, 64, 7); // Antidote
         else if (skillId == 15 || skillId == 31 || skillId == 39 || skillId == 55 || skillId == 77 || skillId == 107)
-            nanoUnbuff(sock, 131072, 18);
+            nanoUnbuff(sock, 131072, 18); // Freedom
         else if (skillId == 16 || skillId == 35 || skillId == 44 || skillId == 60 || skillId == 88 || skillId == 100)
-            nanoUnbuff(sock, 4, 3, 400);
+            nanoUnbuff(sock, 4, 3, 400); // Jump
         else if (skillId == 22 || skillId == 48 || skillId == 83)
-            nanoUnbuff(sock, 16, 5);
+            nanoUnbuff(sock, 16, 5); // Self Revive
         else if (skillId == 23 || skillId == 29 || skillId == 65 || skillId == 72 || skillId == 80 || skillId == 82)
-            nanoUnbuff(sock, 8, 4);
+            nanoUnbuff(sock, 8, 4); // Sneak
         else if (skillId == 26 || skillId == 40 || skillId == 74)
-            nanoUnbuff(sock, 8192, 14);
+            nanoUnbuff(sock, 8192, 14); // Treasure Finder
     }
 
     sNano nano = plr->Nanos[nanoId];
@@ -228,37 +227,37 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
         plr->activeNano = nanoId;
         
         if (skillId == 3 || skillId == 50 || skillId == 99) {
-            nanoBuff(sock, nanoId, skillId, 19, 16384, 15);
+            nanoBuff(sock, nanoId, skillId, 19, 16384, 15); // Scavenge
             resp.eCSTB___Add = 1;
         } else if (skillId == 4 || skillId == 8 || skillId == 62 || skillId == 68 || skillId == 73 || skillId == 86) {
-            nanoBuff(sock, nanoId, skillId, 11, 1, 1, 200);
+            nanoBuff(sock, nanoId, skillId, 11, 1, 1, 200); // Run
             resp.eCSTB___Add = 1;
         } else if (skillId == 6 || skillId == 54 || skillId == 104) {
-            nanoBuff(sock, nanoId, skillId, 20, 32768, 16);
+            nanoBuff(sock, nanoId, skillId, 20, 32768, 16); // Bonus
             resp.eCSTB___Add = 1;
         } else if (skillId == 9 || skillId == 57 || skillId == 76) {
-            nanoBuff(sock, nanoId, skillId, 17, 32, 6);
+            nanoBuff(sock, nanoId, skillId, 17, 32, 6); // Guard
             resp.eCSTB___Add = 1;
         } else if (skillId == 11 || skillId == 67 || skillId == 95) {
-            nanoBuff(sock, nanoId, skillId, 14, 4096, 13);
+            nanoBuff(sock, nanoId, skillId, 14, 4096, 13); // Radar
             resp.eCSTB___Add = 1;
         } else if (skillId == 14 || skillId == 58 || skillId == 102) {
-            nanoBuff(sock, nanoId, skillId, 18, 64, 7);
+            nanoBuff(sock, nanoId, skillId, 18, 64, 7); // Antidote
             resp.eCSTB___Add = 1;
         } else if (skillId == 15 || skillId == 31 || skillId == 39 || skillId == 55 || skillId == 77 || skillId == 107) {
-            nanoBuff(sock, nanoId, skillId, 25, 131072, 18);
+            nanoBuff(sock, nanoId, skillId, 25, 131072, 18); // Freedom
             resp.eCSTB___Add = 1;
         } else if (skillId == 16 || skillId == 35 || skillId == 44) {
-            nanoBuff(sock, nanoId, skillId, 10, 4, 3, 400);
+            nanoBuff(sock, nanoId, skillId, 10, 4, 3, 400); // Jump
             resp.eCSTB___Add = 1;
         } else if (skillId == 22 || skillId == 48 || skillId == 83) {
-            nanoBuff(sock, nanoId, skillId, 16, 16, 5);
+            nanoBuff(sock, nanoId, skillId, 16, 16, 5); // Self Revive
             resp.eCSTB___Add = 1;
         } else if (skillId == 23 || skillId == 29 || skillId == 65 || skillId == 72 || skillId == 80 || skillId == 82) {
-            nanoBuff(sock, nanoId, skillId, 12, 8, 4);
+            nanoBuff(sock, nanoId, skillId, 12, 8, 4); // Sneak
             resp.eCSTB___Add = 1;
         } else if (skillId == 26 || skillId == 40 || skillId == 74) {
-            nanoBuff(sock, nanoId, skillId, 15, 8192, 14);
+            nanoBuff(sock, nanoId, skillId, 15, 8192, 14); // Treasure Finder
             resp.eCSTB___Add = 1;
         }
         
