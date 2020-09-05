@@ -17,6 +17,7 @@ namespace NanoManager {
     void summonNano(CNSocket* sock, int slot);
     void setNanoSkill(CNSocket* sock, int16_t nanoId, int16_t skillId);
     void resetNanoSkill(CNSocket* sock, int16_t nanoId);
+    
     void nanoDebuff(CNSocket* sock, CNPacketData* data, int16_t nanoId, int16_t skillId, int16_t eSkillType, int32_t iCBFlag, int32_t damageAmount = 0);
     void nanoHeal(CNSocket* sock, CNPacketData* data, int16_t nanoId, int16_t skillId, int16_t healAmount);
     void nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t eSkillType, int32_t iCBFlag, int16_t eCharStatusTimeBuffID, int16_t iValue = 0);
