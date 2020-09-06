@@ -242,7 +242,7 @@ Database::DbPlayer Database::playerToDb(Player player)
     result.EyeColor = player.PCStyle.iEyeColor;
     result.FaceStyle = player.PCStyle.iFaceStyle;
     result.FirstName = U16toU8( player.PCStyle.szFirstName);
-    //fm
+    result.FusionMatter = player.fusionmatter;
     result.Gender = player.PCStyle.iGender;
     result.HairColor = player.PCStyle.iHairColor;
     result.HairStyle = player.PCStyle.iHairStyle;
@@ -256,11 +256,13 @@ Database::DbPlayer Database::playerToDb(Player player)
     result.PlayerID = player.PCStyle.iPC_UID;
     result.SkinColor = player.PCStyle.iSkinColor;
     result.slot = player.slot;
-    //taros
+    result.Taros = player.money;
     result.TutorialFlag = player.PCStyle2.iTutorialFlag;
     result.x_coordinates = player.x;
     result.y_coordinates = player.y;
     result.z_coordinates = player.z;
+    result.angle = player.angle;
+
 
     return result;
 }
@@ -293,11 +295,12 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.x = player.x_coordinates;
     result.y = player.y_coordinates;
     result.z = player.z_coordinates;
+    result.angle = player.angle;
+    result.money = player.Taros;
+    result.fusionmatter = player.FusionMatter;
 
     //TODO:: implement all of below
-    result.SerialKey = 0;
-    result.money = 0;
-    result.fusionmatter = 0;
+    result.SerialKey = 0;  
     result.activeNano = 0;
     result.iPCState = 0;
     result.equippedNanos[0] = 1;
@@ -332,8 +335,6 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.Equip[3].iType = 3;
     (player.EquipFoot) ? result.Equip[3].iOpt = 1 : result.Equip[3].iOpt = 0;
 
-
-
     for (int i = 4; i < AEQUIP_COUNT; i++) {
         // empty equips
         result.Equip[i].iID = 0;
@@ -355,3 +356,8 @@ Database::DbPlayer Database::getDbPlayerById(int id) {
 }
 
 #pragma endregion LoginServer
+
+void Database::updatePlayer(Player player) {
+    DbPlayer toUpdate = playerToDb(player);
+    db.update(toUpdate);
+}
