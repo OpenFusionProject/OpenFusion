@@ -144,22 +144,7 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
     PlayerManager::players[sock].viewableNPCs = view.viewableNPCs;
 }
 
-void NPCManager::npcBarkHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_BARKER* bark = (sP_CL2FE_REQ_BARKER*)data->buf;
-    PlayerView& plr = PlayerManager::players[sock];
-
-    INITSTRUCT(sP_FE2CL_REP_BARKER, resp);
-    resp.iMissionStringID = bark->iMissionTaskID;
-    resp.iNPC_ID = bark->iNPC_ID;
-
-    // Send bark to other players.
-    for (CNSocket* otherSock : plr.viewable) {
-        otherSock->sendPacket((void*)&resp, P_FE2CL_REP_BARKER, sizeof(sP_FE2CL_REP_BARKER));
-    }
-
-    // Then ourself.
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_BARKER, sizeof(sP_FE2CL_REP_BARKER));
-}
+void NPCManager::npcBarkHandler(CNSocket* sock, CNPacketData* data) {} // stubbed for now
 
 void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_NPC_SUMMON))
