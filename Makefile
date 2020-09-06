@@ -14,8 +14,8 @@ PROTOCOL_VERSION?=104
 # Windows-specific
 WIN_CC=x86_64-w64-mingw32-gcc
 WIN_CXX=x86_64-w64-mingw32-g++
-WIN_CFLAGS=-O0 #-g3 -fsanitize=address
-WIN_CXXFLAGS=-Wall -std=c++17 -O0 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
+WIN_CFLAGS=-O3 #-g3 -fsanitize=address
+WIN_CXXFLAGS=-Wall -std=c++17 -O3 -fno-tree-dce -fno-inline-small-functions -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
 WIN_LDFLAGS=-static -lws2_32 -lwsock32 #-g3 -fsanitize=address
 WIN_SERVER=bin/winfusion.exe
 
