@@ -238,7 +238,6 @@ Database::DbPlayer Database::playerToDb(Player player)
     result.AppearanceFlag = player.PCStyle2.iAppearanceFlag;
     result.Body = player.PCStyle.iBody;
     result.Class = player.PCStyle.iClass;
-    //equipment
     result.EyeColor = player.PCStyle.iEyeColor;
     result.FaceStyle = player.PCStyle.iFaceStyle;
     result.FirstName = U16toU8( player.PCStyle.szFirstName);
@@ -263,6 +262,11 @@ Database::DbPlayer Database::playerToDb(Player player)
     result.z_coordinates = player.z;
     result.angle = player.angle;
 
+    //temporary inventory stuff
+    result.EquipWeapon1 = player.Equip[0].iID;
+    result.EquipUB = player.Equip[1].iID;
+    result.EquipLB = player.Equip[2].iID;
+    result.EquipFoot = player.Equip[3].iID;
 
     return result;
 }
