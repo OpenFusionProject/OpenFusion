@@ -4,7 +4,7 @@
 #include "Database.hpp"
 #include "PlayerManager.hpp"
 #include <regex>
-#include "contrib/bcrypt/BCrypt.hpp">
+#include "contrib/bcrypt/BCrypt.hpp"
 
 #include "settings.hpp"
 
@@ -399,8 +399,8 @@ bool CNLoginServer::exitDuplicate(int accountId)
 }
 bool CNLoginServer::isLoginDataGood(std::string login, std::string password)
 {
-    std::regex loginRegex("^([A-Za-z\\d_\\-]){5,20}$");
-    std::regex passwordRegex("^([A-Za-z\\d_\\-@$!%*#?&,.+:;<=>]){8,20}$");
+    std::regex loginRegex("[a-zA-Z0-9_-]{4,32}");
+    std::regex passwordRegex("[a-zA-Z0-9!@#$%^&*()_+]{8,32}");
     return (std::regex_match(login, loginRegex) && std::regex_match(password, passwordRegex));
 }
 bool CNLoginServer::isPasswordCorrect(std::string actualPassword, std::string tryPassword)

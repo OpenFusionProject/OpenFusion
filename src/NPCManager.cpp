@@ -15,7 +15,9 @@ std::vector<WarpLocation> NPCManager::RespawnPoints;
 
 void NPCManager::init() {
     // load NPCs from NPCs.json into our NPC manager
-
+    // Temporary fix, IDs will be pulled from json later
+    int i = 0;
+    
     try {
         std::ifstream inFile(settings::NPCJSON);
         nlohmann::json npcData;
@@ -25,6 +27,11 @@ void NPCManager::init() {
 
         for (nlohmann::json::iterator npc = npcData.begin(); npc != npcData.end(); npc++) {
             BaseNPC tmp(npc.value()["x"], npc.value()["y"], npc.value()["z"], npc.value()["id"]);
+            
+            // Temporary fix, IDs will be pulled from json later
+            tmp.appearanceData.iNPC_ID = i;
+            i++;
+            
             NPCs[tmp.appearanceData.iNPC_ID] = tmp;
 
             if (npc.value()["id"] == 641 || npc.value()["id"] == 642)
@@ -47,7 +54,11 @@ void NPCManager::init() {
         for (nlohmann::json::iterator npc = npcData.begin(); npc != npcData.end(); npc++) {
             BaseNPC tmp(npc.value()["iX"], npc.value()["iY"], npc.value()["iZ"], npc.value()["iNPCType"],
                 npc.value()["iHP"], npc.value()["iConditionBitFlag"], npc.value()["iAngle"], npc.value()["iBarkerType"]);
-
+            
+            // Temporary fix, IDs will be pulled from json later
+            tmp.appearanceData.iNPC_ID = i;
+            i++;
+            
             NPCs[tmp.appearanceData.iNPC_ID] = tmp;
         }
 
@@ -133,22 +144,7 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
     PlayerManager::players[sock].viewableNPCs = view.viewableNPCs;
 }
 
-void NPCManager::npcBarkHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_BARKER* bark = (sP_CL2FE_REQ_BARKER*)data->buf;
-    PlayerView& plr = PlayerManager::players[sock];
-
-    INITSTRUCT(sP_FE2CL_REP_BARKER, resp);
-    resp.iMissionStringID = bark->iMissionTaskID;
-    resp.iNPC_ID = bark->iNPC_ID;
-
-    // Send bark to other players.
-    for (CNSocket* otherSock : plr.viewable) {
-        otherSock->sendPacket((void*)&resp, P_FE2CL_REP_BARKER, sizeof(sP_FE2CL_REP_BARKER));
-    }
-
-    // Then ourself.
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_BARKER, sizeof(sP_FE2CL_REP_BARKER));
-}
+void NPCManager::npcBarkHandler(CNSocket* sock, CNPacketData* data) {} // stubbed for now
 
 void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_NPC_SUMMON))
