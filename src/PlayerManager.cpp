@@ -194,8 +194,6 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     response.iID = plr.iID;
     response.uiSvrTime = getTime();
-    std::cout << "PC ENTER: ";
-    std::cout << response.uiSvrTime << std::endl;
     response.PCLoadData2CL.iUserLevel = 1;
     response.PCLoadData2CL.iHP = plr.HP;
     response.PCLoadData2CL.iLevel = plr.level;
@@ -281,8 +279,6 @@ void PlayerManager::movePlayer(CNSocket* sock, CNPacketData* data) {
 
     players[sock].plr->angle = moveData->iAngle;
     uint64_t tm = getTime();
-    std::cout << "PC MOVE: ";
-    std::cout << tm << std::endl;
 
     INITSTRUCT(sP_FE2CL_PC_MOVE, moveResponse);
 
@@ -314,8 +310,6 @@ void PlayerManager::stopPlayer(CNSocket* sock, CNPacketData* data) {
     updatePlayerPosition(sock, stopData->iX, stopData->iY, stopData->iZ);
 
     uint64_t tm = getTime();
-    std::cout << "PC STOP: ";
-    std::cout << tm << std::endl;
 
     INITSTRUCT(sP_FE2CL_PC_STOP, stopResponse);
 
@@ -341,8 +335,6 @@ void PlayerManager::jumpPlayer(CNSocket* sock, CNPacketData* data) {
     updatePlayerPosition(sock, jumpData->iX, jumpData->iY, jumpData->iZ);
 
     uint64_t tm = getTime();
-    std::cout << "PC JUMP: ";
-    std::cout << tm << std::endl;
 
     INITSTRUCT(sP_FE2CL_PC_JUMP, jumpResponse);
 
@@ -374,8 +366,6 @@ void PlayerManager::jumppadPlayer(CNSocket* sock, CNPacketData* data) {
     updatePlayerPosition(sock, jumppadData->iX, jumppadData->iY, jumppadData->iZ);
 
     uint64_t tm = getTime();
-    std::cout << "PC JUMPPAD: ";
-    std::cout << tm << std::endl;
 
     INITSTRUCT(sP_FE2CL_PC_JUMPPAD, jumppadResponse);
 
@@ -572,8 +562,6 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
 
 void PlayerManager::heartbeatPlayer(CNSocket* sock, CNPacketData* data) {
     players[sock].lastHeartbeat = getTime();
-    std::cout << "Heartbeat: ";
-    std::cout << players[sock].lastHeartbeat << std::endl;
 }
 
 void PlayerManager::exitGame(CNSocket* sock, CNPacketData* data) {
