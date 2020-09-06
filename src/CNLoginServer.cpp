@@ -398,8 +398,8 @@ bool CNLoginServer::exitDuplicate(int accountId)
 }
 bool CNLoginServer::isLoginDataGood(std::string login, std::string password)
 {
-    std::regex loginRegex("^(?=.*[A-Za-z0-9]$)[A-Za-z][A-Za-z\d.-]{3,20}$");
-    std::regex passwordRegex("^(?=.*[A-Za-z0-9]$)[A-Za-z][A-Za-z\d.-]{3,20}$");
+    std::regex loginRegex("[a-zA-Z0-9_-]{4,32}");
+    std::regex passwordRegex("[a-zA-Z0-9!@#$%^&*()_+]{8,32}");
     return (std::regex_match(login, loginRegex) && std::regex_match(password, passwordRegex));
 }
 bool CNLoginServer::isPasswordCorrect(std::string actualPassword, std::string tryPassword)
