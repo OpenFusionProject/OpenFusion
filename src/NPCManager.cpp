@@ -166,6 +166,8 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     resp.NPCAppearanceData.iZ = plr->z;
 
     sock->sendPacket((void*)&resp, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
+    for (CNSocket *s : PlayerManager::players[sock].viewable)
+        s->sendPacket((void*)&resp, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
 }
 
 void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
