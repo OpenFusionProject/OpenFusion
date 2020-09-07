@@ -11,7 +11,7 @@
 
 // this should really be called vec3 or something...
 struct WarpLocation {
-    int x, y, z, mapNum, isInstance;
+    int x, y, z, mapNum, isInstance, limitTaskID, npcID;
 };
 
 namespace NPCManager {

@@ -100,7 +100,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
     std::list<CNSocket*>::iterator i = players[sock].viewable.begin();
     while (i != players[sock].viewable.end()) {
         CNSocket* otherSock = *i;
-        if (std::find(noView.begin(), noView.end(), otherSock) != noView.end() || players[sock].plr->mapNum != players[otherSock].plr->mapNum) {
+        if (std::find(noView.begin(), noView.end(), otherSock) != noView.end() || players[sock].plr->mapNum != players[otherSock].plr->mapNum|| players[sock].plr->mapUID != players[otherSock].plr->mapUID) {
 
             // sock shouldn't be visible, send PC_EXIT packet
             exitPacket.iID = players[sock].plr->iID;
@@ -119,7 +119,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
 
     INITSTRUCT(sP_FE2CL_PC_NEW, newPlayer);
     for (CNSocket* otherSock : yesView) {
-        if (std::find(players[sock].viewable.begin(), players[sock].viewable.end(), otherSock) == players[sock].viewable.end() && players[sock].plr->mapNum == players[otherSock].plr->mapNum) {
+        if (std::find(players[sock].viewable.begin(), players[sock].viewable.end(), otherSock) == players[sock].viewable.end() && players[sock].plr->mapNum == players[otherSock].plr->mapNum && players[sock].plr->mapUID == players[otherSock].plr->mapUID) {
             // this needs to be added to the viewable players, send PC_ENTER
 
             Player *otherPlr = players[otherSock].plr;
@@ -212,7 +212,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iFatigue = 50;
     response.PCLoadData2CL.PCStyle = plr.PCStyle;
     response.PCLoadData2CL.PCStyle2 = plr.PCStyle2;
-
+    
     for (int i = 0; i < AEQUIP_COUNT; i++)
         response.PCLoadData2CL.aEquip[i] = plr.Equip[i];
 
@@ -263,7 +263,7 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_LOADING_COMPLETE* complete = (sP_CL2FE_REQ_PC_LOADING_COMPLETE*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, response);
     Player *plr = getPlayer(sock);
-
+    plr->IsGM = settings::GM;
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_LOADING_COMPLETE:" << std::endl;
         std::cout << "\tPC_ID: " << complete->iPC_ID << std::endl;
@@ -726,6 +726,7 @@ void PlayerManager::warpToMap(CNSocket* sock, CNPacketData* data) {
             instanceInfo.iInstanceMapNum = teleport->iToMap;
             sock->sendPacket((void*)&response, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
             sock->sendPacket((void*)&instanceInfo, P_FE2CL_INSTANCE_MAP_INFO, sizeof(sP_FE2CL_INSTANCE_MAP_INFO));
+            players[sock].plr->mapUID = 0;
         }
         else
         {
@@ -735,6 +736,8 @@ void PlayerManager::warpToMap(CNSocket* sock, CNPacketData* data) {
             resp.iZ = teleport->iToZ;
             players[sock].plr->mapNum = 0;
             sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
+            players[sock].plr->mapUID = 0;
+
         }
     }
     /* if (teleport->eTeleportType == 4)

@@ -23,7 +23,7 @@ struct Player {
     int equippedNanos[3];
     int activeNano; // active nano (index into Nanos)
     int8_t iPCState;
-    int mapNum;
+    int mapNum, mapUID;
     int x, y, z, angle;
     sItemBase Equip[AEQUIP_COUNT];
     sItemBase Inven[AINVEN_COUNT];

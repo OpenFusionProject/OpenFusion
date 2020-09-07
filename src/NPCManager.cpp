@@ -79,7 +79,7 @@ void NPCManager::init() {
         infile >> warpData;
 
         for (nlohmann::json::iterator warp = warpData.begin(); warp != warpData.end(); warp++) {
-            WarpLocation warpLoc = { warp.value()["m_iToX"], warp.value()["m_iToY"], warp.value()["m_iToZ"],warp.value()["m_iToMapNum"],warp.value()["m_iIsInstance"] };
+            WarpLocation warpLoc = { warp.value()["m_iToX"], warp.value()["m_iToY"], warp.value()["m_iToZ"],warp.value()["m_iToMapNum"],warp.value()["m_iIsInstance"],warp.value()["m_iLimit_TaskID"],warp.value()["m_iNpcNumber"] };
             int warpID = atoi(warp.key().c_str());
             Warps[warpID] = warpLoc;
         }
@@ -205,12 +205,20 @@ void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
     // send to client
     INITSTRUCT(sP_FE2CL_INSTANCE_MAP_INFO, instanceInfo);
 
-    // force player & NPC reload
-
-    std::cerr << "Warped to Map Num:" << Warps[warpNpc->iWarpID].mapNum << std::endl;
+    std::cerr << "Warped to Map Num:" << Warps[warpNpc->iWarpID].mapNum <<" NPC ID "<< Warps[warpNpc->iWarpID].npcID << std::endl;
     if (Warps[warpNpc->iWarpID].isInstance)
     {
         INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, response);
+        if (Warps[warpNpc->iWarpID].limitTaskID != 0 || (Warps[warpNpc->iWarpID].npcID >= 3123 && Warps[warpNpc->iWarpID].npcID <= 3132))
+        {
+            plrv.plr->mapUID = (Warps[warpNpc->iWarpID].limitTaskID + 1) * (plrv.plr->iID + 1);
+            std::cout << "Enter a private instance " <<"UID: "<< plrv.plr->mapUID << std::endl;
+
+        }
+        else
+        {
+            plrv.plr->mapUID = 0;
+        }
         response.iX = Warps[warpNpc->iWarpID].x;
         response.iY = Warps[warpNpc->iWarpID].y;
         response.iZ = Warps[warpNpc->iWarpID].z;
@@ -230,6 +238,7 @@ void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
         plrv.viewable.clear();
         plrv.viewableNPCs.clear();
         plrv.plr->mapNum = 0;
+        plrv.plr->mapUID = 0;
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
     }
 }
