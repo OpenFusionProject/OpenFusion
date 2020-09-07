@@ -73,7 +73,7 @@ void Database::open()
 int Database::addAccount(std::string login, std::string password) 
 {
     password = BCrypt::generateHash(password);
-    Account x;
+    Account x = {};
     x.Login = login;
     x.Password = password;
     x.Selected = 1;
