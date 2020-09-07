@@ -26,6 +26,9 @@ auto db = make_storage("database.db",
         make_column("Firstname", &Database::DbPlayer::FirstName),
         make_column("LastName", &Database::DbPlayer::LastName),
         make_column("Level", &Database::DbPlayer::Level),
+        make_column("Nano1", &Database::DbPlayer::Nano1),
+        make_column("Nano2", &Database::DbPlayer::Nano2),
+        make_column("Nano3", &Database::DbPlayer::Nano3),
         make_column("AppearanceFlag", &Database::DbPlayer::AppearanceFlag),
         make_column("TutorialFlag", &Database::DbPlayer::TutorialFlag),
         make_column("PayZoneFlag", &Database::DbPlayer::PayZoneFlag),
@@ -35,10 +38,6 @@ auto db = make_storage("database.db",
         make_column("Angle", &Database::DbPlayer::angle),
         make_column("Body", &Database::DbPlayer::Body),
         make_column("Class", &Database::DbPlayer::Class),
-        make_column("EquipFoot", &Database::DbPlayer::EquipFoot),
-        make_column("EquipLB", &Database::DbPlayer::EquipLB),
-        make_column("EquipUB", &Database::DbPlayer::EquipUB),
-        make_column("EquipWeapon1", &Database::DbPlayer::EquipWeapon1),
         make_column("EyeColor", &Database::DbPlayer::EyeColor),
         make_column("FaceStyle", &Database::DbPlayer::FaceStyle),
         make_column("Gender", &Database::DbPlayer::Gender),
@@ -54,7 +53,18 @@ auto db = make_storage("database.db",
         make_column("PCState", &Database::DbPlayer::PCState)
     ),
     make_table("Inventory",
-        make_column("AccountID", &Database::Inventory::AccountID, primary_key())
+        make_column("PlayerId", &Database::Inventory::playerId),
+        make_column("Slot", &Database::Inventory::slot),
+        make_column("Id", &Database::Inventory::id),
+        make_column("Type", &Database::Inventory::Type),
+        make_column("Opt", &Database::Inventory::Opt),
+        make_column("TimeLimit", &Database::Inventory::TimeLimit)
+    ),
+    make_table("Nanos",
+        make_column("PlayerId", &Database::Nano::playerId),
+        make_column("Id", &Database::Nano::iID),
+        make_column("Skill", &Database::Nano::iSkillID),
+        make_column("Stamina", &Database::Nano::iStamina)
     )
 );
 
@@ -132,11 +142,6 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     //create default body character
     create.Body= 0;
     create.Class= 0;
-    create.EquipFoot= 0;
-    create.EquipLB= 0;
-    create.EquipUB= 0;
-    create.EquipWeapon1= 0;
-    create.EquipWeapon2= 0;
     create.EyeColor= 1;
     create.FaceStyle= 1;
     create.Gender= 1;
@@ -168,9 +173,6 @@ void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character)
     finish.AppearanceFlag = 1;
     finish.Body = character->PCStyle.iBody;
     finish.Class = character->PCStyle.iClass;
-    finish.EquipFoot = character->sOn_Item.iEquipFootID;
-    finish.EquipLB = character->sOn_Item.iEquipLBID;
-    finish.EquipUB = character->sOn_Item.iEquipUBID;
     finish.EyeColor = character->PCStyle.iEyeColor;
     finish.FaceStyle = character->PCStyle.iFaceStyle;
     finish.Gender = character->PCStyle.iGender;
@@ -180,14 +182,52 @@ void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character)
     finish.Level = 1;
     finish.SkinColor = character->PCStyle.iSkinColor;
     db.update(finish);
+    //clothes
+    Inventory Foot, LB, UB;
+    Foot.playerId = character->PCStyle.iPC_UID;
+    Foot.id = character->sOn_Item.iEquipFootID;
+    Foot.Type = 3; 
+    Foot.slot = 3;
+    Foot.Opt = 1;
+    Foot.TimeLimit = 0;
+    db.insert(Foot);
+    LB.playerId = character->PCStyle.iPC_UID;
+    LB.id = character->sOn_Item.iEquipLBID;
+    LB.Type = 2;
+    LB.slot = 2;
+    LB.Opt = 1;
+    LB.TimeLimit = 0;
+    db.insert(LB);
+    UB.playerId = character->PCStyle.iPC_UID;
+    UB.id = character->sOn_Item.iEquipUBID;
+    UB.Type = 1;
+    UB.slot = 1;
+    UB.Opt = 1;
+    UB.TimeLimit = 0;
+    db.insert(UB);
 }
 
 void Database::finishTutorial(int PlayerID) 
 {
+    //set flag
     DbPlayer finish = getDbPlayerById(PlayerID);
-    finish.TutorialFlag = 1;
-    //equip lightning gun
-    finish.EquipWeapon1 = 328;
+    finish.TutorialFlag = 1;    
+    //add Gun
+    Inventory LightningGun = {};
+    LightningGun.playerId = PlayerID;
+    LightningGun.id = 328;
+    LightningGun.slot = 0;
+    LightningGun.Type = 0;
+    LightningGun.Opt = 1;
+    db.insert(LightningGun);
+    //add Nano
+    Nano Buttercup = {};
+    Buttercup.playerId = PlayerID;
+    Buttercup.iID = 1;
+    Buttercup.iSkillID = 1;
+    Buttercup.iStamina = 150;
+    finish.Nano1 = 1;
+    db.insert(Buttercup);
     db.update(finish);
 }
 
@@ -265,14 +305,9 @@ Database::DbPlayer Database::playerToDb(Player player)
     result.y_coordinates = player.y;
     result.z_coordinates = player.z;
     result.angle = player.angle;
-    result.PCState = player.iPCState;
-
-    //temporary inventory stuff
-    result.EquipWeapon1 = player.Equip[0].iID;
-    result.EquipUB = player.Equip[1].iID;
-    result.EquipLB = player.Equip[2].iID;
-    result.EquipFoot = player.Equip[3].iID;
-
+    result.Nano1 = player.equippedNanos[0];
+    result.Nano2 = player.equippedNanos[1];
+    result.Nano3 = player.equippedNanos[2];
     return result;
 }
 
@@ -309,62 +344,12 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.money = player.Taros;
     result.fusionmatter = player.FusionMatter;
 
-    //TODO:: implement all of below
-    result.SerialKey = 0;  
-    result.activeNano = 0;
-    result.iPCState = 0;
-    result.equippedNanos[0] = 1;
-    result.equippedNanos[1] = 0;
-    result.equippedNanos[2] = 0;
-    result.isTrading = false;
-    result.isTradeConfirm = false;
-    //TODO:: implement all of below
-    
-    //Nanos    
-    result.activeNano = -1;
-    result.equippedNanos[0] = 0;
-    result.equippedNanos[1] = 0;
-    result.equippedNanos[2] = 0;
-
-    result.Nanos[0].iID = 0;
-    result.Nanos[0].iSkillID = 0;
-    result.Nanos[0].iStamina = 0;
-
-    for (int i = 1; i < 37; i++) {
-        result.Nanos[i].iID = i;
-        result.Nanos[i].iSkillID = 1;
-        result.Nanos[i].iStamina = 150;
-    }
-    
-    //equip
-    result.Equip[0].iID = player.EquipWeapon1;
-    result.Equip[0].iType = 0;
-    (player.EquipWeapon1) ? result.Equip[0].iOpt = 1 : result.Equip[0].iOpt = 0;
-
-    result.Equip[1].iID = player.EquipUB;
-    result.Equip[1].iType = 1;
-    (player.EquipUB) ? result.Equip[1].iOpt = 1 : result.Equip[1].iOpt = 0;
-
-    result.Equip[2].iID = player.EquipLB;
-    result.Equip[2].iType = 2;
-    (player.EquipLB) ? result.Equip[2].iOpt = 1 : result.Equip[2].iOpt = 0;
-
-    result.Equip[3].iID = player.EquipFoot;
-    result.Equip[3].iType = 3;
-    (player.EquipFoot) ? result.Equip[3].iOpt = 1 : result.Equip[3].iOpt = 0;
-
-    for (int i = 4; i < AEQUIP_COUNT; i++) {
-        // empty equips
-        result.Equip[i].iID = 0;
-        result.Equip[i].iType = 0;
-        result.Equip[i].iOpt = 0;
-    }
-    for (int i = 0; i < AINVEN_COUNT; i++) {
-        // setup inventories
-        result.Inven[i].iID = 0;
-        result.Inven[i].iType = 0;
-        result.Inven[i].iOpt = 0;
-    }
+    result.equippedNanos[0] = player.Nano1;
+    result.equippedNanos[1] = player.Nano2;
+    result.equippedNanos[2] = player.Nano3;
+  
+    Database::getInventory(&result);
+    Database::getNanos(&result);
     return result;
 }
 
@@ -373,9 +358,108 @@ Database::DbPlayer Database::getDbPlayerById(int id) {
             .front();
 }
 
+Player Database::getPlayer(int id) {
+    return DbToPlayer(
+        getDbPlayerById(id)
+    );
+}
+
 #pragma endregion LoginServer
 
 void Database::updatePlayer(Player player) {
     DbPlayer toUpdate = playerToDb(player);
     db.update(toUpdate);
+    updateInventory(player);
+    updateNanos(player);
+}
+
+void Database::updateInventory(Player player) {
+    //start transaction
+    db.begin_transaction();
+    //remove all previous items
+    db.remove_all<Inventory>(
+        where(c(&Inventory::playerId) == player.iID)
+        );
+    //insert equip
+    for (int i = 0; i < AEQUIP_COUNT; i++) {
+        if (player.Equip[i].iID != 0) {
+            sItemBase* next = &player.Equip[i];
+            Inventory toAdd = {};
+            toAdd.playerId = player.iID;
+            toAdd.slot = i;
+            toAdd.id = next->iID;
+            toAdd.Opt = next->iOpt;
+            toAdd.Type = next->iType;
+            toAdd.TimeLimit = next->iTimeLimit;
+            db.insert(toAdd);
+        }
+    }
+    //insert inventory
+    for (int i = 0; i < AINVEN_COUNT; i++) {
+        if (player.Inven[i].iID != 0) {
+            sItemBase* next = &player.Inven[i];
+            Inventory toAdd = {};
+            toAdd.playerId = player.iID;
+            toAdd.slot = i + AEQUIP_COUNT;
+            toAdd.id = next->iID;
+            toAdd.Opt = next->iOpt;
+            toAdd.Type = next->iType;
+            toAdd.TimeLimit = next->iTimeLimit;
+            db.insert(toAdd);
+        }
+    }
+    db.commit();
+}
+void Database::updateNanos(Player player) {
+    //start transaction
+    db.begin_transaction();
+    //remove all
+    db.remove_all<Nano>(
+        where(c(&Nano::playerId) == player.iID)
+        );
+    //insert
+    int i = 1;
+    while ((i<SIZEOF_NANO_BANK_SLOT)&&(player.Nanos[i]).iID!=0){
+        Nano toAdd = {};
+        sNano* next = &player.Nanos[i];
+        toAdd.playerId = player.iID;
+        toAdd.iID = next->iID;
+        toAdd.iSkillID = next->iSkillID;
+        toAdd.iStamina = next->iStamina;
+        db.insert(toAdd);
+        i++;
+    }
+    db.commit();
+}
+void Database::getInventory(Player* player) {
+    //get items from DB
+    auto items = db.get_all<Inventory>(
+        where(c(&Inventory::playerId) == player->iID)
+        );
+    //set items
+    for (const Inventory &current : items) {
+        sItemBase toSet = {};
+        toSet.iID = current.id;
+        toSet.iType = current.Type;
+        toSet.iOpt = current.Opt;
+        toSet.iTimeLimit = current.TimeLimit;
+        if (current.slot > AEQUIP_COUNT)
+            player->Inven[current.slot - AEQUIP_COUNT] = toSet;
+        else
+            player->Equip[current.slot] = toSet;
+    }
+
+}
+void Database::getNanos(Player* player) {
+    //get from DB
+    auto nanos = db.get_all<Nano>(
+        where(c(&Nano::playerId) == player->iID)
+        );
+    //set
+    for (const Nano& current : nanos) {
+        sNano *toSet = &player->Nanos[current.iID];
+        toSet->iID = current.iID;
+        toSet->iSkillID = current.iSkillID;
+        toSet->iStamina = current.iStamina;
+    }
 }
