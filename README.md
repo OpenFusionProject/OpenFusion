@@ -11,7 +11,7 @@ Further documentation pending.
 
 tl;dr:
 
-1. Download the client+server bundle from [here](https://github.com/OpenFusionProject/OpenFusion/releases/download/1.0/OpenFusion.zip).
+1. Download the client+server bundle from [here](https://github.com/OpenFusionProject/OpenFusion/releases/download/1.1/OpenFusion.zip).
 2. Run `FreeClient/installUnity.bat` once
 
 From then on, any time you want to run the "game":
