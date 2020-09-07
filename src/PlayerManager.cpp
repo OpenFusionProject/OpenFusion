@@ -199,7 +199,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     response.iID = plr.iID;
     response.uiSvrTime = getTime();
-    response.PCLoadData2CL.iUserLevel = 1;
+    response.PCLoadData2CL.iUserLevel = plr.level;
     response.PCLoadData2CL.iHP = plr.HP;
     response.PCLoadData2CL.iLevel = plr.level;
     response.PCLoadData2CL.iCandy = plr.money;
@@ -210,27 +210,24 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iY = plr.y;
     response.PCLoadData2CL.iZ = plr.z;
     response.PCLoadData2CL.iAngle = plr.angle;
-    response.PCLoadData2CL.iActiveNanoSlotNum = plr.activeNano;
+
+    response.PCLoadData2CL.iActiveNanoSlotNum = -1;
     response.PCLoadData2CL.iFatigue = 50;
     response.PCLoadData2CL.PCStyle = plr.PCStyle;
     response.PCLoadData2CL.PCStyle2 = plr.PCStyle2;
-
+    //inventory
     for (int i = 0; i < AEQUIP_COUNT; i++)
         response.PCLoadData2CL.aEquip[i] = plr.Equip[i];
 
     for (int i = 0; i < AINVEN_COUNT; i++)
         response.PCLoadData2CL.aInven[i] = plr.Inven[i];
-
-    // don't ask..
-    for (int i = 1; i < 37; i++) {
+    //nanos  
+    for (int i = 1; i < SIZEOF_NANO_BANK_SLOT; i++) {
         response.PCLoadData2CL.aNanoBank[i] = plr.Nanos[i];
     }
-
-    // temporarily not add nanos for nano add test through commands
-    //response.PCLoadData2CL.aNanoSlots[0] = 1;
-    //response.PCLoadData2CL.aNanoSlots[1] = 2;
-    //response.PCLoadData2CL.aNanoSlots[2] = 3;
-
+    for (int i = 0; i < 3; i++) {
+        response.PCLoadData2CL.aNanoSlots[i] = plr.equippedNanos[i];
+    }
     response.PCLoadData2CL.aQuestFlag[0] = -1;
 
     // shut computress up

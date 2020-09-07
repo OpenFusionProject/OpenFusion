@@ -116,17 +116,10 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     loginSessions[sock].characters[UID] = Player(*it);                      
                     loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
 
-                    //temporary inventory stuff
-                    for (int i = 0; i < 4; i++) {
+                    //Equip info 
+                    for (int i = 0; i < AEQUIP_COUNT; i++) {
                         //equip char creation clothes and lightning rifle
                         charInfo.aEquip[i] = it->Equip[i];
-                    }
-
-                    for (int i = 5; i < AEQUIP_COUNT; i++) {
-                        // empty equips
-                        charInfo.aEquip[i].iID = 0;
-                        charInfo.aEquip[i].iType = i;
-                        charInfo.aEquip[i].iOpt = 0;
                     }
 
                     // set default to the first character
@@ -232,12 +225,9 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 std::cout << "\tiEquipUBID: " << (int)character->sOn_Item.iEquipUBID << std::endl;
                 std::cout << "\tiEquipLBID: " << (int)character->sOn_Item.iEquipLBID << std::endl;
                 std::cout << "\tiEquipFootID: " << (int)character->sOn_Item.iEquipFootID << std::endl;
-            )
-            
-            Player player =
-            Database::DbToPlayer(
-                Database::getDbPlayerById(character->PCStyle.iPC_UID)
-            );
+                )
+
+            Player player = Database::getPlayer(character->PCStyle.iPC_UID);
             int64_t UID = player.iID;
 
             INITSTRUCT(sP_LS2CL_REP_CHAR_CREATE_SUCC, resp);
@@ -316,11 +306,11 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 return;
             sP_CL2LS_REQ_SAVE_CHAR_TUTOR* save = (sP_CL2LS_REQ_SAVE_CHAR_TUTOR*)data->buf;
             Database::finishTutorial(save->iPC_UID);
-            loginSessions[sock].characters[save->iPC_UID].PCStyle2.iTutorialFlag = 1;
-            loginSessions[sock].characters[save->iPC_UID].Equip[0].iID = 328;
-            loginSessions[sock].characters[save->iPC_UID].Equip[0].iType = 0;
-            loginSessions[sock].characters[save->iPC_UID].Equip[0].iOpt = 1;
-
+            //update character in session
+            auto key = loginSessions[sock].characters[save->iPC_UID].FEKey;
+            loginSessions[sock].characters[save->iPC_UID] = Player(Database::getPlayer(save->iPC_UID));
+            loginSessions[sock].characters[save->iPC_UID].FEKey = key;
+            //no response here
             break;
         }
         case P_CL2LS_REQ_CHANGE_CHAR_NAME: {
