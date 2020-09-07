@@ -45,7 +45,7 @@ void NPCManager::init() {
 
     // load temporary mob dump
     try {
-        std::ifstream inFile("data/mobs.json"); // not in settings, since it's temp
+        std::ifstream inFile(settings::MOBJSON); // not in settings, since it's temp
         nlohmann::json npcData;
 
         // read file into json
