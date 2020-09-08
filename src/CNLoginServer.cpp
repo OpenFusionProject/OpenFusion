@@ -329,13 +329,16 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
         case P_CL2LS_REQ_PC_EXIT_DUPLICATE:{
             if (data->size != sizeof(sP_CL2LS_REQ_PC_EXIT_DUPLICATE))
                 return;
+
             sP_CL2LS_REQ_PC_EXIT_DUPLICATE* exit = (sP_CL2LS_REQ_PC_EXIT_DUPLICATE*)data->buf;
             auto account = Database::findAccount(U16toU8(exit->szID));
             if (account == nullptr)
                 break;
+
             int accountId = account->AccountID;
             if (!exitDuplicate(accountId))
-                PlayerManager::exitDuplicate(accountId);           
+                PlayerManager::exitDuplicate(accountId);  
+                         
             break;
         }
         default:

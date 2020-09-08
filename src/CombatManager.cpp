@@ -91,7 +91,7 @@ void CombatManager::giveReward(CNSocket *sock) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
-    assert(resplen < CN_PACKET_BUFFER_SIZE);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
     // we know it's only one trailing struct, so we can skip full validation
 
     uint8_t respbuf[resplen]; // not a variable length array, don't worry

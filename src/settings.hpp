@@ -15,6 +15,7 @@ namespace settings {
     extern std::string MOTDSTRING;
     extern std::string NPCJSON;
     extern std::string WARPJSON;
+    extern std::string MOBJSON;
     extern std::string GMPASS;
     extern bool GM;
 

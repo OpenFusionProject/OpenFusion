@@ -11,7 +11,7 @@ Further documentation pending.
 
 tl;dr:
 
-1. Download the client+server bundle from [here](https://github.com/OpenFusionProject/OpenFusion/releases/download/1.0/OpenFusion.zip).
+1. Download the client+server bundle from [here](https://github.com/OpenFusionProject/OpenFusion/releases/download/1.1/OpenFusion.zip).
 2. Run `FreeClient/installUnity.bat` once
 
 From then on, any time you want to run the "game":
@@ -115,3 +115,7 @@ To make your landwalking experience more pleasant, you can make use of a few adm
 * `/nano_equip [id] (1-36) [slot] (0-2)`
 * `/nano_unequip [slot] (0-2)`
 * `/nano_active [slot] (0-2)`
+
+## Accounts
+
+A basic account system has been added, when logging in if the username doesn't exist in the database, a new account with the provided password will be made and you'll be automatically logged in. Otherwise a login attempt will be made. A username must be between 4 and 32 characters, and a password must be between 8 and 32 characters otherwise the account will be rejected. Characters currently save only upon creation, any items add/traded will not be saved.
