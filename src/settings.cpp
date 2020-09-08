@@ -7,6 +7,7 @@ int settings::VERBOSITY = 1;
 
 int settings::LOGINPORT = 8001;
 bool settings::APPROVEALLNAMES = true;
+int settings::DBSAVEINTERVAL = 240;
 
 int settings::SHARDPORT = 8002;
 std::string settings::SHARDSERVERIP = "127.0.0.1";
@@ -37,10 +38,11 @@ void settings::init() {
     }
 
     APPROVEALLNAMES = reader.GetBoolean("", "acceptallcustomnames", APPROVEALLNAMES);
-    VERBOSITY = reader.GetInteger("", "verbosity", VERBOSITY);
+    VERBOSITY = reader.GetInteger("", "verbosity", VERBOSITY);    
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);
     SHARDPORT = reader.GetInteger("shard", "port", SHARDPORT);
     SHARDSERVERIP = reader.Get("shard", "ip", "127.0.0.1");
+    DBSAVEINTERVAL = reader.GetInteger("shard", "dbsaveinterval", DBSAVEINTERVAL);
     PLAYERDISTANCE = reader.GetInteger("shard", "playerdistance", PLAYERDISTANCE);
     NPCDISTANCE = reader.GetInteger("shard", "npcdistance", NPCDISTANCE);
     SPAWN_X = reader.GetInteger("shard", "spawnx", SPAWN_X);
