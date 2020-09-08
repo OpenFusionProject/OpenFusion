@@ -17,6 +17,7 @@ CNShardServer::CNShardServer(uint16_t p) {
     port = p;
     pHandler = &CNShardServer::handlePacket;
     REGISTER_SHARD_TIMER(keepAliveTimer, 2000);
+    REGISTER_SHARD_TIMER(periodicSaveTimer, settings::DBSAVEINTERVAL*1000);
     init();
 }
 
@@ -42,6 +43,13 @@ void CNShardServer::keepAliveTimer(CNServer* serv,  uint64_t currTime) {
         INITSTRUCT(sP_FE2CL_REQ_LIVE_CHECK, data);
         pair.first->sendPacket((void*)&data, P_FE2CL_REQ_LIVE_CHECK, sizeof(sP_FE2CL_REQ_LIVE_CHECK));
     }
+}
+
+void CNShardServer::periodicSaveTimer(CNServer* serv, uint64_t currTime) {
+    auto cachedPlayers = PlayerManager::players;
+        for (auto pair : cachedPlayers) {
+            Database::updatePlayer(*pair.second.plr);
+        }
 }
 
 void CNShardServer::newConnection(CNSocket* cns) {
