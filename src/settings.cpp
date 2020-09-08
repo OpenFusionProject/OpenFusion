@@ -6,7 +6,6 @@
 int settings::VERBOSITY = 1;
 
 int settings::LOGINPORT = 8001;
-bool settings::LOGINRANDCHARACTERS = false;
 bool settings::APPROVEALLNAMES = true;
 
 int settings::SHARDPORT = 8002;
@@ -14,11 +13,11 @@ std::string settings::SHARDSERVERIP = "127.0.0.1";
 int settings::PLAYERDISTANCE = 20000;
 int settings::NPCDISTANCE = 16000;
 
-// default spawn point is city hall
-int settings::SPAWN_X = 179213;
-int settings::SPAWN_Y = 268451;
-int settings::SPAWN_Z = -4210;
-std::string settings::GMPASS = "pass";
+// default spawn point is Sector V (future)
+int settings::SPAWN_X = 632032;
+int settings::SPAWN_Y = 187177;
+int settings::SPAWN_Z = -5500;
+int settings::SPAWN_ANGLE = 130;
 std::string settings::NPCJSON = "data/NPCs.json";
 std::string settings::XDTJSON = "data/xdt.json";
 std::string settings::MOBJSON = "data/mobs.json";
@@ -40,7 +39,6 @@ void settings::init() {
     APPROVEALLNAMES = reader.GetBoolean("", "acceptallcustomnames", APPROVEALLNAMES);
     VERBOSITY = reader.GetInteger("", "verbosity", VERBOSITY);
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);
-    LOGINRANDCHARACTERS = reader.GetBoolean("login", "randomcharacters", LOGINRANDCHARACTERS);
     SHARDPORT = reader.GetInteger("shard", "port", SHARDPORT);
     SHARDSERVERIP = reader.Get("shard", "ip", "127.0.0.1");
     PLAYERDISTANCE = reader.GetInteger("shard", "playerdistance", PLAYERDISTANCE);
@@ -48,7 +46,7 @@ void settings::init() {
     SPAWN_X = reader.GetInteger("shard", "spawnx", SPAWN_X);
     SPAWN_Y = reader.GetInteger("shard", "spawny", SPAWN_Y);
     SPAWN_Z = reader.GetInteger("shard", "spawnz", SPAWN_Z);
-    GMPASS = reader.Get("login", "pass", GMPASS);
+    SPAWN_ANGLE = reader.GetInteger("shard", "spawnangle", SPAWN_ANGLE);
     NPCJSON = reader.Get("shard", "npcdata", NPCJSON);
     XDTJSON = reader.Get("shard", "xdtdata", XDTJSON);
     MOBJSON = reader.Get("shard", "mobdata", MOBJSON);
