@@ -34,7 +34,7 @@ auto db = make_storage("database.db",
         make_column("PayZoneFlag", &Database::DbPlayer::PayZoneFlag),
         make_column("XCoordinates", &Database::DbPlayer::x_coordinates),
         make_column("YCoordinates", &Database::DbPlayer::y_coordinates),
-        make_column("ZCoordinates", &Database::DbPlayer::z_coordinates),   
+        make_column("ZCoordinates", &Database::DbPlayer::z_coordinates),
         make_column("Angle", &Database::DbPlayer::angle),
         make_column("Body", &Database::DbPlayer::Body),
         make_column("Class", &Database::DbPlayer::Class),
@@ -44,9 +44,9 @@ auto db = make_storage("database.db",
         make_column("HP", &Database::DbPlayer::HP),
         make_column("HairColor", &Database::DbPlayer::HairColor),
         make_column("HairStyle", &Database::DbPlayer::HairStyle),
-        make_column("Height", &Database::DbPlayer::Height),        
-        make_column("NameCheck", &Database::DbPlayer::NameCheck),        
-        make_column("SkinColor", &Database::DbPlayer::SkinColor),        
+        make_column("Height", &Database::DbPlayer::Height),
+        make_column("NameCheck", &Database::DbPlayer::NameCheck),
+        make_column("SkinColor", &Database::DbPlayer::SkinColor),
         make_column("isGM", &Database::DbPlayer::isGM),
         make_column("FusionMatter", &Database::DbPlayer::FusionMatter),
         make_column("Taros", &Database::DbPlayer::Taros)
@@ -118,7 +118,7 @@ bool Database::isNameFree(sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck)
         (db.get_all<DbPlayer>
             (where((c(&DbPlayer::FirstName) == First)
                 and (c(&DbPlayer::LastName) == Last)))
-            .empty());                
+            .empty());
 }
 
 int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
@@ -150,17 +150,11 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     create.Height= 0;
     create.Level= 1;
     create.SkinColor= 1;
-    create.isGM = false;
-     //commented and disabled for now
-    //if (U16toU8(save->szFirstName) == settings::GMPASS) {
-    //    create.isGM = true;
-    //}
-    
-    create.FusionMatter= 0;
-    create.Taros= 0;
+    create.isGM = settings::GM;
     create.x_coordinates = settings::SPAWN_X;
     create.y_coordinates= settings::SPAWN_Y;
     create.z_coordinates= settings::SPAWN_Z;
+    create.angle = settings::SPAWN_ANGLE;
     return db.insert(create);
 }
 
@@ -234,6 +228,9 @@ int Database::deleteCharacter(int characterID)
         db.get_all<DbPlayer>(where(c(&DbPlayer::PlayerID) == characterID));
     int slot = find.front().slot;
     db.remove<DbPlayer>(find.front().PlayerID);
+    db.remove_all<Inventory>(where(c(&Inventory::playerId) == characterID));
+    db.remove_all<Nano>(where(c(&Nano::playerId) == characterID));
+
     return slot;
 }
 
@@ -414,8 +411,10 @@ void Database::updateNanos(Player player) {
         where(c(&Nano::playerId) == player.iID)
         );
     //insert
-    int i = 1;
-    while ((i<SIZEOF_NANO_BANK_SLOT)&&(player.Nanos[i]).iID!=0){
+    for (int i=1; i < SIZEOF_NANO_BANK_SLOT; i++)
+    { 
+        if ((player.Nanos[i]).iID == 0)
+            continue;
         Nano toAdd = {};
         sNano* next = &player.Nanos[i];
         toAdd.playerId = player.iID;
@@ -423,7 +422,6 @@ void Database::updateNanos(Player player) {
         toAdd.iSkillID = next->iSkillID;
         toAdd.iStamina = next->iStamina;
         db.insert(toAdd);
-        i++;
     }
     db.commit();
 }
