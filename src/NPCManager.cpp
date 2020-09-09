@@ -103,7 +103,7 @@ void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY*)data->buf;
     PlayerView& plr = PlayerManager::players[sock];
 
-    int itemCost = 100; //TODO: placeholder, look up the price of 
+    int itemCost = 100; //TODO: placeholder, look up the price of item
 
     //TODO: need to check if user has enough money + free inventory space, else send fail packet 
 
