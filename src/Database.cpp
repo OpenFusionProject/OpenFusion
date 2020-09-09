@@ -451,12 +451,13 @@ void Database::getInventory(Player* player) {
         toSet.iType = current.Type;
         toSet.iOpt = current.Opt;
         toSet.iTimeLimit = current.TimeLimit;
+        //assign to proper arrays
         if (current.slot <= AEQUIP_COUNT)
             player->Equip[current.slot] = toSet;           
         else if (current.slot <= (AEQUIP_COUNT + AINVEN_COUNT))
             player->Inven[current.slot - AEQUIP_COUNT] = toSet;
         else
-            player->Bank[current.slot] = toSet;
+            player->Bank[current.slot - AEQUIP_COUNT - AINVEN_COUNT] = toSet;
     }
 
 }

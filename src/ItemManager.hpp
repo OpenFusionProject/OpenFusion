@@ -4,6 +4,11 @@
 #include "Player.hpp"
 
 namespace ItemManager {
+    enum class slot {
+        equip = 0,
+        inventory = 1,
+        bank = 3
+    };
     void init();	
 
     void itemMoveHandler(CNSocket* sock, CNPacketData* data);   
