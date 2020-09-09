@@ -405,6 +405,20 @@ void Database::updateInventory(Player player) {
             db.insert(toAdd);
         }
     }
+    //insert bank
+    for (int i = 0; i < ABANK_COUNT; i++) {
+        if (player.Bank[i].iID != 0) {
+            sItemBase* next = &player.Bank[i];
+            Inventory toAdd = {};
+            toAdd.playerId = player.iID;
+            toAdd.slot = i + AEQUIP_COUNT + AINVEN_COUNT;
+            toAdd.id = next->iID;
+            toAdd.Opt = next->iOpt;
+            toAdd.Type = next->iType;
+            toAdd.TimeLimit = next->iTimeLimit;
+            db.insert(toAdd);
+        }
+    }
     db.commit();
 }
 void Database::updateNanos(Player player) {
@@ -441,10 +455,13 @@ void Database::getInventory(Player* player) {
         toSet.iType = current.Type;
         toSet.iOpt = current.Opt;
         toSet.iTimeLimit = current.TimeLimit;
-        if (current.slot > AEQUIP_COUNT)
+        //assign to proper arrays
+        if (current.slot <= AEQUIP_COUNT)
+            player->Equip[current.slot] = toSet;           
+        else if (current.slot <= (AEQUIP_COUNT + AINVEN_COUNT))
             player->Inven[current.slot - AEQUIP_COUNT] = toSet;
         else
-            player->Equip[current.slot] = toSet;
+            player->Bank[current.slot - AEQUIP_COUNT - AINVEN_COUNT] = toSet;
     }
 
 }

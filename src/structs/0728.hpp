@@ -3,6 +3,7 @@
 #define AEQUIP_COUNT 12
 #define AINVEN_COUNT 50
 #define AQINVEN_COUNT 50
+#define ABANK_COUNT 200
 
 #pragma pack(push)
 

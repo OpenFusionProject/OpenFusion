@@ -11,6 +11,8 @@ void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_DELETE, itemDeleteHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GIVE_ITEM, itemGMGiveHandler);
+    //Bank
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_BANK_OPEN, itemBankOpenHandler);
     //Trade handlers
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER, itemTradeOfferHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER_ACCEPT, itemTradeOfferAcceptHandler);
@@ -33,6 +35,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     
     PlayerView& plr = PlayerManager::players[sock];
     
+    //sanity check
     if (plr.plr->Equip[itemmove->iFromSlotNum].iType != 0 && itemmove->eFrom == 0 && itemmove->eTo == 0) {
         // this packet should never happen unless it is a weapon, tell the client to do nothing and do nothing ourself
         resp.eTo = itemmove->eFrom;
@@ -46,46 +49,59 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         return;
     }
     
-    if (itemmove->iToSlotNum > AINVEN_COUNT || itemmove->iToSlotNum < 0) 
-        return; // sanity checks
+    // sanity check
+    if (itemmove->iToSlotNum > ABANK_COUNT || itemmove->iToSlotNum < 0) 
+        return; 
     
-    sItemBase fromItem;
-    sItemBase toItem;
-
-    // eFrom 0 means from equip
-    if (itemmove->eFrom == 0) {
-        // unequiping an item
-        fromItem = plr.plr->Equip[itemmove->iFromSlotNum];
-    } else {
-        fromItem = plr.plr->Inven[itemmove->iFromSlotNum];
+    //get the fromItem
+    sItemBase *fromItem;
+    switch (itemmove->eFrom) {
+        case (int)slot::equip:
+            fromItem = &plr.plr->Equip[itemmove->iFromSlotNum];
+            break;
+        case (int)slot::inventory:
+            fromItem = &plr.plr->Inven[itemmove->iFromSlotNum];
+            break;
+        case (int)slot::bank:
+            fromItem = &plr.plr->Bank[itemmove->iFromSlotNum];
+            break;
     }
 
-    // eTo 0 means to equip
-    if (itemmove->eTo == 0) {
-        // equiping an item
-        toItem = plr.plr->Equip[itemmove->iToSlotNum];
-        plr.plr->Equip[itemmove->iToSlotNum] = fromItem;
-    } else {
-        toItem = plr.plr->Inven[itemmove->iToSlotNum];
-        plr.plr->Inven[itemmove->iToSlotNum] = fromItem;
+    //get the toItem
+    sItemBase* toItem;
+    switch (itemmove->eTo) {
+    case (int)slot::equip:
+        toItem = &plr.plr->Equip[itemmove->iToSlotNum];
+        break;
+    case (int)slot::inventory:
+        toItem = &plr.plr->Inven[itemmove->iToSlotNum];
+        break;
+    case (int)slot::bank:
+        toItem = &plr.plr->Bank[itemmove->iToSlotNum];
+        break;
     }
 
-    if (itemmove->eFrom == 0) {
-        plr.plr->Equip[itemmove->iFromSlotNum] = toItem;
-    } else {
-        plr.plr->Inven[itemmove->iFromSlotNum] = toItem;
-    }
+    //save items to response
+    resp.ToSlotItem = *toItem;
+    resp.FromSlotItem = *fromItem;
 
-    if (itemmove->eFrom == 0 || itemmove->eTo == 0) {
+    //swap items in session
+    sItemBase temp = *toItem;
+    *toItem = *fromItem;
+    *fromItem = temp;
+
+    //send equip change to viewable players
+    if (itemmove->eFrom == (int)slot::equip || itemmove->eTo == (int)slot::equip) {
         INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, equipChange);
 
         equipChange.iPC_ID = plr.plr->iID;
-        if (itemmove->eFrom == 0) {
+        if (itemmove->eFrom == (int)slot::equip) {
             equipChange.iEquipSlotNum = itemmove->iFromSlotNum;
-            equipChange.EquipSlotItem = toItem;
-        } else {
+            equipChange.EquipSlotItem = resp.ToSlotItem;
+        }
+        else {
             equipChange.iEquipSlotNum = itemmove->iToSlotNum;
-            equipChange.EquipSlotItem = fromItem;
+            equipChange.EquipSlotItem = resp.FromSlotItem;
         }
         
         // unequip vehicle if equip slot 8 is 0
@@ -98,13 +114,12 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         }
     }
 
+    //send response
     resp.eTo = itemmove->eFrom;
-    resp.iToSlotNum = itemmove->iFromSlotNum;
-    resp.ToSlotItem = toItem;
+    resp.iToSlotNum = itemmove->iFromSlotNum;    
     resp.eFrom = itemmove->eTo;
     resp.iFromSlotNum = itemmove->iToSlotNum;
-    resp.FromSlotItem = fromItem;
-
+    
     sock->sendPacket((void*)&resp, P_FE2CL_PC_ITEM_MOVE_SUCC, sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC));
 }
 
@@ -156,6 +171,19 @@ void ItemManager::itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
 
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_GIVE_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC));
     }
+}
+
+void ItemManager::itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_BANK_OPEN))
+        return; // ignore the malformed packet
+
+    //just send bank inventory
+    INITSTRUCT(sP_FE2CL_REP_PC_BANK_OPEN_SUCC, resp);
+    for (int i = 0; i < ABANK_COUNT; i++) {
+        resp.aBank[i] = PlayerManager::players[sock].plr->Bank[i];
+    }
+    resp.iExtraBank = 1;
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BANK_OPEN_SUCC, sizeof(sP_FE2CL_REP_PC_BANK_OPEN_SUCC));
 }
 
 void ItemManager::itemTradeOfferHandler(CNSocket* sock, CNPacketData* data) {
