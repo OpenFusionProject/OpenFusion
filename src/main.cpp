@@ -9,6 +9,7 @@
 #include "NPCManager.hpp"
 #include "TransportManager.hpp"
 #include "Database.hpp"
+#include "TableData.hpp"
 
 #include "settings.hpp"
 
@@ -70,6 +71,7 @@ int main() {
     settings::init();
     std::cout << "[INFO] Protocol version: " << PROTOCOL_VERSION << std::endl;
     std::cout << "[INFO] Intializing Packet Managers..." << std::endl;
+    TabledataManager::init();
     PlayerManager::init();
     ChatManager::init();
     CombatManager::init();
