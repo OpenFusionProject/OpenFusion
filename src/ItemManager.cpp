@@ -11,6 +11,8 @@ void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_DELETE, itemDeleteHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GIVE_ITEM, itemGMGiveHandler);
+    //Bank
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_BANK_OPEN, itemBankOpenHandler);
     //Trade handlers
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER, itemTradeOfferHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER_ACCEPT, itemTradeOfferAcceptHandler);
@@ -156,6 +158,19 @@ void ItemManager::itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
 
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_GIVE_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC));
     }
+}
+
+void ItemManager::itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_BANK_OPEN))
+        return; // ignore the malformed packet
+
+    //just send bank inventory
+    INITSTRUCT(sP_FE2CL_REP_PC_BANK_OPEN_SUCC, resp);
+    for (int i = 0; i < ABANK_COUNT; i++) {
+        resp.aBank[i] = PlayerManager::players[sock].plr->Bank[i];
+    }
+    resp.iExtraBank = 1;
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BANK_OPEN_SUCC, sizeof(sP_FE2CL_REP_PC_BANK_OPEN_SUCC));
 }
 
 void ItemManager::itemTradeOfferHandler(CNSocket* sock, CNPacketData* data) {
