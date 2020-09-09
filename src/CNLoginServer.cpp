@@ -118,7 +118,6 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
                     //Equip info 
                     for (int i = 0; i < AEQUIP_COUNT; i++) {
-                        //equip char creation clothes and lightning rifle
                         charInfo.aEquip[i] = it->Equip[i];
                     }
 
@@ -148,41 +147,41 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
         case P_CL2LS_REQ_CHECK_CHAR_NAME: {
             if (data->size != sizeof(sP_CL2LS_REQ_CHECK_CHAR_NAME))
                 return;
-                        bool failnamecheck=1;
-            // naughty words allowed!!!!!!!! (also for some reason, the client will always show 'Player 0' if you manually type a name. It will show up for other connected players though)
+            
             sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck = (sP_CL2LS_REQ_CHECK_CHAR_NAME*)data->buf;
-            //check if name is occupied
-if (CNLoginServer::isCharacterNameGood(U16toU8(nameCheck->szFirstName), U16toU8(nameCheck->szLastName))) {
-                if (Database::isNameFree(nameCheck))
-                {
-                    // naughty words allowed!!!!!!!! (also for some reason, the client will always show 'Player + ID' if you manually type a name. It will show up for other connected players though)
+            bool success = true;
+            int errorcode = 0;
 
-                    INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC, resp);
+            //check regex
+            if (!CNLoginServer::isCharacterNameGood(U16toU8(nameCheck->szFirstName), U16toU8(nameCheck->szLastName))) {
+                success = false;
+                errorcode = 4;
+            } 
+            //check if name isn't already occupied
+            else if (!Database::isNameFree(nameCheck)){
+                success = false;
+                errorcode = 1;
+            }
 
-                    DEBUGLOG(
-                        std::cout << "P_CL2LS_REQ_CHECK_CHAR_NAME:" << std::endl;
-                    std::cout << "\tFirstName: " << U16toU8(nameCheck->szFirstName) << " LastName: " << U16toU8(nameCheck->szLastName) << std::endl;
-                    )
+            if (success){
+                INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC, resp);
 
-                        memcpy(resp.szFirstName, nameCheck->szFirstName, sizeof(char16_t) * 9);
-                    memcpy(resp.szLastName, nameCheck->szLastName, sizeof(char16_t) * 17);
+                DEBUGLOG(
+                std::cout << "P_CL2LS_REQ_CHECK_CHAR_NAME:" << std::endl;
+                std::cout << "\tFirstName: " << U16toU8(nameCheck->szFirstName) << " LastName: " << U16toU8(nameCheck->szLastName) << std::endl;
+                )
 
-                    // fr*ck allowed!!!
-                    sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC));
-                }
-                else {
-                    INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL, resp);
-                    resp.iErrorCode = 1;
-                    sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_FAIL, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL));
-                }
+                memcpy(resp.szFirstName, nameCheck->szFirstName, sizeof(char16_t) * 9);
+                memcpy(resp.szLastName, nameCheck->szLastName, sizeof(char16_t) * 17);
+
+                sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC));
             }
             else {
                 INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL, resp);
-                resp.iErrorCode = 4;
+                resp.iErrorCode = errorcode;
                 sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_FAIL, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL));
             }
             break;
-
         }
         case P_CL2LS_REQ_SAVE_CHAR_NAME: {
             if (data->size != sizeof(sP_CL2LS_REQ_SAVE_CHAR_NAME))

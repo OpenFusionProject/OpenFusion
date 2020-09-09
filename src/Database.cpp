@@ -359,6 +359,8 @@ Player Database::getPlayer(int id) {
 
 #pragma endregion LoginServer
 
+#pragma region ShardServer
+
 void Database::updatePlayer(Player player) {
     DbPlayer toUpdate = playerToDb(player);
     db.update(toUpdate);
@@ -474,3 +476,4 @@ void Database::getNanos(Player* player) {
         toSet->iStamina = current.iStamina;
     }
 }
+#pragma endregion ShardServer
