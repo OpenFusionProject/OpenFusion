@@ -548,6 +548,8 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_GM_REQ_PC_SET_VALUE* setData = (sP_CL2FE_GM_REQ_PC_SET_VALUE*)data->buf;
+    Player *plr = PlayerManager::getPlayer(sock);
+
     INITSTRUCT(sP_FE2CL_GM_REP_PC_SET_VALUE, response);
 
     DEBUGLOG(
@@ -556,6 +558,27 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tSetValueType: " << setData->iSetValueType << std::endl;
         std::cout << "\tSetValue: " << setData->iSetValue << std::endl;
     )
+
+    // Handle serverside value-changes
+    switch (setData->iSetValueType) {
+    case 1:
+        plr->HP = setData->iSetValue;
+        break;
+    case 2:
+        // TODO: batteryW
+        break;
+    case 3:
+        // TODO: batteryN nanopotion
+        break;
+    case 4:
+        plr->fusionmatter = setData->iSetValue;
+        break;
+    case 5:
+        plr->money = setData->iSetValue;
+        break;
+    default:
+        break;
+    }
 
     response.iPC_ID = setData->iPC_ID;
     response.iSetValue = setData->iSetValue;

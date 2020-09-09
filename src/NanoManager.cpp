@@ -9,6 +9,7 @@ void NanoManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_UNEQUIP, nanoUnEquipHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GIVE_NANO, nanoGMGiveHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_TUNE, nanoSkillSetHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GIVE_NANO_SKILL, nanoSkillSetGMHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_SKILL_USE, nanoSkillUseHandler);
 }
 
@@ -122,6 +123,14 @@ void NanoManager::nanoSkillSetHandler(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_NANO_TUNE* skill = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
     setNanoSkill(sock, skill->iNanoID, skill->iTuneID);
+}
+
+void NanoManager::nanoSkillSetGMHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_GIVE_NANO_SKILL))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_NANO_TUNE* skillGM = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
+    setNanoSkill(sock, skillGM->iNanoID, skillGM->iTuneID);
 }
 
 #pragma region Helper methods

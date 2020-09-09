@@ -1,4 +1,5 @@
 #include "NPCManager.hpp"
+#include "ItemManager.hpp"
 #include "settings.hpp"
 
 #include <cmath>
@@ -17,6 +18,116 @@ void NPCManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_NPC, npcWarpHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NPC_SUMMON, npcSummonHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_BARKER, npcBarkHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_START, npcVendorStart);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE, npcVendorTable);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_BUY, npcVendorBuy);
+}
+
+void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY*)data->buf;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    int itemCost = 100; // TODO: placeholder, look up the price of item
+
+    int slot = ItemManager::findFreeSlot(plr);
+
+    if (itemCost > plr->money || slot == -1) {
+        // NOTE: VENDOR_ITEM_BUY_FAIL is not actually handled client-side.
+        INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, failResp);
+        failResp.iErrorCode = 0;
+        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL));
+        return;
+    }
+
+    if (slot != req->iInvenSlotNum) {
+        // possible item stacking?
+        std::cout << "[WARN] Client and server disagree on bought item slot" << std::endl;
+    }
+
+    INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_SUCC, resp);
+
+    plr->money = plr->money - itemCost;
+    plr->Inven[slot] = req->Item;
+
+    resp.iCandy = plr->money;
+    resp.iInvenSlotNum = slot;
+    resp.Item = req->Item;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_SUCC));
+}
+
+void NPCManager::npcVendorTable(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE))
+        return; // malformed packet
+
+    //sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE* req = (sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, resp);
+    // TODO: data needs to be read from shopkeeper tabledata
+    // check req->iVendorID and req->iNPC_ID
+
+    // Exaple Items
+    // shirt
+    sItemBase base1;
+    base1.iID = 60;
+    base1.iOpt = 0;
+    // expire date
+    base1.iTimeLimit = -1;
+    base1.iType = 1;
+
+    sItemVendor item1;
+    item1.item = base1;
+    item1.iSortNum = 0;
+    item1.iVendorID = 1;
+    // cost amount in float? (doesn't work rn, need to figure out)
+    item1.fBuyCost = 100.0;
+
+    // pants
+    sItemBase base2;
+    base2.iID = 61;
+    base2.iOpt = 0;
+    base2.iTimeLimit = -1;
+    base2.iType = 2;
+
+    sItemVendor item2;
+    item2.item = base2;
+    item2.iSortNum = 1;
+    item2.iVendorID = 1;
+    item2.fBuyCost = 250.0;
+
+    // shoes
+    sItemBase base3;
+    base3.iID = 51;
+    base3.iOpt = 0;
+    base3.iTimeLimit = -1;
+    base3.iType = 3;
+
+    sItemVendor item3;
+    item3.item = base3;
+    item3.iSortNum = 2;
+    item3.iVendorID = 1;
+    item3.fBuyCost = 350.0;
+
+    resp.item[0] = item1;
+    resp.item[1] = item2;
+    resp.item[2] = item3;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC));
+}
+
+void NPCManager::npcVendorStart(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_START))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_VENDOR_START* req = (sP_CL2FE_REQ_PC_VENDOR_START*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_START_SUCC, resp);
+
+    resp.iNPC_ID = req->iNPC_ID;
+    resp.iVendorID = req->iVendorID;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_START_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_START_SUCC));
 }
 
 void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
