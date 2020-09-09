@@ -16,7 +16,18 @@ namespace Database {
     };
     struct Inventory
     {
-        int AccountID;
+        int playerId;
+        int slot;
+        int16_t Type;
+        int16_t id;
+        int32_t Opt;
+        int32_t TimeLimit;
+    };
+    struct Nano {
+        int playerId;
+        int16_t iID;
+        int16_t iSkillID;
+        int16_t iStamina;
     };
     struct DbPlayer
     {
@@ -25,22 +36,20 @@ namespace Database {
         short int slot;
         std::string FirstName;
         std::string LastName;
+        short int Level;
+        int Nano1;
+        int Nano2;
+        int Nano3;
         short int AppearanceFlag;
         short int Body;
         short int Class;
-        short int EquipFoot;
-        short int EquipLB;
-        short int EquipUB;
-        short int EquipWeapon1;
-        short int EquipWeapon2;
         short int EyeColor;
         short int FaceStyle;
         short int Gender;
         int HP;
         short int HairColor;
         short int HairStyle;
-        short int Height;
-        short int Level;
+        short int Height;        
         short int NameCheck;
         short int PayZoneFlag;
         short int SkinColor;
@@ -51,6 +60,8 @@ namespace Database {
         int x_coordinates;
         int y_coordinates;
         int z_coordinates;
+        int angle;
+        short int PCState;
     };
 
     
@@ -87,5 +98,12 @@ namespace Database {
 
     //getting players
     DbPlayer getDbPlayerById(int id);
+    Player getPlayer(int id);
 
+    void updatePlayer(Player player);
+    void updateInventory(Player player);
+    void updateNanos(Player player);
+
+    void getInventory(Player* player);
+    void getNanos(Player* player);
 }

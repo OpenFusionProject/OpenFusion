@@ -4,6 +4,7 @@
 #include "PlayerManager.hpp"
 #include "CNShared.hpp"
 #include "settings.hpp"
+#include "Database.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -16,6 +17,7 @@ CNShardServer::CNShardServer(uint16_t p) {
     port = p;
     pHandler = &CNShardServer::handlePacket;
     REGISTER_SHARD_TIMER(keepAliveTimer, 2000);
+    REGISTER_SHARD_TIMER(periodicSaveTimer, settings::DBSAVEINTERVAL*1000);
     init();
 }
 
@@ -43,6 +45,13 @@ void CNShardServer::keepAliveTimer(CNServer* serv,  uint64_t currTime) {
     }
 }
 
+void CNShardServer::periodicSaveTimer(CNServer* serv, uint64_t currTime) {
+    auto cachedPlayers = PlayerManager::players;
+        for (auto pair : cachedPlayers) {
+            Database::updatePlayer(*pair.second.plr);
+        }
+}
+
 void CNShardServer::newConnection(CNSocket* cns) {
     cns->setActiveKey(SOCKETKEY_E); // by default they accept keys encrypted with the default key
 }
@@ -51,6 +60,9 @@ void CNShardServer::killConnection(CNSocket* cns) {
     // check if the player ever sent a REQ_PC_ENTER
     if (PlayerManager::players.find(cns) == PlayerManager::players.end())
         return;
+
+    //save player to DB
+    Database::updatePlayer(*PlayerManager::players[cns].plr);
 
     // remove from CNSharedData
     int64_t key = PlayerManager::getPlayer(cns)->SerialKey;

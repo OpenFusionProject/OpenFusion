@@ -4,11 +4,18 @@
 #include "Player.hpp"
 
 namespace ItemManager {
+    enum class slot {
+        equip = 0,
+        inventory = 1,
+        bank = 3
+    };
     void init();	
 
     void itemMoveHandler(CNSocket* sock, CNPacketData* data);   
     void itemDeleteHandler(CNSocket* sock, CNPacketData* data);   
     void itemGMGiveHandler(CNSocket* sock, CNPacketData* data);
+    //Bank
+    void itemBankOpenHandler(CNSocket* sock, CNPacketData* data);
     void itemTradeOfferHandler(CNSocket* sock, CNPacketData* data);
     //void itemTradeOfferCancel(CNSocket* sock, CNPacketData* data);
     void itemTradeOfferAcceptHandler(CNSocket* sock, CNPacketData* data);

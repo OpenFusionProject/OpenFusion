@@ -87,7 +87,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 resp.iPaymentFlag = 1;
                 resp.iOpenBetaFlag = 0;
                 resp.uiSvrTime = getTime();
-                
+
                 // send the resp in with original key
                 sock->sendPacket((void*)&resp, P_LS2CL_REP_LOGIN_SUCC, sizeof(sP_LS2CL_REP_LOGIN_SUCC));
 
@@ -110,23 +110,15 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     charInfo.iX = it->x;
                     charInfo.iY = it->y;
                     charInfo.iZ = it->z;
-
+                    
                     //save character in session (for char select)
                     int UID = it->iID;
                     loginSessions[sock].characters[UID] = Player(*it);                      
                     loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
 
-                    //temporary inventory stuff
-                    for (int i = 0; i < 4; i++) {
-                        //equip char creation clothes and lightning rifle
+                    //Equip info 
+                    for (int i = 0; i < AEQUIP_COUNT; i++) {
                         charInfo.aEquip[i] = it->Equip[i];
-                    }
-
-                    for (int i = 5; i < AEQUIP_COUNT; i++) {
-                        // empty equips
-                        charInfo.aEquip[i].iID = 0;
-                        charInfo.aEquip[i].iType = i;
-                        charInfo.aEquip[i].iOpt = 0;
                     }
 
                     // set default to the first character
@@ -156,13 +148,22 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             if (data->size != sizeof(sP_CL2LS_REQ_CHECK_CHAR_NAME))
                 return;
             
-            // naughty words allowed!!!!!!!! (also for some reason, the client will always show 'Player 0' if you manually type a name. It will show up for other connected players though)
             sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck = (sP_CL2LS_REQ_CHECK_CHAR_NAME*)data->buf;
-            //check if name is occupied
-            if (Database::isNameFree(nameCheck))
-            {
-                // naughty words allowed!!!!!!!! (also for some reason, the client will always show 'Player + ID' if you manually type a name. It will show up for other connected players though)
+            bool success = true;
+            int errorcode = 0;
 
+            //check regex
+            if (!CNLoginServer::isCharacterNameGood(U16toU8(nameCheck->szFirstName), U16toU8(nameCheck->szLastName))) {
+                success = false;
+                errorcode = 4;
+            } 
+            //check if name isn't already occupied
+            else if (!Database::isNameFree(nameCheck)){
+                success = false;
+                errorcode = 1;
+            }
+
+            if (success){
                 INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC, resp);
 
                 DEBUGLOG(
@@ -172,17 +173,15 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
                 memcpy(resp.szFirstName, nameCheck->szFirstName, sizeof(char16_t) * 9);
                 memcpy(resp.szLastName, nameCheck->szLastName, sizeof(char16_t) * 17);
-                
-                // fr*ck allowed!!!
+
                 sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC));
             }
             else {
                 INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL, resp);
-                resp.iErrorCode = 1;
+                resp.iErrorCode = errorcode;
                 sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_FAIL, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL));
             }
             break;
-
         }
         case P_CL2LS_REQ_SAVE_CHAR_NAME: {
             if (data->size != sizeof(sP_CL2LS_REQ_SAVE_CHAR_NAME))
@@ -232,12 +231,9 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 std::cout << "\tiEquipUBID: " << (int)character->sOn_Item.iEquipUBID << std::endl;
                 std::cout << "\tiEquipLBID: " << (int)character->sOn_Item.iEquipLBID << std::endl;
                 std::cout << "\tiEquipFootID: " << (int)character->sOn_Item.iEquipFootID << std::endl;
-            )
-            
-            Player player =
-            Database::DbToPlayer(
-                Database::getDbPlayerById(character->PCStyle.iPC_UID)
-            );
+                )
+
+            Player player = Database::getPlayer(character->PCStyle.iPC_UID);
             int64_t UID = player.iID;
 
             INITSTRUCT(sP_LS2CL_REP_CHAR_CREATE_SUCC, resp);
@@ -278,8 +274,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             DEBUGLOG(
                 std::cout << "P_CL2LS_REQ_CHAR_SELECT:" << std::endl;
                 std::cout << "\tPC_UID: " << chararacter->iPC_UID << std::endl;
-            )
-
+            )     
             loginSessions[sock].selectedChar = chararacter->iPC_UID;
             Database::updateSelected(loginSessions[sock].userID, loginSessions[sock].characters[chararacter->iPC_UID].slot);
             sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_SELECT_SUCC, sizeof(sP_LS2CL_REP_CHAR_SELECT_SUCC));
@@ -317,11 +312,11 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 return;
             sP_CL2LS_REQ_SAVE_CHAR_TUTOR* save = (sP_CL2LS_REQ_SAVE_CHAR_TUTOR*)data->buf;
             Database::finishTutorial(save->iPC_UID);
-            loginSessions[sock].characters[save->iPC_UID].PCStyle2.iTutorialFlag = 1;
-            loginSessions[sock].characters[save->iPC_UID].Equip[0].iID = 328;
-            loginSessions[sock].characters[save->iPC_UID].Equip[0].iType = 0;
-            loginSessions[sock].characters[save->iPC_UID].Equip[0].iOpt = 1;
-
+            //update character in session
+            auto key = loginSessions[sock].characters[save->iPC_UID].FEKey;
+            loginSessions[sock].characters[save->iPC_UID] = Player(Database::getPlayer(save->iPC_UID));
+            loginSessions[sock].characters[save->iPC_UID].FEKey = key;
+            //no response here
             break;
         }
         case P_CL2LS_REQ_CHANGE_CHAR_NAME: {
@@ -408,5 +403,11 @@ bool CNLoginServer::isLoginDataGood(std::string login, std::string password)
 bool CNLoginServer::isPasswordCorrect(std::string actualPassword, std::string tryPassword)
 {
     return BCrypt::validatePassword(tryPassword, actualPassword);
+}
+bool CNLoginServer::isCharacterNameGood(std::string Firstname, std::string Lastname)
+{
+    std::regex firstnamecheck("[a-zA-Z0-9]+(?: [a-zA-Z0-9]+)*$");
+    std::regex lastnamecheck("[a-zA-Z0-9]+(?: [a-zA-Z0-9]+)*$");
+    return (std::regex_match(Firstname, firstnamecheck) && std::regex_match(Lastname, lastnamecheck));
 }
 #pragma endregion helperMethods
