@@ -1,11 +1,13 @@
 #include "TableData.hpp"
 #include "NPCManager.hpp"
 #include "settings.hpp"
+#include "MissionManager.hpp"
+
 #include "contrib/JSON.hpp"
 
 #include <fstream>
 
-void TabledataManager::init() {
+void TableData::init() {
     int i = 0;
 
     // load NPCs from NPC.json
@@ -60,16 +62,15 @@ void TabledataManager::init() {
         std::cerr << "[WARN] Malformed mobs.json file! Reason:" << err.what() << std::endl;
     }
 
-
     // load everything else from xdttable
+    std::ifstream infile(settings::XDTJSON);
+    nlohmann::json xdtData;
+
+    // read file into json
+    infile >> xdtData;
+
+    // load warps from m_pInstanceTable.m_pWarpData
     try {
-        std::ifstream infile(settings::XDTJSON);
-        nlohmann::json xdtData;
-
-        // read file into json
-        infile >> xdtData;
-
-        // load warps from m_pInstanceTable.m_pWarpData
         nlohmann::json warpData = xdtData["m_pInstanceTable"]["m_pWarpData"];
 
         for (nlohmann::json::iterator warp = warpData.begin(); warp != warpData.end(); warp++) {
@@ -79,9 +80,35 @@ void TabledataManager::init() {
         }
 
         std::cout << "[INFO] populated " << NPCManager::Warps.size() << " Warps" << std::endl;
+
+        // missions
+        nlohmann::json tasks = xdtData["m_pMissionTable"]["m_pMissionData"];
+
+        for (auto _task = tasks.begin(); _task != tasks.end(); _task++) {
+            auto task = _task.value();
+
+            // rewards
+            if (task["m_iSUReward"] != 0) {
+                auto tmp = xdtData["m_pMissionTable"]["m_pRewardData"][(int)task["m_iSUReward"]];
+                Reward *rew = new Reward(tmp["m_iMissionRewardID"], tmp["m_iMissionRewarItemType"],
+                        tmp["m_iMissionRewardItemID"], tmp["m_iCash"], tmp["m_iFusionMatter"]);
+
+                MissionManager::Rewards[task["m_iHTaskID"]] = rew;
+            }
+        }
+
+        std::cout << "[INFO] Loaded mission-related data" << std::endl;
     }
     catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed xdt.json file! Reason:" << err.what() << std::endl;
     }
+}
 
+void TableData::cleanup() {
+    /*
+     * This is just to shut the address sanitizer up. Dynamically allocated data
+     * doesn't need to be cleaned up if it's supposed to last the program's full runtime.
+     */
+    for (auto& pair : MissionManager::Rewards)
+        delete pair.second;
 }

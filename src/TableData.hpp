@@ -1,6 +1,7 @@
 #pragma once
 #include <map>
 
-namespace TabledataManager {
+namespace TableData {
     void init();
+    void cleanup();
 }
