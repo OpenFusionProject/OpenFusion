@@ -23,8 +23,8 @@ auto db = make_storage("database.db",
         make_column("PlayerID", &Database::DbPlayer::PlayerID, autoincrement(), primary_key()),
         make_column("AccountID", &Database::DbPlayer::AccountID),
         make_column("Slot", &Database::DbPlayer::slot),
-        make_column("Firstname", &Database::DbPlayer::FirstName),
-        make_column("LastName", &Database::DbPlayer::LastName),
+        make_column("Firstname", &Database::DbPlayer::FirstName, collate_nocase()),
+        make_column("LastName", &Database::DbPlayer::LastName, collate_nocase()),
         make_column("Level", &Database::DbPlayer::Level),
         make_column("Nano1", &Database::DbPlayer::Nano1),
         make_column("Nano2", &Database::DbPlayer::Nano2),
@@ -361,6 +361,8 @@ Player Database::getPlayer(int id) {
 
 #pragma endregion LoginServer
 
+#pragma region ShardServer
+
 void Database::updatePlayer(Player player) {
     DbPlayer toUpdate = playerToDb(player);
     db.update(toUpdate);
@@ -459,3 +461,4 @@ void Database::getNanos(Player* player) {
         toSet->iStamina = current.iStamina;
     }
 }
+#pragma endregion ShardServer
