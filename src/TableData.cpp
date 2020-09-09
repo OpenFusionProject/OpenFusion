@@ -63,14 +63,15 @@ void TableData::init() {
     }
 
     // load everything else from xdttable
+    std::cout << "[INFO] Parsing xdt.json..." << std::endl;
     std::ifstream infile(settings::XDTJSON);
     nlohmann::json xdtData;
 
     // read file into json
     infile >> xdtData;
 
-    // load warps from m_pInstanceTable.m_pWarpData
     try {
+        // load warps
         nlohmann::json warpData = xdtData["m_pInstanceTable"]["m_pWarpData"];
 
         for (nlohmann::json::iterator warp = warpData.begin(); warp != warpData.end(); warp++) {
@@ -95,6 +96,19 @@ void TableData::init() {
 
                 MissionManager::Rewards[task["m_iHTaskID"]] = rew;
             }
+
+            // quest items obtained after completing a certain task
+            // (distinct from quest items dropped from mobs)
+            if (task["m_iSUItem"][0] != 0) {
+                MissionManager::SUItems[task["m_iHTaskID"]] = new SUItem(task["m_iSUItem"]);
+            }
+
+            // quest item mob drops
+            if (task["m_iCSUItemID"][0] != 0) {
+                MissionManager::QuestDropSets[task["m_iHTaskID"]] = new QuestDropSet(task["m_iCSUEnemyID"], task["m_iCSUItemID"]);
+                // TODO: timeouts, drop rates, etc.
+                //       not sure if we need to keep track of NumNeeded/NumToKill server-side.
+            }
         }
 
         std::cout << "[INFO] Loaded mission-related data" << std::endl;
@@ -110,5 +124,9 @@ void TableData::cleanup() {
      * doesn't need to be cleaned up if it's supposed to last the program's full runtime.
      */
     for (auto& pair : MissionManager::Rewards)
+        delete pair.second;
+    for (auto& pair : MissionManager::SUItems)
+        delete pair.second;
+    for (auto& pair : MissionManager::QuestDropSets)
         delete pair.second;
 }

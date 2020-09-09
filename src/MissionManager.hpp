@@ -20,12 +20,36 @@ struct Reward {
     };
 };
 
+struct SUItem {
+    int32_t itemIds[3];
+
+    SUItem(nlohmann::json ids) {
+        for (int i = 0; i < 3; i++) {
+            itemIds[i] = ids[i];
+        }
+    }
+};
+
+struct QuestDropSet {
+    int32_t mobIds[3];
+    int32_t itemIds[3];
+
+    QuestDropSet(nlohmann::json mobs, nlohmann::json items) {
+        for (int i = 0; i < 3; i++) {
+            mobIds[i] = mobs[i];
+            itemIds[i] = items[i];
+        }
+    }
+};
+
 namespace MissionManager {
     extern std::map<int32_t, Reward*> Rewards;
+    extern std::map<int32_t, SUItem*> SUItems;
+    extern std::map<int32_t, QuestDropSet*> QuestDropSets;
     void init();
 
     void acceptMission(CNSocket* sock, CNPacketData* data);
-    void completeMission(CNSocket* sock, CNPacketData* data);
+    void completeTask(CNSocket* sock, CNPacketData* data);
     void setMission(CNSocket* sock, CNPacketData* data);
     void quitMission(CNSocket* sock, CNPacketData* data);
 }
