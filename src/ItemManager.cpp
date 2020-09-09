@@ -689,7 +689,9 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     // don't forget to zero the buffer!
     memset(respbuf, 0, resplen);
 
-    // simple rewards
+    // maintain stats
+    reward->m_iCandy = plr->money;
+    reward->m_iFusionMatter = plr->fusionmatter;
     reward->iFatigue = 100; // prevents warning message
     reward->iFatigue_Level = 1;
     reward->iItemCnt = 1; // remember to update resplen if you change this
