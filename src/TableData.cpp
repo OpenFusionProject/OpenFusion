@@ -12,7 +12,6 @@ void TableData::init() {
 
     // load NPCs from NPC.json
     try {
-
         std::ifstream inFile(settings::NPCJSON);
         nlohmann::json npcData;
 
@@ -39,7 +38,7 @@ void TableData::init() {
 
     // load temporary mob dump
     try {
-        std::ifstream inFile(settings::MOBJSON); // not in settings, since it's temp
+        std::ifstream inFile(settings::MOBJSON);
         nlohmann::json npcData;
 
         // read file into json
@@ -82,7 +81,7 @@ void TableData::init() {
 
         std::cout << "[INFO] populated " << NPCManager::Warps.size() << " Warps" << std::endl;
 
-        // missions
+        // load mission-related data
         nlohmann::json tasks = xdtData["m_pMissionTable"]["m_pMissionData"];
 
         for (auto _task = tasks.begin(); _task != tasks.end(); _task++) {
@@ -99,15 +98,20 @@ void TableData::init() {
 
             // quest items obtained after completing a certain task
             // (distinct from quest items dropped from mobs)
-            if (task["m_iSUItem"][0] != 0) {
+            if (task["m_iSUItem"][0] != 0)
                 MissionManager::SUItems[task["m_iHTaskID"]] = new SUItem(task["m_iSUItem"]);
-            }
 
             // quest item mob drops
             if (task["m_iCSUItemID"][0] != 0) {
                 MissionManager::QuestDropSets[task["m_iHTaskID"]] = new QuestDropSet(task["m_iCSUEnemyID"], task["m_iCSUItemID"]);
                 // TODO: timeouts, drop rates, etc.
                 //       not sure if we need to keep track of NumNeeded/NumToKill server-side.
+            }
+
+            // quest item cleanup
+            if (task["m_iDelItemID"][0] != 0) {
+                std::cout << "adding DelItem for " << task["m_iHTaskID"] << std::endl;
+                MissionManager::ItemCleanups[task["m_iHTaskID"]] = new ItemCleanup(task["m_iDelItemID"]);
             }
         }
 
@@ -128,5 +132,7 @@ void TableData::cleanup() {
     for (auto& pair : MissionManager::SUItems)
         delete pair.second;
     for (auto& pair : MissionManager::QuestDropSets)
+        delete pair.second;
+    for (auto& pair : MissionManager::ItemCleanups)
         delete pair.second;
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CNShardServer.hpp"
+#include "Player.hpp"
 
 #include "contrib/JSON.hpp"
 
@@ -42,14 +43,29 @@ struct QuestDropSet {
     }
 };
 
+struct ItemCleanup {
+    int32_t itemIds[4];
+
+    ItemCleanup(nlohmann::json ids) {
+        for (int i = 0; i < 4; i++) {
+            itemIds[i] = ids[i];
+        }
+    }
+};
+
 namespace MissionManager {
     extern std::map<int32_t, Reward*> Rewards;
     extern std::map<int32_t, SUItem*> SUItems;
     extern std::map<int32_t, QuestDropSet*> QuestDropSets;
+    extern std::map<int32_t, ItemCleanup*> ItemCleanups;
     void init();
 
     void acceptMission(CNSocket* sock, CNPacketData* data);
     void completeTask(CNSocket* sock, CNPacketData* data);
     void setMission(CNSocket* sock, CNPacketData* data);
     void quitMission(CNSocket* sock, CNPacketData* data);
+
+    int findFreeQSlot(Player *plr);
+    void dropQuestItem(CNSocket *sock, int task, int count, int id, int mobid);
+    void giveMissionReward(CNSocket *sock, int task);
 }

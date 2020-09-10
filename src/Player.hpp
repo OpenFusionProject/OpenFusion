@@ -32,4 +32,7 @@ struct Player {
     bool isTrading;
     bool isTradeConfirm;
     bool IsGM;
+
+    int tasks[6];
+    sItemBase QInven[AQINVEN_COUNT];
 };

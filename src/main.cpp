@@ -34,7 +34,9 @@ void terminate(int arg) {
     std::cout << "OpenFusion: terminating." << std::endl;
     shardServer->kill();
     shardThread->join();
+#if defined(__SANITIZE_ADDRESS__) || (defined(__has_feature) && __has_feature(address_sanitizer))
     TableData::cleanup();
+#endif
     exit(0);
 }
 
