@@ -56,7 +56,7 @@ void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     response.iTaskNum = missionData->iTaskNum;
-    std::cout << missionData->iTaskNum << std::endl;
+    //std::cout << missionData->iTaskNum << std::endl;
 
     if (Tasks.find(missionData->iTaskNum) == Tasks.end()) {
         std::cout << "[WARN] Player submitted unknown task!?" << std::endl;
@@ -69,36 +69,25 @@ void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
     TaskData& task = *Tasks[missionData->iTaskNum];
 
     /*
-     * SUItems
+     * Give (or take away) quest items
      *
      * Some mission tasks give the player a quest item upon completion.
      * This is distinct from quest item mob drops.
      * They can be identified by a counter in the task indicator (ie. 1/1 Gravity Decelerator).
      * The server is responsible for dropping the correct item.
-     * Yes, this is idiotic.
+     * Yes, this is pretty stupid.
+     *
+     * iSUInstancename is the number of items to give. It is usually negative at the end of
+     * a mission, so as to clean up it's quest items.
      */
     for (int i = 0; i < 3; i++)
         if (task["m_iSUItem"][i] != 0)
-            dropQuestItem(sock, missionData->iTaskNum, 1, task["m_iSUItem"][i], 0);
-
-    // clean up quest items which have served their purpose
-    if (task["m_iCSUItemID"][0] != 0) {
-        for (int i = 0; i < AQINVEN_COUNT; i++)
-            for (int j = 0; j < 4; j++)
-                if (plr->QInven[i].iID == task["m_CSUItemID"][j]) {
-                    std::cout << "deleting qitem " << i << std::endl;
-                    memset(&plr->QInven[i], 0, sizeof(sItemBase));
-                }
-        /*
-         * NOTE: As quest items are not graphically enumerated client-side,
-         *       the client does not need to be notified of item cleanup, since
-         *       the items will just be clobbered upon assignment anyway.
-         */
-    }
+            dropQuestItem(sock, missionData->iTaskNum, task["m_iSUInstancename"][i], task["m_iSUItem"][i], 0);
 
     // mission rewards
     if (Rewards.find(missionData->iTaskNum) != Rewards.end()) {
-        giveMissionReward(sock, missionData->iTaskNum);
+        if (giveMissionReward(sock, missionData->iTaskNum) == -1)
+            return;
     }
 
     // update player
@@ -131,6 +120,33 @@ void MissionManager::quitMission(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_TASK_STOP* missionData = (sP_CL2FE_REQ_PC_TASK_STOP*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_TASK_STOP_SUCC, response);
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    // update player
+    int i;
+    for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+        if (plr->tasks[i] == missionData->iTaskNum)
+            plr->tasks[i] = 0;
+    }
+    if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != 0) {
+        std::cout << "[WARN] Player quit non-active mission!?" << std::endl;
+    }
+
+    TaskData& task = *Tasks[missionData->iTaskNum];
+
+    // clean up quest items
+    for (i = 0; i < 3; i++) {
+        if (task["m_iSUItem"][i] == 0 && task["m_iCSUItem"][i] == 0)
+            continue;
+
+        /*
+         * It's ok to do this only server-side, because the server decides which
+         * slot latter items will be placed in.
+         */
+        for (int j = 0; j < AQINVEN_COUNT; j++)
+            if (plr->QInven[j].iID == task["m_iSUItem"][i] || plr->QInven[j].iID == task["m_iCSUItem"][i])
+                memset(&plr->QInven[j], 0, sizeof(sItemBase));
+    }
 
     response.iTaskNum = missionData->iTaskNum;
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_STOP_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_STOP_SUCC));
@@ -139,12 +155,15 @@ void MissionManager::quitMission(CNSocket* sock, CNPacketData* data) {
 // TODO: coalesce into ItemManager::findFreeSlot()?
 int MissionManager::findQSlot(Player *plr, int id) {
     int i;
-    sItemBase free;
 
-    memset(&free, 0, sizeof(sItemBase));
-
+    // two passes. we mustn't fail to find an existing stack.
     for (i = 0; i < AQINVEN_COUNT; i++)
-        if (plr->QInven[i].iID == id || memcmp(&plr->QInven[i], &free, sizeof(sItemBase)) == 0)
+        if (plr->QInven[i].iID == id)
+            return i;
+
+    // no stack. start a new one.
+    for (i = 0; i < AQINVEN_COUNT; i++)
+        if (plr->QInven[i].iOpt == 0)
             return i;
 
     // not found
@@ -171,12 +190,19 @@ void MissionManager::dropQuestItem(CNSocket *sock, int task, int count, int id, 
         std::cout << "[WARN] Player has no room for quest item!?" << std::endl;
         return;
     }
-    std::cout << "new qitem in slot " << slot << std::endl;
+    if (id != 0)
+        std::cout << "new qitem in slot " << slot << std::endl;
 
     // update player
-    plr->QInven[slot].iType = 8;
-    plr->QInven[slot].iID = id;
-    plr->QInven[slot].iOpt += count; // stacking
+    if (id != 0) {
+        plr->QInven[slot].iType = 8;
+        plr->QInven[slot].iID = id;
+        plr->QInven[slot].iOpt += count; // stacking
+    }
+
+    // fully destory deleted items, for good measure
+    if (plr->QInven[slot].iOpt <= 0)
+        memset(&plr->QInven[slot], 0, sizeof(sItemBase));
 
     // preserve stats
     reward->m_iCandy = plr->money;
@@ -195,7 +221,7 @@ void MissionManager::dropQuestItem(CNSocket *sock, int task, int count, int id, 
     sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
 }
 
-void MissionManager::giveMissionReward(CNSocket *sock, int task) {
+int MissionManager::giveMissionReward(CNSocket *sock, int task) {
     Reward *reward = Rewards[task];
     Player *plr = PlayerManager::getPlayer(sock);
 
@@ -216,7 +242,7 @@ void MissionManager::giveMissionReward(CNSocket *sock, int task) {
             fail.iErrorCode = 13; // inventory full
 
             sock->sendPacket((void*)&fail, P_FE2CL_REP_PC_TASK_END_FAIL, sizeof(sP_FE2CL_REP_PC_TASK_END_FAIL));
-            return;
+            return -1;
         }
     }
 
@@ -251,10 +277,12 @@ void MissionManager::giveMissionReward(CNSocket *sock, int task) {
     }
 
     sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
+    return 0;
 }
 
 void MissionManager::mobKilled(CNSocket *sock, int mobid) {
     Player *plr = PlayerManager::getPlayer(sock);
+    bool missionmob = false;
 
     for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
         if (plr->tasks[i] == 0)
@@ -267,14 +295,9 @@ void MissionManager::mobKilled(CNSocket *sock, int mobid) {
             if (task["m_iCSUEnemyID"][j] != mobid)
                 continue;
 
-            // acknowledge killing of mission mob
-            if (task["m_iCSUNumToKill"][j] != 0) {
-                INITSTRUCT(sP_FE2CL_REP_PC_KILL_QUEST_NPCs_SUCC, kill);
-
-                kill.iNPCID = mobid;
-
-                sock->sendPacket((void*)&kill, P_FE2CL_REP_PC_KILL_QUEST_NPCs_SUCC, sizeof(sP_FE2CL_REP_PC_KILL_QUEST_NPCs_SUCC));
-            }
+            // acknowledge killing of mission mob...
+            if (task["m_iCSUNumToKill"][j] != 0)
+                missionmob = true;
 
             // drop quest item
             if (task["m_iCSUItemNumNeeded"][j] != 0) {
@@ -288,5 +311,15 @@ void MissionManager::mobKilled(CNSocket *sock, int mobid) {
                 }
             }
         }
+    }
+
+    // ...but only once
+    // XXX: is it actually necessary to do it this way?
+    if (missionmob) {
+        INITSTRUCT(sP_FE2CL_REP_PC_KILL_QUEST_NPCs_SUCC, kill);
+
+        kill.iNPCID = mobid;
+
+        sock->sendPacket((void*)&kill, P_FE2CL_REP_PC_KILL_QUEST_NPCs_SUCC, sizeof(sP_FE2CL_REP_PC_KILL_QUEST_NPCs_SUCC));
     }
 }

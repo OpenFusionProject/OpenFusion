@@ -47,7 +47,7 @@ namespace MissionManager {
 
     int findQSlot(Player *plr, int id);
     void dropQuestItem(CNSocket *sock, int task, int count, int id, int mobid);
-    void giveMissionReward(CNSocket *sock, int task);
+    int giveMissionReward(CNSocket *sock, int task);
 
     void mobKilled(CNSocket *sock, int mobid);
 }
