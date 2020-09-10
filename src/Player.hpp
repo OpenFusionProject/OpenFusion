@@ -6,6 +6,8 @@
 #include "CNProtocol.hpp"
 #include "CNStructs.hpp"
 
+#define ACTIVE_MISSION_COUNT 6
+
 struct Player {
     int accountId;
     int64_t SerialKey;
@@ -33,6 +35,6 @@ struct Player {
     bool isTradeConfirm;
     bool IsGM;
 
-    int tasks[6];
+    int tasks[ACTIVE_MISSION_COUNT];
     sItemBase QInven[AQINVEN_COUNT];
 };

@@ -2,6 +2,7 @@
 #include "PlayerManager.hpp"
 #include "NPCManager.hpp"
 #include "ItemManager.hpp"
+#include "MissionManager.hpp"
 
 #include <assert.h>
 
@@ -58,11 +59,7 @@ void CombatManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
         if (mob.appearanceData.iHP <= 0) {
             giveReward(sock);
-            INITSTRUCT(sP_FE2CL_REP_PC_KILL_QUEST_NPCs_SUCC, kill);
-
-            kill.iNPCID = mob.appearanceData.iNPCType;
-
-            sock->sendPacket((void*)&kill, P_FE2CL_REP_PC_KILL_QUEST_NPCs_SUCC, sizeof(sP_FE2CL_REP_PC_KILL_QUEST_NPCs_SUCC));
+            MissionManager::mobKilled(sock, mob.appearanceData.iNPCType);
             // TODO: despawn mobs when they die
         }
 

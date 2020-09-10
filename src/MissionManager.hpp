@@ -21,51 +21,33 @@ struct Reward {
     };
 };
 
-struct SUItem {
-    int32_t itemIds[3];
+struct TaskData {
+    /*
+     * TODO: We'll probably want to keep only the data the server actually needs,
+     *       but for now RE/development is much easier if we have everything at
+     *       our fingertips.
+     */
+    nlohmann::json task;
 
-    SUItem(nlohmann::json ids) {
-        for (int i = 0; i < 3; i++) {
-            itemIds[i] = ids[i];
-        }
-    }
-};
+    TaskData(nlohmann::json t) : task(t) {}
 
-struct QuestDropSet {
-    int32_t mobIds[3];
-    int32_t itemIds[3];
-
-    QuestDropSet(nlohmann::json mobs, nlohmann::json items) {
-        for (int i = 0; i < 3; i++) {
-            mobIds[i] = mobs[i];
-            itemIds[i] = items[i];
-        }
-    }
-};
-
-struct ItemCleanup {
-    int32_t itemIds[4];
-
-    ItemCleanup(nlohmann::json ids) {
-        for (int i = 0; i < 4; i++) {
-            itemIds[i] = ids[i];
-        }
-    }
+    // convenience
+    auto operator[](std::string s) { return task[s]; }
 };
 
 namespace MissionManager {
     extern std::map<int32_t, Reward*> Rewards;
-    extern std::map<int32_t, SUItem*> SUItems;
-    extern std::map<int32_t, QuestDropSet*> QuestDropSets;
-    extern std::map<int32_t, ItemCleanup*> ItemCleanups;
+    extern std::map<int32_t, TaskData*> Tasks;
     void init();
 
-    void acceptMission(CNSocket* sock, CNPacketData* data);
-    void completeTask(CNSocket* sock, CNPacketData* data);
+    void taskStart(CNSocket* sock, CNPacketData* data);
+    void taskEnd(CNSocket* sock, CNPacketData* data);
     void setMission(CNSocket* sock, CNPacketData* data);
     void quitMission(CNSocket* sock, CNPacketData* data);
 
-    int findFreeQSlot(Player *plr);
+    int findQSlot(Player *plr, int id);
     void dropQuestItem(CNSocket *sock, int task, int count, int id, int mobid);
     void giveMissionReward(CNSocket *sock, int task);
+
+    void mobKilled(CNSocket *sock, int mobid);
 }

@@ -55,7 +55,7 @@ void TableData::init() {
             NPCManager::NPCs[tmp.appearanceData.iNPC_ID] = tmp;
         }
 
-        std::cout << "[INFO] populated " << NPCManager::NPCs.size() << " NPCs" << std::endl;
+        std::cout << "[INFO] Populated " << NPCManager::NPCs.size() << " NPCs" << std::endl;
     }
     catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed mobs.json file! Reason:" << err.what() << std::endl;
@@ -79,7 +79,7 @@ void TableData::init() {
             NPCManager::Warps[warpID] = warpLoc;
         }
 
-        std::cout << "[INFO] populated " << NPCManager::Warps.size() << " Warps" << std::endl;
+        std::cout << "[INFO] Populated " << NPCManager::Warps.size() << " Warps" << std::endl;
 
         // load mission-related data
         nlohmann::json tasks = xdtData["m_pMissionTable"]["m_pMissionData"];
@@ -89,30 +89,15 @@ void TableData::init() {
 
             // rewards
             if (task["m_iSUReward"] != 0) {
-                auto tmp = xdtData["m_pMissionTable"]["m_pRewardData"][(int)task["m_iSUReward"]];
-                Reward *rew = new Reward(tmp["m_iMissionRewardID"], tmp["m_iMissionRewarItemType"],
-                        tmp["m_iMissionRewardItemID"], tmp["m_iCash"], tmp["m_iFusionMatter"]);
+                auto _rew = xdtData["m_pMissionTable"]["m_pRewardData"][(int)task["m_iSUReward"]];
+                Reward *rew = new Reward(_rew["m_iMissionRewardID"], _rew["m_iMissionRewarItemType"],
+                        _rew["m_iMissionRewardItemID"], _rew["m_iCash"], _rew["m_iFusionMatter"]);
 
                 MissionManager::Rewards[task["m_iHTaskID"]] = rew;
             }
 
-            // quest items obtained after completing a certain task
-            // (distinct from quest items dropped from mobs)
-            if (task["m_iSUItem"][0] != 0)
-                MissionManager::SUItems[task["m_iHTaskID"]] = new SUItem(task["m_iSUItem"]);
-
-            // quest item mob drops
-            if (task["m_iCSUItemID"][0] != 0) {
-                MissionManager::QuestDropSets[task["m_iHTaskID"]] = new QuestDropSet(task["m_iCSUEnemyID"], task["m_iCSUItemID"]);
-                // TODO: timeouts, drop rates, etc.
-                //       not sure if we need to keep track of NumNeeded/NumToKill server-side.
-            }
-
-            // quest item cleanup
-            if (task["m_iDelItemID"][0] != 0) {
-                std::cout << "adding DelItem for " << task["m_iHTaskID"] << std::endl;
-                MissionManager::ItemCleanups[task["m_iHTaskID"]] = new ItemCleanup(task["m_iDelItemID"]);
-            }
+            // everything else lol. see TaskData comment.
+            MissionManager::Tasks[task["m_iHTaskID"]] = new TaskData(task);
         }
 
         std::cout << "[INFO] Loaded mission-related data" << std::endl;
@@ -129,10 +114,6 @@ void TableData::cleanup() {
      */
     for (auto& pair : MissionManager::Rewards)
         delete pair.second;
-    for (auto& pair : MissionManager::SUItems)
-        delete pair.second;
-    for (auto& pair : MissionManager::QuestDropSets)
-        delete pair.second;
-    for (auto& pair : MissionManager::ItemCleanups)
+    for (auto& pair : MissionManager::Tasks)
         delete pair.second;
 }
