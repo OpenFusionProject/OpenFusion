@@ -21,6 +21,13 @@
 #include <string>
 #include <signal.h>
 
+// HACK
+#ifdef __has_feature
+#if __has_feature(address_sanitizer)
+#define __SANITIZE_ADDRESS__ 1
+#endif
+#endif
+
 CNShardServer *shardServer;
 std::thread *shardThread;
 
@@ -34,9 +41,11 @@ void terminate(int arg) {
     std::cout << "OpenFusion: terminating." << std::endl;
     shardServer->kill();
     shardThread->join();
-#if defined(__SANITIZE_ADDRESS__) || (defined(__has_feature) && __has_feature(address_sanitizer))
+
+#if defined(__SANITIZE_ADDRESS__)
     TableData::cleanup();
 #endif
+
     exit(0);
 }
 
