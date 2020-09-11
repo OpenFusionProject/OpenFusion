@@ -6,6 +6,8 @@
 
 #include "settings.hpp"
 
+#include <assert.h>
+
 #include <algorithm>
 #include <vector>
 #include <cmath>
@@ -45,6 +47,8 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
     players[key].plr = p;
     players[key].lastHeartbeat = 0;
 
+    key->plr = p;
+
     std::cout << U16toU8(plr.PCStyle.szFirstName) << " " << U16toU8(plr.PCStyle.szLastName) << " has joined!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
 }
@@ -66,6 +70,7 @@ void PlayerManager::removePlayer(CNSocket* key) {
     std::cout << U16toU8(cachedView.plr->PCStyle.szFirstName) << " " << U16toU8(cachedView.plr->PCStyle.szLastName) << " has left!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
 
+    key->plr = nullptr;
     delete cachedView.plr;
     players.erase(key);
 }
@@ -692,7 +697,8 @@ void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
 
 #pragma region Helper methods
 Player *PlayerManager::getPlayer(CNSocket* key) {
-    return players[key].plr;
+    assert(key->plr != nullptr);
+    return key->plr;
 }
 
 WarpLocation PlayerManager::getRespawnPoint(Player *plr) {
