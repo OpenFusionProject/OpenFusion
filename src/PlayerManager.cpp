@@ -203,7 +203,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iHP = plr.HP;
     response.PCLoadData2CL.iLevel = plr.level;
     response.PCLoadData2CL.iCandy = plr.money;
-    response.PCLoadData2CL.iMentor = 1;
+    response.PCLoadData2CL.iMentor = 5; // Computress
     response.PCLoadData2CL.iMentorCount = 4;
     response.PCLoadData2CL.iMapNum = 0;
     response.PCLoadData2CL.iX = plr.x;
