@@ -21,6 +21,7 @@ void NPCManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_START, npcVendorStart);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE, npcVendorTable);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_BUY, npcVendorBuy);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_SELL, npcVendorSell);
 }
 
 void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
@@ -57,6 +58,44 @@ void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
     resp.Item = req->Item;
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_SUCC));
+}
+
+void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL*)data->buf;
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    sItemBase* item = &plr->Inven[req->iInvenSlotNum];
+
+    if (req->iInvenSlotNum < 0 || req->iItemCnt < 0) { // TODO: expand fail condition
+        std::cout << "[WARN] Client failed to sell item in slot " << req->iInvenSlotNum << std::endl;
+        INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, failResp);
+        failResp.iErrorCode = 0;
+        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL));
+        return;
+    }
+
+    INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC, resp);
+    
+    int sellValue = 100 * req->iItemCnt; // TODO: lookup item price
+
+    // increment taros
+    plr->money = plr->money + sellValue;
+
+    // empty the slot; probably needs to be changed for stacks
+    item->iID = 0;
+    item->iOpt = 0;
+    item->iType = 0;
+    item->iTimeLimit = -1;
+
+    // response parameters
+    resp.iInvenSlotNum = req->iInvenSlotNum;
+    resp.iCandy = plr->money;
+    resp.Item = *item;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC));
 }
 
 void NPCManager::npcVendorTable(CNSocket* sock, CNPacketData* data) {
