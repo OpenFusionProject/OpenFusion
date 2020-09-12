@@ -151,7 +151,8 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
 
     // Update player
     plr->Nanos[nanoId] = resp.Nano;
-    plr->level = level;
+    if (plr->level < resp2.iPC_Level)  //Sanity check to make sure that player's level is not higher than the new level before changing it
+        resp2.iPC_Level = level;
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_NANO_CREATE_SUCC, sizeof(sP_FE2CL_REP_PC_NANO_CREATE_SUCC));
 
