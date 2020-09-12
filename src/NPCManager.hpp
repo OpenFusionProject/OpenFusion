@@ -3,6 +3,7 @@
 #include "CNProtocol.hpp"
 #include "PlayerManager.hpp"
 #include "NPC.hpp"
+#include "Instance.hpp"
 
 #include <map>
 #include <vector>
@@ -17,6 +18,7 @@ struct WarpLocation {
 namespace NPCManager {
     extern std::map<int32_t, BaseNPC> NPCs;
     extern std::map<int32_t, WarpLocation> Warps;
+    extern std::map<int32_t, baseInstance> PrivateInstances;
 
     extern std::vector<WarpLocation> RespawnPoints;
     void init();

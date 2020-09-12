@@ -679,7 +679,7 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
 
     // item giving packet
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
-    assert(resplen < CN_PACKET_BUFFER_SIZE);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
     // we know it's only one trailing struct, so we can skip full validation
 
     uint8_t respbuf[resplen]; // not a variable length array, don't worry
@@ -689,7 +689,9 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     // don't forget to zero the buffer!
     memset(respbuf, 0, resplen);
 
-    // simple rewards
+    // maintain stats
+    reward->m_iCandy = plr->money;
+    reward->m_iFusionMatter = plr->fusionmatter;
     reward->iFatigue = 100; // prevents warning message
     reward->iFatigue_Level = 1;
     reward->iItemCnt = 1; // remember to update resplen if you change this
@@ -718,12 +720,9 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
 // TODO: use this in cleaned up ItemManager
 int ItemManager::findFreeSlot(Player *plr) {
     int i;
-    sItemBase free;
-
-    memset((void*)&free, 0, sizeof(sItemBase));
 
     for (i = 0; i < AINVEN_COUNT; i++)
-        if (memcmp((void*)&plr->Inven[i], (void*)&free, sizeof(sItemBase)) == 0)
+        if (plr->Inven[i].iType == 0 && plr->Inven[i].iID == 0 && plr->Inven[i].iOpt == 0)
             return i;
 
     // not found

@@ -6,6 +6,8 @@
 
 #include "settings.hpp"
 
+#include <assert.h>
+
 #include <algorithm>
 #include <vector>
 #include <cmath>
@@ -47,6 +49,8 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
     players[key].plr = p;
     players[key].lastHeartbeat = 0;
 
+    key->plr = p;
+
     std::cout << U16toU8(plr.PCStyle.szFirstName) << " " << U16toU8(plr.PCStyle.szLastName) << " has joined!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
 }
@@ -68,6 +72,7 @@ void PlayerManager::removePlayer(CNSocket* key) {
     std::cout << U16toU8(cachedView.plr->PCStyle.szFirstName) << " " << U16toU8(cachedView.plr->PCStyle.szLastName) << " has left!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
 
+    key->plr = nullptr;
     delete cachedView.plr;
     players.erase(key);
 }
@@ -201,7 +206,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iHP = 3625; //TODO: Check player levelupdata and get this right
     response.PCLoadData2CL.iLevel = plr.level;
     response.PCLoadData2CL.iCandy = plr.money;
-    response.PCLoadData2CL.iMentor = 1;
+    response.PCLoadData2CL.iMentor = 5; // Computress
     response.PCLoadData2CL.iMentorCount = 4;
     response.PCLoadData2CL.iMapNum = 0;
     response.PCLoadData2CL.iX = plr.x;
@@ -551,6 +556,8 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_GM_REQ_PC_SET_VALUE* setData = (sP_CL2FE_GM_REQ_PC_SET_VALUE*)data->buf;
+    Player *plr = PlayerManager::getPlayer(sock);
+
     INITSTRUCT(sP_FE2CL_GM_REP_PC_SET_VALUE, response);
 
     DEBUGLOG(
@@ -559,6 +566,27 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tSetValueType: " << setData->iSetValueType << std::endl;
         std::cout << "\tSetValue: " << setData->iSetValue << std::endl;
     )
+
+    // Handle serverside value-changes
+    switch (setData->iSetValueType) {
+    case 1:
+        plr->HP = setData->iSetValue;
+        break;
+    case 2:
+        // TODO: batteryW
+        break;
+    case 3:
+        // TODO: batteryN nanopotion
+        break;
+    case 4:
+        plr->fusionmatter = setData->iSetValue;
+        break;
+    case 5:
+        plr->money = setData->iSetValue;
+        break;
+    default:
+        break;
+    }
 
     response.iPC_ID = setData->iPC_ID;
     response.iSetValue = setData->iSetValue;
@@ -672,7 +700,8 @@ void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
 
 #pragma region Helper methods
 Player *PlayerManager::getPlayer(CNSocket* key) {
-    return players[key].plr;
+    assert(key->plr != nullptr);
+    return key->plr;
 }
 
 WarpLocation PlayerManager::getRespawnPoint(Player *plr) {

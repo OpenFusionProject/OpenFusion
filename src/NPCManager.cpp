@@ -12,6 +12,7 @@
 std::map<int32_t, BaseNPC> NPCManager::NPCs;
 std::map<int32_t, WarpLocation> NPCManager::Warps;
 std::vector<WarpLocation> NPCManager::RespawnPoints;
+std::map<int32_t, baseInstance> NPCManager::PrivateInstances;
 
 void NPCManager::init() {
     // load NPCs from NPCs.json into our NPC manager
@@ -71,26 +72,6 @@ void NPCManager::init() {
         std::cerr << "[WARN] Malformed mobs.json file! Reason:" << err.what() << std::endl;
     }
 
-    try {
-        std::ifstream infile(settings::WARPJSON);
-        nlohmann::json warpData;
-
-        // read file into json
-        infile >> warpData;
-
-        for (nlohmann::json::iterator warp = warpData.begin(); warp != warpData.end(); warp++) {
-            WarpLocation warpLoc = { warp.value()["m_iToX"], warp.value()["m_iToY"], warp.value()["m_iToZ"],warp.value()["m_iToMapNum"],warp.value()["m_iIsInstance"],warp.value()["m_iLimit_TaskID"],warp.value()["m_iNpcNumber"] };
-            int warpID = atoi(warp.key().c_str());
-            Warps[warpID] = warpLoc;
-        }
-
-        std::cout << "[INFO] populated " << Warps.size() << " Warps" << std::endl;
-    }
-    catch (const std::exception& err) {
-        std::cerr << "[WARN] Malformed warps.json file! Reason:" << err.what() << std::endl;
-    }
-
-
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_NPC, npcWarpHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NPC_SUMMON, npcSummonHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_BARKER, npcBarkHandler);
@@ -99,8 +80,13 @@ void NPCManager::init() {
 void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
     std::list<int32_t> yesView;
     std::list<int32_t> noView;
-
-    for (auto& pair : NPCs) {
+    std::map<int32_t, BaseNPC> currentNpcs;
+    currentNpcs = NPCs;
+    if(view.plr->mapUID != 0)
+    {
+        currentNpcs = PrivateInstances[view.plr->mapUID].INPCs;
+    }
+    for (auto& pair : currentNpcs) {
         if (view.plr->mapNum == pair.second.imapNum)
         {
             int diffX = abs(view.plr->x - pair.second.appearanceData.iX);
@@ -141,7 +127,7 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
     for (int32_t id : yesView) {
         if (std::find(view.viewableNPCs.begin(), view.viewableNPCs.end(), id) == view.viewableNPCs.end()) {
             // needs to be added to viewableNPCs! send NPC_ENTER
-            enterData.NPCAppearanceData = NPCs[id].appearanceData;
+            enterData.NPCAppearanceData = currentNpcs[id].appearanceData;
             sock->sendPacket((void*)&enterData, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
 
             // add to viewable
@@ -211,10 +197,20 @@ void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
         INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, response);
         if (Warps[warpNpc->iWarpID].limitTaskID != 0 || (Warps[warpNpc->iWarpID].npcID >= 3123 && Warps[warpNpc->iWarpID].npcID <= 3132))
         {
-            plrv.plr->mapUID = (Warps[warpNpc->iWarpID].limitTaskID + 1) * (plrv.plr->iID + 1);
+            int mapUID = (Warps[warpNpc->iWarpID].limitTaskID + 1) * (plrv.plr->iID + 1);
+            plrv.plr->mapUID = mapUID;
             std::cout << "Enter a private instance " <<"UID: "<< plrv.plr->mapUID << std::endl;
-
+            for (std::map< int32_t, BaseNPC>::iterator it = NPCs.begin(); it != NPCs.end(); it++)
+            {
+                if (it->second.imapNum == Warps[warpNpc->iWarpID].mapNum)
+                {
+                    PrivateInstances[mapUID].INPCs[it->second.jsonRef] = it->second;
+                    std::cout << it->second.jsonRef << std::endl;
+                }
+            }
+            PrivateInstances[mapUID].mapInfo.iInstanceMapNum = Warps[warpNpc->iWarpID].mapNum;
         }
+
         else
         {
             plrv.plr->mapUID = 0;
@@ -245,11 +241,17 @@ void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
 void NPCManager::changeNPCMAP(CNSocket* sock, PlayerView& view, int mapNum) {
     std::ifstream inFile(settings::NPCJSON);
     nlohmann::json npcData;
+    std::map<int32_t, BaseNPC> currentNpcs;
+
     // read file into json
     inFile >> npcData;
     inFile.close();
-   
-    for (auto& pair : NPCs) {
+    currentNpcs = NPCs;
+    if (view.plr->mapUID != 0)
+    {
+        currentNpcs = PrivateInstances[view.plr->mapUID].INPCs;
+    }
+    for (auto& pair : currentNpcs) {
         if (view.plr->mapNum == pair.second.imapNum && pair.second.appearanceData.iNPCType == npcData[std::to_string(pair.second.jsonRef)]["id"])
         {
             //std::cout << "aaa"  << std::endl;
@@ -381,7 +383,7 @@ void NPCManager::SummonWrite(CNSocket* sock, PlayerView& view, int NPCID)
             outFile.close();
             reloadNPCs();
             std::cout << "SendPacket" << std::endl;
-            sock->sendPacket((void*)&resp, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
+            //sock->sendPacket((void*)&resp, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
             return;
         }
     }

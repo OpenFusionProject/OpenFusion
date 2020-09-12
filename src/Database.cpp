@@ -73,7 +73,7 @@ void Database::open()
 int Database::addAccount(std::string login, std::string password) 
 {
     password = BCrypt::generateHash(password);
-    Account x;
+    Account x = {};
     x.Login = login;
     x.Password = password;
     x.Selected = 1;
@@ -337,7 +337,7 @@ Player Database::DbToPlayer(DbPlayer player) {
     for (int i = 4; i < AEQUIP_COUNT; i++) {
         // empty equips
         result.Equip[i].iID = 0;
-        result.Equip[i].iType = i;
+        result.Equip[i].iType = 0;
         result.Equip[i].iOpt = 0;
     }
     for (int i = 0; i < AINVEN_COUNT; i++) {

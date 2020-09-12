@@ -2,6 +2,7 @@
 #include "PlayerManager.hpp"
 #include "NPCManager.hpp"
 #include "ItemManager.hpp"
+#include "MissionManager.hpp"
 
 #include <assert.h>
 
@@ -37,7 +38,7 @@ void CombatManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
     // initialize response struct
     size_t resplen = sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC) + pkt->iNPCCnt * sizeof(sAttackResult);
-    uint8_t respbuf[4096];
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
 
     memset(respbuf, 0, resplen);
 
@@ -56,31 +57,29 @@ void CombatManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
         mob.appearanceData.iHP -= 100;
 
-        if (mob.appearanceData.iHP <= 0)
+        if (mob.appearanceData.iHP <= 0) {
             giveReward(sock);
-        // TODO: despawn mobs when they die
+            MissionManager::mobKilled(sock, mob.appearanceData.iNPCType);
+            // TODO: despawn mobs when they die
+        }
 
         respdata[i].iID = mob.appearanceData.iNPC_ID;
         respdata[i].iDamage = 100;
         respdata[i].iHP = mob.appearanceData.iHP;
-        respdata[i].iHitFlag = 2;
+        respdata[i].iHitFlag = 2; // hitscan, not a rocket or a grenade
     }
 
     sock->sendPacket((void*)respbuf, P_FE2CL_PC_ATTACK_NPCs_SUCC, resplen);
 
-    // a bit of a hack: these are the same size, so we can reuse the output packet
+    // a bit of a hack: these are the same size, so we can reuse the response packet
     assert(sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC) == sizeof(sP_FE2CL_PC_ATTACK_NPCs));
     sP_FE2CL_PC_ATTACK_NPCs *resp1 = (sP_FE2CL_PC_ATTACK_NPCs*)respbuf;
 
     resp1->iPC_ID = plr->iID;
 
     // send to other players
-    for (CNSocket *s : PlayerManager::players[sock].viewable) {
-        if (s == sock)
-            continue;
-
+    for (CNSocket *s : PlayerManager::players[sock].viewable)
         s->sendPacket((void*)respbuf, P_FE2CL_PC_ATTACK_NPCs, resplen);
-    }
 }
 
 void CombatManager::combatBegin(CNSocket *sock, CNPacketData *data) {} // stub
@@ -91,7 +90,7 @@ void CombatManager::giveReward(CNSocket *sock) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
-    assert(resplen < CN_PACKET_BUFFER_SIZE);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
     // we know it's only one trailing struct, so we can skip full validation
 
     uint8_t respbuf[resplen]; // not a variable length array, don't worry
@@ -115,6 +114,7 @@ void CombatManager::giveReward(CNSocket *sock) {
     int slot = ItemManager::findFreeSlot(plr);
     if (slot == -1) {
         // no room for an item, but you still get FM and taros
+        reward->iItemCnt = 0;
         sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, sizeof(sP_FE2CL_REP_REWARD_ITEM));
     } else {
         // item reward

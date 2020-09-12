@@ -26,8 +26,17 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             sP_CL2LS_REQ_LOGIN* login = (sP_CL2LS_REQ_LOGIN*)data->buf;   
             //TODO: implement better way of sending credentials
-            std::string userLogin = U16toU8(login->szID);
-            std::string userPassword = U16toU8(login->szPassword);
+            std::string userLogin((char*)login->szCookie_TEGid);
+            std::string userPassword((char*)login->szCookie_authid);
+
+            /*
+             * The std::string -> char* -> std::string maneuver should remove any
+             * trailing garbage after the null terminator.
+             */
+            if (userLogin.length() == 0)
+                userLogin = std::string(U16toU8(login->szID).c_str());
+            if (userPassword.length() == 0)
+                userPassword = std::string(U16toU8(login->szPassword).c_str());
 
             bool success = false;
             int errorCode = 0;
@@ -125,7 +134,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     for (int i = 5; i < AEQUIP_COUNT; i++) {
                         // empty equips
                         charInfo.aEquip[i].iID = 0;
-                        charInfo.aEquip[i].iType = i;
+                        charInfo.aEquip[i].iType = 0;
                         charInfo.aEquip[i].iOpt = 0;
                     }
 
@@ -340,13 +349,16 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
         case P_CL2LS_REQ_PC_EXIT_DUPLICATE:{
             if (data->size != sizeof(sP_CL2LS_REQ_PC_EXIT_DUPLICATE))
                 return;
+
             sP_CL2LS_REQ_PC_EXIT_DUPLICATE* exit = (sP_CL2LS_REQ_PC_EXIT_DUPLICATE*)data->buf;
             auto account = Database::findAccount(U16toU8(exit->szID));
             if (account == nullptr)
                 break;
+
             int accountId = account->AccountID;
             if (!exitDuplicate(accountId))
-                PlayerManager::exitDuplicate(accountId);           
+                PlayerManager::exitDuplicate(accountId);  
+                         
             break;
         }
         default:
@@ -398,8 +410,8 @@ bool CNLoginServer::exitDuplicate(int accountId)
 }
 bool CNLoginServer::isLoginDataGood(std::string login, std::string password)
 {
-    std::regex loginRegex("^([A-Za-z\\d_\\-]){5,20}$");
-    std::regex passwordRegex("^([A-Za-z\\d_\\-@$!%*#?&,.+:;<=>]){8,20}$");
+    std::regex loginRegex("[a-zA-Z0-9_-]{4,32}");
+    std::regex passwordRegex("[a-zA-Z0-9!@#$%^&*()_+]{8,32}");
     return (std::regex_match(login, loginRegex) && std::regex_match(password, passwordRegex));
 }
 bool CNLoginServer::isPasswordCorrect(std::string actualPassword, std::string tryPassword)

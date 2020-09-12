@@ -9,6 +9,7 @@ void NanoManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_UNEQUIP, nanoUnEquipHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GIVE_NANO, nanoGMGiveHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_TUNE, nanoSkillSetHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GIVE_NANO_SKILL, nanoSkillSetGMHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_SKILL_USE, nanoSkillUseHandler);
 }
 
@@ -124,6 +125,14 @@ void NanoManager::nanoSkillSetHandler(CNSocket* sock, CNPacketData* data) {
     setNanoSkill(sock, skill->iNanoID, skill->iTuneID);
 }
 
+void NanoManager::nanoSkillSetGMHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_GIVE_NANO_SKILL))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_NANO_TUNE* skillGM = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
+    setNanoSkill(sock, skillGM->iNanoID, skillGM->iTuneID);
+}
+
 #pragma region Helper methods
 void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
     if (nanoId > 36)
@@ -141,6 +150,21 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
 
     // Update player
     plr->Nanos[nanoId] = resp.Nano;
+    
+    // After a nano gets added, setting the level seems to be important so we are doing that
+    if (nanoId < plr->level)
+        nanoId = plr->level;
+    // Even if player level is unchanged, this packet still needs to be sent as using /nano always sets the player to 0
+    INITSTRUCT(sP_FE2CL_REP_PC_CHANGE_LEVEL, resp2);
+
+    resp2.iPC_ID = plr->iID;
+    resp2.iPC_Level = nanoId;
+
+    sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+    for (CNSocket* s : PlayerManager::players[sock].viewable)
+        s->sendPacket((void*)&resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+
+    plr->level = nanoId;
 }
 
 void NanoManager::summonNano(CNSocket *sock, int slot) {
