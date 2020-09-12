@@ -44,7 +44,7 @@ void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
 
     if (slot != req->iInvenSlotNum) {
         // possible item stacking?
-        std::cout << "[WARN] Client and server disagree on bought item slot" << std::endl;
+        std::cout << "[WARN] Client and server disagree on bought item slot (" << req->iInvenSlotNum << " vs " << slot << ")" << std::endl;
     }
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_SUCC, resp);

@@ -130,7 +130,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     for (int i = 5; i < AEQUIP_COUNT; i++) {
                         // empty equips
                         charInfo.aEquip[i].iID = 0;
-                        charInfo.aEquip[i].iType = i;
+                        charInfo.aEquip[i].iType = 0;
                         charInfo.aEquip[i].iOpt = 0;
                     }
 

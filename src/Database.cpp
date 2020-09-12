@@ -337,7 +337,7 @@ Player Database::DbToPlayer(DbPlayer player) {
     for (int i = 4; i < AEQUIP_COUNT; i++) {
         // empty equips
         result.Equip[i].iID = 0;
-        result.Equip[i].iType = i;
+        result.Equip[i].iType = 0;
         result.Equip[i].iOpt = 0;
     }
     for (int i = 0; i < AINVEN_COUNT; i++) {

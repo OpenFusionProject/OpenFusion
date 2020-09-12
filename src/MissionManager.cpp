@@ -141,7 +141,7 @@ void MissionManager::quitMission(CNSocket* sock, CNPacketData* data) {
 
         /*
          * It's ok to do this only server-side, because the server decides which
-         * slot latter items will be placed in.
+         * slot later items will be placed in.
          */
         for (int j = 0; j < AQINVEN_COUNT; j++)
             if (plr->QInven[j].iID == task["m_iSUItem"][i] || plr->QInven[j].iID == task["m_iCSUItem"][i])
