@@ -71,7 +71,7 @@ void NanoManager::nanoGMGiveHandler(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     // Add nano to player
-    addNano(sock, nano->iNanoID, 0);
+    addNano(sock, nano->iNanoID, 5);
 
     DEBUGLOG(
         std::cout << U16toU8(plr->PCStyle.szFirstName) << U16toU8(plr->PCStyle.szLastName) << " requested to add nano id: " << nano->iNanoID << std::endl;
@@ -151,8 +151,7 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
 
     // Update player
     plr->Nanos[nanoId] = resp.Nano;
-    if (plr->level < resp2.iPC_Level)  //Sanity check to make sure that player's level is not higher than the new level before changing it
-        resp2.iPC_Level = level;
+    plr->level = level;
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_NANO_CREATE_SUCC, sizeof(sP_FE2CL_REP_PC_NANO_CREATE_SUCC));
 
@@ -166,7 +165,8 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
     INITSTRUCT(sP_FE2CL_REP_PC_CHANGE_LEVEL, resp2);
 
     resp2.iPC_ID = plr->iID;
-    resp2.iPC_Level = level;
+    if (plr->level < resp2.iPC_Level)
+        resp2.iPC_Level = level;
 
     // Update other players' perception of the player's level
     for (CNSocket* s : PlayerManager::players[sock].viewable)
