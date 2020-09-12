@@ -15,7 +15,9 @@ PROTOCOL_VERSION?=104
 WIN_CC=x86_64-w64-mingw32-gcc
 WIN_CXX=x86_64-w64-mingw32-g++
 WIN_CFLAGS=-O3 #-g3 -fsanitize=address
-WIN_CXXFLAGS=-Wall -Wno-unknown-pragmas -std=c++17 -O3 -fno-tree-dce -fno-tree-fre -fno-tree-vrp -fno-ipa-sra -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
+WIN_CXX_VANILLA_MINGW_OPT_DISABLES=-fno-tree-dce -fno-inline-small-functions
+WIN_CXX_OPT_DISABLES=-fno-tree-dce -fno-tree-fre -fno-tree-vrp -fno-ipa-sra
+WIN_CXXFLAGS=-Wall -Wno-unknown-pragmas -std=c++17 -O3 $(WIN_CXX_OPT_DISABLES) -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
 WIN_LDFLAGS=-static -lws2_32 -lwsock32 #-g3 -fsanitize=address
 WIN_SERVER=bin/winfusion.exe
 
@@ -98,6 +100,10 @@ windows : CFLAGS=$(WIN_CFLAGS)
 windows : CXXFLAGS=$(WIN_CXXFLAGS)
 windows : LDFLAGS=$(WIN_LDFLAGS)
 windows : SERVER=$(WIN_SERVER)
+windows :
+ifneq ($(shell $(WIN_CXX) --version | head -1 | egrep -o [0-9]+ | tail -3 | head -1), 10)
+WIN_CXX_OPT_DISABLES=$(WIN_CXX_VANILLA_MINGW_OPT_DISABLES)
+endif
 
 .SUFFIX: .o .c .cpp .h .hpp
 
