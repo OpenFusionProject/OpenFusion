@@ -67,15 +67,15 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
-    sItemBase* item = &plr->Inven[req->iInvenSlotNum];
-
-    if (req->iInvenSlotNum < 0 || req->iItemCnt < 0) { // TODO: expand fail condition
+    if (req->iInvenSlotNum < 0 || req->iInvenSlotNum >= AINVEN_COUNT || req->iItemCnt < 0) {
         std::cout << "[WARN] Client failed to sell item in slot " << req->iInvenSlotNum << std::endl;
         INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, failResp);
         failResp.iErrorCode = 0;
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL));
         return;
     }
+
+    sItemBase* item = &plr->Inven[req->iInvenSlotNum];
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC, resp);
     
@@ -88,7 +88,7 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
     item->iID = 0;
     item->iOpt = 0;
     item->iType = 0;
-    item->iTimeLimit = -1;
+    item->iTimeLimit = 0;
 
     // response parameters
     resp.iInvenSlotNum = req->iInvenSlotNum;
@@ -113,7 +113,7 @@ void NPCManager::npcVendorTable(CNSocket* sock, CNPacketData* data) {
     base1.iID = 60;
     base1.iOpt = 0;
     // expire date
-    base1.iTimeLimit = -1;
+    base1.iTimeLimit = 0;
     base1.iType = 1;
 
     sItemVendor item1;
@@ -127,7 +127,7 @@ void NPCManager::npcVendorTable(CNSocket* sock, CNPacketData* data) {
     sItemBase base2;
     base2.iID = 61;
     base2.iOpt = 0;
-    base2.iTimeLimit = -1;
+    base2.iTimeLimit = 0;
     base2.iType = 2;
 
     sItemVendor item2;
@@ -140,7 +140,7 @@ void NPCManager::npcVendorTable(CNSocket* sock, CNPacketData* data) {
     sItemBase base3;
     base3.iID = 51;
     base3.iOpt = 0;
-    base3.iTimeLimit = -1;
+    base3.iTimeLimit = 0;
     base3.iType = 3;
 
     sItemVendor item3;
