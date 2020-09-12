@@ -140,31 +140,36 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
 
     Player *plr = PlayerManager::getPlayer(sock);
 
+    int level = nanoId < plr->level ? plr->level : nanoId;
+
     // Send to client
     INITSTRUCT(sP_FE2CL_REP_PC_NANO_CREATE_SUCC, resp);
     resp.Nano.iID = nanoId;
     resp.Nano.iStamina = 150;
     resp.iQuestItemSlotNum = slot;
-
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_NANO_CREATE_SUCC, sizeof(sP_FE2CL_REP_PC_NANO_CREATE_SUCC));
+    resp.iPC_Level = level;
 
     // Update player
     plr->Nanos[nanoId] = resp.Nano;
+    plr->level = level;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_NANO_CREATE_SUCC, sizeof(sP_FE2CL_REP_PC_NANO_CREATE_SUCC));
+
+    /*
+     * iPC_Level in NANO_CREATE_SUCC sets the player's level.
+     * Other players must be notified of the change as well. Both P_FE2CL_REP_PC_NANO_CREATE and
+     * P_FE2CL_REP_PC_CHANGE_LEVEL appear to play the same animation, but only the latter affects
+     * the other player's displayed level.
+     */
     
-    // After a nano gets added, setting the level seems to be important so we are doing that
-    if (nanoId < plr->level)
-        nanoId = plr->level;
-    // Even if player level is unchanged, this packet still needs to be sent as using /nano always sets the player to 0
     INITSTRUCT(sP_FE2CL_REP_PC_CHANGE_LEVEL, resp2);
 
     resp2.iPC_ID = plr->iID;
-    resp2.iPC_Level = nanoId;
+    resp2.iPC_Level = level;
 
-    sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+    // Update other players' perception of the player's level
     for (CNSocket* s : PlayerManager::players[sock].viewable)
         s->sendPacket((void*)&resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
-
-    plr->level = nanoId;
 }
 
 void NanoManager::summonNano(CNSocket *sock, int slot) {
@@ -173,12 +178,10 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_ACTIVE_SUCC, sizeof(sP_FE2CL_REP_NANO_ACTIVE_SUCC));
     Player *plr = PlayerManager::getPlayer(sock);
 
-    std::cout << "summon nano\n";
-
-    if (slot > 2 || slot < 0) // TODO: implement proper way to dismiss nano if slot = -1
+    if (slot > 2 || slot < -1)
         return; // sanity check
 
-    int nanoId = plr->equippedNanos[slot];
+    int nanoId = slot == -1 ? -1 : plr->equippedNanos[slot];
 
     if (nanoId > 36 || nanoId < 0)
         return; // sanity check

@@ -204,7 +204,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iLevel = plr.level;
     response.PCLoadData2CL.iCandy = plr.money;
     response.PCLoadData2CL.iMentor = 5; // Computress
-    response.PCLoadData2CL.iMentorCount = 4;
+    response.PCLoadData2CL.iMentorCount = 1; // how many guides the player has had
     response.PCLoadData2CL.iMapNum = 0;
     response.PCLoadData2CL.iX = plr.x;
     response.PCLoadData2CL.iY = plr.y;
@@ -233,9 +233,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     //response.PCLoadData2CL.aNanoSlots[1] = 2;
     //response.PCLoadData2CL.aNanoSlots[2] = 3;
 
-    response.PCLoadData2CL.aQuestFlag[0] = -1;
-
-    // shut computress up
+    // shut Computress up
     response.PCLoadData2CL.iFirstUseFlag1 = UINT64_MAX;
     response.PCLoadData2CL.iFirstUseFlag2 = UINT64_MAX;
 
@@ -533,6 +531,7 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_GOTO* gotoData = (sP_CL2FE_REQ_PC_GOTO*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, response);
+    PlayerView& plrv = players[sock];
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_GOTO:" << std::endl;
@@ -541,9 +540,13 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tZ: " << gotoData->iToZ << std::endl;
     )
 
-    response.iX = gotoData->iToX;
-    response.iY = gotoData->iToY;
-    response.iZ = gotoData->iToZ;
+    response.iX = plrv.plr->x = gotoData->iToX;
+    response.iY = plrv.plr->y = gotoData->iToY;
+    response.iZ = plrv.plr->z = gotoData->iToZ;
+
+    // force player & NPC reload
+    plrv.viewable.clear();
+    plrv.viewableNPCs.clear();
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
 }
@@ -616,30 +619,22 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
     WarpLocation target = PlayerManager::getRespawnPoint(plr);
 
-    // players respawn at same spot they died at for now...
     sP_CL2FE_REQ_PC_REGEN* reviveData = (sP_CL2FE_REQ_PC_REGEN*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_REGEN_SUCC, response);
+    INITSTRUCT(sP_FE2CL_PC_REGEN, resp2);
 
-    /*
-    * Update player state
-    */
     // Nanos
     for (int n = 0; n < 3; n++) {
         int nanoID = plr->equippedNanos[n];
-        if (nanoID > 0 && nanoID < 37) { // sanity check
-            plr->Nanos[nanoID].iStamina = 75; // max is 150, so 75 is half
-            response.PCRegenData.Nanos[n] = plr->Nanos[nanoID];
-        }
+        plr->Nanos[nanoID].iStamina = 75; // max is 150, so 75 is half
+        response.PCRegenData.Nanos[n] = plr->Nanos[nanoID];
     }
-    plr->activeNano = -1;
 
-    // Position
+    // Update player
     plr->x = target.x;
     plr->y = target.y;
     plr->z = target.z;
-    // HP and FM
     plr->HP = 1000 * plr->level;
-    plr->fusionmatter = plr->fusionmatter; // TODO: does this actually change?
 
     // Response parameters
     response.PCRegenData.iActiveNanoSlotNum = plr->activeNano;
@@ -652,6 +647,18 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     response.PCRegenData.iMapNum = reviveData->iIndex;
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_REGEN_SUCC, sizeof(sP_FE2CL_REP_PC_REGEN_SUCC));
+
+    // Update other players
+    resp2.PCRegenDataForOtherPC.iPC_ID = plr->iID;
+    resp2.PCRegenDataForOtherPC.iX = plr->x;
+    resp2.PCRegenDataForOtherPC.iY = plr->y;
+    resp2.PCRegenDataForOtherPC.iZ = plr->z;
+    resp2.PCRegenDataForOtherPC.iHP = plr->HP;
+    resp2.PCRegenDataForOtherPC.iAngle = plr->angle;
+    resp2.PCRegenDataForOtherPC.Nano = plr->Nanos[plr->activeNano];
+
+    for (CNSocket *s : players[sock].viewable)
+        s->sendPacket((void*)&resp2, P_FE2CL_PC_REGEN, sizeof(sP_FE2CL_PC_REGEN));
 }
 
 void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {

@@ -28,8 +28,8 @@
 #endif
 #endif
 
-CNShardServer *shardServer;
-std::thread *shardThread;
+CNShardServer *shardServer = nullptr;
+std::thread *shardThread = nullptr;
 
 void startShard(CNShardServer* server) {
     server->start();
@@ -39,8 +39,11 @@ void startShard(CNShardServer* server) {
 // terminate gracefully on SIGINT (for gprof)
 void terminate(int arg) {
     std::cout << "OpenFusion: terminating." << std::endl;
-    shardServer->kill();
-    shardThread->join();
+
+    if (shardServer != nullptr && shardThread != nullptr) {
+        shardServer->kill();
+        shardThread->join();
+    }
 
 #if defined(__SANITIZE_ADDRESS__)
     TableData::cleanup();
