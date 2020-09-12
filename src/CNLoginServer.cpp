@@ -29,10 +29,14 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             std::string userLogin((char*)login->szCookie_TEGid);
             std::string userPassword((char*)login->szCookie_authid);
 
+            /*
+             * The std::string -> char* -> std::string maneuver should remove any
+             * trailing garbage after the null terminator.
+             */
             if (userLogin.length() == 0)
-                userLogin = U16toU8(login->szID);
+                userLogin = std::string(U16toU8(login->szID).c_str());
             if (userPassword.length() == 0)
-                userPassword = U16toU8(login->szPassword);
+                userPassword = std::string(U16toU8(login->szPassword).c_str());
 
             bool success = false;
             int errorCode = 0;
