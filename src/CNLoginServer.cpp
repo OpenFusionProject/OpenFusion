@@ -30,13 +30,17 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             std::string userPassword((char*)login->szCookie_authid);
 
             /*
-             * The std::string -> char* -> std::string maneuver should remove any
-             * trailing garbage after the null terminator.
-             */
-            if (userLogin.length() == 0)
+            * Sometimes the client sends garbage cookie data.
+            * Validate it as normal credentials instead of using a length check before falling back.
+            */
+            if (!CNLoginServer::isLoginDataGood(userLogin, userPassword)) {
+                /*
+                 * The std::string -> char* -> std::string maneuver should remove any
+                 * trailing garbage after the null terminator.
+                 */
                 userLogin = std::string(U16toU8(login->szID).c_str());
-            if (userPassword.length() == 0)
                 userPassword = std::string(U16toU8(login->szPassword).c_str());
+            }
 
             bool success = false;
             int errorCode = 0;
