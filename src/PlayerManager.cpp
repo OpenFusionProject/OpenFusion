@@ -619,12 +619,37 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     // players respawn at same spot they died at for now...
     sP_CL2FE_REQ_PC_REGEN* reviveData = (sP_CL2FE_REQ_PC_REGEN*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_REGEN_SUCC, response);
+
+    /*
+    * Update player state
+    */
+    // Nanos
+    for (int n = 0; n < 3; n++) {
+        int nanoID = plr->equippedNanos[n];
+        if (nanoID > 0 && nanoID < 37) { // sanity check
+            plr->Nanos[nanoID].iStamina = 75; // max is 150, so 75 is half
+            response.PCRegenData.Nanos[n] = plr->Nanos[nanoID];
+        }
+    }
+    plr->activeNano = -1;
+
+    // Position
+    plr->x = target.x;
+    plr->y = target.y;
+    plr->z = target.z;
+    // HP and FM
+    plr->HP = 1000 * plr->level;
+    plr->fusionmatter = plr->fusionmatter; // TODO: does this actually change?
+
+    // Response parameters
+    response.PCRegenData.iActiveNanoSlotNum = plr->activeNano;
+    response.PCRegenData.iX = plr->x;
+    response.PCRegenData.iY = plr->y;
+    response.PCRegenData.iZ = plr->z;
+    response.PCRegenData.iHP = plr->HP;
+    response.iFusionMatter = plr->fusionmatter;
     response.bMoveLocation = reviveData->eIL;
     response.PCRegenData.iMapNum = reviveData->iIndex;
-    response.PCRegenData.iHP = 1000 * plr->level;
-    response.PCRegenData.iX = target.x;
-    response.PCRegenData.iY = target.y;
-    response.PCRegenData.iZ = target.z;
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_REGEN_SUCC, sizeof(sP_FE2CL_REP_PC_REGEN_SUCC));
 }

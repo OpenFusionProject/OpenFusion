@@ -175,8 +175,8 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
 
     std::cout << "summon nano\n";
 
-    if (slot > 2 || slot < 0)
-        return; //sanity check
+    if (slot > 2 || slot < 0) // TODO: implement proper way to dismiss nano if slot = -1
+        return; // sanity check
 
     int nanoId = plr->equippedNanos[slot];
 
