@@ -71,7 +71,7 @@ void NanoManager::nanoGMGiveHandler(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     // Add nano to player
-    addNano(sock, nano->iNanoID, 5);
+    addNano(sock, nano->iNanoID, 0);
 
     DEBUGLOG(
         std::cout << U16toU8(plr->PCStyle.szFirstName) << U16toU8(plr->PCStyle.szLastName) << " requested to add nano id: " << nano->iNanoID << std::endl;
