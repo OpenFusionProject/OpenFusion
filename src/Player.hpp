@@ -25,6 +25,8 @@ struct Player {
     int equippedNanos[3];
     int activeNano; // active nano (index into Nanos)
     int8_t iPCState;
+    int32_t iWarpLocationFlag;
+    int64_t aSkywayLocationFlag[2];
 
     int x, y, z, angle;
     sItemBase Equip[AEQUIP_COUNT];
