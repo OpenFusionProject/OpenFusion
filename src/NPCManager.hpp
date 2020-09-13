@@ -24,5 +24,10 @@ namespace NPCManager {
     void npcSummonHandler(CNSocket* sock, CNPacketData* data);
     void npcWarpHandler(CNSocket* sock, CNPacketData* data);
 
+    void npcVendorStart(CNSocket* sock, CNPacketData* data);
+    void npcVendorTable(CNSocket* sock, CNPacketData* data);
+    void npcVendorBuy(CNSocket* sock, CNPacketData* data);
+    void npcVendorSell(CNSocket* sock, CNPacketData* data);
+
     void updatePlayerNPCS(CNSocket* sock, PlayerView& plr);
 }

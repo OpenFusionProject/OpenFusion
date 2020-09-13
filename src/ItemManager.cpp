@@ -748,12 +748,9 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
 // TODO: use this in cleaned up ItemManager
 int ItemManager::findFreeSlot(Player *plr) {
     int i;
-    sItemBase free;
-
-    memset((void*)&free, 0, sizeof(sItemBase));
 
     for (i = 0; i < AINVEN_COUNT; i++)
-        if (memcmp((void*)&plr->Inven[i], (void*)&free, sizeof(sItemBase)) == 0)
+        if (plr->Inven[i].iType == 0 && plr->Inven[i].iID == 0 && plr->Inven[i].iOpt == 0)
             return i;
 
     // not found

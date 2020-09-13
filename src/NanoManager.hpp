@@ -10,6 +10,7 @@ namespace NanoManager {
     void nanoGMGiveHandler(CNSocket* sock, CNPacketData* data);
     void nanoSkillUseHandler(CNSocket* sock, CNPacketData* data);
     void nanoSkillSetHandler(CNSocket* sock, CNPacketData* data);
+    void nanoSkillSetGMHandler(CNSocket* sock, CNPacketData* data);
 
     // Helper methods
     void addNano(CNSocket* sock, int16_t nanoId, int16_t slot);

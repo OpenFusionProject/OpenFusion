@@ -29,10 +29,18 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             std::string userLogin((char*)login->szCookie_TEGid);
             std::string userPassword((char*)login->szCookie_authid);
 
-            if (userLogin.length() == 0)
-                userLogin = U16toU8(login->szID);
-            if (userPassword.length() == 0)
-                userPassword = U16toU8(login->szPassword);
+            /*
+            * Sometimes the client sends garbage cookie data.
+            * Validate it as normal credentials instead of using a length check before falling back.
+            */
+            if (!CNLoginServer::isLoginDataGood(userLogin, userPassword)) {
+                /*
+                 * The std::string -> char* -> std::string maneuver should remove any
+                 * trailing garbage after the null terminator.
+                 */
+                userLogin = std::string(U16toU8(login->szID).c_str());
+                userPassword = std::string(U16toU8(login->szPassword).c_str());
+            }
 
             bool success = false;
             int errorCode = 0;
@@ -124,6 +132,13 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     //Equip info 
                     for (int i = 0; i < AEQUIP_COUNT; i++) {
                         charInfo.aEquip[i] = it->Equip[i];
+                    }
+
+                    for (int i = 5; i < AEQUIP_COUNT; i++) {
+                        // empty equips
+                        charInfo.aEquip[i].iID = 0;
+                        charInfo.aEquip[i].iType = i;
+                        charInfo.aEquip[i].iOpt = 0;
                     }
 
                     // set default to the first character

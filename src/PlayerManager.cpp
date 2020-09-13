@@ -6,6 +6,8 @@
 
 #include "settings.hpp"
 
+#include <assert.h>
+
 #include <algorithm>
 #include <vector>
 #include <cmath>
@@ -45,6 +47,8 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
     players[key].plr = p;
     players[key].lastHeartbeat = 0;
 
+    key->plr = p;
+
     std::cout << U16toU8(plr.PCStyle.szFirstName) << " " << U16toU8(plr.PCStyle.szLastName) << " has joined!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
 }
@@ -66,6 +70,7 @@ void PlayerManager::removePlayer(CNSocket* key) {
     std::cout << U16toU8(cachedView.plr->PCStyle.szFirstName) << " " << U16toU8(cachedView.plr->PCStyle.szLastName) << " has left!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
 
+    key->plr = nullptr;
     delete cachedView.plr;
     players.erase(key);
 }
@@ -204,7 +209,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iLevel = plr.level;
     response.PCLoadData2CL.iCandy = plr.money;
     response.PCLoadData2CL.iMentor = 5; // Computress
-    response.PCLoadData2CL.iMentorCount = 4;
+    response.PCLoadData2CL.iMentorCount = 1; // how many guides the player has had
     response.PCLoadData2CL.iMapNum = 0;
     response.PCLoadData2CL.iX = plr.x;
     response.PCLoadData2CL.iY = plr.y;
@@ -235,7 +240,6 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
         response.PCLoadData2CL.aQuestFlag[i] = plr.aQuestFlag[i];
     }
 
-    // shut computress up
     response.PCLoadData2CL.iFirstUseFlag1 = UINT64_MAX;
     response.PCLoadData2CL.iFirstUseFlag2 = UINT64_MAX;
 
@@ -531,6 +535,7 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_GOTO* gotoData = (sP_CL2FE_REQ_PC_GOTO*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, response);
+    PlayerView& plrv = players[sock];
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_GOTO:" << std::endl;
@@ -539,9 +544,13 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tZ: " << gotoData->iToZ << std::endl;
     )
 
-    response.iX = gotoData->iToX;
-    response.iY = gotoData->iToY;
-    response.iZ = gotoData->iToZ;
+    response.iX = plrv.plr->x = gotoData->iToX;
+    response.iY = plrv.plr->y = gotoData->iToY;
+    response.iZ = plrv.plr->z = gotoData->iToZ;
+
+    // force player & NPC reload
+    plrv.viewable.clear();
+    plrv.viewableNPCs.clear();
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
 }
@@ -551,6 +560,8 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_GM_REQ_PC_SET_VALUE* setData = (sP_CL2FE_GM_REQ_PC_SET_VALUE*)data->buf;
+    Player *plr = PlayerManager::getPlayer(sock);
+
     INITSTRUCT(sP_FE2CL_GM_REP_PC_SET_VALUE, response);
 
     DEBUGLOG(
@@ -559,6 +570,27 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tSetValueType: " << setData->iSetValueType << std::endl;
         std::cout << "\tSetValue: " << setData->iSetValue << std::endl;
     )
+
+    // Handle serverside value-changes
+    switch (setData->iSetValueType) {
+    case 1:
+        plr->HP = setData->iSetValue;
+        break;
+    case 2:
+        // TODO: batteryW
+        break;
+    case 3:
+        // TODO: batteryN nanopotion
+        break;
+    case 4:
+        plr->fusionmatter = setData->iSetValue;
+        break;
+    case 5:
+        plr->money = setData->iSetValue;
+        break;
+    default:
+        break;
+    }
 
     response.iPC_ID = setData->iPC_ID;
     response.iSetValue = setData->iSetValue;
@@ -591,17 +623,46 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
     WarpLocation target = PlayerManager::getRespawnPoint(plr);
 
-    // players respawn at same spot they died at for now...
     sP_CL2FE_REQ_PC_REGEN* reviveData = (sP_CL2FE_REQ_PC_REGEN*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_REGEN_SUCC, response);
+    INITSTRUCT(sP_FE2CL_PC_REGEN, resp2);
+
+    // Nanos
+    for (int n = 0; n < 3; n++) {
+        int nanoID = plr->equippedNanos[n];
+        plr->Nanos[nanoID].iStamina = 75; // max is 150, so 75 is half
+        response.PCRegenData.Nanos[n] = plr->Nanos[nanoID];
+    }
+
+    // Update player
+    plr->x = target.x;
+    plr->y = target.y;
+    plr->z = target.z;
+    plr->HP = 1000 * plr->level;
+
+    // Response parameters
+    response.PCRegenData.iActiveNanoSlotNum = plr->activeNano;
+    response.PCRegenData.iX = plr->x;
+    response.PCRegenData.iY = plr->y;
+    response.PCRegenData.iZ = plr->z;
+    response.PCRegenData.iHP = plr->HP;
+    response.iFusionMatter = plr->fusionmatter;
     response.bMoveLocation = reviveData->eIL;
     response.PCRegenData.iMapNum = reviveData->iIndex;
-    response.PCRegenData.iHP = 1000 * plr->level;
-    response.PCRegenData.iX = target.x;
-    response.PCRegenData.iY = target.y;
-    response.PCRegenData.iZ = target.z;
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_REGEN_SUCC, sizeof(sP_FE2CL_REP_PC_REGEN_SUCC));
+
+    // Update other players
+    resp2.PCRegenDataForOtherPC.iPC_ID = plr->iID;
+    resp2.PCRegenDataForOtherPC.iX = plr->x;
+    resp2.PCRegenDataForOtherPC.iY = plr->y;
+    resp2.PCRegenDataForOtherPC.iZ = plr->z;
+    resp2.PCRegenDataForOtherPC.iHP = plr->HP;
+    resp2.PCRegenDataForOtherPC.iAngle = plr->angle;
+    resp2.PCRegenDataForOtherPC.Nano = plr->Nanos[plr->activeNano];
+
+    for (CNSocket *s : players[sock].viewable)
+        s->sendPacket((void*)&resp2, P_FE2CL_PC_REGEN, sizeof(sP_FE2CL_PC_REGEN));
 }
 
 void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
@@ -672,7 +733,8 @@ void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
 
 #pragma region Helper methods
 Player *PlayerManager::getPlayer(CNSocket* key) {
-    return players[key].plr;
+    assert(key->plr != nullptr);
+    return key->plr;
 }
 
 WarpLocation PlayerManager::getRespawnPoint(Player *plr) {
