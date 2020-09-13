@@ -268,7 +268,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 return;
 
             sP_CL2LS_REQ_CHAR_DELETE* del = (sP_CL2LS_REQ_CHAR_DELETE*)data->buf;
-            int operationResult = Database::deleteCharacter(del->iPC_UID);
+            int operationResult = Database::deleteCharacter(del->iPC_UID, loginSessions[sock].userID);
             
             INITSTRUCT(sP_LS2CL_REP_CHAR_DELETE_SUCC, resp);
             resp.iSlotNum = operationResult;

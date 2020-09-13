@@ -125,40 +125,45 @@ bool Database::isNameFree(sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck)
 
 int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
 {
-    DbPlayer create = {};
-    //save packet data
-    create.FirstName = U16toU8(save->szFirstName);
-    create.LastName = U16toU8(save->szLastName);
-    create.slot = save->iSlotNum;
-    create.AccountID = AccountID;
-    //set flags
-    create.AppearanceFlag = 0;
-    create.TutorialFlag = 0;
-    create.PayZoneFlag = 0;
-    //set namecheck based on setting
-    if (settings::APPROVEALLNAMES || save->iFNCode)
-        create.NameCheck = 1;
-    else
-        create.NameCheck = 0;
-    //create default body character
-    create.Body= 0;
-    create.Class= 0;
-    create.EyeColor= 1;
-    create.FaceStyle= 1;
-    create.Gender= 1;
-    create.HP= 1000;
-    create.HairColor= 1;
-    create.HairStyle = 1;
-    create.Height= 0;
-    create.Level= 1;
-    create.SkinColor= 1;
-    create.isGM = settings::GM;
-    create.x_coordinates = settings::SPAWN_X;
-    create.y_coordinates= settings::SPAWN_Y;
-    create.z_coordinates= settings::SPAWN_Z;
-    create.angle = settings::SPAWN_ANGLE;
-    create.QuestFlag = std::vector<char>();
-    return db.insert(create);
+    if (db.count<DbPlayer>(where(c(&DbPlayer::AccountID) == AccountID))<4) {
+        DbPlayer create = {};
+            //save packet data
+            create.FirstName = U16toU8(save->szFirstName);
+            create.LastName = U16toU8(save->szLastName);
+            create.slot = save->iSlotNum;
+            create.AccountID = AccountID;
+            //set flags
+            create.AppearanceFlag = 0;
+            create.TutorialFlag = 0;
+            create.PayZoneFlag = 0;
+            //set namecheck based on setting
+            if (settings::APPROVEALLNAMES || save->iFNCode)
+                create.NameCheck = 1;
+            else
+                create.NameCheck = 0;
+        //create default body character
+        create.Body = 0;
+        create.Class = 0;
+        create.EyeColor = 1;
+        create.FaceStyle = 1;
+        create.Gender = 1;
+        create.HP = 1000;
+        create.HairColor = 1;
+        create.HairStyle = 1;
+        create.Height = 0;
+        create.Level = 1;
+        create.SkinColor = 1;
+        create.isGM = false;
+        create.x_coordinates = settings::SPAWN_X;
+        create.y_coordinates = settings::SPAWN_Y;
+        create.z_coordinates = settings::SPAWN_Z;
+        create.angle = settings::SPAWN_ANGLE;
+        create.QuestFlag = std::vector<char>();
+        return db.insert(create);
+    }
+    else {
+        return -1;
+    }
 }
 
 void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character) 
@@ -229,10 +234,10 @@ void Database::finishTutorial(int PlayerID)
     db.update(playerToDb(finish));
 }
 
-int Database::deleteCharacter(int characterID) 
+int Database::deleteCharacter(int characterID, int userID) 
 {
     auto find =
-        db.get_all<DbPlayer>(where(c(&DbPlayer::PlayerID) == characterID));
+        db.get_all<DbPlayer>(where(c(&DbPlayer::PlayerID) == characterID and c(&DbPlayer::AccountID)==userID));
     int slot = find.front().slot;
     db.remove<DbPlayer>(find.front().PlayerID);
     db.remove_all<Inventory>(where(c(&Inventory::playerId) == characterID));
