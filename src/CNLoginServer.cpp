@@ -26,8 +26,13 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             sP_CL2LS_REQ_LOGIN* login = (sP_CL2LS_REQ_LOGIN*)data->buf;   
             //TODO: implement better way of sending credentials
-            std::string userLogin = U16toU8(login->szID);
-            std::string userPassword = U16toU8(login->szPassword);
+            std::string userLogin((char*)login->szCookie_TEGid);
+            std::string userPassword((char*)login->szCookie_authid);
+
+            if (userLogin.length() == 0)
+                userLogin = U16toU8(login->szID);
+            if (userPassword.length() == 0)
+                userPassword = U16toU8(login->szPassword);
 
             bool success = false;
             int errorCode = 0;

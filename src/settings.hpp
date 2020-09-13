@@ -15,7 +15,7 @@ namespace settings {
     extern int SPAWN_ANGLE;
     extern std::string MOTDSTRING;
     extern std::string NPCJSON;
-    extern std::string WARPJSON;
+    extern std::string XDTJSON;
     extern std::string MOBJSON;
     extern bool GM;
 

@@ -9,6 +9,7 @@
 #include "NPCManager.hpp"
 #include "TransportManager.hpp"
 #include "Database.hpp"
+#include "TableData.hpp"
 
 #include "settings.hpp"
 
@@ -19,6 +20,13 @@
 #endif
 #include <string>
 #include <signal.h>
+
+// HACK
+#ifdef __has_feature
+#if __has_feature(address_sanitizer)
+#define __SANITIZE_ADDRESS__ 1
+#endif
+#endif
 
 CNShardServer *shardServer;
 std::thread *shardThread;
@@ -33,6 +41,11 @@ void terminate(int arg) {
     std::cout << "OpenFusion: terminating." << std::endl;
     shardServer->kill();
     shardThread->join();
+
+#if defined(__SANITIZE_ADDRESS__)
+    TableData::cleanup();
+#endif
+
     exit(0);
 }
 
@@ -70,6 +83,7 @@ int main() {
     settings::init();
     std::cout << "[INFO] Protocol version: " << PROTOCOL_VERSION << std::endl;
     std::cout << "[INFO] Intializing Packet Managers..." << std::endl;
+    TableData::init();
     PlayerManager::init();
     ChatManager::init();
     CombatManager::init();

@@ -45,6 +45,7 @@ CXXSRC=\
 	src/PlayerManager.cpp\
 	src/settings.cpp\
 	src/TransportManager.cpp\
+	src/TableData.cpp\
 
 # headers (for timestamp purposes)
 CHDR=\
@@ -79,6 +80,7 @@ CXXHDR=\
 	src/PlayerManager.hpp\
 	src/settings.hpp\
 	src/TransportManager.hpp\
+	src/TableData.hpp\
 
 COBJ=$(CSRC:.c=.o)
 CXXOBJ=$(CXXSRC:.cpp=.o)
