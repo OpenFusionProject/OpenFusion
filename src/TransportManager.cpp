@@ -69,4 +69,41 @@ void TransportManager::transportRegisterLocationHandler(CNSocket* sock, CNPacket
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC, sizeof(sP_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC));
 }
 
-void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) {}
+void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_WARP_USE_TRANSPORTATION))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_WARP_USE_TRANSPORTATION* req = (sP_CL2FE_REQ_PC_WARP_USE_TRANSPORTATION*)data->buf;
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    /*
+    * req:
+    * eIL -- the location ID of the desination
+    * iNPC_ID -- the ID of the NPC who is warping you
+    * iTransporationID -- ??????
+    * iSlotNum -- inventory slot number; why??
+    */
+
+    int cost = 100; // TODO: lookup correct fare
+
+    if (plr->money < cost || true) { // future sanity check, just fail for now
+        INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_FAIL, failResp);
+        failResp.iErrorCode = 0; // TODO: error code
+        failResp.iTransportationID = req->iTransporationID;
+        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_FAIL, sizeof(sP_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_FAIL));
+        return;
+    }
+
+    plr->money -= cost;
+
+    INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC, resp);
+
+    // response parameters
+    //resp.eTT =
+    resp.iCandy = plr->money;
+    resp.iX = plr->x;
+    resp.iY = plr->y;
+    resp.iZ = plr->z;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC));
+}
