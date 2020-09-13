@@ -409,6 +409,26 @@ void Database::updatePlayer(Player player) {
     updateNanos(player);
 }
 
+void Database::updateInventory(Player player){
+    //start transaction
+    db.begin_transaction();
+    //remove all
+    db.remove_all<Inventory>(
+        where(c(&Inventory::playerId) == player.iID)
+        );
+    //insert equip
+    for (int i = 0; i < AEQUIP_COUNT; i++) {
+        if (player.Equip[i].iID != 0) {
+            sItemBase* next = &player.Equip[i];
+            Inventory toAdd = {};
+            toAdd.playerId = player.iID;
+            toAdd.slot = i;
+            toAdd.id = next->iID;
+            toAdd.Opt = next->iOpt;
+            toAdd.Type = next->iType;
+            toAdd.TimeLimit = next->iTimeLimit;
+            db.insert(toAdd);
+        }
     }
     //insert inventory
     for (int i = 0; i < AINVEN_COUNT; i++) {
