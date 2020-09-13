@@ -1,6 +1,7 @@
 #include "TableData.hpp"
 #include "NPCManager.hpp"
 #include "TransportManager.hpp"
+#include "ItemManager.hpp"
 #include "settings.hpp"
 #include "MissionManager.hpp"
 
@@ -119,6 +120,16 @@ void TableData::init() {
         }
 
         std::cout << "[INFO] Loaded mission-related data" << std::endl;
+
+        // load vendor listings
+        nlohmann::json listings = xdtData["m_pVendorTable"]["m_pItemData"];
+
+        for (nlohmann::json::iterator listing = listings.begin(); listing != listings.end(); listing++) {
+            VendorListing vListing = {listing.value()["m_iSortNumber"], listing.value()["m_iItemType"], listing.value()["m_iitemID"], listing.value()["m_iSellCost"]};
+            ItemManager::VendorTables[listing.value()["m_iNpcNumber"]].push_back(vListing);
+        }
+
+        std::cout << "[INFO] Loaded " << ItemManager::VendorTables.size() << " vendor tables" << std::endl;
     }
     catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed xdt.json file! Reason:" << err.what() << std::endl;

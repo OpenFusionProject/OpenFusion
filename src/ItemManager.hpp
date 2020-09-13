@@ -3,13 +3,20 @@
 #include "CNShardServer.hpp"
 #include "Player.hpp"
 
+struct VendorListing {
+    int sort, type, iID, price;
+};
+
 namespace ItemManager {
     enum class SlotType {
         EQUIP = 0,
         INVENTORY = 1,
         BANK = 3
     };
-    void init();
+    // hopefully this is fine since it's never modified after load
+    extern std::map<int32_t, std::vector<VendorListing>> VendorTables;
+
+    void init();	
 
     void itemMoveHandler(CNSocket* sock, CNPacketData* data);
     void itemDeleteHandler(CNSocket* sock, CNPacketData* data);

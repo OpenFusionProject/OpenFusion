@@ -102,56 +102,33 @@ void NPCManager::npcVendorTable(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE))
         return; // malformed packet
 
-    //sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE* req = (sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE*)data->buf;
+    sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE* req = (sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE*)data->buf;
+    
+    if (req->iVendorID != req->iNPC_ID || ItemManager::VendorTables.find(req->iNPC_ID) == ItemManager::VendorTables.end())
+        return;
+
+    std::vector<VendorListing> listings = ItemManager::VendorTables[req->iNPC_ID]; // maybe use iVendorID instead...?
+
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, resp);
-    // TODO: data needs to be read from shopkeeper tabledata
-    // check req->iVendorID and req->iNPC_ID
 
-    // Exaple Items
-    // shirt
-    sItemBase base1;
-    base1.iID = 60;
-    base1.iOpt = 0;
-    // expire date
-    base1.iTimeLimit = 0;
-    base1.iType = 1;
+    for (int i = 0; i < 20; i++) { // 20 is the max
 
-    sItemVendor item1;
-    item1.item = base1;
-    item1.iSortNum = 0;
-    item1.iVendorID = 1;
-    // cost amount in float? (doesn't work rn, need to figure out)
-    item1.fBuyCost = 100.0;
+        if (i < listings.size()) { // check to make sure listing exists first
+            sItemBase base;
+            base.iID = listings[i].iID;
+            base.iOpt = 0;
+            base.iTimeLimit = 0;
+            base.iType = listings[i].type;
 
-    // pants
-    sItemBase base2;
-    base2.iID = 61;
-    base2.iOpt = 0;
-    base2.iTimeLimit = 0;
-    base2.iType = 2;
+            sItemVendor vItem;
+            vItem.item = base;
+            vItem.iSortNum = listings[i].sort;
+            vItem.iVendorID = req->iVendorID;
+            vItem.fBuyCost = listings[i].price;
 
-    sItemVendor item2;
-    item2.item = base2;
-    item2.iSortNum = 1;
-    item2.iVendorID = 1;
-    item2.fBuyCost = 250.0;
-
-    // shoes
-    sItemBase base3;
-    base3.iID = 51;
-    base3.iOpt = 0;
-    base3.iTimeLimit = 0;
-    base3.iType = 3;
-
-    sItemVendor item3;
-    item3.item = base3;
-    item3.iSortNum = 2;
-    item3.iVendorID = 1;
-    item3.fBuyCost = 350.0;
-
-    resp.item[0] = item1;
-    resp.item[1] = item2;
-    resp.item[2] = item3;
+            resp.item[i] = vItem;
+        }
+    }
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC));
 }

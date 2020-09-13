@@ -7,6 +7,8 @@
 #include <string.h> // for memset() and memcmp()
 #include <assert.h>
 
+std::map<int32_t, std::vector<VendorListing>> ItemManager::VendorTables;
+
 void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_DELETE, itemDeleteHandler);
