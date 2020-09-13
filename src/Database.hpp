@@ -83,7 +83,7 @@ namespace Database {
     //called after tutorial
     void finishTutorial(int PlayerID);
     //returns slot number
-    int deleteCharacter(int characterID);
+    int deleteCharacter(int characterID, int userID);
     std::vector <Player> getCharacters(int userID);
     //accepting/declining custom name
     enum class CUSTOMNAME {
