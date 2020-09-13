@@ -104,7 +104,7 @@ void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
     if (task["m_iSUOutgoingTask"] == 0)
     {
         //save completed mission on player
-        saveMission(plr, task["m_iHMissionID"]-1);
+        saveMission(plr, (int)(task["m_iHMissionID"])-1);
     }
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_END_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_END_SUCC));
