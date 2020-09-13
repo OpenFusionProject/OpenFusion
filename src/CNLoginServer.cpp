@@ -134,13 +134,6 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                         charInfo.aEquip[i] = it->Equip[i];
                     }
 
-                    for (int i = 5; i < AEQUIP_COUNT; i++) {
-                        // empty equips
-                        charInfo.aEquip[i].iID = 0;
-                        charInfo.aEquip[i].iType = i;
-                        charInfo.aEquip[i].iOpt = 0;
-                    }
-
                     // set default to the first character
                     if (it == characters.begin())
                         loginSessions[sock].selectedChar = UID;
