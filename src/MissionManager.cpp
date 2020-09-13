@@ -100,6 +100,13 @@ void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
         std::cout << "[WARN] Player completed non-active mission!?" << std::endl;
     }
 
+    // if it's the last task
+    if (task["m_iSUOutgoingTask"] == 0)
+    {
+        //save completed mission on player
+        saveMission(plr, (int)(task["m_iHMissionID"])-1);
+    }
+
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_END_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_END_SUCC));
 }
 
@@ -322,4 +329,11 @@ void MissionManager::mobKilled(CNSocket *sock, int mobid) {
 
         sock->sendPacket((void*)&kill, P_FE2CL_REP_PC_KILL_QUEST_NPCs_SUCC, sizeof(sP_FE2CL_REP_PC_KILL_QUEST_NPCs_SUCC));
     }
+}
+
+void MissionManager::saveMission(Player* player, int missionId) {
+    //Missions are stored in int_64t array
+    int row = missionId / 64;
+    int collumn = missionId % 64;
+    player->aQuestFlag[row] |= (1LL << collumn);
 }

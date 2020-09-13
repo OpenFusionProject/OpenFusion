@@ -8,6 +8,7 @@
 #include "Player.hpp"
 #include "CNStructs.hpp"
 #include "contrib/sqlite/sqlite_orm.h"
+#include "MissionManager.hpp"
 
 using namespace sqlite_orm;
 
@@ -50,7 +51,7 @@ auto db = make_storage("database.db",
         make_column("isGM", &Database::DbPlayer::isGM),
         make_column("FusionMatter", &Database::DbPlayer::FusionMatter),
         make_column("Taros", &Database::DbPlayer::Taros),
-        make_column("PCState", &Database::DbPlayer::PCState)
+        make_column("Quests", &Database::DbPlayer::QuestFlag)
     ),
     make_table("Inventory",
         make_column("PlayerId", &Database::Inventory::playerId),
@@ -156,6 +157,7 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     create.y_coordinates= settings::SPAWN_Y;
     create.z_coordinates= settings::SPAWN_Z;
     create.angle = settings::SPAWN_ANGLE;
+    create.QuestFlag = std::vector<char>();
     return db.insert(create);
 }
 
@@ -201,9 +203,9 @@ void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character)
 
 void Database::finishTutorial(int PlayerID) 
 {
-    //set flag
-    DbPlayer finish = getDbPlayerById(PlayerID);
-    finish.TutorialFlag = 1;    
+    Player finish = getPlayer(PlayerID);
+    //set flag    
+    finish.PCStyle2.iTutorialFlag= 1;    
     //add Gun
     Inventory LightningGun = {};
     LightningGun.playerId = PlayerID;
@@ -218,9 +220,13 @@ void Database::finishTutorial(int PlayerID)
     Buttercup.iID = 1;
     Buttercup.iSkillID = 1;
     Buttercup.iStamina = 150;
-    finish.Nano1 = 1;
+    finish.equippedNanos[0] = 1;
     db.insert(Buttercup);
-    db.update(finish);
+    //save missions
+    MissionManager::saveMission(&finish, 0);
+    MissionManager::saveMission(&finish, 1);
+
+    db.update(playerToDb(finish));
 }
 
 int Database::deleteCharacter(int characterID) 
@@ -303,6 +309,23 @@ Database::DbPlayer Database::playerToDb(Player player)
     result.Nano1 = player.equippedNanos[0];
     result.Nano2 = player.equippedNanos[1];
     result.Nano3 = player.equippedNanos[2];
+
+    //quests
+    result.QuestFlag = std::vector<char>();
+    //parsing long array to char vector
+    for (int i=0; i<16; i++)
+    {
+        int64_t temp = player.aQuestFlag[i];
+        for (int j = 0; j < 8; j++) {
+            int64_t check2 = (temp >> (8 * (7 - j)));
+            char toadd = check2;
+            result.QuestFlag.push_back(
+                toadd
+            );
+        }
+    }
+
+
     return result;
 }
 
@@ -345,6 +368,23 @@ Player Database::DbToPlayer(DbPlayer player) {
   
     Database::getInventory(&result);
     Database::getNanos(&result);
+
+    std::vector<char>::iterator it = player.QuestFlag.begin();
+    for (int i = 0; i < 16; i++)
+    {
+        if (it == player.QuestFlag.end())
+            break;
+
+        int64_t toAdd = 0;
+        for (int j = 0; j < 8; j++) {
+            int64_t temp = *it;
+            int64_t check2 = (temp << (8 * (7 - j)));
+            toAdd += check2;
+            it++;
+        }
+        result.aQuestFlag[i] = toAdd;
+    }
+
     return result;
 }
 
@@ -370,10 +410,10 @@ void Database::updatePlayer(Player player) {
     updateNanos(player);
 }
 
-void Database::updateInventory(Player player) {
+void Database::updateInventory(Player player){
     //start transaction
     db.begin_transaction();
-    //remove all previous items
+    //remove all
     db.remove_all<Inventory>(
         where(c(&Inventory::playerId) == player.iID)
         );
