@@ -3,6 +3,10 @@
 #include "PlayerManager.hpp"
 #include "TransportManager.hpp"
 
+
+std::map<int32_t, TransportRoute> TransportManager::Routes;
+std::map<int32_t, TransportLocation> TransportManager::Locations;
+
 void TransportManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION, transportRegisterLocationHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_TRANSPORTATION, transportWarpHandler);
@@ -78,15 +82,14 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
 
     /*
     * req:
-    * eIL -- the location ID of the desination
+    * eIL -- inventory type
     * iNPC_ID -- the ID of the NPC who is warping you
-    * iTransporationID -- ??????
-    * iSlotNum -- inventory slot number; why??
+    * iTransporationID -- iVehicleID
+    * iSlotNum -- inventory slot number
     */
 
-    int cost = 100; // TODO: lookup correct fare
-
-    if (plr->money < cost || true) { // future sanity check, just fail for now
+    if (Routes.find(req->iTransporationID) == Routes.end() || Locations.find(Routes[req->iTransporationID].end) == Locations.end()
+        || Routes[req->iTransporationID].cost > plr->money) { // sanity check
         INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_FAIL, failResp);
         failResp.iErrorCode = 0; // TODO: error code
         failResp.iTransportationID = req->iTransporationID;
@@ -94,12 +97,30 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
         return;
     }
 
-    plr->money -= cost;
+    TransportRoute route = Routes[req->iTransporationID];
+
+    plr->money -= route.cost;
+    
+    TransportLocation target = Locations[route.end];
+    switch (route.type)
+    {
+    case 1: // S.C.A.M.P.E.R.
+        plr->x = target.x;
+        plr->y = target.y;
+        plr->z = target.z;
+        break;
+    case 2: // Monkey Skyway
+        // TODO: implement
+        break;
+    default:
+        std::cout << "[WARN] Unknown tranportation type " << route.type << std::endl;
+        break;
+    }
 
     INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC, resp);
 
     // response parameters
-    //resp.eTT =
+    resp.eTT = route.type;
     resp.iCandy = plr->money;
     resp.iX = plr->x;
     resp.iY = plr->y;
