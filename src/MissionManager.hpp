@@ -50,4 +50,6 @@ namespace MissionManager {
     int giveMissionReward(CNSocket *sock, int task);
 
     void mobKilled(CNSocket *sock, int mobid);
+
+    void saveMission(Player* player, int missionId);
 }

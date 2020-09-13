@@ -230,6 +230,11 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     }
     response.PCLoadData2CL.aQuestFlag[0] = -1;
 
+    //missions
+    for (int i = 0; i < 16; i++) {
+        response.PCLoadData2CL.aQuestFlag[i] = plr.aQuestFlag[i];
+    }
+
     // shut computress up
     response.PCLoadData2CL.iFirstUseFlag1 = UINT64_MAX;
     response.PCLoadData2CL.iFirstUseFlag2 = UINT64_MAX;

@@ -62,6 +62,7 @@ namespace Database {
         int z_coordinates;
         int angle;
         short int PCState;
+        std::vector<char> QuestFlag;
     };
 
     
