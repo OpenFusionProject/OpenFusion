@@ -1,5 +1,6 @@
 #include "TableData.hpp"
 #include "NPCManager.hpp"
+#include "TransportManager.hpp"
 #include "settings.hpp"
 #include "MissionManager.hpp"
 
@@ -80,6 +81,23 @@ void TableData::init() {
         }
 
         std::cout << "[INFO] Populated " << NPCManager::Warps.size() << " Warps" << std::endl;
+
+        // load transport routes and locations
+        nlohmann::json transRouteData = xdtData["m_pTransportationTable"]["m_pTransportationData"];
+        nlohmann::json transLocData = xdtData["m_pTransportationTable"]["m_pTransportationWarpLocation"];
+
+        for (nlohmann::json::iterator tLoc = transLocData.begin(); tLoc != transLocData.end(); tLoc++) {
+            TransportLocation transLoc = { tLoc.value()["m_iNPCID"], tLoc.value()["m_iXpos"], tLoc.value()["m_iYpos"], tLoc.value()["m_iZpos"] };
+            TransportManager::Locations[tLoc.value()["m_iLocationID"]] = transLoc;
+        }
+        std::cout << "[INFO] Loaded " << TransportManager::Locations.size() << " S.C.A.M.P.E.R. locations" << std::endl; // TODO: Skyway operates differently
+
+        for (nlohmann::json::iterator tRoute = transRouteData.begin(); tRoute != transRouteData.end(); tRoute++) {
+            TransportRoute transRoute = { tRoute.value()["m_iMoveType"], tRoute.value()["m_iStartLocation"], tRoute.value()["m_iEndLocation"],
+                tRoute.value()["m_iCost"] , tRoute.value()["m_iSpeed"], tRoute.value()["m_iRouteNum"] };
+            TransportManager::Routes[tRoute.value()["m_iVehicleID"]] = transRoute;
+        }
+        std::cout << "[INFO] Loaded " << TransportManager::Routes.size() << " transportation routes" << std::endl;
 
         // load mission-related data
         nlohmann::json tasks = xdtData["m_pMissionTable"]["m_pMissionData"];
