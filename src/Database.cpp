@@ -542,6 +542,13 @@ void Database::appendBlob(std::vector<char>* blob, int32_t input) {
     }
 }
 
+void Database::appendBlob(std::vector<char>* blob, int16_t input) {
+    for (int i = 0; i < 2; i++) {
+        char toadd = (input >> (8 * (1 - i)));
+        blob->push_back(toadd);
+    }
+}
+
 int64_t Database::blobToInt64(std::vector<char>::iterator it) {
     int64_t result = 0;
     for (int i = 0; i < 8; i++) {
@@ -552,10 +559,20 @@ int64_t Database::blobToInt64(std::vector<char>::iterator it) {
     return result;
 }
 
-int32_t blobToInt32(std::vector<char>::iterator it) {
+int32_t Database::blobToInt32(std::vector<char>::iterator it) {
     int32_t result = 0;
     for (int i = 0; i < 4; i++) {
         int32_t toAdd = ((int32_t)*it << (8 * (3 - i)));
+        result += toAdd;
+        it++;
+    }
+    return result;
+}
+
+int16_t Database::blobToInt16(std::vector<char>::iterator it) {
+    int16_t result = 0;
+    for (int i = 0; i < 2; i++) {
+        int16_t toAdd = ((int16_t)*it << (8 * (1 - i)));
         result += toAdd;
         it++;
     }
