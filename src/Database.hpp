@@ -5,7 +5,7 @@
 #include <vector>
 
 namespace Database {
-#pragma region DatabaseStructs    
+#pragma region DatabaseStructs
 
     struct Account
     {
@@ -49,7 +49,7 @@ namespace Database {
         int HP;
         short int HairColor;
         short int HairStyle;
-        short int Height;        
+        short int Height;
         short int NameCheck;
         short int PayZoneFlag;
         short int SkinColor;
@@ -65,7 +65,7 @@ namespace Database {
         std::vector<char> QuestFlag;
     };
 
-    
+
 
 #pragma endregion DatabaseStructs
 

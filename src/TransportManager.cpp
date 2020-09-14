@@ -15,7 +15,7 @@ void TransportManager::init() {
 void TransportManager::transportRegisterLocationHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION))
         return; // malformed packet
-    
+
     sP_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION* transport = (sP_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
@@ -48,7 +48,7 @@ void TransportManager::transportRegisterLocationHandler(CNSocket* sock, CNPacket
             return;
         }
 
-        /* 
+        /*
          * assuming the two bitfields are just stuck together to make a longer one... do a similar operation, but on the respective integer
          * this approach seems to work with initial testing, but we have yet to see a monkey ID greater than 63.
          */
@@ -106,7 +106,7 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
     TransportRoute route = Routes[req->iTransporationID];
 
     plr->money -= route.cost;
-    
+
     TransportLocation target = Locations[route.end];
     switch (route.type)
     {
@@ -133,7 +133,7 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
     resp.iZ = plr->z;
 
     /*
-     * Not strictly necessary since there isn't a valid SCAMPER that puts you in the 
+     * Not strictly necessary since there isn't a valid SCAMPER that puts you in the
      * same map tile you were already in, but we might as well force an NPC reload.
      */
     PlayerView& plrv = PlayerManager::players[sock];

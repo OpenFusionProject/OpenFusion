@@ -31,14 +31,14 @@ void settings::init() {
     if (reader.ParseError() != 0) {
         if (reader.ParseError() == -1)
             std::cerr << "[WARN] Settings: missing config.ini file!" << std::endl;
-        else 
+        else
             std::cerr << "[WARN] Settings: invalid config.ini syntax at line " << reader.ParseError() << std::endl;
 
         return;
     }
 
     APPROVEALLNAMES = reader.GetBoolean("", "acceptallcustomnames", APPROVEALLNAMES);
-    VERBOSITY = reader.GetInteger("", "verbosity", VERBOSITY);    
+    VERBOSITY = reader.GetInteger("", "verbosity", VERBOSITY);
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);
     SHARDPORT = reader.GetInteger("shard", "port", SHARDPORT);
     SHARDSERVERIP = reader.Get("shard", "ip", "127.0.0.1");

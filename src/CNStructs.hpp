@@ -24,7 +24,7 @@
 #include <locale>
 #include <codecvt>
 
-// yes this is ugly, but this is needed to zero out the memory so we don't have random stackdata in our structs. 
+// yes this is ugly, but this is needed to zero out the memory so we don't have random stackdata in our structs.
 #define INITSTRUCT(T, x) T x; \
     memset(&x, 0, sizeof(T));
 

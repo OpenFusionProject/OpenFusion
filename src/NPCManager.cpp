@@ -78,7 +78,7 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
     sItemBase* item = &plr->Inven[req->iInvenSlotNum];
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC, resp);
-    
+
     int sellValue = 100 * req->iItemCnt; // TODO: lookup item price
 
     // increment taros

@@ -24,7 +24,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             if (data->size != sizeof(sP_CL2LS_REQ_LOGIN))
                 return; // ignore the malformed packet
 
-            sP_CL2LS_REQ_LOGIN* login = (sP_CL2LS_REQ_LOGIN*)data->buf;   
+            sP_CL2LS_REQ_LOGIN* login = (sP_CL2LS_REQ_LOGIN*)data->buf;
             //TODO: implement better way of sending credentials
             std::string userLogin((char*)login->szCookie_TEGid);
             std::string userPassword((char*)login->szCookie_authid);
@@ -49,8 +49,8 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             if (!CNLoginServer::isLoginDataGood(userLogin, userPassword))
             {
                 errorCode = (int)LoginError::LOGIN_ERROR;
-            }         
-            else 
+            }
+            else
             {
                 std::unique_ptr<Database::Account> findUser = Database::findAccount(userLogin);
                 //if account not found, create it
@@ -59,7 +59,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     loginSessions[sock] = CNLoginData();
                     loginSessions[sock].userID =  Database::addAccount(userLogin, userPassword);
                     loginSessions[sock].slot = 1;
-                    success = true;           
+                    success = true;
                 }
                 //if user exists, check if password is correct
                 else if (CNLoginServer::isPasswordCorrect(findUser->Password, userPassword))
@@ -71,14 +71,14 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                         errorCode = (int)LoginError::ID_ALREADY_IN_USE;
                     }
                     //if not, login success
-                    else 
+                    else
                     {
                         loginSessions[sock] = CNLoginData();
                         loginSessions[sock].userID = findUser->AccountID;
                         loginSessions[sock].slot = findUser->Selected;
                         success = true;
                     }
-                }                             
+                }
                 else
                 {
                     errorCode = (int)LoginError::ID_AND_PASSWORD_DO_NOT_MATCH;
@@ -107,8 +107,8 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 // update keys
                 sock->setEKey(CNSocketEncryption::createNewKey(resp.uiSvrTime, resp.iCharCount + 1, resp.iSlotNum + 1));
                 sock->setFEKey(CNSocketEncryption::createNewKey((uint64_t)(*(uint64_t*)&CNSocketEncryption::defaultKey[0]), login->iClientVerC, 1));
-      
-                // now send the characters :)        
+
+                // now send the characters :)
                 std::vector<Player>::iterator it;
                 for (it = characters.begin(); it != characters.end(); it++)
                 {
@@ -126,10 +126,10 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
                     //save character in session (for char select)
                     int UID = it->iID;
-                    loginSessions[sock].characters[UID] = Player(*it);                      
+                    loginSessions[sock].characters[UID] = Player(*it);
                     loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
 
-                    //Equip info 
+                    //Equip info
                     for (int i = 0; i < AEQUIP_COUNT; i++) {
                         charInfo.aEquip[i] = it->Equip[i];
                     }
@@ -138,16 +138,16 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     if (it == characters.begin())
                         loginSessions[sock].selectedChar = UID;
 
-                    sock->sendPacket((void*)&charInfo, P_LS2CL_REP_CHAR_INFO, sizeof(sP_LS2CL_REP_CHAR_INFO));            
+                    sock->sendPacket((void*)&charInfo, P_LS2CL_REP_CHAR_INFO, sizeof(sP_LS2CL_REP_CHAR_INFO));
                 }
-            }           
+            }
             //Failure
             else {
                 INITSTRUCT(sP_LS2CL_REP_LOGIN_FAIL, resp);
 
                 memcpy(resp.szID, login->szID, sizeof(char16_t) * 33);
                 resp.iErrorCode = errorCode;
-                
+
                 sock->sendPacket((void*)&resp, P_LS2CL_REP_LOGIN_FAIL, sizeof(sP_LS2CL_REP_LOGIN_FAIL));
             }
 
@@ -160,7 +160,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
         case P_CL2LS_REQ_CHECK_CHAR_NAME: {
             if (data->size != sizeof(sP_CL2LS_REQ_CHECK_CHAR_NAME))
                 return;
-            
+
             sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck = (sP_CL2LS_REQ_CHECK_CHAR_NAME*)data->buf;
             bool success = true;
             int errorcode = 0;
@@ -196,10 +196,10 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
         case P_CL2LS_REQ_SAVE_CHAR_NAME: {
             if (data->size != sizeof(sP_CL2LS_REQ_SAVE_CHAR_NAME))
                 return;
-            
+
             sP_CL2LS_REQ_SAVE_CHAR_NAME* save = (sP_CL2LS_REQ_SAVE_CHAR_NAME*)data->buf;
             INITSTRUCT(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC, resp);
-            
+
             DEBUGLOG(
                 std::cout << "P_CL2LS_REQ_SAVE_CHAR_NAME:" << std::endl;
                 std::cout << "\tSlot: " << (int)save->iSlotNum << std::endl;
@@ -220,7 +220,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
         case P_CL2LS_REQ_CHAR_CREATE: {
             if (data->size != sizeof(sP_CL2LS_REQ_CHAR_CREATE))
                 return;
-            
+
             sP_CL2LS_REQ_CHAR_CREATE* character = (sP_CL2LS_REQ_CHAR_CREATE*)data->buf;
             Database::finishCharacter(character);
 
@@ -255,7 +255,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             //save player in session
             loginSessions[sock].characters[UID] = Player(player);
             loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
-              
+
             sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_CREATE_SUCC, sizeof(sP_LS2CL_REP_CHAR_CREATE_SUCC));
             Database::updateSelected(loginSessions[sock].userID, player.slot);
             break;
@@ -266,7 +266,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             sP_CL2LS_REQ_CHAR_DELETE* del = (sP_CL2LS_REQ_CHAR_DELETE*)data->buf;
             int operationResult = Database::deleteCharacter(del->iPC_UID, loginSessions[sock].userID);
-            
+
             INITSTRUCT(sP_LS2CL_REP_CHAR_DELETE_SUCC, resp);
             resp.iSlotNum = operationResult;
             sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_DELETE_SUCC, sizeof(sP_LS2CL_REP_CHAR_DELETE_SUCC));
@@ -276,7 +276,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
         case P_CL2LS_REQ_CHAR_SELECT: {
             if (data->size != sizeof(sP_CL2LS_REQ_CHAR_SELECT))
                 return;
-            
+
             // character selected
             sP_CL2LS_REQ_CHAR_SELECT* chararacter = (sP_CL2LS_REQ_CHAR_SELECT*)data->buf;
             INITSTRUCT(sP_LS2CL_REP_CHAR_SELECT_SUCC, resp);
@@ -284,7 +284,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             DEBUGLOG(
                 std::cout << "P_CL2LS_REQ_CHAR_SELECT:" << std::endl;
                 std::cout << "\tPC_UID: " << chararacter->iPC_UID << std::endl;
-            )     
+            )
             loginSessions[sock].selectedChar = chararacter->iPC_UID;
             Database::updateSelected(loginSessions[sock].userID, loginSessions[sock].characters[chararacter->iPC_UID].slot);
             sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_SELECT_SUCC, sizeof(sP_LS2CL_REP_CHAR_SELECT_SUCC));
@@ -293,7 +293,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
         case P_CL2LS_REQ_SHARD_SELECT: {
             if (data->size != sizeof(sP_CL2LS_REQ_SHARD_SELECT))
                 return;
-            
+
             // tell client to connect to the shard server
             sP_CL2LS_REQ_SHARD_SELECT* shard = (sP_CL2LS_REQ_SHARD_SELECT*)data->buf;
             INITSTRUCT(sP_LS2CL_REP_SHARD_SELECT_SUCC, resp);
@@ -353,8 +353,8 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             int accountId = account->AccountID;
             if (!exitDuplicate(accountId))
-                PlayerManager::exitDuplicate(accountId);  
-                         
+                PlayerManager::exitDuplicate(accountId);
+
             break;
         }
         default:

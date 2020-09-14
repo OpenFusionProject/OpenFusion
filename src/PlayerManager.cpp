@@ -226,7 +226,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     for (int i = 0; i < AINVEN_COUNT; i++)
         response.PCLoadData2CL.aInven[i] = plr.Inven[i];
-    //nanos  
+    //nanos
     for (int i = 1; i < SIZEOF_NANO_BANK_SLOT; i++) {
         response.PCLoadData2CL.aNanoBank[i] = plr.Nanos[i];
     }
@@ -666,23 +666,23 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
-    
+
     PlayerView& plr = PlayerManager::players[sock];
- 
+
     if (plr.plr->Equip[8].iID > 0) {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_SUCC, response);
         sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_ON_SUCC));
-        
+
         //send to other players
         plr.plr->iPCState = 8;
         INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
         response2.iPC_ID = plr.plr->iID;
         response2.iState = 8;
-        
+
         for (CNSocket* otherSock : plr.viewable) {
             otherSock->sendPacket((void*)&response2, P_FE2CL_PC_STATE_CHANGE, sizeof(sP_FE2CL_PC_STATE_CHANGE));
         }
-    
+
     } else {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_FAIL, response);
         sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_FAIL, sizeof(sP_FE2CL_PC_VEHICLE_ON_FAIL));
@@ -690,10 +690,10 @@ void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
-    
+
     INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
     sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_OFF_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_OFF_SUCC));
-    
+
     PlayerView plr = PlayerManager::players[sock];
 
     //send to other players
@@ -701,10 +701,10 @@ void PlayerManager::exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
     response2.iPC_ID = plr.plr->iID;
     response2.iState = 0;
-        
+
     for (CNSocket* otherSock : plr.viewable) {
         otherSock->sendPacket((void*)&response2, P_FE2CL_PC_STATE_CHANGE, sizeof(sP_FE2CL_PC_STATE_CHANGE));
-    }    
+    }
 }
 
 void PlayerManager::setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {

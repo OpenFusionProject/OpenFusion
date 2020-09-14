@@ -73,7 +73,7 @@ auto db = make_storage("database.db",
 
 #pragma region LoginServer
 
-void Database::open() 
+void Database::open()
 {
     //this parameter means it will try to preserve data during migration
     bool preserve = true;
@@ -83,7 +83,7 @@ void Database::open()
     )
 }
 
-int Database::addAccount(std::string login, std::string password) 
+int Database::addAccount(std::string login, std::string password)
 {
     password = BCrypt::generateHash(password);
     Account x = {};
@@ -100,7 +100,7 @@ void Database::updateSelected(int accountId, int slot)
     db.update(acc);
 }
 
-std::unique_ptr<Database::Account> Database::findAccount(std::string login) 
+std::unique_ptr<Database::Account> Database::findAccount(std::string login)
 {
     //this is awful, I've tried everything to improve it
     auto find = db.get_all<Account>(
@@ -108,7 +108,7 @@ std::unique_ptr<Database::Account> Database::findAccount(std::string login)
     if (find.empty())
         return nullptr;
     return
-        std::unique_ptr<Account>(new Account(find.front()));    
+        std::unique_ptr<Account>(new Account(find.front()));
 }
 
 bool Database::isNameFree(sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck)
@@ -122,7 +122,7 @@ bool Database::isNameFree(sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck)
             .empty());
 }
 
-int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
+int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
 {
     // fail if the player already has 4 or more characters
     if (db.count<DbPlayer>(where(c(&DbPlayer::AccountID) == AccountID)) >= 4)
@@ -169,7 +169,7 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     return db.insert(create);
 }
 
-void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character) 
+void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character)
 {
     DbPlayer finish = getDbPlayerById(character->PCStyle.iPC_UID);
     finish.AppearanceFlag = 1;
@@ -188,7 +188,7 @@ void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character)
     Inventory Foot, LB, UB;
     Foot.playerId = character->PCStyle.iPC_UID;
     Foot.id = character->sOn_Item.iEquipFootID;
-    Foot.Type = 3; 
+    Foot.Type = 3;
     Foot.slot = 3;
     Foot.Opt = 1;
     Foot.TimeLimit = 0;
@@ -209,11 +209,11 @@ void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character)
     db.insert(UB);
 }
 
-void Database::finishTutorial(int PlayerID) 
+void Database::finishTutorial(int PlayerID)
 {
     Player finish = getPlayer(PlayerID);
-    //set flag    
-    finish.PCStyle2.iTutorialFlag= 1;    
+    //set flag
+    finish.PCStyle2.iTutorialFlag= 1;
     //add Gun
     Inventory LightningGun = {};
     LightningGun.playerId = PlayerID;
@@ -237,7 +237,7 @@ void Database::finishTutorial(int PlayerID)
     db.update(playerToDb(&finish));
 }
 
-int Database::deleteCharacter(int characterID, int userID) 
+int Database::deleteCharacter(int characterID, int userID)
 {
     auto find =
         db.get_all<DbPlayer>(where(c(&DbPlayer::PlayerID) == characterID and c(&DbPlayer::AccountID)==userID));
@@ -249,7 +249,7 @@ int Database::deleteCharacter(int characterID, int userID)
     return slot;
 }
 
-std::vector <Player> Database::getCharacters(int UserID) 
+std::vector <Player> Database::getCharacters(int UserID)
 {
     std::vector<DbPlayer>characters =
         db.get_all<DbPlayer>(where
@@ -257,7 +257,7 @@ std::vector <Player> Database::getCharacters(int UserID)
     //parsing DbPlayer to Player
     std::vector<Player> result = std::vector<Player>();
     for (auto &character : characters) {
-        Player toadd = DbToPlayer(character);        
+        Player toadd = DbToPlayer(character);
         result.push_back(
             toadd
         );
@@ -340,7 +340,7 @@ Database::DbPlayer Database::playerToDb(Player *player)
 
 Player Database::DbToPlayer(DbPlayer player) {
     Player result = {}; // fixes some weird memory errors, this zeros out the members (not the padding inbetween though)
-    
+
     result.iID = player.PlayerID;
     result.accountId = player.AccountID;
     result.PCStyle2.iAppearanceFlag = player.AppearanceFlag;
@@ -374,7 +374,7 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.equippedNanos[0] = player.Nano1;
     result.equippedNanos[1] = player.Nano2;
     result.equippedNanos[2] = player.Nano3;
-  
+
     Database::getInventory(&result);
     Database::getNanos(&result);
 
@@ -479,7 +479,7 @@ void Database::updateNanos(Player *player) {
         );
     //insert
     for (int i=1; i < SIZEOF_NANO_BANK_SLOT; i++)
-    { 
+    {
         if ((player->Nanos[i]).iID == 0)
             continue;
         Nano toAdd = {};
@@ -506,7 +506,7 @@ void Database::getInventory(Player* player) {
         toSet.iTimeLimit = current.TimeLimit;
         //assign to proper arrays
         if (current.slot <= AEQUIP_COUNT)
-            player->Equip[current.slot] = toSet;           
+            player->Equip[current.slot] = toSet;
         else if (current.slot <= (AEQUIP_COUNT + AINVEN_COUNT))
             player->Inven[current.slot - AEQUIP_COUNT] = toSet;
         else

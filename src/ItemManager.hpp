@@ -9,10 +9,10 @@ namespace ItemManager {
         INVENTORY = 1,
         BANK = 3
     };
-    void init();	
+    void init();
 
-    void itemMoveHandler(CNSocket* sock, CNPacketData* data);   
-    void itemDeleteHandler(CNSocket* sock, CNPacketData* data);   
+    void itemMoveHandler(CNSocket* sock, CNPacketData* data);
+    void itemDeleteHandler(CNSocket* sock, CNPacketData* data);
     void itemGMGiveHandler(CNSocket* sock, CNPacketData* data);
     //Bank
     void itemBankOpenHandler(CNSocket* sock, CNPacketData* data);

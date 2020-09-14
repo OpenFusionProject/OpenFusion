@@ -5,7 +5,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <stdint.h>
-#ifdef _WIN32 
+#ifdef _WIN32
 // windows
     #define _WINSOCK_DEPRECATED_NO_WARNINGS
     #include <winsock2.h>
@@ -46,7 +46,7 @@
 
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
     #include "mingw/mingw.mutex.h"
-#else 
+#else
     #include <mutex>
 #endif
 

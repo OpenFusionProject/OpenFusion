@@ -29,7 +29,7 @@ class CNLoginServer : public CNServer {
 private:
     static void handlePacket(CNSocket* sock, CNPacketData* data);
     static std::map<CNSocket*, CNLoginData> loginSessions;
-      
+
     static bool isLoginDataGood(std::string login, std::string password);
     static bool isPasswordCorrect(std::string actualPassword, std::string tryPassword);
     static bool isAccountInUse(int accountId);
@@ -40,5 +40,5 @@ public:
     CNLoginServer(uint16_t p);
 
     void newConnection(CNSocket* cns);
-    void killConnection(CNSocket* cns);   
+    void killConnection(CNSocket* cns);
 };

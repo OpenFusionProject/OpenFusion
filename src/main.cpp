@@ -15,7 +15,7 @@
 
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
     #include "mingw/mingw.thread.h"
-#else 
+#else
 #include <thread>
 #endif
 #include <string>

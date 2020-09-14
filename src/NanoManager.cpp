@@ -162,7 +162,7 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
      * P_FE2CL_REP_PC_CHANGE_LEVEL appear to play the same animation, but only the latter affects
      * the other player's displayed level.
      */
-    
+
     INITSTRUCT(sP_FE2CL_REP_PC_CHANGE_LEVEL, resp2);
 
     resp2.iPC_ID = plr->iID;

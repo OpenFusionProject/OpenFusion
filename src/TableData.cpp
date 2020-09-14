@@ -21,11 +21,11 @@ void TableData::init() {
 
         for (nlohmann::json::iterator npc = npcData.begin(); npc != npcData.end(); npc++) {
             BaseNPC tmp(npc.value()["x"], npc.value()["y"], npc.value()["z"], npc.value()["id"]);
-            
+
             // Temporary fix, IDs will be pulled from json later
             tmp.appearanceData.iNPC_ID = i;
             i++;
-            
+
             NPCManager::NPCs[tmp.appearanceData.iNPC_ID] = tmp;
 
             if (npc.value()["id"] == 641 || npc.value()["id"] == 642)
@@ -48,11 +48,11 @@ void TableData::init() {
         for (nlohmann::json::iterator npc = npcData.begin(); npc != npcData.end(); npc++) {
             BaseNPC tmp(npc.value()["iX"], npc.value()["iY"], npc.value()["iZ"], npc.value()["iNPCType"],
                 npc.value()["iHP"], npc.value()["iConditionBitFlag"], npc.value()["iAngle"], npc.value()["iBarkerType"]);
-            
+
             // Temporary fix, IDs will be pulled from json later
             tmp.appearanceData.iNPC_ID = i;
             i++;
-            
+
             NPCManager::NPCs[tmp.appearanceData.iNPC_ID] = tmp;
         }
 
