@@ -335,7 +335,6 @@ Database::DbPlayer Database::playerToDb(Player *player)
         appendBlob(&result.QuestFlag, flag);
     }
 
-
     return result;
 }
 
@@ -387,15 +386,9 @@ Player Database::DbToPlayer(DbPlayer player) {
     {
         if (it == player.QuestFlag.end())
             break;
-
-        int64_t toAdd = 0;
-        for (int j = 0; j < 8; j++) {
-            int64_t temp = *it;
-            int64_t check2 = (temp << (8 * (7 - j)));
-            toAdd += check2;
-            it++;
-        }
-        result.aQuestFlag[i] = toAdd;
+        result.aQuestFlag[i] = blobToInt64(it);
+        //move iterator to the next flag
+        it += 8;
     }
 
     return result;
@@ -541,4 +534,15 @@ void Database::appendBlob(std::vector<char> *blob, int64_t input) {
         blob->push_back(toadd);
     }
 }
+
+int64_t Database::blobToInt64(std::vector<char>::iterator it) {
+    int64_t result = 0;
+    for (int i = 0; i < 8; i++) {
+        int64_t toAdd = ((int64_t)*it << (8 * (7 - i)));
+        result += toAdd;
+        it++;
+    }
+    return result;
+}
+
 #pragma endregion parsingBlobs
