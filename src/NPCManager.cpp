@@ -23,6 +23,7 @@ void NPCManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_BUY, npcVendorBuy);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_SELL, npcVendorSell);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY, npcVendorRestore);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_BATTERY_BUY, npcVendorBattery);
 }
 
 void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
@@ -180,23 +181,20 @@ void NPCManager::npcVendorTable(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, resp);
 
-    for (int i = 0; i < 20; i++) { // 20 is the max
+    for (int i = 0; i < listings.size() && i < 20; i++) { // 20 is the max
+        sItemBase base;
+        base.iID = listings[i].iID;
+        base.iOpt = 0;
+        base.iTimeLimit = 0;
+        base.iType = listings[i].type;
 
-        if (i < listings.size()) { // check to make sure listing exists first
-            sItemBase base;
-            base.iID = listings[i].iID;
-            base.iOpt = 0;
-            base.iTimeLimit = 0;
-            base.iType = listings[i].type;
+        sItemVendor vItem;
+        vItem.item = base;
+        vItem.iSortNum = listings[i].sort;
+        vItem.iVendorID = req->iVendorID;
+        //vItem.fBuyCost = listings[i].price; this value is not actually the one that is used
 
-            sItemVendor vItem;
-            vItem.item = base;
-            vItem.iSortNum = listings[i].sort;
-            vItem.iVendorID = req->iVendorID;
-            //vItem.fBuyCost = listings[i].price;
-
-            resp.item[i] = vItem;
-        }
+        resp.item[i] = vItem;
     }
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC));
@@ -213,6 +211,33 @@ void NPCManager::npcVendorStart(CNSocket* sock, CNPacketData* data) {
     resp.iVendorID = req->iVendorID;
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_START_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_START_SUCC));
+}
+
+void NPCManager::npcVendorBattery(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_BATTERY_BUY))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_VENDOR_BATTERY_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_BATTERY_BUY*)data->buf;
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    int cost = req->Item.iOpt * 100;
+    if (plr->money < cost) { // sanity check
+        INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL, failResp);
+        failResp.iErrorCode = 0;
+        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL));
+    }
+
+    plr->money -= cost;
+    plr->batteryW += req->Item.iID == 3 ? req->Item.iOpt : 0;
+    plr->batteryN += req->Item.iID == 4 ? req->Item.iOpt : 0;
+
+    INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_SUCC, resp);
+
+    resp.iCandy = plr->money;
+    resp.iBatteryW = plr->batteryW;
+    resp.iBatteryN = plr->batteryN;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_BATTERY_BUY_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_SUCC));
 }
 
 void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
