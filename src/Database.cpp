@@ -53,7 +53,8 @@ auto db = make_storage("database.db",
         make_column("Taros", &Database::DbPlayer::Taros),
         make_column("Quests", &Database::DbPlayer::QuestFlag),
         make_column("BatteryW", &Database::DbPlayer::BatteryW),
-        make_column("BatteryN", &Database::DbPlayer::BatteryN)
+        make_column("BatteryN", &Database::DbPlayer::BatteryN),
+        make_column("Mentor", &Database::DbPlayer::Mentor)
     ),
     make_table("Inventory",
         make_column("PlayerId", &Database::Inventory::playerId),
@@ -167,6 +168,8 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     create.z_coordinates = settings::SPAWN_Z;
     create.angle = settings::SPAWN_ANGLE;
     create.QuestFlag = std::vector<char>();
+    //set mentor to computress
+    create.Mentor = 5;
 
     return db.insert(create);
 }
@@ -322,6 +325,7 @@ Database::DbPlayer Database::playerToDb(Player *player)
     result.Nano3 = player->equippedNanos[2];
     result.BatteryN = player->batteryN;
     result.BatteryW = player->batteryW;
+    result.Mentor = player->mentor;
 
     // quests
     result.QuestFlag = std::vector<char>();
@@ -376,6 +380,7 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.fusionmatter = player.FusionMatter;
     result.batteryN = player.BatteryN;
     result.batteryW = player.BatteryW;
+    result.mentor = player.Mentor;
 
     result.equippedNanos[0] = player.Nano1;
     result.equippedNanos[1] = player.Nano2;

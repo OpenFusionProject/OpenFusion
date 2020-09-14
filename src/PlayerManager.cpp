@@ -208,7 +208,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iHP = plr.HP;
     response.PCLoadData2CL.iLevel = plr.level;
     response.PCLoadData2CL.iCandy = plr.money;
-    response.PCLoadData2CL.iMentor = 5; // Computress
+    response.PCLoadData2CL.iMentor = plr.mentor;
     response.PCLoadData2CL.iMentorCount = 1; // how many guides the player has had
     response.PCLoadData2CL.iMapNum = 0;
     response.PCLoadData2CL.iX = plr.x;
@@ -729,8 +729,10 @@ void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
     resp.iMentor = pkt->iMentor;
     resp.iMentorCnt = 1;
     resp.iFusionMatter = plr->fusionmatter; // no cost
-
+    
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_CHANGE_MENTOR_SUCC, sizeof(sP_FE2CL_REP_PC_CHANGE_MENTOR_SUCC));
+    //save it on player
+    plr->mentor = pkt->iMentor;
 }
 
 #pragma region Helper methods
