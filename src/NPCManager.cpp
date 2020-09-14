@@ -41,7 +41,7 @@ void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    int itemCost = ItemManager::getItemData(req->Item.iID, req->Item.iType).buyPrice;
+    int itemCost = ItemManager::getItemData(req->Item.iID, req->Item.iType).buyPrice * req->Item.iOpt;
     int slot = ItemManager::findFreeSlot(plr);
     if (itemCost > plr->money || slot == -1) {
         // NOTE: VENDOR_ITEM_BUY_FAIL is not actually handled client-side.
@@ -103,11 +103,17 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
     // increment taros
     plr->money = plr->money + sellValue;
 
-    // empty the slot; probably needs to be changed for stacks
-    item->iID = 0;
-    item->iOpt = 0;
-    item->iType = 0;
-    item->iTimeLimit = 0;
+    // modify item
+    if (plr->Inven[req->iInvenSlotNum].iOpt - req->iItemCnt > 0) { // selling part of a stack
+        item->iOpt -= req->iItemCnt;
+        original.iOpt = req->iItemCnt;
+    }
+    else { // selling entire slot
+        item->iID = 0;
+        item->iOpt = 0;
+        item->iType = 0;
+        item->iTimeLimit = 0;
+    }
 
     // response parameters
     resp.iInvenSlotNum = req->iInvenSlotNum;
@@ -134,7 +140,7 @@ void NPCManager::npcVendorRestore(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    int itemCost = ItemManager::getItemData(req->Item.iID, req->Item.iType).sellPrice; // sell price is used on rebuy
+    int itemCost = ItemManager::getItemData(req->Item.iID, req->Item.iType).sellPrice * req->Item.iOpt; // sell price is used on rebuy
     int slot = ItemManager::findFreeSlot(plr);
     if (itemCost > plr->money || slot == -1) {
         // NOTE: VENDOR_ITEM_BUY_FAIL is not actually handled client-side.
