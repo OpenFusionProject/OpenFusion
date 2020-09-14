@@ -110,4 +110,7 @@ namespace Database {
 
     void getInventory(Player* player);
     void getNanos(Player* player);
+
+    //parsing blobs
+    void appendBlob(std::vector<char>*blob, int64_t input);
 }

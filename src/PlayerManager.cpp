@@ -237,6 +237,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     }
 
     // missions
+    // the packet requires 32 items, but the client only checks the first 16 (shrug)
     for (int i = 0; i < 16; i++) {
         response.PCLoadData2CL.aQuestFlag[i] = plr.aQuestFlag[i];
     }

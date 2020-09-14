@@ -41,7 +41,7 @@ struct Player {
     bool isTradeConfirm;
     bool IsGM;
 
-    int64_t aQuestFlag[16];
+    int64_t aQuestFlag[16];   
     int tasks[ACTIVE_MISSION_COUNT];
     sItemBase QInven[AQINVEN_COUNT];
 };
