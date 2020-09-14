@@ -22,8 +22,8 @@ void NPCManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE, npcVendorTable);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_BUY, npcVendorBuy);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_SELL, npcVendorSell);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY, npcVendorRestore);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_BATTERY_BUY, npcVendorBattery);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY, npcVendorBuyback);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_BATTERY_BUY, npcVendorBuyBattery);
 }
 
 void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
@@ -43,7 +43,7 @@ void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    int itemCost = item->buyPrice * req->Item.iOpt;
+    int itemCost = item->sellPrice * (item->stackSize > 1 ? req->Item.iOpt : 1);
     int slot = ItemManager::findFreeSlot(plr);
     if (itemCost > plr->money || slot == -1) {
         // NOTE: VENDOR_ITEM_BUY_FAIL is not actually handled client-side.
@@ -127,7 +127,7 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC));
 }
 
-void NPCManager::npcVendorRestore(CNSocket* sock, CNPacketData* data) {
+void NPCManager::npcVendorBuyback(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY))
         return; // malformed packet
 
@@ -217,7 +217,7 @@ void NPCManager::npcVendorStart(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_START_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_START_SUCC));
 }
 
-void NPCManager::npcVendorBattery(CNSocket* sock, CNPacketData* data) {
+void NPCManager::npcVendorBuyBattery(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_BATTERY_BUY))
         return; // malformed packet
 
@@ -225,7 +225,7 @@ void NPCManager::npcVendorBattery(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     int cost = req->Item.iOpt * 100;
-    if (plr->money < cost) { // sanity check
+    if ((req->Item.iID == 3 ? (plr->batteryW >= 9999) : (plr->batteryN >= 9999)) || plr->money < cost) { // sanity check
         INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL, failResp);
         failResp.iErrorCode = 0;
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL));
@@ -234,6 +234,12 @@ void NPCManager::npcVendorBattery(CNSocket* sock, CNPacketData* data) {
     plr->money -= cost;
     plr->batteryW += req->Item.iID == 3 ? req->Item.iOpt * 10 : 0;
     plr->batteryN += req->Item.iID == 4 ? req->Item.iOpt * 10 : 0;
+
+    // caps
+    if (plr->batteryW > 9999)
+        plr->batteryW = 9999;
+    if (plr->batteryN > 9999)
+        plr->batteryN = 9999;
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_SUCC, resp);
 
