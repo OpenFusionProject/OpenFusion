@@ -51,7 +51,9 @@ auto db = make_storage("database.db",
         make_column("isGM", &Database::DbPlayer::isGM),
         make_column("FusionMatter", &Database::DbPlayer::FusionMatter),
         make_column("Taros", &Database::DbPlayer::Taros),
-        make_column("Quests", &Database::DbPlayer::QuestFlag)
+        make_column("Quests", &Database::DbPlayer::QuestFlag),
+        make_column("BatteryW", &Database::DbPlayer::BatteryW),
+        make_column("BatteryN", &Database::DbPlayer::BatteryN)
     ),
     make_table("Inventory",
         make_column("PlayerId", &Database::Inventory::playerId),
@@ -318,6 +320,8 @@ Database::DbPlayer Database::playerToDb(Player *player)
     result.Nano1 = player->equippedNanos[0];
     result.Nano2 = player->equippedNanos[1];
     result.Nano3 = player->equippedNanos[2];
+    result.BatteryN = player->batteryN;
+    result.BatteryW = player->batteryW;
 
     // quests
     result.QuestFlag = std::vector<char>();
@@ -370,6 +374,8 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.angle = player.angle;
     result.money = player.Taros;
     result.fusionmatter = player.FusionMatter;
+    result.batteryN = player.BatteryN;
+    result.batteryW = player.BatteryW;
 
     result.equippedNanos[0] = player.Nano1;
     result.equippedNanos[1] = player.Nano2;
