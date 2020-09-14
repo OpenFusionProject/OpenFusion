@@ -22,7 +22,8 @@ void NPCManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE, npcVendorTable);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_BUY, npcVendorBuy);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_SELL, npcVendorSell);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY, npcVendorRestore);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY, npcVendorBuyback);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_BATTERY_BUY, npcVendorBuyBattery);
 }
 
 void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
@@ -31,8 +32,9 @@ void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
+    Item* item = ItemManager::getItemData(req->Item.iID, req->Item.iType);
 
-    if (!ItemManager::isItemRegistered(req->Item.iID, req->Item.iType)) {
+    if (item == nullptr) {
         std::cout << "[WARN] Item id " << req->Item.iID << " with type " << req->Item.iType << " not found (buy)" << std::endl;
         // NOTE: VENDOR_ITEM_BUY_FAIL is not actually handled client-side.
         INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, failResp);
@@ -41,7 +43,7 @@ void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    int itemCost = ItemManager::getItemData(req->Item.iID, req->Item.iType).buyPrice * req->Item.iOpt;
+    int itemCost = item->sellPrice * (item->stackSize > 1 ? req->Item.iOpt : 1);
     int slot = ItemManager::findFreeSlot(plr);
     if (itemCost > plr->money || slot == -1) {
         // NOTE: VENDOR_ITEM_BUY_FAIL is not actually handled client-side.
@@ -84,8 +86,9 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
     }
 
     sItemBase* item = &plr->Inven[req->iInvenSlotNum];
+    Item* itemData = ItemManager::getItemData(item->iID, item->iType);
 
-    if (!ItemManager::isItemRegistered(item->iID, item->iType) || !ItemManager::getItemData(item->iID, item->iType).sellable) { // sanity + sellable check
+    if (itemData == nullptr || !itemData->sellable) { // sanity + sellable check
         std::cout << "[WARN] Item id " << item->iID << " with type " << item->iType << " not found (sell)" << std::endl;
         INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, failResp);
         failResp.iErrorCode = 0;
@@ -98,7 +101,7 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC, resp);
     
-    int sellValue = ItemManager::getItemData(item->iID, item->iType).sellPrice * req->iItemCnt;
+    int sellValue = itemData->sellPrice * req->iItemCnt;
 
     // increment taros
     plr->money = plr->money + sellValue;
@@ -124,14 +127,15 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC));
 }
 
-void NPCManager::npcVendorRestore(CNSocket* sock, CNPacketData* data) {
+void NPCManager::npcVendorBuyback(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY))
         return; // malformed packet
 
     sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
+    Item* item = ItemManager::getItemData(req->Item.iID, req->Item.iType);
 
-    if (!ItemManager::isItemRegistered(req->Item.iID, req->Item.iType)) {
+    if (item == nullptr) {
         std::cout << "[WARN] Item id " << req->Item.iID << " with type " << req->Item.iType << " not found (rebuy)" << std::endl;
         // NOTE: VENDOR_ITEM_BUY_FAIL is not actually handled client-side.
         INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL, failResp);
@@ -140,7 +144,8 @@ void NPCManager::npcVendorRestore(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    int itemCost = ItemManager::getItemData(req->Item.iID, req->Item.iType).sellPrice * req->Item.iOpt; // sell price is used on rebuy
+    // sell price is used on rebuy. ternary identifies stacked items
+    int itemCost = item->sellPrice * (item->stackSize > 1 ? req->Item.iOpt : 1);
     int slot = ItemManager::findFreeSlot(plr);
     if (itemCost > plr->money || slot == -1) {
         // NOTE: VENDOR_ITEM_BUY_FAIL is not actually handled client-side.
@@ -180,23 +185,20 @@ void NPCManager::npcVendorTable(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, resp);
 
-    for (int i = 0; i < 20; i++) { // 20 is the max
+    for (int i = 0; i < listings.size() && i < 20; i++) { // 20 is the max
+        sItemBase base;
+        base.iID = listings[i].iID;
+        base.iOpt = 0;
+        base.iTimeLimit = 0;
+        base.iType = listings[i].type;
 
-        if (i < listings.size()) { // check to make sure listing exists first
-            sItemBase base;
-            base.iID = listings[i].iID;
-            base.iOpt = 0;
-            base.iTimeLimit = 0;
-            base.iType = listings[i].type;
+        sItemVendor vItem;
+        vItem.item = base;
+        vItem.iSortNum = listings[i].sort;
+        vItem.iVendorID = req->iVendorID;
+        //vItem.fBuyCost = listings[i].price; this value is not actually the one that is used
 
-            sItemVendor vItem;
-            vItem.item = base;
-            vItem.iSortNum = listings[i].sort;
-            vItem.iVendorID = req->iVendorID;
-            //vItem.fBuyCost = listings[i].price;
-
-            resp.item[i] = vItem;
-        }
+        resp.item[i] = vItem;
     }
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC));
@@ -213,6 +215,39 @@ void NPCManager::npcVendorStart(CNSocket* sock, CNPacketData* data) {
     resp.iVendorID = req->iVendorID;
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_START_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_START_SUCC));
+}
+
+void NPCManager::npcVendorBuyBattery(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_BATTERY_BUY))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_VENDOR_BATTERY_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_BATTERY_BUY*)data->buf;
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    int cost = req->Item.iOpt * 100;
+    if ((req->Item.iID == 3 ? (plr->batteryW >= 9999) : (plr->batteryN >= 9999)) || plr->money < cost) { // sanity check
+        INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL, failResp);
+        failResp.iErrorCode = 0;
+        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL));
+    }
+
+    plr->money -= cost;
+    plr->batteryW += req->Item.iID == 3 ? req->Item.iOpt * 10 : 0;
+    plr->batteryN += req->Item.iID == 4 ? req->Item.iOpt * 10 : 0;
+
+    // caps
+    if (plr->batteryW > 9999)
+        plr->batteryW = 9999;
+    if (plr->batteryN > 9999)
+        plr->batteryN = 9999;
+
+    INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_SUCC, resp);
+
+    resp.iCandy = plr->money;
+    resp.iBatteryW = plr->batteryW;
+    resp.iBatteryN = plr->batteryN;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_BATTERY_BUY_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_SUCC));
 }
 
 void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
