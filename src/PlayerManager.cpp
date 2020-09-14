@@ -200,7 +200,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tSerial: " << enter->iEnterSerialKey << std::endl;
         std::cout << "\tTemp: " << enter->iTempValue << std::endl;
         std::cout << "\tPC_UID: " << plr.PCStyle.iPC_UID << std::endl;
-        )
+    )
 
     response.iID = plr.iID;
     response.uiSvrTime = getTime();
@@ -233,7 +233,6 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     for (int i = 0; i < 3; i++) {
         response.PCLoadData2CL.aNanoSlots[i] = plr.equippedNanos[i];
     }
-    response.PCLoadData2CL.aQuestFlag[0] = -1;
 
     //missions
     for (int i = 0; i < 16; i++) {

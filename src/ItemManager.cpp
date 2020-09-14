@@ -55,28 +55,28 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     
     //get the fromItem
     sItemBase *fromItem;
-    switch (itemmove->eFrom) {
-        case (int)slot::equip:
+    switch ((SlotType)itemmove->eFrom) {
+        case SlotType::EQUIP:
             fromItem = &plr.plr->Equip[itemmove->iFromSlotNum];
             break;
-        case (int)slot::inventory:
+        case SlotType::INVENTORY:
             fromItem = &plr.plr->Inven[itemmove->iFromSlotNum];
             break;
-        case (int)slot::bank:
+        case SlotType::BANK:
             fromItem = &plr.plr->Bank[itemmove->iFromSlotNum];
             break;
     }
 
     //get the toItem
     sItemBase* toItem;
-    switch (itemmove->eTo) {
-    case (int)slot::equip:
+    switch ((SlotType)itemmove->eTo) {
+    case SlotType::EQUIP:
         toItem = &plr.plr->Equip[itemmove->iToSlotNum];
         break;
-    case (int)slot::inventory:
+    case SlotType::INVENTORY:
         toItem = &plr.plr->Inven[itemmove->iToSlotNum];
         break;
-    case (int)slot::bank:
+    case SlotType::BANK:
         toItem = &plr.plr->Bank[itemmove->iToSlotNum];
         break;
     }
@@ -91,11 +91,11 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     *fromItem = temp;
 
     //send equip change to viewable players
-    if (itemmove->eFrom == (int)slot::equip || itemmove->eTo == (int)slot::equip) {
+    if (itemmove->eFrom == (int)SlotType::EQUIP || itemmove->eTo == (int)SlotType::EQUIP) {
         INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, equipChange);
 
         equipChange.iPC_ID = plr.plr->iID;
-        if (itemmove->eFrom == (int)slot::equip) {
+        if (itemmove->eFrom == (int)SlotType::EQUIP) {
             equipChange.iEquipSlotNum = itemmove->iFromSlotNum;
             equipChange.EquipSlotItem = resp.ToSlotItem;
         }
@@ -202,9 +202,10 @@ void ItemManager::itemTradeOfferHandler(CNSocket* sock, CNPacketData* data) {
     
     CNSocket* otherSock = sock;
     
-    for (auto pair : PlayerManager::players) {
+    for (auto& pair : PlayerManager::players) {
         if (pair.second.plr->iID == iID_Check) { 
             otherSock = pair.first;
+            break;
         }
     }
     
@@ -247,9 +248,10 @@ void ItemManager::itemTradeOfferAcceptHandler(CNSocket* sock, CNPacketData* data
     
     CNSocket* otherSock = sock;
     
-    for (auto pair : PlayerManager::players) {
+    for (auto& pair : PlayerManager::players) {
         if (pair.second.plr->iID == iID_Check) { 
             otherSock = pair.first;
+            break;
         }
     }
     
@@ -281,21 +283,8 @@ void ItemManager::itemTradeOfferAcceptHandler(CNSocket* sock, CNPacketData* data
     plr.plr->isTradeConfirm = false;
     plr2.plr->isTradeConfirm = false;
     
-    for (int i = 0; i < 5; i++) {
-        plr.plr->Trade[i].iID = 0;
-        plr.plr->Trade[i].iType = 0;
-        plr.plr->Trade[i].iOpt = 0;
-        plr.plr->Trade[i].iInvenNum = 0;
-        plr.plr->Trade[i].iSlotNum = 0;
-    }
-    
-    for (int i = 0; i < 5; i++) {
-        plr2.plr->Trade[i].iID = 0;
-        plr2.plr->Trade[i].iType = 0;
-        plr2.plr->Trade[i].iOpt = 0;
-        plr2.plr->Trade[i].iInvenNum = 0;
-        plr2.plr->Trade[i].iSlotNum = 0;
-    }
+    memset(&plr.plr->Trade, 0, sizeof(plr.plr->Trade));
+    memset(&plr2.plr->Trade, 0, sizeof(plr2.plr->Trade));
 
     otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER_SUCC));
 }
@@ -321,9 +310,10 @@ void ItemManager::itemTradeOfferRefusalHandler(CNSocket* sock, CNPacketData* dat
     
     CNSocket* otherSock = sock;
     
-    for (auto pair : PlayerManager::players) {
+    for (auto& pair : PlayerManager::players) {
         if (pair.second.plr->iID == iID_Check) { 
             otherSock = pair.first;
+            break;
         }
     }
 
@@ -346,9 +336,10 @@ void ItemManager::itemTradeConfirmHandler(CNSocket* sock, CNPacketData* data) {
     
     CNSocket* otherSock = sock;
     
-    for (auto pair : PlayerManager::players) {
+    for (auto& pair : PlayerManager::players) {
         if (pair.second.plr->iID == iID_Check) { 
             otherSock = pair.first;
+            break;
         }
     }
     

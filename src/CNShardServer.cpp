@@ -33,7 +33,7 @@ void CNShardServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 void CNShardServer::keepAliveTimer(CNServer* serv,  uint64_t currTime) {
     auto cachedPlayers = PlayerManager::players;
 
-    for (auto pair : cachedPlayers) {
+    for (auto& pair : cachedPlayers) {
         if (pair.second.lastHeartbeat != 0 && currTime - pair.second.lastHeartbeat > 60000) { // if the client hadn't responded in 60 seconds, its a dead connection so throw it out
             pair.first->kill();
             continue;
@@ -47,9 +47,10 @@ void CNShardServer::keepAliveTimer(CNServer* serv,  uint64_t currTime) {
 
 void CNShardServer::periodicSaveTimer(CNServer* serv, uint64_t currTime) {
     auto cachedPlayers = PlayerManager::players;
-        for (auto pair : cachedPlayers) {
-            Database::updatePlayer(*pair.second.plr);
-        }
+
+    for (auto& pair : cachedPlayers) {
+        Database::updatePlayer(pair.second.plr);
+    }
 }
 
 void CNShardServer::newConnection(CNSocket* cns) {
@@ -61,8 +62,8 @@ void CNShardServer::killConnection(CNSocket* cns) {
     if (PlayerManager::players.find(cns) == PlayerManager::players.end())
         return;
 
-    //save player to DB
-    Database::updatePlayer(*PlayerManager::players[cns].plr);
+    // save player to DB
+    Database::updatePlayer(PlayerManager::players[cns].plr);
 
     // remove from CNSharedData
     int64_t key = PlayerManager::getPlayer(cns)->SerialKey;

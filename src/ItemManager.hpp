@@ -4,10 +4,10 @@
 #include "Player.hpp"
 
 namespace ItemManager {
-    enum class slot {
-        equip = 0,
-        inventory = 1,
-        bank = 3
+    enum class SlotType {
+        EQUIP = 0,
+        INVENTORY = 1,
+        BANK = 3
     };
     void init();	
 

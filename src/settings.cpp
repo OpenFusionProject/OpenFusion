@@ -19,9 +19,9 @@ int settings::SPAWN_X = 632032;
 int settings::SPAWN_Y = 187177;
 int settings::SPAWN_Z = -5500;
 int settings::SPAWN_ANGLE = 130;
-std::string settings::NPCJSON = "data/NPCs.json";
-std::string settings::XDTJSON = "data/xdt.json";
-std::string settings::MOBJSON = "data/mobs.json";
+std::string settings::NPCJSON = "tdata/NPCs.json";
+std::string settings::XDTJSON = "tdata/xdt.json";
+std::string settings::MOBJSON = "tdata/mobs.json";
 std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
 bool settings::GM = false;
 
@@ -42,7 +42,7 @@ void settings::init() {
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);
     SHARDPORT = reader.GetInteger("shard", "port", SHARDPORT);
     SHARDSERVERIP = reader.Get("shard", "ip", "127.0.0.1");
-    DBSAVEINTERVAL = reader.GetInteger("shard", "dbsaveinterval", DBSAVEINTERVAL);
+    DBSAVEINTERVAL = reader.GetInteger("login", "dbsaveinterval", DBSAVEINTERVAL);
     PLAYERDISTANCE = reader.GetInteger("shard", "playerdistance", PLAYERDISTANCE);
     NPCDISTANCE = reader.GetInteger("shard", "npcdistance", NPCDISTANCE);
     SPAWN_X = reader.GetInteger("shard", "spawnx", SPAWN_X);

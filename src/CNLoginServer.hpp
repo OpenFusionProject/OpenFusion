@@ -12,16 +12,16 @@ struct CNLoginData {
     int userID; int slot;
 };
 
-enum class LOGINERRORID {
-    database_error = 0,
-    id_doesnt_exist = 1,
-    id_and_password_do_not_match = 2,
-    id_already_in_use = 3,
-    login_error = 4,
-    client_version_outdated = 6,
-    you_are_not_an_authorized_beta_tester = 7,
-    authentication_connection_error = 8,
-    updated_euala_required = 9
+enum class LoginError {
+    DATABASE_ERROR = 0,
+    ID_DOESNT_EXIST = 1,
+    ID_AND_PASSWORD_DO_NOT_MATCH = 2,
+    ID_ALREADY_IN_USE = 3,
+    LOGIN_ERROR = 4,
+    CLIENT_VERSION_OUTDATED = 6,
+    YOU_ARE_NOT_AN_AUTHORIZED_BETA_TESTER = 7,
+    AUTHENTICATION_CONNECTION_ERROR = 8,
+    UPDATED_EUALA_REQUIRED = 9
 };
 
 // WARNING: THERE CAN ONLY BE ONE OF THESE SERVERS AT A TIME!!!!!! TODO: change loginSessions & packet handlers to be non-static

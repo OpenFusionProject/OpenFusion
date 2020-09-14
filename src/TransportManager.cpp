@@ -34,7 +34,7 @@ void TransportManager::transportRegisterLocationHandler(CNSocket* sock, CNPacket
         }
 
         // update registration bitfield using bit shifting + bitwise or
-        plr->iWarpLocationFlag |= (1 << (transport->iLocationID - 1));
+        plr->iWarpLocationFlag |= (1UL << (transport->iLocationID - 1));
     } else if (transport->eTT == 2) { // Monkey Skyway System
         if (transport->iLocationID < 1 || transport->iLocationID > 127) { // sanity check
             std::cout << "[WARN] Skyway location ID " << transport->iLocationID << " is out of bounds" << std::endl;
@@ -52,7 +52,7 @@ void TransportManager::transportRegisterLocationHandler(CNSocket* sock, CNPacket
          * assuming the two bitfields are just stuck together to make a longer one... do a similar operation, but on the respective integer
          * this approach seems to work with initial testing, but we have yet to see a monkey ID greater than 63.
          */
-        plr->aSkywayLocationFlag[transport->iLocationID > 63 ? 1 : 0] |= (1 << (transport->iLocationID > 63 ? transport->iLocationID - 65 : transport->iLocationID - 1));
+        plr->aSkywayLocationFlag[transport->iLocationID > 63 ? 1 : 0] |= (1ULL << (transport->iLocationID > 63 ? transport->iLocationID - 65 : transport->iLocationID - 1));
     } else {
         std::cout << "[WARN] Unknown mode of transport; eTT = " << transport->eTT << std::endl;
         INITSTRUCT(sP_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_FAIL, failResp);

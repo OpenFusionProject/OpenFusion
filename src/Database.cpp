@@ -113,7 +113,6 @@ std::unique_ptr<Database::Account> Database::findAccount(std::string login)
 
 bool Database::isNameFree(sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck)
 {
-    //TODO: add colate nocase
     std::string First = U16toU8(nameCheck->szFirstName);
     std::string Last = U16toU8(nameCheck->szLastName);
     return
@@ -125,45 +124,49 @@ bool Database::isNameFree(sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck)
 
 int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
 {
-    if (db.count<DbPlayer>(where(c(&DbPlayer::AccountID) == AccountID))<4) {
-        DbPlayer create = {};
-            //save packet data
-            create.FirstName = U16toU8(save->szFirstName);
-            create.LastName = U16toU8(save->szLastName);
-            create.slot = save->iSlotNum;
-            create.AccountID = AccountID;
-            //set flags
-            create.AppearanceFlag = 0;
-            create.TutorialFlag = 0;
-            create.PayZoneFlag = 0;
-            //set namecheck based on setting
-            if (settings::APPROVEALLNAMES || save->iFNCode)
-                create.NameCheck = 1;
-            else
-                create.NameCheck = 0;
-        //create default body character
-        create.Body = 0;
-        create.Class = 0;
-        create.EyeColor = 1;
-        create.FaceStyle = 1;
-        create.Gender = 1;
-        create.HP = 1000;
-        create.HairColor = 1;
-        create.HairStyle = 1;
-        create.Height = 0;
-        create.Level = 1;
-        create.SkinColor = 1;
-        create.isGM = false;
-        create.x_coordinates = settings::SPAWN_X;
-        create.y_coordinates = settings::SPAWN_Y;
-        create.z_coordinates = settings::SPAWN_Z;
-        create.angle = settings::SPAWN_ANGLE;
-        create.QuestFlag = std::vector<char>();
-        return db.insert(create);
-    }
-    else {
+    // fail if the player already has 4 or more characters
+    if (db.count<DbPlayer>(where(c(&DbPlayer::AccountID) == AccountID)) >= 4)
         return -1;
-    }
+
+    DbPlayer create = {};
+
+    //save packet data
+    create.FirstName = U16toU8(save->szFirstName);
+    create.LastName = U16toU8(save->szLastName);
+    create.slot = save->iSlotNum;
+    create.AccountID = AccountID;
+
+    //set flags
+    create.AppearanceFlag = 0;
+    create.TutorialFlag = 0;
+    create.PayZoneFlag = 0;
+
+    //set namecheck based on setting
+    if (settings::APPROVEALLNAMES || save->iFNCode)
+        create.NameCheck = 1;
+    else
+        create.NameCheck = 0;
+
+    //create default body character
+    create.Body = 0;
+    create.Class = 0;
+    create.EyeColor = 1;
+    create.FaceStyle = 1;
+    create.Gender = 1;
+    create.HP = 1000;
+    create.HairColor = 1;
+    create.HairStyle = 1;
+    create.Height = 0;
+    create.Level = 1;
+    create.SkinColor = 1;
+    create.isGM = false;
+    create.x_coordinates = settings::SPAWN_X;
+    create.y_coordinates = settings::SPAWN_Y;
+    create.z_coordinates = settings::SPAWN_Z;
+    create.angle = settings::SPAWN_ANGLE;
+    create.QuestFlag = std::vector<char>();
+
+    return db.insert(create);
 }
 
 void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character) 
@@ -231,7 +234,7 @@ void Database::finishTutorial(int PlayerID)
     MissionManager::saveMission(&finish, 0);
     MissionManager::saveMission(&finish, 1);
 
-    db.update(playerToDb(finish));
+    db.update(playerToDb(&finish));
 }
 
 int Database::deleteCharacter(int characterID, int userID) 
@@ -262,7 +265,8 @@ std::vector <Player> Database::getCharacters(int UserID)
     return result;
 }
 
-void Database::evaluateCustomName(int characterID, CUSTOMNAME decision) {
+// XXX: This is never called?
+void Database::evaluateCustomName(int characterID, CustomName decision) {
     DbPlayer player = getDbPlayerById(characterID);
     player.NameCheck = (int)decision;
     db.update(player);
@@ -279,48 +283,48 @@ void Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save) {
     db.update(Player);
 }
 
-Database::DbPlayer Database::playerToDb(Player player) 
+Database::DbPlayer Database::playerToDb(Player *player)
 {
     DbPlayer result = {};  // fixes some weird memory errors, this zeros out the members (not the padding inbetween though)
 
-    result.PlayerID = player.iID;
-    result.AccountID = player.accountId;
-    result.AppearanceFlag = player.PCStyle2.iAppearanceFlag;
-    result.Body = player.PCStyle.iBody;
-    result.Class = player.PCStyle.iClass;
-    result.EyeColor = player.PCStyle.iEyeColor;
-    result.FaceStyle = player.PCStyle.iFaceStyle;
-    result.FirstName = U16toU8( player.PCStyle.szFirstName);
-    result.FusionMatter = player.fusionmatter;
-    result.Gender = player.PCStyle.iGender;
-    result.HairColor = player.PCStyle.iHairColor;
-    result.HairStyle = player.PCStyle.iHairStyle;
-    result.Height = player.PCStyle.iHeight;
-    result.HP = player.HP;
-    result.isGM = player.IsGM;
-    result.LastName = U16toU8(player.PCStyle.szLastName);
-    result.Level = player.level;
-    result.NameCheck = player.PCStyle.iNameCheck;
-    result.PayZoneFlag = player.PCStyle2.iPayzoneFlag;
-    result.PlayerID = player.PCStyle.iPC_UID;
-    result.SkinColor = player.PCStyle.iSkinColor;
-    result.slot = player.slot;
-    result.Taros = player.money;
-    result.TutorialFlag = player.PCStyle2.iTutorialFlag;
-    result.x_coordinates = player.x;
-    result.y_coordinates = player.y;
-    result.z_coordinates = player.z;
-    result.angle = player.angle;
-    result.Nano1 = player.equippedNanos[0];
-    result.Nano2 = player.equippedNanos[1];
-    result.Nano3 = player.equippedNanos[2];
+    result.PlayerID = player->iID;
+    result.AccountID = player->accountId;
+    result.AppearanceFlag = player->PCStyle2.iAppearanceFlag;
+    result.Body = player->PCStyle.iBody;
+    result.Class = player->PCStyle.iClass;
+    result.EyeColor = player->PCStyle.iEyeColor;
+    result.FaceStyle = player->PCStyle.iFaceStyle;
+    result.FirstName = U16toU8( player->PCStyle.szFirstName);
+    result.FusionMatter = player->fusionmatter;
+    result.Gender = player->PCStyle.iGender;
+    result.HairColor = player->PCStyle.iHairColor;
+    result.HairStyle = player->PCStyle.iHairStyle;
+    result.Height = player->PCStyle.iHeight;
+    result.HP = player->HP;
+    result.isGM = player->IsGM;
+    result.LastName = U16toU8(player->PCStyle.szLastName);
+    result.Level = player->level;
+    result.NameCheck = player->PCStyle.iNameCheck;
+    result.PayZoneFlag = player->PCStyle2.iPayzoneFlag;
+    result.PlayerID = player->PCStyle.iPC_UID;
+    result.SkinColor = player->PCStyle.iSkinColor;
+    result.slot = player->slot;
+    result.Taros = player->money;
+    result.TutorialFlag = player->PCStyle2.iTutorialFlag;
+    result.x_coordinates = player->x;
+    result.y_coordinates = player->y;
+    result.z_coordinates = player->z;
+    result.angle = player->angle;
+    result.Nano1 = player->equippedNanos[0];
+    result.Nano2 = player->equippedNanos[1];
+    result.Nano3 = player->equippedNanos[2];
 
     //quests
     result.QuestFlag = std::vector<char>();
     //parsing long array to char vector
     for (int i=0; i<16; i++)
     {
-        int64_t temp = player.aQuestFlag[i];
+        int64_t temp = player->aQuestFlag[i];
         for (int j = 0; j < 8; j++) {
             int64_t check2 = (temp >> (8 * (7 - j)));
             char toadd = check2;
@@ -408,26 +412,26 @@ Player Database::getPlayer(int id) {
 
 #pragma region ShardServer
 
-void Database::updatePlayer(Player player) {
+void Database::updatePlayer(Player *player) {
     DbPlayer toUpdate = playerToDb(player);
     db.update(toUpdate);
     updateInventory(player);
     updateNanos(player);
 }
 
-void Database::updateInventory(Player player){
+void Database::updateInventory(Player *player){
     //start transaction
     db.begin_transaction();
     //remove all
     db.remove_all<Inventory>(
-        where(c(&Inventory::playerId) == player.iID)
+        where(c(&Inventory::playerId) == player->iID)
         );
     //insert equip
     for (int i = 0; i < AEQUIP_COUNT; i++) {
-        if (player.Equip[i].iID != 0) {
-            sItemBase* next = &player.Equip[i];
+        if (player->Equip[i].iID != 0) {
+            sItemBase* next = &player->Equip[i];
             Inventory toAdd = {};
-            toAdd.playerId = player.iID;
+            toAdd.playerId = player->iID;
             toAdd.slot = i;
             toAdd.id = next->iID;
             toAdd.Opt = next->iOpt;
@@ -438,10 +442,10 @@ void Database::updateInventory(Player player){
     }
     //insert inventory
     for (int i = 0; i < AINVEN_COUNT; i++) {
-        if (player.Inven[i].iID != 0) {
-            sItemBase* next = &player.Inven[i];
+        if (player->Inven[i].iID != 0) {
+            sItemBase* next = &player->Inven[i];
             Inventory toAdd = {};
-            toAdd.playerId = player.iID;
+            toAdd.playerId = player->iID;
             toAdd.slot = i + AEQUIP_COUNT;
             toAdd.id = next->iID;
             toAdd.Opt = next->iOpt;
@@ -452,10 +456,10 @@ void Database::updateInventory(Player player){
     }
     //insert bank
     for (int i = 0; i < ABANK_COUNT; i++) {
-        if (player.Bank[i].iID != 0) {
-            sItemBase* next = &player.Bank[i];
+        if (player->Bank[i].iID != 0) {
+            sItemBase* next = &player->Bank[i];
             Inventory toAdd = {};
-            toAdd.playerId = player.iID;
+            toAdd.playerId = player->iID;
             toAdd.slot = i + AEQUIP_COUNT + AINVEN_COUNT;
             toAdd.id = next->iID;
             toAdd.Opt = next->iOpt;
@@ -466,21 +470,21 @@ void Database::updateInventory(Player player){
     }
     db.commit();
 }
-void Database::updateNanos(Player player) {
+void Database::updateNanos(Player *player) {
     //start transaction
     db.begin_transaction();
     //remove all
     db.remove_all<Nano>(
-        where(c(&Nano::playerId) == player.iID)
+        where(c(&Nano::playerId) == player->iID)
         );
     //insert
     for (int i=1; i < SIZEOF_NANO_BANK_SLOT; i++)
     { 
-        if ((player.Nanos[i]).iID == 0)
+        if ((player->Nanos[i]).iID == 0)
             continue;
         Nano toAdd = {};
-        sNano* next = &player.Nanos[i];
-        toAdd.playerId = player.iID;
+        sNano* next = &player->Nanos[i];
+        toAdd.playerId = player->iID;
         toAdd.iID = next->iID;
         toAdd.iSkillID = next->iSkillID;
         toAdd.iStamina = next->iStamina;

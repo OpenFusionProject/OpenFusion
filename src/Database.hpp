@@ -86,24 +86,24 @@ namespace Database {
     int deleteCharacter(int characterID, int userID);
     std::vector <Player> getCharacters(int userID);
     //accepting/declining custom name
-    enum class CUSTOMNAME {
-        approve = 1,
-        disapprove = 2
+    enum class CustomName {
+        APPROVE = 1,
+        DISAPPROVE = 2
     };
-    void evaluateCustomName(int characterID, CUSTOMNAME decision);
+    void evaluateCustomName(int characterID, CustomName decision);
     void changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save);
 
     //parsing DbPlayer
-    DbPlayer playerToDb(Player player);
+    DbPlayer playerToDb(Player *player);
     Player DbToPlayer(DbPlayer player);
 
     //getting players
     DbPlayer getDbPlayerById(int id);
     Player getPlayer(int id);
 
-    void updatePlayer(Player player);
-    void updateInventory(Player player);
-    void updateNanos(Player player);
+    void updatePlayer(Player *player);
+    void updateInventory(Player *player);
+    void updateNanos(Player *player);
 
     void getInventory(Player* player);
     void getNanos(Player* player);

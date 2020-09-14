@@ -334,6 +334,6 @@ void MissionManager::mobKilled(CNSocket *sock, int mobid) {
 void MissionManager::saveMission(Player* player, int missionId) {
     //Missions are stored in int_64t array
     int row = missionId / 64;
-    int collumn = missionId % 64;
-    player->aQuestFlag[row] |= (1LL << collumn);
+    int column = missionId % 64;
+    player->aQuestFlag[row] |= (1ULL << column);
 }

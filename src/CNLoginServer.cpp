@@ -30,9 +30,9 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             std::string userPassword((char*)login->szCookie_authid);
 
             /*
-            * Sometimes the client sends garbage cookie data.
-            * Validate it as normal credentials instead of using a length check before falling back.
-            */
+             * Sometimes the client sends garbage cookie data.
+             * Validate it as normal credentials instead of using a length check before falling back.
+             */
             if (!CNLoginServer::isLoginDataGood(userLogin, userPassword)) {
                 /*
                  * The std::string -> char* -> std::string maneuver should remove any
@@ -48,7 +48,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             //checking regex
             if (!CNLoginServer::isLoginDataGood(userLogin, userPassword))
             {
-                errorCode = (int)LOGINERRORID::login_error;
+                errorCode = (int)LoginError::LOGIN_ERROR;
             }         
             else 
             {
@@ -68,7 +68,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     if (CNLoginServer::isAccountInUse(findUser->AccountID) ||
                         PlayerManager::isAccountInUse(findUser->AccountID))
                     {
-                        errorCode = (int)LOGINERRORID::id_already_in_use;
+                        errorCode = (int)LoginError::ID_ALREADY_IN_USE;
                     }
                     //if not, login success
                     else 
@@ -81,7 +81,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 }                             
                 else
                 {
-                    errorCode = (int)LOGINERRORID::id_and_password_do_not_match;
+                    errorCode = (int)LoginError::ID_AND_PASSWORD_DO_NOT_MATCH;
                 }
             }
 
@@ -169,9 +169,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             if (!CNLoginServer::isCharacterNameGood(U16toU8(nameCheck->szFirstName), U16toU8(nameCheck->szLastName))) {
                 success = false;
                 errorcode = 4;
-            } 
-            //check if name isn't already occupied
-            else if (!Database::isNameFree(nameCheck)){
+            } else if (!Database::isNameFree(nameCheck)){ //check if name isn't already occupied
                 success = false;
                 errorcode = 1;
             }
@@ -180,16 +178,15 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC, resp);
 
                 DEBUGLOG(
-                std::cout << "P_CL2LS_REQ_CHECK_CHAR_NAME:" << std::endl;
-                std::cout << "\tFirstName: " << U16toU8(nameCheck->szFirstName) << " LastName: " << U16toU8(nameCheck->szLastName) << std::endl;
+                    std::cout << "P_CL2LS_REQ_CHECK_CHAR_NAME:" << std::endl;
+                    std::cout << "\tFirstName: " << U16toU8(nameCheck->szFirstName) << " LastName: " << U16toU8(nameCheck->szLastName) << std::endl;
                 )
 
                 memcpy(resp.szFirstName, nameCheck->szFirstName, sizeof(char16_t) * 9);
                 memcpy(resp.szLastName, nameCheck->szLastName, sizeof(char16_t) * 17);
 
                 sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC));
-            }
-            else {
+            } else {
                 INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL, resp);
                 resp.iErrorCode = errorcode;
                 sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_FAIL, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL));
@@ -390,8 +387,8 @@ bool CNLoginServer::isAccountInUse(int accountId) {
     }
     return false;
 }
-bool CNLoginServer::exitDuplicate(int accountId) 
-{
+
+bool CNLoginServer::exitDuplicate(int accountId) {
     std::map<CNSocket*, CNLoginData>::iterator it;
     for (it = CNLoginServer::loginSessions.begin(); it != CNLoginServer::loginSessions.end(); it++)
     {
@@ -407,18 +404,18 @@ bool CNLoginServer::exitDuplicate(int accountId)
     }
     return false;
 }
-bool CNLoginServer::isLoginDataGood(std::string login, std::string password)
-{
+
+bool CNLoginServer::isLoginDataGood(std::string login, std::string password) {
     std::regex loginRegex("[a-zA-Z0-9_-]{4,32}");
     std::regex passwordRegex("[a-zA-Z0-9!@#$%^&*()_+]{8,32}");
     return (std::regex_match(login, loginRegex) && std::regex_match(password, passwordRegex));
 }
-bool CNLoginServer::isPasswordCorrect(std::string actualPassword, std::string tryPassword)
-{
+
+bool CNLoginServer::isPasswordCorrect(std::string actualPassword, std::string tryPassword) {
     return BCrypt::validatePassword(tryPassword, actualPassword);
 }
-bool CNLoginServer::isCharacterNameGood(std::string Firstname, std::string Lastname)
-{
+
+bool CNLoginServer::isCharacterNameGood(std::string Firstname, std::string Lastname) {
     std::regex firstnamecheck("[a-zA-Z0-9]+(?: [a-zA-Z0-9]+)*$");
     std::regex lastnamecheck("[a-zA-Z0-9]+(?: [a-zA-Z0-9]+)*$");
     return (std::regex_match(Firstname, firstnamecheck) && std::regex_match(Lastname, lastnamecheck));
