@@ -41,6 +41,5 @@ namespace ItemManager {
     void chestOpenHandler(CNSocket* sock, CNPacketData* data);
 
     int findFreeSlot(Player *plr);
-    bool isItemRegistered(int32_t id, int32_t type);
-    Item getItemData(int32_t id, int32_t type);
+    Item* getItemData(int32_t id, int32_t type);
 }

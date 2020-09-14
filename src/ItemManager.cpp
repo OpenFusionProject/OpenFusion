@@ -721,6 +721,7 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     // item reward
     item->sItem.iType = 0;
     item->sItem.iID = 96;
+    item->sItem.iOpt = 1;
     item->iSlotNum = pkt->iSlotNum;
     item->eIL = pkt->eIL;
 
@@ -751,10 +752,8 @@ int ItemManager::findFreeSlot(Player *plr) {
     return -1;
 }
 
-bool ItemManager::isItemRegistered(int32_t id, int32_t type) {
-    return ItemData.find(std::pair<int32_t, int32_t>(id, type)) != ItemData.end();
-}
-
-Item ItemManager::getItemData(int32_t id, int32_t type) {
-    return ItemData[std::pair<int32_t, int32_t>(id, type)];
+Item* ItemManager::getItemData(int32_t id, int32_t type) {
+    if(ItemData.find(std::pair<int32_t, int32_t>(id, type)) !=  ItemData.end())
+        return &ItemData[std::pair<int32_t, int32_t>(id, type)];
+    return nullptr;
 }
