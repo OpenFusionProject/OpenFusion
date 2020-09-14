@@ -215,6 +215,8 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iY = plr.y;
     response.PCLoadData2CL.iZ = plr.z;
     response.PCLoadData2CL.iAngle = plr.angle;
+    response.PCLoadData2CL.iBatteryN = plr.batteryN;
+    response.PCLoadData2CL.iBatteryW = plr.batteryW;
 
     response.PCLoadData2CL.iActiveNanoSlotNum = -1;
     response.PCLoadData2CL.iFatigue = 50;
