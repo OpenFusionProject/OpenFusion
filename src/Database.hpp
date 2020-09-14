@@ -64,6 +64,7 @@ namespace Database {
         short int PCState;
         int BatteryW;
         int BatteryN;
+        int16_t Mentor;
         std::vector<char> QuestFlag;
     };
 

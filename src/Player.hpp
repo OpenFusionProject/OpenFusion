@@ -17,6 +17,7 @@ struct Player {
     int level;
     int HP;
     int slot; // player slot, not nano slot
+    int16_t mentor;
     int32_t money;
     int32_t fusionmatter;
     int32_t batteryW;
