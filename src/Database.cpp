@@ -54,7 +54,9 @@ auto db = make_storage("database.db",
         make_column("Quests", &Database::DbPlayer::QuestFlag),
         make_column("BatteryW", &Database::DbPlayer::BatteryW),
         make_column("BatteryN", &Database::DbPlayer::BatteryN),
-        make_column("Mentor", &Database::DbPlayer::Mentor)
+        make_column("Mentor", &Database::DbPlayer::Mentor),
+        make_column("ActiveTasks", &Database::DbPlayer::ActiveTasks),
+        make_column("QuestItems", &Database::DbPlayer::QuestItems)
     ),
     make_table("Inventory",
         make_column("PlayerId", &Database::Inventory::playerId),
@@ -327,13 +329,20 @@ Database::DbPlayer Database::playerToDb(Player *player)
     result.BatteryW = player->batteryW;
     result.Mentor = player->mentor;
 
-    // quests: parsing to blob
+    // finished quests: parsing to blob
     result.QuestFlag = std::vector<char>();
     for (int i=0; i<16; i++)
     {
         int64_t flag = player->aQuestFlag[i];
         appendBlob(&result.QuestFlag, flag);
     }
+    // quest items: parsing to blob;
+    result.QuestItems = std::vector<char>();
+    for (int i = 0; i < AQINVEN_COUNT; i++) {
+        sItemBase item = player->QInven[i];
+        appendBlob(&result.QuestItems, item);
+    }
+
 
     return result;
 }
@@ -390,6 +399,16 @@ Player Database::DbToPlayer(DbPlayer player) {
         //move iterator to the next flag
         it += 8;
     }
+    it = player.QuestItems.begin();
+    for (int i = 0; i < AQINVEN_COUNT; i++)
+    {
+        if (it == player.QuestItems.end())
+            break;
+        result.QInven[i] = blobToItemBase(it);
+        //move iterator to the next flag
+        it += 10;
+    }
+
 
     return result;
 }
@@ -549,6 +568,25 @@ void Database::appendBlob(std::vector<char>* blob, int16_t input) {
     }
 }
 
+void Database::appendBlob(std::vector<char>* blob, sItemBase item) {
+    appendBlob(blob, item.iID);
+    appendBlob(blob, item.iType);
+    appendBlob(blob, item.iOpt);
+    appendBlob(blob, item.iTimeLimit); 
+}
+
+void Database::appendBlob(std::vector<char>* blob, sRunningQuest quest) {
+    appendBlob(blob, quest.m_aCurrTaskID);
+    for (int i = 0; i < 3; i++)
+        appendBlob(blob, quest.m_aKillNPCCount[i]);
+    for (int i = 0; i < 3; i++)
+        appendBlob(blob, quest.m_aKillNPCID[i]);
+    for (int i = 0; i < 3; i++)
+        appendBlob(blob, quest.m_aNeededItemCount[i]);
+    for (int i = 0; i < 3; i++)
+        appendBlob(blob, quest.m_aNeededItemID[i]);
+}
+
 int64_t Database::blobToInt64(std::vector<char>::iterator it) {
     int64_t result = 0;
     for (int i = 0; i < 8; i++) {
@@ -575,6 +613,41 @@ int16_t Database::blobToInt16(std::vector<char>::iterator it) {
         int16_t toAdd = ((int16_t)*it << (8 * (1 - i)));
         result += toAdd;
         it++;
+    }
+    return result;
+}
+
+sItemBase Database::blobToItemBase(std::vector<char>::iterator it) {
+    sItemBase result = {};
+    result.iID = blobToInt16(it);
+    it += 2;
+    result.iOpt = blobToInt32(it);
+    it += 4;
+    result.iTimeLimit = blobToInt32(it);
+    it += 4;
+    result.iType = blobToInt16(it);
+    return result;
+}
+
+sRunningQuest Database::blobToRunningQuest(std::vector<char>::iterator it) {
+    sRunningQuest result = {};
+    result.m_aCurrTaskID = blobToInt32(it);
+    it += 4;
+    for (int i = 0; i < 3; i++) {
+        result.m_aKillNPCCount[i] = blobToInt32(it);
+        it += 4;
+    }
+    for (int i = 0; i < 3; i++) {
+        result.m_aKillNPCID[i] = blobToInt32(it);
+        it += 4;
+    }
+    for (int i = 0; i < 3; i++) {
+        result.m_aNeededItemCount[i] = blobToInt32(it);
+        it += 4;
+    }
+    for (int i = 0; i < 3; i++) {
+        result.m_aNeededItemID[i] = blobToInt32(it);
+        it += 4;
     }
     return result;
 }

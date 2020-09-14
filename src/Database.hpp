@@ -66,6 +66,8 @@ namespace Database {
         int BatteryN;
         int16_t Mentor;
         std::vector<char> QuestFlag;
+        std::vector<char> ActiveTasks;
+        std::vector<char> QuestItems;
     };
 
 
@@ -115,7 +117,11 @@ namespace Database {
     void appendBlob(std::vector<char>*blob, int64_t input);
     void appendBlob(std::vector<char>* blob, int32_t input);
     void appendBlob(std::vector<char>* blob, int16_t input);
+    void appendBlob(std::vector<char>* blob, sItemBase item);
+    void appendBlob(std::vector<char>* blob, sRunningQuest quest);
     int64_t blobToInt64(std::vector<char>::iterator it);
     int32_t blobToInt32(std::vector<char>::iterator it);
     int16_t blobToInt16(std::vector<char>::iterator it);
+    sItemBase blobToItemBase(std::vector<char>::iterator it);
+    sRunningQuest blobToRunningQuest(std::vector<char>::iterator it);
 }
