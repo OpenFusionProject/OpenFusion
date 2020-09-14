@@ -31,10 +31,17 @@ void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
-    int itemCost = 100; // TODO: placeholder, look up the price of item
+    if (!ItemManager::isItemRegistered(req->Item.iID, req->Item.iType)) {
+        std::cout << "[WARN] Item id " << req->Item.iID << " with type " << req->Item.iType << " not found" << std::endl;
+        // NOTE: VENDOR_ITEM_BUY_FAIL is not actually handled client-side.
+        INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, failResp);
+        failResp.iErrorCode = 0;
+        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL));
+        return;
+    }
 
+    int itemCost = ItemManager::getItemData(req->Item.iID, req->Item.iType).buyPrice;
     int slot = ItemManager::findFreeSlot(plr);
-
     if (itemCost > plr->money || slot == -1) {
         // NOTE: VENDOR_ITEM_BUY_FAIL is not actually handled client-side.
         INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, failResp);
@@ -78,8 +85,8 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
     sItemBase* item = &plr->Inven[req->iInvenSlotNum];
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC, resp);
-
-    int sellValue = 100 * req->iItemCnt; // TODO: lookup item price
+    
+    int sellValue = ItemManager::getItemData(item->iID, item->iType).sellPrice * req->iItemCnt; // TODO: lookup item price
 
     // increment taros
     plr->money = plr->money + sellValue;
@@ -124,7 +131,7 @@ void NPCManager::npcVendorTable(CNSocket* sock, CNPacketData* data) {
             vItem.item = base;
             vItem.iSortNum = listings[i].sort;
             vItem.iVendorID = req->iVendorID;
-            vItem.fBuyCost = listings[i].price;
+            //vItem.fBuyCost = listings[i].price;
 
             resp.item[i] = vItem;
         }

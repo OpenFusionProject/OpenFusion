@@ -7,6 +7,7 @@
 #include <string.h> // for memset() and memcmp()
 #include <assert.h>
 
+std::map<std::pair<int32_t, int32_t>, Item> ItemManager::ItemData;
 std::map<int32_t, std::vector<VendorListing>> ItemManager::VendorTables;
 
 void ItemManager::init() {
@@ -748,4 +749,12 @@ int ItemManager::findFreeSlot(Player *plr) {
 
     // not found
     return -1;
+}
+
+bool ItemManager::isItemRegistered(int32_t id, int32_t type) {
+    return ItemData.find(std::pair<int32_t, int32_t>(id, type)) != ItemData.end();
+}
+
+Item ItemManager::getItemData(int32_t id, int32_t type) {
+    return ItemData[std::pair<int32_t, int32_t>(id, type)];
 }
