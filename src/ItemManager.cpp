@@ -7,6 +7,9 @@
 #include <string.h> // for memset() and memcmp()
 #include <assert.h>
 
+std::map<std::pair<int32_t, int32_t>, Item> ItemManager::ItemData;
+std::map<int32_t, std::vector<VendorListing>> ItemManager::VendorTables;
+
 void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_DELETE, itemDeleteHandler);
@@ -718,6 +721,7 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     // item reward
     item->sItem.iType = 0;
     item->sItem.iID = 96;
+    item->sItem.iOpt = 1;
     item->iSlotNum = pkt->iSlotNum;
     item->eIL = pkt->eIL;
 
@@ -746,4 +750,10 @@ int ItemManager::findFreeSlot(Player *plr) {
 
     // not found
     return -1;
+}
+
+Item* ItemManager::getItemData(int32_t id, int32_t type) {
+    if(ItemData.find(std::pair<int32_t, int32_t>(id, type)) !=  ItemData.end())
+        return &ItemData[std::pair<int32_t, int32_t>(id, type)];
+    return nullptr;
 }

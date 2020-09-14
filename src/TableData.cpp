@@ -1,6 +1,7 @@
 #include "TableData.hpp"
 #include "NPCManager.hpp"
 #include "TransportManager.hpp"
+#include "ItemManager.hpp"
 #include "settings.hpp"
 #include "MissionManager.hpp"
 
@@ -119,6 +120,30 @@ void TableData::init() {
         }
 
         std::cout << "[INFO] Loaded mission-related data" << std::endl;
+
+        // load all item data. i'm sorry. it has to be done
+        const char* setNames[12] = { "m_pBackItemTable", "m_pFaceItemTable", "m_pGlassItemTable", "m_pHatItemTable",
+        "m_pHeadItemTable", "m_pPantsItemTable", "m_pShirtsItemTable", "m_pShoesItemTable", "m_pWeaponItemTable",
+        "m_pVehicleItemTable", "m_pGeneralItemTable", "m_pChestItemTable" };
+        nlohmann::json itemSet;
+        for (int i = 0; i < 12; i++) {
+            itemSet = xdtData[setNames[i]]["m_pItemData"];
+            for (nlohmann::json::iterator item = itemSet.begin(); item != itemSet.end(); item++)
+                ItemManager::ItemData[std::pair<int32_t, int32_t>(item.value()["m_iItemNumber"], i == 11 ? 9 : (i == 10 ? 7 : (int)item.value()["m_iEquipLoc"]))]
+                = { item.value()["m_iTradeAble"] == 1, item.value()["m_iSellAble"] == 1, item.value()["m_iItemPrice"], item.value()["m_iItemSellPrice"], item.value()["m_iStackNumber"], i > 9 ? 0 : (int)item.value()["m_iMinReqLev"] };
+        }
+
+        std::cout << "[INFO] Loaded " << ItemManager::ItemData.size() << " items" << std::endl;
+
+        // load vendor listings
+        nlohmann::json listings = xdtData["m_pVendorTable"]["m_pItemData"];
+
+        for (nlohmann::json::iterator listing = listings.begin(); listing != listings.end(); listing++) {
+            VendorListing vListing = { listing.value()["m_iSortNumber"], listing.value()["m_iItemType"], listing.value()["m_iitemID"] };
+            ItemManager::VendorTables[listing.value()["m_iNpcNumber"]].push_back(vListing);
+        }
+
+        std::cout << "[INFO] Loaded " << ItemManager::VendorTables.size() << " vendor tables" << std::endl;
     }
     catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed xdt.json file! Reason:" << err.what() << std::endl;
