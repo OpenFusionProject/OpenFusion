@@ -75,7 +75,7 @@ auto db = make_storage("database.db",
 
 void Database::open()
 {
-    //this parameter means it will try to preserve data during migration
+    // this parameter means it will try to preserve data during migration
     bool preserve = true;
     db.sync_schema(preserve);
     DEBUGLOG(
@@ -102,7 +102,7 @@ void Database::updateSelected(int accountId, int slot)
 
 std::unique_ptr<Database::Account> Database::findAccount(std::string login)
 {
-    //this is awful, I've tried everything to improve it
+    // this is awful, I've tried everything to improve it
     auto find = db.get_all<Account>(
         where(c(&Account::Login) == login), limit(1));
     if (find.empty())
@@ -130,24 +130,24 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
 
     DbPlayer create = {};
 
-    //save packet data
+    // save packet data
     create.FirstName = U16toU8(save->szFirstName);
     create.LastName = U16toU8(save->szLastName);
     create.slot = save->iSlotNum;
     create.AccountID = AccountID;
 
-    //set flags
+    // set flags
     create.AppearanceFlag = 0;
     create.TutorialFlag = 0;
     create.PayZoneFlag = 0;
 
-    //set namecheck based on setting
+    // set namecheck based on setting
     if (settings::APPROVEALLNAMES || save->iFNCode)
         create.NameCheck = 1;
     else
         create.NameCheck = 0;
 
-    //create default body character
+    // create default body character
     create.Body = 0;
     create.Class = 0;
     create.EyeColor = 1;
@@ -184,7 +184,7 @@ void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character)
     finish.Level = 1;
     finish.SkinColor = character->PCStyle.iSkinColor;
     db.update(finish);
-    //clothes
+    // clothes
     Inventory Foot, LB, UB;
     Foot.playerId = character->PCStyle.iPC_UID;
     Foot.id = character->sOn_Item.iEquipFootID;
@@ -212,9 +212,9 @@ void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character)
 void Database::finishTutorial(int PlayerID)
 {
     Player finish = getPlayer(PlayerID);
-    //set flag
+    // set flag
     finish.PCStyle2.iTutorialFlag= 1;
-    //add Gun
+    // add Gun
     Inventory LightningGun = {};
     LightningGun.playerId = PlayerID;
     LightningGun.id = 328;
@@ -222,7 +222,7 @@ void Database::finishTutorial(int PlayerID)
     LightningGun.Type = 0;
     LightningGun.Opt = 1;
     db.insert(LightningGun);
-    //add Nano
+    // add Nano
     Nano Buttercup = {};
     Buttercup.playerId = PlayerID;
     Buttercup.iID = 1;
@@ -230,7 +230,7 @@ void Database::finishTutorial(int PlayerID)
     Buttercup.iStamina = 150;
     finish.equippedNanos[0] = 1;
     db.insert(Buttercup);
-    //save missions
+    // save missions
     MissionManager::saveMission(&finish, 0);
     MissionManager::saveMission(&finish, 1);
 
@@ -254,7 +254,7 @@ std::vector <Player> Database::getCharacters(int UserID)
     std::vector<DbPlayer>characters =
         db.get_all<DbPlayer>(where
         (c(&DbPlayer::AccountID) == UserID));
-    //parsing DbPlayer to Player
+    // parsing DbPlayer to Player
     std::vector<Player> result = std::vector<Player>();
     for (auto &character : characters) {
         Player toadd = DbToPlayer(character);
@@ -319,9 +319,9 @@ Database::DbPlayer Database::playerToDb(Player *player)
     result.Nano2 = player->equippedNanos[1];
     result.Nano3 = player->equippedNanos[2];
 
-    //quests
+    // quests
     result.QuestFlag = std::vector<char>();
-    //parsing long array to char vector
+    // parsing long array to char vector
     for (int i=0; i<16; i++)
     {
         int64_t temp = player->aQuestFlag[i];
@@ -420,13 +420,13 @@ void Database::updatePlayer(Player *player) {
 }
 
 void Database::updateInventory(Player *player){
-    //start transaction
+    // start transaction
     db.begin_transaction();
-    //remove all
+    // remove all
     db.remove_all<Inventory>(
         where(c(&Inventory::playerId) == player->iID)
         );
-    //insert equip
+    // insert equip
     for (int i = 0; i < AEQUIP_COUNT; i++) {
         if (player->Equip[i].iID != 0) {
             sItemBase* next = &player->Equip[i];
@@ -440,7 +440,7 @@ void Database::updateInventory(Player *player){
             db.insert(toAdd);
         }
     }
-    //insert inventory
+    // insert inventory
     for (int i = 0; i < AINVEN_COUNT; i++) {
         if (player->Inven[i].iID != 0) {
             sItemBase* next = &player->Inven[i];
@@ -454,7 +454,7 @@ void Database::updateInventory(Player *player){
             db.insert(toAdd);
         }
     }
-    //insert bank
+    // insert bank
     for (int i = 0; i < ABANK_COUNT; i++) {
         if (player->Bank[i].iID != 0) {
             sItemBase* next = &player->Bank[i];
@@ -471,13 +471,13 @@ void Database::updateInventory(Player *player){
     db.commit();
 }
 void Database::updateNanos(Player *player) {
-    //start transaction
+    // start transaction
     db.begin_transaction();
-    //remove all
+    // remove all
     db.remove_all<Nano>(
         where(c(&Nano::playerId) == player->iID)
         );
-    //insert
+    // insert
     for (int i=1; i < SIZEOF_NANO_BANK_SLOT; i++)
     {
         if ((player->Nanos[i]).iID == 0)
@@ -493,18 +493,18 @@ void Database::updateNanos(Player *player) {
     db.commit();
 }
 void Database::getInventory(Player* player) {
-    //get items from DB
+    // get items from DB
     auto items = db.get_all<Inventory>(
         where(c(&Inventory::playerId) == player->iID)
         );
-    //set items
+    // set items
     for (const Inventory &current : items) {
         sItemBase toSet = {};
         toSet.iID = current.id;
         toSet.iType = current.Type;
         toSet.iOpt = current.Opt;
         toSet.iTimeLimit = current.TimeLimit;
-        //assign to proper arrays
+        // assign to proper arrays
         if (current.slot <= AEQUIP_COUNT)
             player->Equip[current.slot] = toSet;
         else if (current.slot <= (AEQUIP_COUNT + AINVEN_COUNT))
@@ -515,11 +515,11 @@ void Database::getInventory(Player* player) {
 
 }
 void Database::getNanos(Player* player) {
-    //get from DB
+    // get from DB
     auto nanos = db.get_all<Nano>(
         where(c(&Nano::playerId) == player->iID)
         );
-    //set
+    // set
     for (const Nano& current : nanos) {
         sNano *toSet = &player->Nanos[current.iID];
         toSet->iID = current.iID;

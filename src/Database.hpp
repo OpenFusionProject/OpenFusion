@@ -69,23 +69,23 @@ namespace Database {
 
 #pragma endregion DatabaseStructs
 
-    //handles migrations
+    // handles migrations
     void open();
-    //returns ID
+    // returns ID
     int addAccount(std::string login, std::string password);
     void updateSelected(int accountId, int playerId);
     std::unique_ptr<Account> findAccount(std::string login);
     bool isNameFree(sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck);
-    //called after chosing name, returns ID
+    // called after chosing name, returns ID
     int createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID);
-    //called after finishing creation
+    // called after finishing creation
     void finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character);
-    //called after tutorial
+    // called after tutorial
     void finishTutorial(int PlayerID);
-    //returns slot number
+    // returns slot number
     int deleteCharacter(int characterID, int userID);
     std::vector <Player> getCharacters(int userID);
-    //accepting/declining custom name
+    // accepting/declining custom name
     enum class CustomName {
         APPROVE = 1,
         DISAPPROVE = 2
@@ -93,11 +93,11 @@ namespace Database {
     void evaluateCustomName(int characterID, CustomName decision);
     void changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save);
 
-    //parsing DbPlayer
+    // parsing DbPlayer
     DbPlayer playerToDb(Player *player);
     Player DbToPlayer(DbPlayer player);
 
-    //getting players
+    // getting players
     DbPlayer getDbPlayerById(int id);
     Player getPlayer(int id);
 

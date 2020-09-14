@@ -11,9 +11,9 @@ void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_DELETE, itemDeleteHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GIVE_ITEM, itemGMGiveHandler);
-    //Bank
+    // Bank
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_BANK_OPEN, itemBankOpenHandler);
-    //Trade handlers
+    // Trade handlers
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER, itemTradeOfferHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER_ACCEPT, itemTradeOfferAcceptHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER_REFUSAL, itemTradeOfferRefusalHandler);
@@ -35,7 +35,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 
     PlayerView& plr = PlayerManager::players[sock];
 
-    //sanity check
+    // sanity check
     if (plr.plr->Equip[itemmove->iFromSlotNum].iType != 0 && itemmove->eFrom == 0 && itemmove->eTo == 0) {
         // this packet should never happen unless it is a weapon, tell the client to do nothing and do nothing ourself
         resp.eTo = itemmove->eFrom;
@@ -53,7 +53,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     if (itemmove->iToSlotNum > ABANK_COUNT || itemmove->iToSlotNum < 0)
         return;
 
-    //get the fromItem
+    // get the fromItem
     sItemBase *fromItem;
     switch ((SlotType)itemmove->eFrom) {
         case SlotType::EQUIP:
@@ -67,7 +67,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
             break;
     }
 
-    //get the toItem
+    // get the toItem
     sItemBase* toItem;
     switch ((SlotType)itemmove->eTo) {
     case SlotType::EQUIP:
@@ -81,16 +81,16 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         break;
     }
 
-    //save items to response
+    // save items to response
     resp.ToSlotItem = *toItem;
     resp.FromSlotItem = *fromItem;
 
-    //swap items in session
+    // swap items in session
     sItemBase temp = *toItem;
     *toItem = *fromItem;
     *fromItem = temp;
 
-    //send equip change to viewable players
+    // send equip change to viewable players
     if (itemmove->eFrom == (int)SlotType::EQUIP || itemmove->eTo == (int)SlotType::EQUIP) {
         INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, equipChange);
 
@@ -114,7 +114,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         }
     }
 
-    //send response
+    // send response
     resp.eTo = itemmove->eFrom;
     resp.iToSlotNum = itemmove->iFromSlotNum;
     resp.eFrom = itemmove->eTo;
@@ -177,7 +177,7 @@ void ItemManager::itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_BANK_OPEN))
         return; // ignore the malformed packet
 
-    //just send bank inventory
+    // just send bank inventory
     INITSTRUCT(sP_FE2CL_REP_PC_BANK_OPEN_SUCC, resp);
     for (int i = 0; i < ABANK_COUNT; i++) {
         resp.aBank[i] = PlayerManager::players[sock].plr->Bank[i];
@@ -220,7 +220,7 @@ void ItemManager::itemTradeOfferHandler(CNSocket* sock, CNPacketData* data) {
 
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL));
 
-        return; //prevent trading with a player already trading
+        return; // prevent trading with a player already trading
     }
 
     INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER, resp);
@@ -275,7 +275,7 @@ void ItemManager::itemTradeOfferAcceptHandler(CNSocket* sock, CNPacketData* data
 
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL));
 
-        return; //prevent trading with a player already trading
+        return; // prevent trading with a player already trading
     }
 
     plr.plr->isTrading = true;

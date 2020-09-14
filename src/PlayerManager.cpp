@@ -220,13 +220,13 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iFatigue = 50;
     response.PCLoadData2CL.PCStyle = plr.PCStyle;
     response.PCLoadData2CL.PCStyle2 = plr.PCStyle2;
-    //inventory
+    // inventory
     for (int i = 0; i < AEQUIP_COUNT; i++)
         response.PCLoadData2CL.aEquip[i] = plr.Equip[i];
 
     for (int i = 0; i < AINVEN_COUNT; i++)
         response.PCLoadData2CL.aInven[i] = plr.Inven[i];
-    //nanos
+    // nanos
     for (int i = 1; i < SIZEOF_NANO_BANK_SLOT; i++) {
         response.PCLoadData2CL.aNanoBank[i] = plr.Nanos[i];
     }
@@ -234,7 +234,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
         response.PCLoadData2CL.aNanoSlots[i] = plr.equippedNanos[i];
     }
 
-    //missions
+    // missions
     for (int i = 0; i < 16; i++) {
         response.PCLoadData2CL.aQuestFlag[i] = plr.aQuestFlag[i];
     }
@@ -450,7 +450,7 @@ void PlayerManager::ziplinePlayer(CNSocket* sock, CNPacketData* data) {
     ziplineResponse.fVZ = ziplineData->fVZ;
     ziplineResponse.fMovDistance = ziplineData->fMovDistance;
     ziplineResponse.fMaxDistance = ziplineData->fMaxDistance;
-    ziplineResponse.fDummy = ziplineData->fDummy; //wtf is this for?
+    ziplineResponse.fDummy = ziplineData->fDummy; // wtf is this for?
     ziplineResponse.iStX = ziplineData->iStX;
     ziplineResponse.iStY = ziplineData->iStY;
     ziplineResponse.iStZ = ziplineData->iStZ;
@@ -673,7 +673,7 @@ void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_SUCC, response);
         sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_ON_SUCC));
 
-        //send to other players
+        // send to other players
         plr.plr->iPCState = 8;
         INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
         response2.iPC_ID = plr.plr->iID;
@@ -696,7 +696,7 @@ void PlayerManager::exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
 
     PlayerView plr = PlayerManager::players[sock];
 
-    //send to other players
+    // send to other players
     plr.plr->iPCState = 0;
     INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
     response2.iPC_ID = plr.plr->iID;

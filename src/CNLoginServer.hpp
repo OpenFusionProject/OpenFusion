@@ -34,7 +34,7 @@ private:
     static bool isPasswordCorrect(std::string actualPassword, std::string tryPassword);
     static bool isAccountInUse(int accountId);
     static bool isCharacterNameGood(std::string Firstname, std::string Lastname);
-    //returns true if success
+    // returns true if success
     static bool exitDuplicate(int accountId);
 public:
     CNLoginServer(uint16_t p);

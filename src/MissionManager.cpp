@@ -103,7 +103,7 @@ void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
     // if it's the last task
     if (task["m_iSUOutgoingTask"] == 0)
     {
-        //save completed mission on player
+        // save completed mission on player
         saveMission(plr, (int)(task["m_iHMissionID"])-1);
     }
 
@@ -332,7 +332,7 @@ void MissionManager::mobKilled(CNSocket *sock, int mobid) {
 }
 
 void MissionManager::saveMission(Player* player, int missionId) {
-    //Missions are stored in int_64t array
+    // Missions are stored in int_64t array
     int row = missionId / 64;
     int column = missionId % 64;
     player->aQuestFlag[row] |= (1ULL << column);

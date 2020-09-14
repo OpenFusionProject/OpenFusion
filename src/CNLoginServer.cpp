@@ -25,7 +25,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 return; // ignore the malformed packet
 
             sP_CL2LS_REQ_LOGIN* login = (sP_CL2LS_REQ_LOGIN*)data->buf;
-            //TODO: implement better way of sending credentials
+            // TODO: implement better way of sending credentials
             std::string userLogin((char*)login->szCookie_TEGid);
             std::string userPassword((char*)login->szCookie_authid);
 
@@ -45,7 +45,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             bool success = false;
             int errorCode = 0;
 
-            //checking regex
+            // checking regex
             if (!CNLoginServer::isLoginDataGood(userLogin, userPassword))
             {
                 errorCode = (int)LoginError::LOGIN_ERROR;
@@ -53,7 +53,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             else
             {
                 std::unique_ptr<Database::Account> findUser = Database::findAccount(userLogin);
-                //if account not found, create it
+                // if account not found, create it
                 if (findUser == nullptr)
                 {
                     loginSessions[sock] = CNLoginData();
@@ -61,16 +61,16 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     loginSessions[sock].slot = 1;
                     success = true;
                 }
-                //if user exists, check if password is correct
+                // if user exists, check if password is correct
                 else if (CNLoginServer::isPasswordCorrect(findUser->Password, userPassword))
                 {
-                    //check if account isn't currently in use
+                    // check if account isn't currently in use
                     if (CNLoginServer::isAccountInUse(findUser->AccountID) ||
                         PlayerManager::isAccountInUse(findUser->AccountID))
                     {
                         errorCode = (int)LoginError::ID_ALREADY_IN_USE;
                     }
-                    //if not, login success
+                    // if not, login success
                     else
                     {
                         loginSessions[sock] = CNLoginData();
@@ -124,12 +124,12 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     charInfo.iY = it->y;
                     charInfo.iZ = it->z;
 
-                    //save character in session (for char select)
+                    // save character in session (for char select)
                     int UID = it->iID;
                     loginSessions[sock].characters[UID] = Player(*it);
                     loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
 
-                    //Equip info
+                    // Equip info
                     for (int i = 0; i < AEQUIP_COUNT; i++) {
                         charInfo.aEquip[i] = it->Equip[i];
                     }
@@ -141,7 +141,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                     sock->sendPacket((void*)&charInfo, P_LS2CL_REP_CHAR_INFO, sizeof(sP_LS2CL_REP_CHAR_INFO));
                 }
             }
-            //Failure
+            // Failure
             else {
                 INITSTRUCT(sP_LS2CL_REP_LOGIN_FAIL, resp);
 
@@ -165,11 +165,11 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             bool success = true;
             int errorcode = 0;
 
-            //check regex
+            // check regex
             if (!CNLoginServer::isCharacterNameGood(U16toU8(nameCheck->szFirstName), U16toU8(nameCheck->szLastName))) {
                 success = false;
                 errorcode = 4;
-            } else if (!Database::isNameFree(nameCheck)){ //check if name isn't already occupied
+            } else if (!Database::isNameFree(nameCheck)){ // check if name isn't already occupied
                 success = false;
                 errorcode = 1;
             }
@@ -252,7 +252,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             resp.iLevel = player.level;
             resp.sOn_Item = character->sOn_Item;
 
-            //save player in session
+            // save player in session
             loginSessions[sock].characters[UID] = Player(player);
             loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
 
@@ -322,11 +322,11 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 return;
             sP_CL2LS_REQ_SAVE_CHAR_TUTOR* save = (sP_CL2LS_REQ_SAVE_CHAR_TUTOR*)data->buf;
             Database::finishTutorial(save->iPC_UID);
-            //update character in session
+            // update character in session
             auto key = loginSessions[sock].characters[save->iPC_UID].FEKey;
             loginSessions[sock].characters[save->iPC_UID] = Player(Database::getPlayer(save->iPC_UID));
             loginSessions[sock].characters[save->iPC_UID].FEKey = key;
-            //no response here
+            // no response here
             break;
         }
         case P_CL2LS_REQ_CHANGE_CHAR_NAME: {
