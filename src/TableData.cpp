@@ -122,15 +122,15 @@ void TableData::init() {
         std::cout << "[INFO] Loaded mission-related data" << std::endl;
 
         // load all item data. i'm sorry. it has to be done
-        const char* setNames[10] = { "m_pBackItemTable", "m_pFaceItemTable", "m_pGlassItemTable", "m_pHatItemTable",
+        const char* setNames[12] = { "m_pBackItemTable", "m_pFaceItemTable", "m_pGlassItemTable", "m_pHatItemTable",
         "m_pHeadItemTable", "m_pPantsItemTable", "m_pShirtsItemTable", "m_pShoesItemTable", "m_pWeaponItemTable",
-        "m_pVehicleItemTable"};
+        "m_pVehicleItemTable", "m_pGeneralItemTable", "m_pChestItemTable" };
         nlohmann::json itemSet;
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 12; i++) {
             itemSet = xdtData[setNames[i]]["m_pItemData"];
             for (nlohmann::json::iterator item = itemSet.begin(); item != itemSet.end(); item++)
-                ItemManager::ItemData[std::pair<int32_t, int32_t>(item.value()["m_iItemNumber"], item.value()["m_iEquipLoc"])]
-                = { item.value()["m_iTradeAble"] == 1, item.value()["m_iSellAble"] == 1, item.value()["m_iItemPrice"], item.value()["m_iItemSellPrice"], item.value()["m_iStackNumber"], item.value()["m_iMinReqLev"] };
+                ItemManager::ItemData[std::pair<int32_t, int32_t>(item.value()["m_iItemNumber"], i == 11 ? 9 : (i == 10 ? 7 : item.value()["m_iEquipLoc"]))]
+                = { item.value()["m_iTradeAble"] == 1, item.value()["m_iSellAble"] == 1, item.value()["m_iItemPrice"], item.value()["m_iItemSellPrice"], item.value()["m_iStackNumber"], i > 9 ? 0 : item.value()["m_iMinReqLev"] };
         }
 
         std::cout << "[INFO] Loaded " << ItemManager::ItemData.size() << " items" << std::endl;
