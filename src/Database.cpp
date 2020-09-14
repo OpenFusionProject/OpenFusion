@@ -327,19 +327,12 @@ Database::DbPlayer Database::playerToDb(Player *player)
     result.BatteryW = player->batteryW;
     result.Mentor = player->mentor;
 
-    // quests
+    // quests: parsing to blob
     result.QuestFlag = std::vector<char>();
-    // parsing long array to char vector
     for (int i=0; i<16; i++)
     {
-        int64_t temp = player->aQuestFlag[i];
-        for (int j = 0; j < 8; j++) {
-            int64_t check2 = (temp >> (8 * (7 - j)));
-            char toadd = check2;
-            result.QuestFlag.push_back(
-                toadd
-            );
-        }
+        int64_t flag = player->aQuestFlag[i];
+        appendBlob(&result.QuestFlag, flag);
     }
 
 
@@ -539,3 +532,13 @@ void Database::getNanos(Player* player) {
     }
 }
 #pragma endregion ShardServer
+
+#pragma region parsingBlobs
+
+void Database::appendBlob(std::vector<char> *blob, int64_t input) {
+    for (int i = 0; i < 8; i++) {
+        char toadd = (input >> (8 * (7 - i)));
+        blob->push_back(toadd);
+    }
+}
+#pragma endregion parsingBlobs
