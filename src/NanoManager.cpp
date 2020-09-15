@@ -44,27 +44,29 @@ std::set<int> SneakPowers = {23, 29, 65, 72, 80, 82};
 std::set<int> TreasureFinderPowers = {26, 40, 74};
 
 // declarations
-template<class sPAYLOAD, void *_work>
+template<class sPAYLOAD, void *_work, bool isLeech=false>
 void activePower(CNSocket *sock, CNPacketData *data,
-                 //bool (*work)(CNSocket *sock, int32_t *pktdata, sPAYLOAD *respdata, int i, int16_t iCBFlag, int32_t amount), // work function pointer
                  int16_t nanoId, int16_t skillId, int16_t eSkillType,
                  int32_t iCBFlag, int32_t amount);
 bool doDebuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage_N_Debuff *respdata, int i, int16_t iCBFlag, int32_t amount);
 bool doHeal(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *respdata, int i, int16_t iCBFlag, int32_t amount);
+bool doDamage(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage *respdata, int i, int16_t iCBFlag, int32_t amount);
+bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, int i, int16_t iCBFlag, int32_t amount);
 
+// active nano power dispatch table
 std::vector<ActivePower> ActivePowers = {
-    ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff, (void*)doDebuff>, SkillType::STUN, 0x200, 0),
-    ActivePower(HealPowers, activePower<sSkillResult_Heal_HP, (void*)doHeal>, SkillType::HEAL, 0, 333),
+    ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  (void*)doDebuff>,         SkillType::STUN, 0x200, 0),
+    ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          (void*)doHeal>,           SkillType::HEAL, 0, 333),
     // TODO: Recall
-    ActivePower(DrainPowers, activePower<sSkillResult_Damage_N_Debuff, (void*)doDebuff>, SkillType::DRAIN, 0x40000, 0),
-    ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, (void*)doDebuff>, SkillType::SNARE, 0x80, 0),
-    ActivePower(DamagePowers, nanoDamage, SkillType::DAMAGE, 0, 133),
+    ActivePower(DrainPowers, activePower<sSkillResult_Damage_N_Debuff, (void*)doDebuff>,         SkillType::DRAIN, 0x40000, 0),
+    ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, (void*)doDebuff>,         SkillType::SNARE, 0x80, 0),
+    ActivePower(DamagePowers, activePower<sSkillResult_Damage,         (void*)doDamage>,         SkillType::DAMAGE, 0, 133),
     // TODO: GroupRevive
-    ActivePower(LeechPowers, nanoLeech, SkillType::LEECH, 0, 133),
-    ActivePower(SleepPowers, activePower<sSkillResult_Damage_N_Debuff, (void*)doDebuff>, SkillType::SLEEP, 0x400, 0),
+    ActivePower(LeechPowers, activePower<sSkillResult_Heal_HP,         (void*)doLeech, true>,    SkillType::LEECH, 0, 133),
+    ActivePower(SleepPowers, activePower<sSkillResult_Damage_N_Debuff, (void*)doDebuff>,         SkillType::SLEEP, 0x400, 0),
 };
 
-};
+}; // namespace
 
 void NanoManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_ACTIVE, nanoSummonHandler);
@@ -403,13 +405,14 @@ bool doDebuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage_N_Debuff *re
     return true;
 }
 
-
 bool doHeal(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *respdata, int i, int16_t iCBFlag, int32_t amount) {
     Player *plr = nullptr;
 
     for (auto& pair : PlayerManager::players) {
-        if (pair.second.plr->iID == pktdata[i])
+        if (pair.second.plr->iID == pktdata[i]) {
             plr = pair.second.plr;
+            break;
+        }
     }
 
     if (plr == nullptr)
@@ -430,9 +433,74 @@ bool doHeal(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *respdata, in
     return true;
 }
 
-template<class sPAYLOAD, void *_work>
+bool doDamage(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage *respdata, int i, int16_t iCBFlag, int32_t amount) {
+    if (NPCManager::NPCs.find(pktdata[i]) == NPCManager::NPCs.end()) {
+        // not sure how to best handle this
+        std::cout << "[WARN] nanoDebuffEnemy: mob ID not found" << std::endl;
+        return false;
+    }
+    BaseNPC& mob = NPCManager::NPCs[pktdata[i]];
+    
+    mob.appearanceData.iHP -= amount;
+
+    if (mob.appearanceData.iHP <= 0)
+        CombatManager::giveReward(sock);
+    
+    respdata[i].eCT = 4;
+    respdata[i].iDamage = amount;
+    respdata[i].iID = mob.appearanceData.iNPC_ID;
+    respdata[i].iHP = mob.appearanceData.iHP;
+
+    std::cout << (int)mob.appearanceData.iNPC_ID << " was damaged" << std::endl;
+
+    return true;
+}
+
+// NOTE: is not an ActivePowerHandler
+bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, int i, int16_t iCBFlag, int32_t amount) {
+    // this sanity check is VERY important
+    if (i != 0) {
+        std::cout << "[WARN] Player attempted to leech more than one mob!" << std::endl;
+        return false;
+    }
+
+    sSkillResult_Damage *damagedata = (sSkillResult_Damage*)(((uint8_t*)healdata) + sizeof(sSkillResult_Heal_HP));
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    if (plr->HP + amount > PC_MAXHEALTH(plr->level))
+        plr->HP = PC_MAXHEALTH(plr->level);
+    else
+        plr->HP += amount;
+
+    healdata->eCT = 1;
+    healdata->iID = plr->iID;
+    healdata->iHP = plr->HP;
+    healdata->iHealHP = amount;
+
+    if (NPCManager::NPCs.find(pktdata[i]) == NPCManager::NPCs.end()) {
+        // not sure how to best handle this
+        std::cout << "[WARN] doLeech: mob ID not found" << std::endl;
+        return false;
+    }
+    BaseNPC& mob = NPCManager::NPCs[pktdata[i]];
+    
+    mob.appearanceData.iHP -= amount;
+
+    if (mob.appearanceData.iHP <= 0)
+        CombatManager::giveReward(sock);
+    
+    damagedata->eCT = 4;
+    damagedata->iDamage = amount;
+    damagedata->iID = mob.appearanceData.iNPC_ID;
+    damagedata->iHP = mob.appearanceData.iHP;
+
+    std::cout << (int)mob.appearanceData.iNPC_ID << " was leeched" << std::endl;
+
+    return true;
+}
+
+template<class sPAYLOAD, void *_work, bool isLeech>
 void activePower(CNSocket *sock, CNPacketData *data,
-                 //bool (*work)(CNSocket *sock, int32_t *pktdata, sPAYLOAD *respdata, int i, int16_t iCBFlag, int32_t amount), // work function pointer
                  int16_t nanoId, int16_t skillId, int16_t eSkillType,
                  int32_t iCBFlag, int32_t amount) {
 
@@ -452,7 +520,14 @@ void activePower(CNSocket *sock, CNPacketData *data,
         return;
     }
 
-    const size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) + pkt->iTargetCnt * sizeof(sPAYLOAD);
+    size_t resplen;
+
+    // special case since leech is atypically encoded
+    if constexpr (isLeech)
+        resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) + sizeof(sSkillResult_Heal_HP) + sizeof(sSkillResult_Damage);
+    else
+        resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) + pkt->iTargetCnt * sizeof(sPAYLOAD);
+
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
 
     memset(respbuf, 0, resplen);
@@ -482,271 +557,7 @@ void activePower(CNSocket *sock, CNPacketData *data,
         s->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
 }
 
-};
-
-// this is where the fun begins
-void NanoManager::nanoDebuff(CNSocket* sock, CNPacketData* data, int16_t nanoId, int16_t skillId, int16_t eSkillType, int32_t iCBFlag, int32_t damageAmount) {
-    sP_CL2FE_REQ_NANO_SKILL_USE* pkt = (sP_CL2FE_REQ_NANO_SKILL_USE*)data->buf;
-
-    // sanity check
-    if (!validInVarPacket(sizeof(sP_CL2FE_REQ_NANO_SKILL_USE), pkt->iTargetCnt, sizeof(int32_t), data->size)) {
-        std::cout << "[WARN] bad sP_CL2FE_REQ_NANO_SKILL_USE packet size\n";
-        return;
-    }
-
-    int32_t *pktdata = (int32_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_NANO_SKILL_USE));
-
-    /*
-     * Due to the possibility of multiplication overflow (and regular buffer overflow),
-     * both incoming and outgoing variable-length packets must be validated, at least if
-     * the number of trailing structs isn't well known (ie. it's from the client).
-     */
-    if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE), pkt->iTargetCnt, sizeof(sSkillResult_Damage_N_Debuff))) {
-        std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size\n";
-        return;
-    }
-    
-    size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE) + pkt->iTargetCnt * sizeof(sSkillResult_Damage_N_Debuff);
-    uint8_t respbuf[4096];
-        
-    memset(respbuf, 0, resplen);
-        
-    sP_FE2CL_NANO_SKILL_USE *resp = (sP_FE2CL_NANO_SKILL_USE*)respbuf;
-    sSkillResult_Damage_N_Debuff *respdata = (sSkillResult_Damage_N_Debuff*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE));
-        
-    Player *plr = PlayerManager::getPlayer(sock);
-    
-    resp->iPC_ID = plr->iID;
-    resp->iSkillID = skillId;
-    resp->iNanoID = nanoId;
-    resp->iNanoStamina = 150;
-    resp->eST = eSkillType;
-    resp->iTargetCnt = pkt->iTargetCnt;
-        
-    for (int i = 0; i < pkt->iTargetCnt; i++) {
-        if (NPCManager::NPCs.find(pktdata[i]) == NPCManager::NPCs.end()) {
-            // not sure how to best handle this
-            std::cout << "[WARN] nanoDebuffEnemy: mob ID not found" << std::endl;
-            return;
-        }
-        BaseNPC& mob = NPCManager::NPCs[pktdata[i]];
-        
-        mob.appearanceData.iHP -= damageAmount;
-
-        if (mob.appearanceData.iHP <= 0)
-            CombatManager::giveReward(sock);
-        
-        respdata[i].eCT = 4;
-        respdata[i].iDamage = damageAmount;
-        respdata[i].iID = mob.appearanceData.iNPC_ID;
-        respdata[i].iHP = mob.appearanceData.iHP;
-        respdata[i].iConditionBitFlag = iCBFlag;
-        std::cout << (int)mob.appearanceData.iNPC_ID << " was debuffed" << std::endl;
-    }
-
-    sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
-    for (CNSocket* s : PlayerManager::players[sock].viewable)
-        s->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
-}
-
-void NanoManager::nanoHeal(CNSocket* sock, CNPacketData* data, int16_t nanoId, int16_t skillId, int16_t eSkillType, int32_t flag, int32_t healAmount) {
-    sP_CL2FE_REQ_NANO_SKILL_USE* pkt = (sP_CL2FE_REQ_NANO_SKILL_USE*)data->buf;
-    Player *plr = PlayerManager::getPlayer(sock);
-
-    // sanity check
-    if (!validInVarPacket(sizeof(sP_CL2FE_REQ_NANO_SKILL_USE), pkt->iTargetCnt, sizeof(int32_t), data->size)) {
-        std::cout << "[WARN] bad sP_CL2FE_REQ_NANO_SKILL_USE packet size\n";
-        return;
-    }
-
-    int32_t *pktdata = (int32_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_NANO_SKILL_USE));
-
-    /*
-     * Due to the possibility of multiplication overflow (and regular buffer overflow),
-     * both incoming and outgoing variable-length packets must be validated, at least if
-     * the number of trailing structs isn't well known (ie. it's from the client).
-     */
-    if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE), pkt->iTargetCnt, sizeof(sSkillResult_Heal_HP))) {
-        std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size\n";
-        return;
-    }
-    
-    size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE) + pkt->iTargetCnt * sizeof(sSkillResult_Heal_HP);
-    uint8_t respbuf[4096];
-        
-    memset(respbuf, 0, resplen);
-        
-    sP_FE2CL_NANO_SKILL_USE *resp = (sP_FE2CL_NANO_SKILL_USE*)respbuf;
-    sSkillResult_Heal_HP *respdata = (sSkillResult_Heal_HP*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE));
-        
-    resp->iPC_ID = plr->iID;
-    resp->iSkillID = skillId;
-    resp->iNanoID = nanoId;
-    resp->iNanoStamina = 150;
-    resp->eST = eSkillType;
-    resp->iTargetCnt = pkt->iTargetCnt;
-        
-    for (int i = 0; i < pkt->iTargetCnt; i++) {    
-        for (auto pair : PlayerManager::players) {
-            if (pair.second.plr->iID == pktdata[i]) { 
-                Player* plr = pair.second.plr;
-                               
-                if (plr->HP + healAmount > 925 + 75 * plr->level)
-                    plr->HP = 925 + 75 * plr->level;
-                else
-                    plr->HP += healAmount;
-                
-                respdata[i].eCT = 1;
-                respdata[i].iID = plr->iID;
-                respdata[i].iHP = plr->HP;
-                respdata[i].iHealHP = healAmount;
-                
-                std::cout << (int)plr->iID << " was healed" << std::endl;
-            }
-        }   
-    }
-
-    sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
-    for (CNSocket* s : PlayerManager::players[sock].viewable)
-        s->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
-}
-
-void NanoManager::nanoDamage(CNSocket* sock, CNPacketData* data, int16_t nanoId, int16_t skillId, int16_t eSkillType, int32_t flag, int32_t damageAmount) {
-    sP_CL2FE_REQ_NANO_SKILL_USE* pkt = (sP_CL2FE_REQ_NANO_SKILL_USE*)data->buf;
-
-    // sanity check
-    if (!validInVarPacket(sizeof(sP_CL2FE_REQ_NANO_SKILL_USE), pkt->iTargetCnt, sizeof(int32_t), data->size)) {
-        std::cout << "[WARN] bad sP_CL2FE_REQ_NANO_SKILL_USE packet size\n";
-        return;
-    }
-
-    int32_t *pktdata = (int32_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_NANO_SKILL_USE));
-
-    /*
-     * Due to the possibility of multiplication overflow (and regular buffer overflow),
-     * both incoming and outgoing variable-length packets must be validated, at least if
-     * the number of trailing structs isn't well known (ie. it's from the client).
-     */
-    if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE), pkt->iTargetCnt, sizeof(sSkillResult_Damage))) {
-        std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size\n";
-        return;
-    }
-    
-    size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE) + pkt->iTargetCnt * sizeof(sSkillResult_Damage);
-    uint8_t respbuf[4096];
-        
-    memset(respbuf, 0, resplen);
-        
-    sP_FE2CL_NANO_SKILL_USE *resp = (sP_FE2CL_NANO_SKILL_USE*)respbuf;
-    sSkillResult_Damage *respdata = (sSkillResult_Damage*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE));
-        
-    Player *plr = PlayerManager::getPlayer(sock);
-    
-    resp->iPC_ID = plr->iID;
-    resp->iSkillID = skillId;
-    resp->iNanoID = nanoId;
-    resp->iNanoStamina = 150;
-    resp->eST = eSkillType;
-    resp->iTargetCnt = pkt->iTargetCnt;
-        
-    for (int i = 0; i < pkt->iTargetCnt; i++) {
-        if (NPCManager::NPCs.find(pktdata[i]) == NPCManager::NPCs.end()) {
-            // not sure how to best handle this
-            std::cout << "[WARN] nanoDebuffEnemy: mob ID not found" << std::endl;
-            return;
-        }
-        BaseNPC& mob = NPCManager::NPCs[pktdata[i]];
-        
-        mob.appearanceData.iHP -= damageAmount;
-
-        if (mob.appearanceData.iHP <= 0)
-            CombatManager::giveReward(sock);
-        
-        respdata[i].eCT = 4;
-        respdata[i].iDamage = damageAmount;
-        respdata[i].iID = mob.appearanceData.iNPC_ID;
-        respdata[i].iHP = mob.appearanceData.iHP;
-        std::cout << (int)mob.appearanceData.iNPC_ID << " was damaged" << std::endl;
-    }
-
-    sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
-    for (CNSocket* s : PlayerManager::players[sock].viewable)
-        s->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
-}
-
-void NanoManager::nanoLeech(CNSocket* sock, CNPacketData* data, int16_t nanoId, int16_t skillId, int16_t eSkillType, int32_t flag, int32_t leechAmount) {
-    sP_CL2FE_REQ_NANO_SKILL_USE* pkt = (sP_CL2FE_REQ_NANO_SKILL_USE*)data->buf;
-
-    // sanity check
-    if (!validInVarPacket(sizeof(sP_CL2FE_REQ_NANO_SKILL_USE), pkt->iTargetCnt, sizeof(int32_t), data->size)) {
-        std::cout << "[WARN] bad sP_CL2FE_REQ_NANO_SKILL_USE packet size\n";
-        return;
-    }
-
-    int32_t *pktdata = (int32_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_NANO_SKILL_USE));
-
-    /*
-     * Due to the possibility of multiplication overflow (and regular buffer overflow),
-     * both incoming and outgoing variable-length packets must be validated, at least if
-     * the number of trailing structs isn't well known (ie. it's from the client).
-     */
-    if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE) + sizeof(sSkillResult_Heal_HP), pkt->iTargetCnt, sizeof(sSkillResult_Damage))) {
-        std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size\n";
-        return;
-    }
-    
-    size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE) + sizeof(sSkillResult_Heal_HP) + pkt->iTargetCnt * sizeof(sSkillResult_Damage);
-    uint8_t respbuf[4096];
-        
-    memset(respbuf, 0, resplen);
-        
-    sP_FE2CL_NANO_SKILL_USE *resp = (sP_FE2CL_NANO_SKILL_USE*)respbuf;
-    sSkillResult_Heal_HP *resp2 = (sSkillResult_Heal_HP*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE));
-    sSkillResult_Damage *respdata = (sSkillResult_Damage*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE)+sizeof(sSkillResult_Heal_HP));
-        
-    Player *plr = PlayerManager::getPlayer(sock);
-    
-    resp->iPC_ID = plr->iID;
-    resp->iSkillID = skillId;
-    resp->iNanoID = nanoId;
-    resp->iNanoStamina = 150;
-    resp->eST = eSkillType;
-    resp->iTargetCnt = pkt->iTargetCnt;
-    
-    if (plr->HP + leechAmount > 3625)
-        plr->HP = 3625;
-    else
-        plr->HP += leechAmount;
-                
-    resp2->eCT = 1;
-    resp2->iID = plr->iID;
-    resp2->iHP = plr->HP;
-    resp2->iHealHP = leechAmount;
-        
-    for (int i = 0; i < pkt->iTargetCnt; i++) {
-        if (NPCManager::NPCs.find(pktdata[i]) == NPCManager::NPCs.end()) {
-            // not sure how to best handle this
-            std::cout << "[WARN] nanoDebuffEnemy: mob ID not found" << std::endl;
-            return;
-        }
-        BaseNPC& mob = NPCManager::NPCs[pktdata[i]];
-        
-        mob.appearanceData.iHP -= leechAmount;
-
-        if (mob.appearanceData.iHP <= 0)
-            CombatManager::giveReward(sock);
-        
-        respdata[i].eCT = 4;
-        respdata[i].iDamage = leechAmount;
-        respdata[i].iID = mob.appearanceData.iNPC_ID;
-        respdata[i].iHP = mob.appearanceData.iHP;
-        std::cout << (int)mob.appearanceData.iNPC_ID << " was leeched" << std::endl;
-    }
-
-    sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
-    for (CNSocket* s : PlayerManager::players[sock].viewable)
-        s->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
-}
+}; // namespace
 #pragma endregion
 
 #pragma region Passive Powers
@@ -759,7 +570,7 @@ void NanoManager::nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t 
     }
     
     size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE) + sizeof(sSkillResult_Buff);
-    uint8_t respbuf[4096];
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
         
     memset(respbuf, 0, resplen);
         
