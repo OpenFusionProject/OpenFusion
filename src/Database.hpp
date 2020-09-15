@@ -67,7 +67,6 @@ namespace Database {
         int16_t Mentor;
         std::vector<char> QuestFlag;
         std::vector<char> ActiveTasks;
-        std::vector<char> QuestItems;
     };
 
 

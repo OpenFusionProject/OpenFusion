@@ -55,8 +55,7 @@ auto db = make_storage("database.db",
         make_column("BatteryW", &Database::DbPlayer::BatteryW),
         make_column("BatteryN", &Database::DbPlayer::BatteryN),
         make_column("Mentor", &Database::DbPlayer::Mentor),
-        make_column("ActiveTasks", &Database::DbPlayer::ActiveTasks),
-        make_column("QuestItems", &Database::DbPlayer::QuestItems)
+        make_column("ActiveTasks", &Database::DbPlayer::ActiveTasks)
     ),
     make_table("Inventory",
         make_column("PlayerId", &Database::Inventory::playerId),
@@ -336,13 +335,6 @@ Database::DbPlayer Database::playerToDb(Player *player)
         int64_t flag = player->aQuestFlag[i];
         appendBlob(&result.QuestFlag, flag);
     }
-    // quest items: parsing to blob;
-    result.QuestItems = std::vector<char>();
-    for (int i = 0; i < AQINVEN_COUNT; i++) {
-        sItemBase item = player->QInven[i];
-        appendBlob(&result.QuestItems, item);
-    }
-
 
     return result;
 }
@@ -399,16 +391,6 @@ Player Database::DbToPlayer(DbPlayer player) {
         //move iterator to the next flag
         it += 8;
     }
-    it = player.QuestItems.begin();
-    for (int i = 0; i < AQINVEN_COUNT; i++)
-    {
-        if (it == player.QuestItems.end())
-            break;
-        result.QInven[i] = blobToItemBase(it);
-        //move iterator to the next flag
-        it += 10;
-    }
-
 
     return result;
 }
@@ -484,6 +466,20 @@ void Database::updateInventory(Player *player){
             db.insert(toAdd);
         }
     }
+    // insert quest items
+    for (int i = 0; i < AQINVEN_COUNT; i++) {
+        if (player->QInven[i].iID != 0) {
+            sItemBase* next = &player->QInven[i];
+            Inventory toAdd = {};
+            toAdd.playerId = player->iID;
+            toAdd.slot = i + AEQUIP_COUNT + AINVEN_COUNT + ABANK_COUNT;
+            toAdd.id = next->iID;
+            toAdd.Opt = next->iOpt;
+            toAdd.Type = next->iType;
+            toAdd.TimeLimit = next->iTimeLimit;
+            db.insert(toAdd);
+        }
+    }
     db.commit();
 }
 void Database::updateNanos(Player *player) {
@@ -525,8 +521,10 @@ void Database::getInventory(Player* player) {
             player->Equip[current.slot] = toSet;
         else if (current.slot <= (AEQUIP_COUNT + AINVEN_COUNT))
             player->Inven[current.slot - AEQUIP_COUNT] = toSet;
-        else
+        else if (current.slot <= (AEQUIP_COUNT + AINVEN_COUNT + ABANK_COUNT))
             player->Bank[current.slot - AEQUIP_COUNT - AINVEN_COUNT] = toSet;
+        else
+            player->QInven[current.slot - AEQUIP_COUNT - AINVEN_COUNT - ABANK_COUNT] = toSet;
     }
 
 }
