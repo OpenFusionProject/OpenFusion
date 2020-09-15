@@ -7,14 +7,14 @@
 
 typedef void (*ActivePowerHandler)(CNSocket*, CNPacketData*, int16_t, int16_t, int16_t, int32_t, int32_t);
 
-struct NanoPower {
+struct ActivePower {
     std::set<int> powers;
     ActivePowerHandler handler;
     int16_t eSkillType;
     int32_t flag;
     int32_t amount;
 
-    NanoPower(std::set<int> p, ActivePowerHandler h, int16_t t, int32_t f, int32_t a) : powers(p), handler(h), eSkillType(t), flag(f), amount(a) {}
+    ActivePower(std::set<int> p, ActivePowerHandler h, int16_t t, int32_t f, int32_t a) : powers(p), handler(h), eSkillType(t), flag(f), amount(a) {}
 
     void handle(CNSocket *sock, CNPacketData *data, int16_t nanoId, int16_t skillId) {
         if (handler == nullptr)

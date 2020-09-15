@@ -8,6 +8,8 @@
 
 #define ACTIVE_MISSION_COUNT 6
 
+#define PC_MAXHEALTH(level) (925 + 75 * (level))
+
 struct Player {
     int accountId;
     int64_t SerialKey;
