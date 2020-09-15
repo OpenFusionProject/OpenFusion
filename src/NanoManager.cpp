@@ -43,15 +43,16 @@ std::set<int> SelfRevivePowers = {22, 48, 83};
 std::set<int> SneakPowers = {23, 29, 65, 72, 80, 82};
 std::set<int> TreasureFinderPowers = {26, 40, 74};
 
-std::vector<std::set<int>> ActivePowers = {
-    StunPowers,
-    HealPowers,
-    RecallPowers,
-    SnarePowers,
-    DamagePowers,
-    GroupRevivePowers,
-    LeechPowers,
-    SleepPowers,
+std::vector<NanoPower> ActivePowers = {
+    NanoPower(StunPowers, nanoDebuff, SkillType::STUN, 0x200, 0),
+    NanoPower(HealPowers, nanoHeal, SkillType::HEAL, 0, 333),
+    // TODO: Recall
+    NanoPower(DrainPowers, nanoDebuff, SkillType::DRAIN, 0x40000, 0),
+    NanoPower(SnarePowers, nanoDebuff, SkillType::SNARE, 0x80, 0),
+    NanoPower(DamagePowers, nanoDamage, SkillType::DAMAGE, 0, 133),
+    // TODO: GroupRevive
+    NanoPower(LeechPowers, nanoLeech, SkillType::LEECH, 0, 133),
+    NanoPower(SleepPowers, nanoDebuff, SkillType::SLEEP, 0x400, 0),
 };
 
 };
@@ -154,7 +155,12 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
     int16_t nanoId = plr->activeNano;
     int16_t skillId = plr->Nanos[nanoId].iSkillID;
+
+    for (auto& pwr : ActivePowers)
+        if (pwr.powers.count(skillId)) // std::set's contains method is C++20 only...
+            pwr.handle(sock, data, nanoId, skillId);
     
+#if 0
     if (StunPowers.count(skillId))
         nanoDebuff(sock, data, nanoId, skillId, SkillType::STUN, 0, 512); // Stun
     else if (HealPowers.count(skillId))
@@ -173,6 +179,7 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
         nanoLeech(sock, data, nanoId, skillId, SkillType::LEECH, 0, 133); // Leech
     } else if (SleepPowers.count(skillId))
         nanoDebuff(sock, data, nanoId, skillId, SkillType::SLEEP, 0, 1024); // Sleep
+#endif
 
     DEBUGLOG(
         std::cout << U16toU8(plr->PCStyle.szFirstName) << U16toU8(plr->PCStyle.szLastName) << " requested to summon nano skill " << std::endl;
@@ -448,7 +455,7 @@ void NanoManager::nanoDebuff(CNSocket* sock, CNPacketData* data, int16_t nanoId,
         s->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
 }
 
-void NanoManager::nanoHeal(CNSocket* sock, CNPacketData* data, int16_t nanoId, int16_t skillId, int16_t eSkillType, int32_t flag, int16_t healAmount) {
+void NanoManager::nanoHeal(CNSocket* sock, CNPacketData* data, int16_t nanoId, int16_t skillId, int16_t eSkillType, int32_t flag, int32_t healAmount) {
     sP_CL2FE_REQ_NANO_SKILL_USE* pkt = (sP_CL2FE_REQ_NANO_SKILL_USE*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
@@ -669,7 +676,7 @@ void NanoManager::nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t 
     resp->iSkillID = skillId;
     resp->iNanoID = nanoId;
     resp->iNanoStamina = 150;
-    resp->eST = eSkillType; //run enum TODO: Send these enums to Defines
+    resp->eST = eSkillType;
     resp->iTargetCnt = 1;
         
     // this looks stupid but in the future there will be more counts (for group powers)

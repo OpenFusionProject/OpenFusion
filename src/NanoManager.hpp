@@ -8,16 +8,15 @@
 typedef void (*ActivePowerHandler)(CNSocket*, CNPacketData*, int16_t, int16_t, int16_t, int32_t, int32_t);
 
 struct NanoPower {
-    std::set<int> Powers;
+    std::set<int> powers;
     ActivePowerHandler handler;
-    int16_t skillId;
     int16_t eSkillType;
     int32_t flag;
     int32_t amount;
 
-    NanoPower(std::set<int> p, ActivePowerHandler h, int16_t id, int16_t t, int32_t f, int32_t a) : Powers(p), handler(h), skillId(id), eSkillType(t), flag(f), amount(a) {}
+    NanoPower(std::set<int> p, ActivePowerHandler h, int16_t t, int32_t f, int32_t a) : powers(p), handler(h), eSkillType(t), flag(f), amount(a) {}
 
-    void handle(CNSocket *sock, CNPacketData *data, int16_t nanoId) {
+    void handle(CNSocket *sock, CNPacketData *data, int16_t nanoId, int16_t skillId) {
         if (handler == nullptr)
             return;
 
@@ -47,7 +46,7 @@ namespace NanoManager {
     
     void nanoDebuff(CNSocket* sock, CNPacketData* data, int16_t nanoId, int16_t skillId, int16_t eSkillType, int32_t iCBFlag, int32_t damageAmount = 0);
 
-    void nanoHeal(CNSocket* sock, CNPacketData* data, int16_t nanoId, int16_t skillId, int16_t eSkillType, int32_t flag, int16_t healAmount);
+    void nanoHeal(CNSocket* sock, CNPacketData* data, int16_t nanoId, int16_t skillId, int16_t eSkillType, int32_t flag, int32_t healAmount);
     void nanoDamage(CNSocket* sock, CNPacketData* data, int16_t nanoId, int16_t skillId, int16_t eSkillType, int32_t flag, int32_t damageAmount);
     void nanoLeech(CNSocket* sock, CNPacketData* data, int16_t nanoId, int16_t skillId, int16_t eSkillType, int32_t flag, int32_t leechAmount);
 
