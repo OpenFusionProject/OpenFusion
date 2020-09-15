@@ -54,8 +54,7 @@ auto db = make_storage("database.db",
         make_column("Quests", &Database::DbPlayer::QuestFlag),
         make_column("BatteryW", &Database::DbPlayer::BatteryW),
         make_column("BatteryN", &Database::DbPlayer::BatteryN),
-        make_column("Mentor", &Database::DbPlayer::Mentor),
-        make_column("ActiveTasks", &Database::DbPlayer::ActiveTasks)
+        make_column("Mentor", &Database::DbPlayer::Mentor)
     ),
     make_table("Inventory",
         make_column("PlayerId", &Database::Inventory::playerId),
@@ -70,6 +69,16 @@ auto db = make_storage("database.db",
         make_column("Id", &Database::Nano::iID),
         make_column("Skill", &Database::Nano::iSkillID),
         make_column("Stamina", &Database::Nano::iStamina)
+    ),
+    make_table("RunningQuests",
+        make_column("PlayerId", &Database::DbQuest::PlayerId),
+        make_column("TaskId", &Database::DbQuest::TaskId),
+        make_column("KillNPCCount1", &Database::DbQuest::KillNPCCount1),
+        make_column("KillNPCCount2", &Database::DbQuest::KillNPCCount2),
+        make_column("KillNPCCount3", &Database::DbQuest::KillNPCCount3),
+        make_column("NeededItemCount1", &Database::DbQuest::NeededItemCount1),
+        make_column("NeededItemCount2", &Database::DbQuest::NeededItemCount2),
+        make_column("NeededItemCount3", &Database::DbQuest::NeededItemCount3)
     )
 );
 
@@ -381,6 +390,7 @@ Player Database::DbToPlayer(DbPlayer player) {
 
     Database::getInventory(&result);
     Database::getNanos(&result);
+    Database::getQuests(&result);
 
     std::vector<char>::iterator it = player.QuestFlag.begin();
     for (int i = 0; i < 16; i++)
@@ -415,6 +425,7 @@ void Database::updatePlayer(Player *player) {
     db.update(toUpdate);
     updateInventory(player);
     updateNanos(player);
+    updateQuests(player);
 }
 
 void Database::updateInventory(Player *player){
@@ -504,6 +515,33 @@ void Database::updateNanos(Player *player) {
     }
     db.commit();
 }
+
+void Database::updateQuests(Player* player) {
+    // start transaction
+    db.begin_transaction();
+    // remove all
+    db.remove_all<DbQuest>(
+        where(c(&DbQuest::PlayerId) == player->iID)
+        );
+    // insert
+    for (int i = 0; i < ACTIVE_MISSION_COUNT; i++)
+    {
+        if (player->tasks[i] == 0)
+            continue;
+        DbQuest toAdd = {};
+        toAdd.PlayerId = player->iID;
+        toAdd.TaskId = player->tasks[i];
+        toAdd.KillNPCCount1 = player->killNPCCount[i][0];
+        toAdd.KillNPCCount2 = player->killNPCCount[i][1];
+        toAdd.KillNPCCount3 = player->killNPCCount[i][2];
+        toAdd.NeededItemCount1 = player->NeededItemCount[i][0];
+        toAdd.NeededItemCount2 = player->NeededItemCount[i][1];
+        toAdd.NeededItemCount3 = player->NeededItemCount[i][2];
+        db.insert(toAdd);
+    }
+    db.commit();
+}
+
 void Database::getInventory(Player* player) {
     // get items from DB
     auto items = db.get_all<Inventory>(
@@ -517,11 +555,11 @@ void Database::getInventory(Player* player) {
         toSet.iOpt = current.Opt;
         toSet.iTimeLimit = current.TimeLimit;
         // assign to proper arrays
-        if (current.slot <= AEQUIP_COUNT)
+        if (current.slot < AEQUIP_COUNT)
             player->Equip[current.slot] = toSet;
-        else if (current.slot <= (AEQUIP_COUNT + AINVEN_COUNT))
+        else if (current.slot < (AEQUIP_COUNT + AINVEN_COUNT))
             player->Inven[current.slot - AEQUIP_COUNT] = toSet;
-        else if (current.slot <= (AEQUIP_COUNT + AINVEN_COUNT + ABANK_COUNT))
+        else if (current.slot < (AEQUIP_COUNT + AINVEN_COUNT + ABANK_COUNT))
             player->Bank[current.slot - AEQUIP_COUNT - AINVEN_COUNT] = toSet;
         else
             player->QInven[current.slot - AEQUIP_COUNT - AINVEN_COUNT - ABANK_COUNT] = toSet;
@@ -541,6 +579,26 @@ void Database::getNanos(Player* player) {
         toSet->iStamina = current.iStamina;
     }
 }
+
+void Database::getQuests(Player* player) {
+    // get from DB
+    auto quests = db.get_all<DbQuest>(
+        where(c(&DbQuest::PlayerId) == player->iID)
+        );
+    // set
+    int i = 0;
+    for (const DbQuest& current : quests) {
+        player->tasks[i] = current.TaskId;
+        player->killNPCCount[i][0] = current.KillNPCCount1;
+        player->killNPCCount[i][1] = current.KillNPCCount2;
+        player->killNPCCount[i][2] = current.KillNPCCount3;
+        player->NeededItemCount[i][0] = current.NeededItemCount1;
+        player->NeededItemCount[i][1] = current.NeededItemCount2;
+        player->NeededItemCount[i][2] = current.NeededItemCount3;
+        i++;
+    }
+}
+
 #pragma endregion ShardServer
 
 #pragma region parsingBlobs

@@ -66,9 +66,17 @@ namespace Database {
         int BatteryN;
         int16_t Mentor;
         std::vector<char> QuestFlag;
-        std::vector<char> ActiveTasks;
     };
-
+    struct DbQuest {
+        int PlayerId;
+        int32_t TaskId;
+        int KillNPCCount1;
+        int KillNPCCount2;
+        int KillNPCCount3;
+        int NeededItemCount1;
+        int NeededItemCount2;
+        int NeededItemCount3;
+    };
 
 
 #pragma endregion DatabaseStructs
@@ -108,9 +116,11 @@ namespace Database {
     void updatePlayer(Player *player);
     void updateInventory(Player *player);
     void updateNanos(Player *player);
+    void updateQuests(Player* player);
 
     void getInventory(Player* player);
     void getNanos(Player* player);
+    void getQuests(Player* player);
 
     //parsing blobs
     void appendBlob(std::vector<char>*blob, int64_t input);

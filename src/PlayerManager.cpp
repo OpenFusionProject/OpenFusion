@@ -3,6 +3,7 @@
 #include "NPCManager.hpp"
 #include "CNShardServer.hpp"
 #include "CNShared.hpp"
+#include "MissionManager.hpp"
 
 #include "settings.hpp"
 
@@ -224,9 +225,11 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     // inventory
     for (int i = 0; i < AEQUIP_COUNT; i++)
         response.PCLoadData2CL.aEquip[i] = plr.Equip[i];
-
     for (int i = 0; i < AINVEN_COUNT; i++)
         response.PCLoadData2CL.aInven[i] = plr.Inven[i];
+    // quest inventory
+    for (int i = 0; i < AQINVEN_COUNT; i++)
+        response.PCLoadData2CL.aQInven[i] = plr.QInven[i];
     // nanos
     for (int i = 1; i < SIZEOF_NANO_BANK_SLOT; i++) {
         response.PCLoadData2CL.aNanoBank[i] = plr.Nanos[i];
@@ -234,8 +237,22 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     for (int i = 0; i < 3; i++) {
         response.PCLoadData2CL.aNanoSlots[i] = plr.equippedNanos[i];
     }
+    //missions in progress
+    for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+        if (plr.tasks[i] == 0)
+            break;
+        response.PCLoadData2CL.aRunningQuest[i].m_aCurrTaskID = plr.tasks[i];
+        TaskData &task = *MissionManager::Tasks[plr.tasks[i]];
+        for (int j = 0; j < 3; j++) {
+            response.PCLoadData2CL.aRunningQuest[i].m_aKillNPCID[j] = (int)task["m_iCSUEnemyID"][j];
+            response.PCLoadData2CL.aRunningQuest[i].m_aNeededItemID[j] = (int)task["m_iCSUItemID"][j];
+            response.PCLoadData2CL.aRunningQuest[i].m_aKillNPCCount[j] = plr.killNPCCount[i][j];
+            //response.PCLoadData2CL.aRunningQuest[i].m_aNeededItemCount[j] = plr.NeededItemCount[i][j];
+            //why is client not using that smh
+        }
+    }
 
-    // missions
+    // completed missions
     // the packet requires 32 items, but the client only checks the first 16 (shrug)
     for (int i = 0; i < 16; i++) {
         response.PCLoadData2CL.aQuestFlag[i] = plr.aQuestFlag[i];
