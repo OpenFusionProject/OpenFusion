@@ -5,7 +5,6 @@
 
 #include "CNProtocol.hpp"
 #include "CNStructs.hpp"
-#include "Database.hpp"
 
 #define ACTIVE_MISSION_COUNT 6
 
