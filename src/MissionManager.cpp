@@ -332,6 +332,12 @@ void MissionManager::mobKilled(CNSocket *sock, int mobid) {
 }
 
 void MissionManager::saveMission(Player* player, int missionId) {
+    //sanity check missionID so we don't get exceptions
+    if (missionId < 0 || missionId>1023) {
+        std::cout << "[WARN] Client submitted invalid missionId: " <<missionId<< std::endl;
+        return;
+    }
+
     // Missions are stored in int_64t array
     int row = missionId / 64;
     int column = missionId % 64;
