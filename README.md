@@ -118,4 +118,4 @@ To make your landwalking experience more pleasant, you can make use of a few adm
 
 ## Accounts
 
-A basic account system has been added, when logging in if the username doesn't exist in the database, a new account with the provided password will be made and you'll be automatically logged in. Otherwise a login attempt will be made. A username must be between 4 and 32 characters, and a password must be between 8 and 32 characters otherwise the account will be rejected. Characters currently save only upon creation, any items add/traded will not be saved.
+A basic account system has been added, when logging in if the username doesn't exist in the database, a new account with the provided password will be made and you'll be automatically logged in. Otherwise a login attempt will be made. A username must be between 4 and 32 characters, and a password must be between 8 and 32 characters otherwise the account will be rejected.
