@@ -31,7 +31,7 @@ void MissionManager::taskStart(CNSocket* sock, CNPacketData* data) {
         sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
         return;
     }
-
+    
     int i;
     for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
         if (plr->tasks[i] == 0) {
@@ -80,10 +80,18 @@ void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
      * iSUInstancename is the number of items to give. It is usually negative at the end of
      * a mission, so as to clean up it's quest items.
      */
+    int playerTaskNum = 0;
+    for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+        if (plr->tasks[i] == missionData->iTaskNum) {
+            playerTaskNum = i;
+            break;
+        }
+    }
     for (int i = 0; i < 3; i++)
-        if (task["m_iSUItem"][i] != 0)
+        if (task["m_iSUItem"][i] != 0) {
             dropQuestItem(sock, missionData->iTaskNum, task["m_iSUInstancename"][i], task["m_iSUItem"][i], 0);
-
+            plr->NeededItemCount[playerTaskNum][i]++;
+        }
     // mission rewards
     if (Rewards.find(missionData->iTaskNum) != Rewards.end()) {
         if (giveMissionReward(sock, missionData->iTaskNum) == -1)
@@ -94,7 +102,13 @@ void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
     int i;
     for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
         if (plr->tasks[i] == missionData->iTaskNum)
+        {
             plr->tasks[i] = 0;
+            for (int j = 0; j < 3; j++) {
+                plr->killNPCCount[i][j] = 0;
+                plr->NeededItemCount[i][j] = 0;
+            }
+        }
     }
     if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != 0) {
         std::cout << "[WARN] Player completed non-active mission!?" << std::endl;
@@ -304,14 +318,17 @@ void MissionManager::mobKilled(CNSocket *sock, int mobid) {
 
             // acknowledge killing of mission mob...
             if (task["m_iCSUNumToKill"][j] != 0)
+            {
                 missionmob = true;
-
+                plr->killNPCCount[i][j]++;
+            }
             // drop quest item
             if (task["m_iCSUItemNumNeeded"][j] != 0) {
                 bool drop = rand() % 100 < task["m_iSTItemDropRate"][j];
                 if (drop) {
                     // XXX: are CSUItemID and CSTItemID the same?
                     dropQuestItem(sock, plr->tasks[i], 1, task["m_iCSUItemID"][j], mobid);
+                    plr->NeededItemCount[i][j]++;
                 } else {
                     // fail to drop (itemID == 0)
                     dropQuestItem(sock, plr->tasks[i], 1, 0, mobid);

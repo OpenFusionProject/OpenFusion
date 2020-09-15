@@ -5,6 +5,7 @@
 
 #include "CNProtocol.hpp"
 #include "CNStructs.hpp"
+#include "Database.hpp"
 
 #define ACTIVE_MISSION_COUNT 6
 
@@ -41,7 +42,9 @@ struct Player {
     bool isTradeConfirm;
     bool IsGM;
 
-    int64_t aQuestFlag[16];   
+    int64_t aQuestFlag[16];
     int tasks[ACTIVE_MISSION_COUNT];
+    int killNPCCount[ACTIVE_MISSION_COUNT][3];
+    int NeededItemCount[ACTIVE_MISSION_COUNT][3];
     sItemBase QInven[AQINVEN_COUNT];
 };
