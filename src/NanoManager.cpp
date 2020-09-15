@@ -7,18 +7,6 @@
 
 namespace NanoManager {
 
-    namespace SkillType { // hack
-enum SkillType {
-    DAMAGE = 1,
-    HEAL = 2,
-    DRAIN = 3,
-    SLEEP = 4,
-    SNARE = 5,
-    STUN = 8,
-    LEECH = 30, // ...what?
-};
-};
-
 // active powers
 std::set<int> StunPowers = {1, 13, 42, 59, 78, 103};
 std::set<int> HealPowers = {2, 7, 12, 38, 53, 61, 82, 92, 98};
@@ -43,28 +31,10 @@ std::set<int> SelfRevivePowers = {22, 48, 83};
 std::set<int> SneakPowers = {23, 29, 65, 72, 80, 82};
 std::set<int> TreasureFinderPowers = {26, 40, 74};
 
-// declarations
-template<class sPAYLOAD, void *_work, bool isLeech=false>
-void activePower(CNSocket *sock, CNPacketData *data,
-                 int16_t nanoId, int16_t skillId, int16_t eSkillType,
-                 int32_t iCBFlag, int32_t amount);
-bool doDebuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage_N_Debuff *respdata, int i, int16_t iCBFlag, int32_t amount);
-bool doHeal(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *respdata, int i, int16_t iCBFlag, int32_t amount);
-bool doDamage(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage *respdata, int i, int16_t iCBFlag, int32_t amount);
-bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, int i, int16_t iCBFlag, int32_t amount);
-
-// active nano power dispatch table
-std::vector<ActivePower> ActivePowers = {
-    ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  (void*)doDebuff>,         SkillType::STUN, 0x200, 0),
-    ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          (void*)doHeal>,           SkillType::HEAL, 0, 333),
-    // TODO: Recall
-    ActivePower(DrainPowers, activePower<sSkillResult_Damage_N_Debuff, (void*)doDebuff>,         SkillType::DRAIN, 0x40000, 0),
-    ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, (void*)doDebuff>,         SkillType::SNARE, 0x80, 0),
-    ActivePower(DamagePowers, activePower<sSkillResult_Damage,         (void*)doDamage>,         SkillType::DAMAGE, 0, 133),
-    // TODO: GroupRevive
-    ActivePower(LeechPowers, activePower<sSkillResult_Heal_HP,         (void*)doLeech, true>,    SkillType::LEECH, 0, 133),
-    ActivePower(SleepPowers, activePower<sSkillResult_Damage_N_Debuff, (void*)doDebuff>,         SkillType::SLEEP, 0x400, 0),
-};
+/*
+ * The active nano power table is down below activePower<>() and its
+ * worker functions so we don't have to have unsightly function declarations.
+ */
 
 }; // namespace
 
@@ -377,7 +347,6 @@ void NanoManager::resetNanoSkill(CNSocket* sock, int16_t nanoId) {
 #pragma endregion
 
 #pragma region Active Powers
-
 namespace NanoManager {
 
 bool doDebuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage_N_Debuff *respdata, int i, int16_t iCBFlag, int32_t amount) {
@@ -456,7 +425,14 @@ bool doDamage(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage *respdata, i
     return true;
 }
 
-// NOTE: is not an ActivePowerHandler
+/*
+ * NOTE: Leech is specially encoded.
+ *
+ * It manages to fit inside the activePower<>() mold with only a slight hack,
+ * but it really is it's own thing. There is a hard assumption that players
+ * will only every leech a single mob, and the sanity check that enforces that
+ * assumption is critical.
+ */
 bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, int i, int16_t iCBFlag, int32_t amount) {
     // this sanity check is VERY important
     if (i != 0) {
@@ -499,9 +475,9 @@ bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, i
     return true;
 }
 
-template<class sPAYLOAD, void *_work, bool isLeech>
+template<class sPAYLOAD, void *_work, bool isLeech=false>
 void activePower(CNSocket *sock, CNPacketData *data,
-                 int16_t nanoId, int16_t skillId, int16_t eSkillType,
+                 int16_t nanoId, int16_t skillId, SkillType eSkillType,
                  int32_t iCBFlag, int32_t amount) {
 
     sP_CL2FE_REQ_NANO_SKILL_USE* pkt = (sP_CL2FE_REQ_NANO_SKILL_USE*)data->buf;
@@ -541,7 +517,7 @@ void activePower(CNSocket *sock, CNPacketData *data,
     resp->iSkillID = skillId;
     resp->iNanoID = nanoId;
     resp->iNanoStamina = 150;
-    resp->eST = eSkillType;
+    resp->eST = (int32_t)eSkillType;
     resp->iTargetCnt = pkt->iTargetCnt;
 
     // cast the void* to the appropriate function pointer type
@@ -556,6 +532,19 @@ void activePower(CNSocket *sock, CNPacketData *data,
     for (CNSocket* s : PlayerManager::players[sock].viewable)
         s->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
 }
+
+// active nano power dispatch table
+std::vector<ActivePower> ActivePowers = {
+    ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  (void*)doDebuff>,         SkillType::STUN, 0x200, 0),
+    ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          (void*)doHeal>,           SkillType::HEAL, 0, 333),
+    // TODO: Recall
+    ActivePower(DrainPowers, activePower<sSkillResult_Damage_N_Debuff, (void*)doDebuff>,         SkillType::DRAIN, 0x40000, 0),
+    ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, (void*)doDebuff>,         SkillType::SNARE, 0x80, 0),
+    ActivePower(DamagePowers, activePower<sSkillResult_Damage,         (void*)doDamage>,         SkillType::DAMAGE, 0, 133),
+    // TODO: GroupRevive
+    ActivePower(LeechPowers, activePower<sSkillResult_Heal_HP,         (void*)doLeech, true>,    SkillType::LEECH, 0, 133),
+    ActivePower(SleepPowers, activePower<sSkillResult_Damage_N_Debuff, (void*)doDebuff>,         SkillType::SLEEP, 0x400, 0),
+};
 
 }; // namespace
 #pragma endregion
