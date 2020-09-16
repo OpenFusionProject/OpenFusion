@@ -251,6 +251,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
             //why is client not using that smh
         }
     }
+    response.PCLoadData2CL.iCurrentMissionID = plr.CurrentMissionID;
 
     // completed missions
     // the packet requires 32 items, but the client only checks the first 16 (shrug)
