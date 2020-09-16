@@ -41,8 +41,6 @@ configure_file(version.h.in ${CMAKE_SOURCE_DIR}/version.h @ONLY)
 
 add_executable(openfusion ${SOURCES})
 
-target_link_libraries(openfusion dl)
-
 set_target_properties(openfusion PROPERTIES OUTPUT_NAME ${BIN_NAME})
 
 # Use pthreads if not generating a VS solution or MinGW makefile (because MinGW will prefer Win32 threads)
@@ -51,4 +49,5 @@ set_target_properties(openfusion PROPERTIES OUTPUT_NAME ${BIN_NAME})
 if (NOT CMAKE_GENERATOR MATCHES "Visual Studio" AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND NOT CMAKE_GENERATOR MATCHES "MinGW Makefiles")
 	find_package(Threads REQUIRED)
 	target_link_libraries(openfusion pthread)
+    target_link_libraries(openfusion dl)
 endif()
