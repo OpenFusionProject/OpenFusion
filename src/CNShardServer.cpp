@@ -2,6 +2,7 @@
 #include "CNStructs.hpp"
 #include "CNShardServer.hpp"
 #include "PlayerManager.hpp"
+#include "MobManager.hpp"
 #include "CNShared.hpp"
 #include "settings.hpp"
 #include "Database.hpp"
@@ -90,4 +91,6 @@ void CNShardServer::onStep() {
             event.scheduledEvent = currTime + event.delta;
         }
     }
+
+    MobManager::step(currTime);
 }

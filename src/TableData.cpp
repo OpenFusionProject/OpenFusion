@@ -4,6 +4,7 @@
 #include "ItemManager.hpp"
 #include "settings.hpp"
 #include "MissionManager.hpp"
+#include "MobManager.hpp"
 
 #include "contrib/JSON.hpp"
 
@@ -20,47 +21,23 @@ void TableData::init() {
         // read file into json
         inFile >> npcData;
 
-        for (nlohmann::json::iterator npc = npcData.begin(); npc != npcData.end(); npc++) {
-            BaseNPC tmp(npc.value()["x"], npc.value()["y"], npc.value()["z"], npc.value()["id"]);
+        for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
+            auto npc = _npc.value();
+            BaseNPC *tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], npc["id"]);
 
             // Temporary fix, IDs will be pulled from json later
-            tmp.appearanceData.iNPC_ID = i;
+            tmp->appearanceData.iNPC_ID = i;
             i++;
 
-            NPCManager::NPCs[tmp.appearanceData.iNPC_ID] = tmp;
+            NPCManager::NPCs[tmp->appearanceData.iNPC_ID] = tmp;
 
-            if (npc.value()["id"] == 641 || npc.value()["id"] == 642)
-                NPCManager::RespawnPoints.push_back({ npc.value()["x"], npc.value()["y"], ((int)npc.value()["z"]) + RESURRECT_HEIGHT });
+            if (npc["id"] == 641 || npc["id"] == 642)
+                NPCManager::RespawnPoints.push_back({ npc["x"], npc["y"], ((int)npc["z"]) + RESURRECT_HEIGHT });
         }
 
     }
     catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed NPCs.json file! Reason:" << err.what() << std::endl;
-    }
-
-    // load temporary mob dump
-    try {
-        std::ifstream inFile(settings::MOBJSON);
-        nlohmann::json npcData;
-
-        // read file into json
-        inFile >> npcData;
-
-        for (nlohmann::json::iterator npc = npcData.begin(); npc != npcData.end(); npc++) {
-            BaseNPC tmp(npc.value()["iX"], npc.value()["iY"], npc.value()["iZ"], npc.value()["iNPCType"],
-                npc.value()["iHP"], npc.value()["iConditionBitFlag"], npc.value()["iAngle"], npc.value()["iBarkerType"]);
-
-            // Temporary fix, IDs will be pulled from json later
-            tmp.appearanceData.iNPC_ID = i;
-            i++;
-
-            NPCManager::NPCs[tmp.appearanceData.iNPC_ID] = tmp;
-        }
-
-        std::cout << "[INFO] Populated " << NPCManager::NPCs.size() << " NPCs" << std::endl;
-    }
-    catch (const std::exception& err) {
-        std::cerr << "[WARN] Malformed mobs.json file! Reason:" << err.what() << std::endl;
     }
 
     // load everything else from xdttable
@@ -75,9 +52,10 @@ void TableData::init() {
         // load warps
         nlohmann::json warpData = xdtData["m_pInstanceTable"]["m_pWarpData"];
 
-        for (nlohmann::json::iterator warp = warpData.begin(); warp != warpData.end(); warp++) {
-            WarpLocation warpLoc = { warp.value()["m_iToX"], warp.value()["m_iToY"], warp.value()["m_iToZ"] };
-            int warpID = warp.value()["m_iWarpNumber"];
+        for (nlohmann::json::iterator _warp = warpData.begin(); _warp != warpData.end(); _warp++) {
+            auto warp = _warp.value();
+            WarpLocation warpLoc = { warp["m_iToX"], warp["m_iToY"], warp["m_iToZ"] };
+            int warpID = warp["m_iWarpNumber"];
             NPCManager::Warps[warpID] = warpLoc;
         }
 
@@ -87,16 +65,18 @@ void TableData::init() {
         nlohmann::json transRouteData = xdtData["m_pTransportationTable"]["m_pTransportationData"];
         nlohmann::json transLocData = xdtData["m_pTransportationTable"]["m_pTransportationWarpLocation"];
 
-        for (nlohmann::json::iterator tLoc = transLocData.begin(); tLoc != transLocData.end(); tLoc++) {
-            TransportLocation transLoc = { tLoc.value()["m_iNPCID"], tLoc.value()["m_iXpos"], tLoc.value()["m_iYpos"], tLoc.value()["m_iZpos"] };
-            TransportManager::Locations[tLoc.value()["m_iLocationID"]] = transLoc;
+        for (nlohmann::json::iterator _tLoc = transLocData.begin(); _tLoc != transLocData.end(); _tLoc++) {
+            auto tLoc = _tLoc.value();
+            TransportLocation transLoc = { tLoc["m_iNPCID"], tLoc["m_iXpos"], tLoc["m_iYpos"], tLoc["m_iZpos"] };
+            TransportManager::Locations[tLoc["m_iLocationID"]] = transLoc;
         }
         std::cout << "[INFO] Loaded " << TransportManager::Locations.size() << " S.C.A.M.P.E.R. locations" << std::endl; // TODO: Skyway operates differently
 
-        for (nlohmann::json::iterator tRoute = transRouteData.begin(); tRoute != transRouteData.end(); tRoute++) {
-            TransportRoute transRoute = { tRoute.value()["m_iMoveType"], tRoute.value()["m_iStartLocation"], tRoute.value()["m_iEndLocation"],
-                tRoute.value()["m_iCost"] , tRoute.value()["m_iSpeed"], tRoute.value()["m_iRouteNum"] };
-            TransportManager::Routes[tRoute.value()["m_iVehicleID"]] = transRoute;
+        for (nlohmann::json::iterator _tRoute = transRouteData.begin(); _tRoute != transRouteData.end(); _tRoute++) {
+            auto tRoute = _tRoute.value();
+            TransportRoute transRoute = { tRoute["m_iMoveType"], tRoute["m_iStartLocation"], tRoute["m_iEndLocation"],
+                tRoute["m_iCost"] , tRoute["m_iSpeed"], tRoute["m_iRouteNum"] };
+            TransportManager::Routes[tRoute["m_iVehicleID"]] = transRoute;
         }
         std::cout << "[INFO] Loaded " << TransportManager::Routes.size() << " transportation routes" << std::endl;
 
@@ -128,9 +108,12 @@ void TableData::init() {
         nlohmann::json itemSet;
         for (int i = 0; i < 12; i++) {
             itemSet = xdtData[setNames[i]]["m_pItemData"];
-            for (nlohmann::json::iterator item = itemSet.begin(); item != itemSet.end(); item++)
-                ItemManager::ItemData[std::pair<int32_t, int32_t>(item.value()["m_iItemNumber"], i == 11 ? 9 : (i == 10 ? 7 : (int)item.value()["m_iEquipLoc"]))]
-                = { item.value()["m_iTradeAble"] == 1, item.value()["m_iSellAble"] == 1, item.value()["m_iItemPrice"], item.value()["m_iItemSellPrice"], item.value()["m_iStackNumber"], i > 9 ? 0 : (int)item.value()["m_iMinReqLev"] };
+
+            for (nlohmann::json::iterator _item = itemSet.begin(); _item != itemSet.end(); _item++) {
+                auto item = _item.value();
+                ItemManager::ItemData[std::pair<int32_t, int32_t>(item["m_iItemNumber"], i == 11 ? 9 : (i == 10 ? 7 : (int)item["m_iEquipLoc"]))]
+                = { item["m_iTradeAble"] == 1, item["m_iSellAble"] == 1, item["m_iItemPrice"], item["m_iItemSellPrice"], item["m_iStackNumber"], i > 9 ? 0 : (int)item["m_iMinReqLev"] };
+            }
         }
 
         std::cout << "[INFO] Loaded " << ItemManager::ItemData.size() << " items" << std::endl;
@@ -138,15 +121,46 @@ void TableData::init() {
         // load vendor listings
         nlohmann::json listings = xdtData["m_pVendorTable"]["m_pItemData"];
 
-        for (nlohmann::json::iterator listing = listings.begin(); listing != listings.end(); listing++) {
-            VendorListing vListing = { listing.value()["m_iSortNumber"], listing.value()["m_iItemType"], listing.value()["m_iitemID"] };
-            ItemManager::VendorTables[listing.value()["m_iNpcNumber"]].push_back(vListing);
+        for (nlohmann::json::iterator _lst = listings.begin(); _lst != listings.end(); _lst++) {
+            auto lst = _lst.value();
+            VendorListing vListing = { lst["m_iSortNumber"], lst["m_iItemType"], lst["m_iitemID"] };
+            ItemManager::VendorTables[lst["m_iNpcNumber"]].push_back(vListing);
         }
 
         std::cout << "[INFO] Loaded " << ItemManager::VendorTables.size() << " vendor tables" << std::endl;
     }
     catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed xdt.json file! Reason:" << err.what() << std::endl;
+    }
+
+    // load temporary mob dump
+    try {
+        std::ifstream inFile(settings::MOBJSON);
+        nlohmann::json npcData;
+
+        // read file into json
+        inFile >> npcData;
+
+        nlohmann::json npcTableData = xdtData["m_pNpcTable"]["m_pNpcData"];
+
+        for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
+            auto npc = _npc.value();
+            auto td = npcTableData[(int)npc["iNPCType"]];
+            Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iNPCType"], npc["iHP"], npc["iAngle"], td["m_iRegenTime"]);
+
+            // Temporary fix, IDs will be pulled from json later
+            tmp->appearanceData.iNPC_ID = i;
+
+            NPCManager::NPCs[i] = tmp;
+            MobManager::Mobs[i] = (Mob*)NPCManager::NPCs[i];
+
+            i++;
+        }
+
+        std::cout << "[INFO] Populated " << NPCManager::NPCs.size() << " NPCs" << std::endl;
+    }
+    catch (const std::exception& err) {
+        std::cerr << "[WARN] Malformed mobs.json file! Reason:" << err.what() << std::endl;
     }
 }
 
@@ -158,5 +172,7 @@ void TableData::cleanup() {
     for (auto& pair : MissionManager::Rewards)
         delete pair.second;
     for (auto& pair : MissionManager::Tasks)
+        delete pair.second;
+    for (auto& pair : NPCManager::NPCs)
         delete pair.second;
 }

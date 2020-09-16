@@ -6,6 +6,8 @@
 
 #include <assert.h>
 
+std::map<int32_t, Mob*> MobManager::Mobs;
+
 void MobManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ATTACK_NPCs, pcAttackNpcs);
 
@@ -48,24 +50,23 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     resp->iNPCCnt = pkt->iNPCCnt;
 
     for (int i = 0; i < pkt->iNPCCnt; i++) {
-        if (NPCManager::NPCs.find(pktdata[i]) == NPCManager::NPCs.end()) {
+        if (Mobs.find(pktdata[i]) == Mobs.end()) {
             // not sure how to best handle this
             std::cout << "[WARN] pcAttackNpcs: mob ID not found" << std::endl;
             return;
         }
-        BaseNPC& mob = NPCManager::NPCs[pktdata[i]];
+        Mob *mob = Mobs[pktdata[i]];
 
-        mob.appearanceData.iHP -= 100;
+        mob->appearanceData.iHP -= 100;
 
-        if (mob.appearanceData.iHP <= 0) {
-            giveReward(sock);
-            MissionManager::mobKilled(sock, mob.appearanceData.iNPCType);
-            // TODO: despawn mobs when they die
-        }
+        std::cout << "mob health is now " << mob->appearanceData.iHP << std::endl;
 
-        respdata[i].iID = mob.appearanceData.iNPC_ID;
+        if (mob->appearanceData.iHP <= 0)
+            killMob(sock, mob);
+
+        respdata[i].iID = mob->appearanceData.iNPC_ID;
         respdata[i].iDamage = 100;
-        respdata[i].iHP = mob.appearanceData.iHP;
+        respdata[i].iHP = mob->appearanceData.iHP;
         respdata[i].iHitFlag = 2; // hitscan, not a rocket or a grenade
     }
 
@@ -127,5 +128,63 @@ void MobManager::giveReward(CNSocket *sock) {
         plr->Inven[slot] = item->sItem;
 
         sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
+    }
+}
+
+void MobManager::killMob(CNSocket *sock, Mob *mob) {
+    mob->state = MobState::DEAD;
+    mob->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
+
+    std::cout << "killed mob " << mob->appearanceData.iNPC_ID << std::endl;
+
+    giveReward(sock);
+    MissionManager::mobKilled(sock, mob->appearanceData.iNPCType);
+
+    PlayerView& plrv = PlayerManager::players[sock];
+
+    INITSTRUCT(sP_FE2CL_NPC_EXIT, pkt);
+
+    pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
+
+    sock->sendPacket(&pkt, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
+    for (CNSocket *s : plrv.viewable)
+        s->sendPacket(&pkt, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
+}
+
+void MobManager::deadStep(Mob *mob, time_t currTime) {
+    if (mob->killedTime != 0 && currTime - mob->killedTime < mob->regenTime * 100)
+        return;
+
+    std::cout << "respawning mob " << mob->appearanceData.iNPC_ID << " with HP = " << mob->maxHealth << std::endl;
+
+    mob->appearanceData.iHP = mob->maxHealth;
+    mob->state = MobState::ROAMING;
+
+    INITSTRUCT(sP_FE2CL_NPC_NEW, pkt);
+
+    pkt.NPCAppearanceData = mob->appearanceData;
+
+    // FIXME: use the chunk's visibility list, when that becomes a thing
+    for (auto& pair : PlayerManager::players) {
+        Player *plr = pair.second.plr;
+
+        int diffX = abs(plr->x - mob->appearanceData.iX);
+        int diffY = abs(plr->y - mob->appearanceData.iY);
+
+        if (diffX < settings::PLAYERDISTANCE && diffY < settings::PLAYERDISTANCE)
+            pair.first->sendPacket(&pkt, P_FE2CL_NPC_NEW, sizeof(sP_FE2CL_NPC_NEW));
+    }
+}
+
+void MobManager::step(time_t currTime) {
+    for (auto& pair : Mobs) {
+        switch (pair.second->state) {
+        case MobState::DEAD:
+            deadStep(pair.second, currTime);
+            break;
+        default:
+            // unhandled for now
+            break;
+        }
     }
 }

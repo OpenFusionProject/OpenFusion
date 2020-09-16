@@ -15,7 +15,7 @@ struct WarpLocation {
 };
 
 namespace NPCManager {
-    extern std::map<int32_t, BaseNPC> NPCs;
+    extern std::map<int32_t, BaseNPC*> NPCs;
     extern std::map<int32_t, WarpLocation> Warps;
     extern std::vector<WarpLocation> RespawnPoints;
     void init();

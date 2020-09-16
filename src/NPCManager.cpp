@@ -1,6 +1,7 @@
 #include "NPCManager.hpp"
 #include "ItemManager.hpp"
 #include "settings.hpp"
+#include "MobManager.hpp"
 
 #include <cmath>
 #include <algorithm>
@@ -10,7 +11,7 @@
 
 #include "contrib/JSON.hpp"
 
-std::map<int32_t, BaseNPC> NPCManager::NPCs;
+std::map<int32_t, BaseNPC*> NPCManager::NPCs;
 std::map<int32_t, WarpLocation> NPCManager::Warps;
 std::vector<WarpLocation> NPCManager::RespawnPoints;
 
@@ -255,10 +256,17 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
     std::list<int32_t> noView;
 
     for (auto& pair : NPCs) {
-        int diffX = abs(view.plr->x - pair.second.appearanceData.iX);
-        int diffY = abs(view.plr->y - pair.second.appearanceData.iY);
+        int diffX = abs(view.plr->x - pair.second->appearanceData.iX);
+        int diffY = abs(view.plr->y - pair.second->appearanceData.iY);
 
         if (diffX < settings::NPCDISTANCE && diffY < settings::NPCDISTANCE) {
+            // if it's a mob and it's dead (or otherwise not there), skip it.
+            if (MobManager::Mobs.find(pair.first) != MobManager::Mobs.end()) {
+                Mob *mob = (Mob*) pair.second;
+                if (mob->state == MobState::DEAD || mob->state == MobState::INACTIVE)
+                    continue;
+            }
+
             yesView.push_back(pair.first);
         }
         else {
@@ -290,7 +298,7 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
         if (std::find(view.viewableNPCs.begin(), view.viewableNPCs.end(), id) == view.viewableNPCs.end()) {
             // needs to be added to viewableNPCs! send NPC_ENTER
 
-            enterData.NPCAppearanceData = NPCs[id].appearanceData;
+            enterData.NPCAppearanceData = NPCs[id]->appearanceData;
             sock->sendPacket((void*)&enterData, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
 
             // add to viewable
