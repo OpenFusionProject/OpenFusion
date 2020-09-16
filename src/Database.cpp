@@ -95,9 +95,28 @@ void Database::open()
     // this parameter means it will try to preserve data during migration
     bool preserve = true;
     db.sync_schema(preserve);
-    DEBUGLOG(
-        std::cout << "[DB] Database in operation" << std::endl;
-    )
+    std::cout << "[INFO] Database in operation ";
+    int accounts = getAccountsCount();
+    int players = getPlayersCount();
+    std::string message = "";
+    if (accounts > 0) {
+        message += ": Found " + std::to_string(accounts) + " Account";
+        if (accounts > 1)
+            message += "s";
+    }
+    if (players > 0) {
+        message += " and " + std::to_string(players) + " Player Character";
+        if (players > 1)
+            message += "s";
+    }
+    std::cout << message << std::endl;
+}
+
+int Database::getAccountsCount() {
+    return db.count<Account>();
+}
+int Database::getPlayersCount() {
+    return db.count<DbPlayer>();
 }
 
 int Database::addAccount(std::string login, std::string password)
