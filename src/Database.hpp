@@ -66,6 +66,10 @@ namespace Database {
         int BatteryN;
         int16_t Mentor;
         std::vector<char> QuestFlag;
+        int32_t CurrentMissionID;
+        int32_t WarpLocationFlag;
+        int64_t SkywayLocationFlag1;
+        int64_t SkywayLocationFlag2;
     };
     struct DbQuest {
         int PlayerId;

@@ -119,6 +119,8 @@ void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
     {
         // save completed mission on player
         saveMission(plr, (int)(task["m_iHMissionID"])-1);
+        // remove current mission
+        plr->CurrentMissionID = 0;
     }
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_END_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_END_SUCC));
@@ -130,9 +132,11 @@ void MissionManager::setMission(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID* missionData = (sP_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, response);
-
+    
     response.iCurrentMissionID = missionData->iCurrentMissionID;
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, sizeof(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID));
+    Player* plr = PlayerManager::getPlayer(sock);
+    plr->CurrentMissionID = missionData->iCurrentMissionID;
 }
 
 void MissionManager::quitMission(CNSocket* sock, CNPacketData* data) {
@@ -152,6 +156,9 @@ void MissionManager::quitMission(CNSocket* sock, CNPacketData* data) {
     if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != 0) {
         std::cout << "[WARN] Player quit non-active mission!?" << std::endl;
     }
+    // remove current mission
+    plr->CurrentMissionID = 0;
+
 
     TaskData& task = *Tasks[missionData->iTaskNum];
 

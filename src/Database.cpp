@@ -54,7 +54,11 @@ auto db = make_storage("database.db",
         make_column("Quests", &Database::DbPlayer::QuestFlag),
         make_column("BatteryW", &Database::DbPlayer::BatteryW),
         make_column("BatteryN", &Database::DbPlayer::BatteryN),
-        make_column("Mentor", &Database::DbPlayer::Mentor)
+        make_column("Mentor", &Database::DbPlayer::Mentor),
+        make_column("WarpLocationFlag", &Database::DbPlayer::WarpLocationFlag),
+        make_column("SkywayLocationFlag1", &Database::DbPlayer::SkywayLocationFlag1),
+        make_column("SkywayLocationFlag2", &Database::DbPlayer::SkywayLocationFlag2),
+        make_column("CurrentMissionID", &Database::DbPlayer::CurrentMissionID)
     ),
     make_table("Inventory",
         make_column("PlayerId", &Database::Inventory::playerId),
@@ -336,6 +340,10 @@ Database::DbPlayer Database::playerToDb(Player *player)
     result.BatteryN = player->batteryN;
     result.BatteryW = player->batteryW;
     result.Mentor = player->mentor;
+    result.WarpLocationFlag = player->iWarpLocationFlag;
+    result.SkywayLocationFlag1 = player->aSkywayLocationFlag[0];
+    result.SkywayLocationFlag2 = player->aSkywayLocationFlag[1];
+    result.CurrentMissionID = player->CurrentMissionID;
 
     // finished quests: parsing to blob
     result.QuestFlag = std::vector<char>();
@@ -383,10 +391,15 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.batteryN = player.BatteryN;
     result.batteryW = player.BatteryW;
     result.mentor = player.Mentor;
+    result.CurrentMissionID = player.CurrentMissionID;
 
     result.equippedNanos[0] = player.Nano1;
     result.equippedNanos[1] = player.Nano2;
     result.equippedNanos[2] = player.Nano3;
+
+    result.iWarpLocationFlag = player.WarpLocationFlag;
+    result.aSkywayLocationFlag[0] = player.SkywayLocationFlag1;
+    result.aSkywayLocationFlag[1] = player.SkywayLocationFlag2;
 
     Database::getInventory(&result);
     Database::getNanos(&result);
