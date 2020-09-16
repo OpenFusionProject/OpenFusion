@@ -108,11 +108,11 @@ void TableData::init() {
         nlohmann::json itemSet;
         for (int i = 0; i < 12; i++) {
             itemSet = xdtData[setNames[i]]["m_pItemData"];
-
             for (nlohmann::json::iterator _item = itemSet.begin(); _item != itemSet.end(); _item++) {
                 auto item = _item.value();
                 ItemManager::ItemData[std::pair<int32_t, int32_t>(item["m_iItemNumber"], i == 11 ? 9 : (i == 10 ? 7 : (int)item["m_iEquipLoc"]))]
-                = { item["m_iTradeAble"] == 1, item["m_iSellAble"] == 1, item["m_iItemPrice"], item["m_iItemSellPrice"], item["m_iStackNumber"], i > 9 ? 0 : (int)item["m_iMinReqLev"] };
+                = { item["m_iTradeAble"] == 1, item["m_iSellAble"] == 1, item["m_iItemPrice"], item["m_iItemSellPrice"], item["m_iStackNumber"], i > 9 ? 0 : (int)item["m_iMinReqLev"],
+                i > 9 ? 1 : (int)item["m_iRarity"] };
             }
         }
 
@@ -175,4 +175,24 @@ void TableData::cleanup() {
         delete pair.second;
     for (auto& pair : NPCManager::NPCs)
         delete pair.second;
+}
+
+int TableData::getItemType(int itemSet) {
+    int overrideType;
+    switch (itemSet)
+    {
+    case 9: // Vehicle Item
+        overrideType = 10;
+        break;
+    case 10: // General Item
+        overrideType = 7;
+        break;
+    case 11: // Chest Item
+        overrideType = 9;
+        break;
+    default:
+        overrideType = -1;
+        break;
+    }
+    return overrideType;
 }

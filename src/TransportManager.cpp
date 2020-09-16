@@ -92,8 +92,7 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
      * iSlotNum -- inventory slot number
      */
 
-    if (Routes.find(req->iTransporationID) == Routes.end() || Locations.find(Routes[req->iTransporationID].end) == Locations.end()
-        || Routes[req->iTransporationID].cost > plr->money) { // sanity check
+    if (Routes.find(req->iTransporationID) == Routes.end() || Routes[req->iTransporationID].cost > plr->money) { // sanity check
         INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_FAIL, failResp);
 
         failResp.iErrorCode = 0; // TODO: error code
@@ -107,13 +106,21 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
 
     plr->money -= route.cost;
 
-    TransportLocation target = Locations[route.end];
+    TransportLocation target;
+    PlayerView& plrv = PlayerManager::players[sock];
     switch (route.type)
     {
     case 1: // S.C.A.M.P.E.R.
+        target = Locations[route.end];
         plr->x = target.x;
         plr->y = target.y;
         plr->z = target.z;
+        /*
+        * Not strictly necessary since there isn't a valid SCAMPER that puts you in the
+        * same map tile you were already in, but we might as well force an NPC reload.
+        */
+        plrv.viewable.clear();
+        plrv.viewableNPCs.clear();
         break;
     case 2: // Monkey Skyway
         // TODO: implement
@@ -131,14 +138,7 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
     resp.iX = plr->x;
     resp.iY = plr->y;
     resp.iZ = plr->z;
-
-    /*
-     * Not strictly necessary since there isn't a valid SCAMPER that puts you in the
-     * same map tile you were already in, but we might as well force an NPC reload.
-     */
-    PlayerView& plrv = PlayerManager::players[sock];
-    plrv.viewable.clear();
-    plrv.viewableNPCs.clear();
+    
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC));
 }
