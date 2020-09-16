@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iostream>
 #include "settings.hpp"
 #include "contrib/INIReader.hpp"
 
@@ -43,7 +44,7 @@ void settings::init() {
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);
     SHARDPORT = reader.GetInteger("shard", "port", SHARDPORT);
     SHARDSERVERIP = reader.Get("shard", "ip", "127.0.0.1");
-    DBSAVEINTERVAL = reader.GetInteger("login", "dbsaveinterval", DBSAVEINTERVAL);
+    DBSAVEINTERVAL = reader.GetInteger("shard", "dbsaveinterval", DBSAVEINTERVAL);
     TIMEOUT = reader.GetInteger("shard", "timeout", TIMEOUT);
     PLAYERDISTANCE = reader.GetInteger("shard", "playerdistance", PLAYERDISTANCE);
     NPCDISTANCE = reader.GetInteger("shard", "npcdistance", NPCDISTANCE);
