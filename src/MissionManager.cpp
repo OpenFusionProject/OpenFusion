@@ -151,7 +151,13 @@ void MissionManager::quitMission(CNSocket* sock, CNPacketData* data) {
     int i;
     for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
         if (plr->tasks[i] == missionData->iTaskNum)
+        {
             plr->tasks[i] = 0;
+            for (int j = 0; j < 3; j++) {
+                plr->killNPCCount[i][j] = 0;
+                plr->NeededItemCount[i][j] = 0;
+            }
+        }
     }
     if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != 0) {
         std::cout << "[WARN] Player quit non-active mission!?" << std::endl;
@@ -164,7 +170,7 @@ void MissionManager::quitMission(CNSocket* sock, CNPacketData* data) {
 
     // clean up quest items
     for (i = 0; i < 3; i++) {
-        if (task["m_iSUItem"][i] == 0 && task["m_iCSUItem"][i] == 0)
+        if (task["m_iSUItem"][i] == 0 && task["m_iCSUItemID"][i] == 0)
             continue;
 
         /*
@@ -172,7 +178,7 @@ void MissionManager::quitMission(CNSocket* sock, CNPacketData* data) {
          * slot later items will be placed in.
          */
         for (int j = 0; j < AQINVEN_COUNT; j++)
-            if (plr->QInven[j].iID == task["m_iSUItem"][i] || plr->QInven[j].iID == task["m_iCSUItem"][i])
+            if (plr->QInven[j].iID == task["m_iSUItem"][i] || plr->QInven[j].iID == task["m_iCSUItemID"][i])
                 memset(&plr->QInven[j], 0, sizeof(sItemBase));
     }
 
