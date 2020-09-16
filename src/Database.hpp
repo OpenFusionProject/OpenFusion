@@ -87,6 +87,8 @@ namespace Database {
 
     // handles migrations
     void open();
+    int getAccountsCount();
+    int getPlayersCount();
     // returns ID
     int addAccount(std::string login, std::string password);
     void updateSelected(int accountId, int playerId);
