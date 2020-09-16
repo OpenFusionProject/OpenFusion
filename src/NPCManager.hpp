@@ -33,4 +33,6 @@ namespace NPCManager {
     void npcVendorSell(CNSocket* sock, CNPacketData* data);
     void npcVendorBuyback(CNSocket* sock, CNPacketData* data);
     void npcVendorBuyBattery(CNSocket* sock, CNPacketData* data);
+    void npcCombineItems(CNSocket* sock, CNPacketData* data);
+    void updatePlayerNPCS(CNSocket* sock, PlayerView& plr);
 }

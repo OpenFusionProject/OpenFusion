@@ -9,6 +9,7 @@
 
 std::map<std::pair<int32_t, int32_t>, Item> ItemManager::ItemData;
 std::map<int32_t, std::vector<VendorListing>> ItemManager::VendorTables;
+std::map<int32_t, CrocPotEntry> ItemManager::CrocPotTable;
 
 void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);

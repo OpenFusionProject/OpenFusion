@@ -25,6 +25,7 @@ void NPCManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_SELL, npcVendorSell);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY, npcVendorBuyback);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_BATTERY_BUY, npcVendorBuyBattery);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_COMBINATION, npcCombineItems);
 }
 
 void NPCManager::addNPC(std::vector<Chunk*> viewableChunks, int32_t id) {
@@ -277,6 +278,95 @@ void NPCManager::npcVendorBuyBattery(CNSocket* sock, CNPacketData* data) {
     resp.iBatteryN = plr->batteryN;
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_BATTERY_BUY_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_SUCC));
+}
+
+void NPCManager::npcCombineItems(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_ITEM_COMBINATION))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_ITEM_COMBINATION* req = (sP_CL2FE_REQ_PC_ITEM_COMBINATION*)data->buf;
+    Player* plr = PlayerManager::getPlayer(sock);
+    
+    if (req->iCostumeItemSlot < 0 || req->iCostumeItemSlot >= AINVEN_COUNT || req->iStatItemSlot < 0 || req->iStatItemSlot >= AINVEN_COUNT) { // sanity check 1
+        INITSTRUCT(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, failResp);
+        failResp.iCostumeItemSlot = req->iCostumeItemSlot;
+        failResp.iStatItemSlot = req->iStatItemSlot;
+        failResp.iErrorCode = 0;
+        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, sizeof(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL));
+        std::cout << "[WARN] Inventory slot(s) out of range (" << req->iStatItemSlot << " and " << req->iCostumeItemSlot << ")" << std::endl;
+        return;
+    }
+
+    sItemBase* itemStats = &plr->Inven[req->iStatItemSlot];
+    sItemBase* itemLooks = &plr->Inven[req->iCostumeItemSlot];
+    Item* itemStatsDat = ItemManager::getItemData(itemStats->iID, itemStats->iType);
+    Item* itemLooksDat = ItemManager::getItemData(itemLooks->iID, itemLooks->iType);
+
+    if (itemStatsDat == nullptr || itemLooksDat == nullptr
+        || ItemManager::CrocPotTable.find(abs(itemStatsDat->level - itemLooksDat->level)) == ItemManager::CrocPotTable.end()) // sanity check 2
+    {
+        INITSTRUCT(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, failResp);
+        failResp.iCostumeItemSlot = req->iCostumeItemSlot;
+        failResp.iStatItemSlot = req->iStatItemSlot;
+        failResp.iErrorCode = 0;
+        std::cout << "[WARN] Either item ids or croc pot value set not found" << std::endl;
+        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, sizeof(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL));
+        return;
+    }
+
+    CrocPotEntry* recipe = &ItemManager::CrocPotTable[abs(itemStatsDat->level - itemLooksDat->level)];
+    int cost = itemStatsDat->buyPrice * recipe->multStats + itemLooksDat->buyPrice * recipe->multLooks;
+    float successChance = recipe->base / 100.0f;
+
+    // rarity gap multiplier
+    switch(abs(itemStatsDat->rarity - itemLooksDat->rarity))
+    {
+    case 0:
+        successChance *= recipe->rd0;
+        break;
+    case 1:
+        successChance *= recipe->rd1;
+        break;
+    case 2:
+        successChance *= recipe->rd2;
+        break;
+    case 3:
+        successChance *= recipe->rd3;
+        break;
+    default:
+        break;
+    }
+
+    float rolled = (rand() * 1.0f / RAND_MAX) * 100.0f;
+    std::cout << rolled << " vs " << successChance << std::endl;
+    plr->money -= cost;
+
+
+    INITSTRUCT(sP_FE2CL_REP_PC_ITEM_COMBINATION_SUCC, resp);
+    if (rolled < successChance) {
+        // success
+        resp.iSuccessFlag = 1;
+
+        // modify the looks item with the new stats and set the appearance through iOpt
+        itemLooks->iOpt = (int32_t)itemLooks->iID << 16;
+        itemLooks->iID = itemStats->iID;
+
+        // delete stats item
+        itemStats->iID = 0;
+        itemStats->iOpt = 0;
+        itemStats->iTimeLimit = 0;
+        itemStats->iType = 0;
+    }
+    else {
+        // failure; don't do anything?
+        resp.iSuccessFlag = 0;
+    }
+    resp.iCandy = plr->money;
+    resp.iNewItemSlot = req->iCostumeItemSlot;
+    resp.iStatItemSlot = req->iStatItemSlot;
+    resp.sNewItem = *itemLooks;
+    
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_ITEM_COMBINATION_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_COMBINATION_SUCC));
 }
 
 void NPCManager::npcBarkHandler(CNSocket* sock, CNPacketData* data) {} // stubbed for now
