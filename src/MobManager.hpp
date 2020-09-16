@@ -4,7 +4,7 @@
 #include "CNShared.hpp"
 #include "CNShardServer.hpp"
 
-namespace CombatManager {
+namespace MobManager {
     void init();
 
     void pcAttackNpcs(CNSocket *sock, CNPacketData *data);

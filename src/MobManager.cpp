@@ -1,4 +1,4 @@
-#include "CombatManager.hpp"
+#include "MobManager.hpp"
 #include "PlayerManager.hpp"
 #include "NPCManager.hpp"
 #include "ItemManager.hpp"
@@ -6,7 +6,7 @@
 
 #include <assert.h>
 
-void CombatManager::init() {
+void MobManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ATTACK_NPCs, pcAttackNpcs);
 
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_COMBAT_BEGIN, combatBegin);
@@ -14,7 +14,7 @@ void CombatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_DOT_DAMAGE_ONOFF, dotDamageOnOff);
 }
 
-void CombatManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
+void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_REQ_PC_ATTACK_NPCs* pkt = (sP_CL2FE_REQ_PC_ATTACK_NPCs*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
@@ -82,11 +82,11 @@ void CombatManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         s->sendPacket((void*)respbuf, P_FE2CL_PC_ATTACK_NPCs, resplen);
 }
 
-void CombatManager::combatBegin(CNSocket *sock, CNPacketData *data) {} // stub
-void CombatManager::combatEnd(CNSocket *sock, CNPacketData *data) {} // stub
-void CombatManager::dotDamageOnOff(CNSocket *sock, CNPacketData *data) {} // stub
+void MobManager::combatBegin(CNSocket *sock, CNPacketData *data) {} // stub
+void MobManager::combatEnd(CNSocket *sock, CNPacketData *data) {} // stub
+void MobManager::dotDamageOnOff(CNSocket *sock, CNPacketData *data) {} // stub
 
-void CombatManager::giveReward(CNSocket *sock) {
+void MobManager::giveReward(CNSocket *sock) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);

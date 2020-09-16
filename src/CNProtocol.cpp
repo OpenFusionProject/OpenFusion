@@ -167,7 +167,7 @@ void CNSocket::step() {
         // we aren't reading a packet yet, try to start looking for one
         int recved = recv(sock, (buffer_t*)readBuffer, sizeof(int32_t), 0);
         if (!SOCKETERROR(recved)) {
-            // we got out packet size!!!!
+            // we got our packet size!!!!
             readSize = *((int32_t*)readBuffer);
             // sanity check
             if (readSize > CN_PACKET_BUFFER_SIZE) {

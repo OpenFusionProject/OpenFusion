@@ -30,20 +30,18 @@ CSRC=\
 
 CXXSRC=\
 	src/ChatManager.cpp\
-	src/CombatManager.cpp\
 	src/CNLoginServer.cpp\
 	src/CNProtocol.cpp\
 	src/CNShardServer.cpp\
 	src/CNShared.cpp\
-	src/CNStructs.cpp\
 	src/Database.cpp\
 	src/Defines.cpp\
 	src/main.cpp\
 	src/MissionManager.cpp\
+	src/MobManager.cpp\
 	src/NanoManager.cpp\
 	src/ItemManager.cpp\
 	src/NPCManager.cpp\
-	src/Player.cpp\
 	src/PlayerManager.cpp\
 	src/settings.cpp\
 	src/TransportManager.cpp\
@@ -64,7 +62,6 @@ CXXHDR=\
 	src/contrib/INIReader.hpp\
 	src/contrib/JSON.hpp\
 	src/ChatManager.hpp\
-	src/CombatManager.hpp\
 	src/CNLoginServer.hpp\
 	src/CNProtocol.hpp\
 	src/CNShardServer.hpp\
@@ -75,6 +72,7 @@ CXXHDR=\
 	src/contrib/INIReader.hpp\
 	src/contrib/JSON.hpp\
 	src/MissionManager.hpp\
+	src/MobManager.hpp\
 	src/NanoManager.hpp\
 	src/ItemManager.hpp\
 	src/NPCManager.hpp\
