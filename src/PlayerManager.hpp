@@ -14,7 +14,7 @@ struct PlayerView {
     std::list<CNSocket*> viewable;
     std::list<int32_t> viewableNPCs;
     Player *plr;
-    uint64_t lastHeartbeat;
+    time_t lastHeartbeat;
 };
 
 

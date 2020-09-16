@@ -11,6 +11,7 @@ int settings::DBSAVEINTERVAL = 240;
 
 int settings::SHARDPORT = 8002;
 std::string settings::SHARDSERVERIP = "127.0.0.1";
+time_t settings::TIMEOUT = 60000;
 int settings::PLAYERDISTANCE = 20000;
 int settings::NPCDISTANCE = 16000;
 
@@ -43,6 +44,7 @@ void settings::init() {
     SHARDPORT = reader.GetInteger("shard", "port", SHARDPORT);
     SHARDSERVERIP = reader.Get("shard", "ip", "127.0.0.1");
     DBSAVEINTERVAL = reader.GetInteger("login", "dbsaveinterval", DBSAVEINTERVAL);
+    TIMEOUT = reader.GetInteger("shard", "timeout", TIMEOUT);
     PLAYERDISTANCE = reader.GetInteger("shard", "playerdistance", PLAYERDISTANCE);
     NPCDISTANCE = reader.GetInteger("shard", "npcdistance", NPCDISTANCE);
     SPAWN_X = reader.GetInteger("shard", "spawnx", SPAWN_X);

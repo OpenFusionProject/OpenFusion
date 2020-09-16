@@ -7,6 +7,7 @@ namespace settings {
     extern int DBSAVEINTERVAL;
     extern int SHARDPORT;
     extern std::string SHARDSERVERIP;
+    extern time_t TIMEOUT;
     extern int PLAYERDISTANCE;
     extern int NPCDISTANCE;
     extern int SPAWN_X;

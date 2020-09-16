@@ -16,7 +16,7 @@ std::list<TimerEvent> CNShardServer::Timers;
 CNShardServer::CNShardServer(uint16_t p) {
     port = p;
     pHandler = &CNShardServer::handlePacket;
-    REGISTER_SHARD_TIMER(keepAliveTimer, 2000);
+    REGISTER_SHARD_TIMER(keepAliveTimer, 4000);
     REGISTER_SHARD_TIMER(periodicSaveTimer, settings::DBSAVEINTERVAL*1000);
     init();
 }
@@ -28,24 +28,26 @@ void CNShardServer::handlePacket(CNSocket* sock, CNPacketData* data) {
         ShardPackets[data->type](sock, data);
     else if (settings::VERBOSITY > 0)
         std::cerr << "OpenFusion: SHARD UNIMPLM ERR. PacketType: " << Defines::p2str(CL2FE, data->type) << " (" << data->type << ")" << std::endl;
+
+    PlayerManager::players[sock].lastHeartbeat = getTime();
 }
 
-void CNShardServer::keepAliveTimer(CNServer* serv,  uint64_t currTime) {
+void CNShardServer::keepAliveTimer(CNServer* serv, time_t currTime) {
     auto cachedPlayers = PlayerManager::players;
 
     for (auto& pair : cachedPlayers) {
-        if (pair.second.lastHeartbeat != 0 && currTime - pair.second.lastHeartbeat > 60000) { // if the client hadn't responded in 60 seconds, its a dead connection so throw it out
+        if (pair.second.lastHeartbeat != 0 && currTime - pair.second.lastHeartbeat > settings::TIMEOUT) {
+            // if the client hasn't responded in 60 seconds, its a dead connection so throw it out
             pair.first->kill();
-            continue;
+        } else if (pair.second.lastHeartbeat != 0 && currTime - pair.second.lastHeartbeat > settings::TIMEOUT/2) {
+            // if the player hasn't responded in 30 seconds, send a live check
+            INITSTRUCT(sP_FE2CL_REQ_LIVE_CHECK, data);
+            pair.first->sendPacket((void*)&data, P_FE2CL_REQ_LIVE_CHECK, sizeof(sP_FE2CL_REQ_LIVE_CHECK));
         }
-
-        // passed the heartbeat, send another
-        INITSTRUCT(sP_FE2CL_REQ_LIVE_CHECK, data);
-        pair.first->sendPacket((void*)&data, P_FE2CL_REQ_LIVE_CHECK, sizeof(sP_FE2CL_REQ_LIVE_CHECK));
     }
 }
 
-void CNShardServer::periodicSaveTimer(CNServer* serv, uint64_t currTime) {
+void CNShardServer::periodicSaveTimer(CNServer* serv, time_t currTime) {
     auto cachedPlayers = PlayerManager::players;
 
     for (auto& pair : cachedPlayers) {
@@ -73,7 +75,7 @@ void CNShardServer::killConnection(CNSocket* cns) {
 }
 
 void CNShardServer::onStep() {
-    uint64_t currTime = getTime();
+    time_t currTime = getTime();
 
     for (TimerEvent& event : Timers) {
         if (event.scheduledEvent == 0) {
