@@ -13,6 +13,8 @@
 
 #include "settings.hpp"
 
+#include "../version.h"
+
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
     #include "mingw/mingw.thread.h"
 #else
@@ -84,6 +86,7 @@ int main() {
     initsignals();
 #endif
     settings::init();
+    std::cout << "[INFO] OpenFusion v" GIT_VERSION << std::endl;
     std::cout << "[INFO] Protocol version: " << PROTOCOL_VERSION << std::endl;
     std::cout << "[INFO] Intializing Packet Managers..." << std::endl;
     TableData::init();

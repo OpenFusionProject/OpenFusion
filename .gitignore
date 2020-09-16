@@ -11,3 +11,4 @@ build/
 .vs/
 .idea/
 *.db
+version.h

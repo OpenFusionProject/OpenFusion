@@ -3,6 +3,8 @@ project(OpenFusion)
 
 set(CMAKE_CXX_STANDARD 17)
 
+execute_process(COMMAND git describe --tags OUTPUT_VARIABLE GIT_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
+
 # OpenFusion supports multiple packet/struct versions
 # 104 is the default version to build which can be changed
 # For example: cmake -B build -DPROTOCOL_VERSION=728
@@ -33,9 +35,13 @@ endif()
 
 include_directories(src)
 
-file(GLOB_RECURSE SOURCES src/**.cpp src/**.hpp src/**.c src/**.h)
+file(GLOB_RECURSE SOURCES src/**.cpp src/**.hpp src/**.c src/**.h version.h)
+
+configure_file(version.h.in ${CMAKE_SOURCE_DIR}/version.h @ONLY)
 
 add_executable(openfusion ${SOURCES})
+
+target_link_libraries(openfusion dl)
 
 set_target_properties(openfusion PROPERTIES OUTPUT_NAME ${BIN_NAME})
 
