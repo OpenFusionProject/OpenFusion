@@ -78,7 +78,7 @@ void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
      * Yes, this is pretty stupid.
      *
      * iSUInstancename is the number of items to give. It is usually negative at the end of
-     * a mission, so as to clean up it's quest items.
+     * a mission, to clean up its quest items.
      */
     for (int i = 0; i < 3; i++)
         if (task["m_iSUItem"][i] != 0)

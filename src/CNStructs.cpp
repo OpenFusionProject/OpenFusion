@@ -1,7 +1,5 @@
 #include "CNStructs.hpp"
-#if defined _MSC_VER
 #include <chrono>
-#endif
 
 std::string U16toU8(char16_t* src) {
     try {
@@ -24,13 +22,10 @@ size_t U8toU16(std::string src, char16_t* des) {
     return tmp.length();
 }
 
-uint64_t getTime() {
-#ifndef _MSC_VER
-    struct timeval tp;
-    gettimeofday(&tp, NULL);
-    return tp.tv_sec * 1000 + tp.tv_usec / 1000;
-#else
-std::chrono::milliseconds value = std::chrono::duration_cast<std::chrono::milliseconds>((std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now())).time_since_epoch());
-return (uint64_t)(value.count());
-#endif
+time_t getTime() {
+    using namespace std::chrono;
+
+    milliseconds value = duration_cast<milliseconds>((time_point_cast<milliseconds>(high_resolution_clock::now())).time_since_epoch());
+
+    return (time_t)value.count();
 }
