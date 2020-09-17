@@ -24,7 +24,7 @@ void TransportManager::transportRegisterLocationHandler(CNSocket* sock, CNPacket
     sP_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION* transport = (sP_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
-    std::cout << "request to register transport, eTT " << transport->eTT << ", locID " << transport->iLocationID << ", npc " << transport->iNPC_ID << std::endl;
+    //std::cout << "request to register transport, eTT " << transport->eTT << ", locID " << transport->iLocationID << ", npc " << transport->iNPC_ID << std::endl;
     if (transport->eTT == 1) { // S.C.A.M.P.E.R.
         if (transport->iLocationID < 1 || transport->iLocationID > 31) { // sanity check
             std::cout << "[WARN] S.C.A.M.P.E.R. location ID " << transport->iLocationID << " is out of bounds" << std::endl;
@@ -130,12 +130,13 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
          * Not strictly necessary since there isn't a valid SCAMPER that puts you in the
          * same map tile you were already in, but we might as well force an NPC reload.
          */
-        plrv.viewable.clear();
-        plrv.viewableNPCs.clear();
+        PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
+        plrv.currentChunks.clear();
+        plrv.chunkPos = std::make_pair<int, int>(0, 0);
         break;
     case 2: // Monkey Skyway
         if (SkywayPaths.find(route.mssRouteNum) != SkywayPaths.end()) // sanity check
-            points = &SkywayPaths[route.mssRouteNum];
+            SkywayQueue[sock] = SkywayPaths[route.mssRouteNum];
         else
             std::cout << "[WARN] MSS route " << route.mssRouteNum << " not pathed" << std::endl;
         break;
@@ -152,14 +153,6 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
     resp.iY = plr->y;
     resp.iZ = plr->z;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC));
-
-    PlayerView& plrv = PlayerManager::players[sock];
-    
-    PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
-    plrv.currentChunks.clear();
-    plrv.chunkPos = std::make_pair<int, int>(0, 0);
-    if (points != nullptr) // check if skyway path set
-        SkywayQueue[sock] = *points;
 }
 
 void TransportManager::tickSkywaySystem(CNServer* serv, time_t currTime) {
@@ -170,18 +163,26 @@ void TransportManager::tickSkywaySystem(CNServer* serv, time_t currTime) {
     while (it != SkywayQueue.end()) {
 
         std::queue<WarpLocation>* queue = &it->second;
-        Player* plr = PlayerManager::getPlayer(it->first);
-        if (plr == nullptr) {
-            // sanity check
-            it = SkywayQueue.erase(it); // remove player from tracking map + update iterator
+        PlayerView& plr = PlayerManager::players[it->first];
+
+        if (plr.plr == nullptr) {
+            // pluck out dead queue + update iterator
+            it = SkywayQueue.erase(it);
+            continue;
         }
-        else if (queue->empty()) {
+
+        if (queue->empty()) {
             // send dismount packet
             INITSTRUCT(sP_FE2CL_REP_PC_RIDING_SUCC, rideSucc);
-            rideSucc.iPC_ID = plr == nullptr ? 0 : plr->iID;
+            INITSTRUCT(sP_FE2CL_PC_RIDING, rideBroadcast);
+            rideSucc.iPC_ID = plr.plr->iID;
             rideSucc.eRT = 0;
+            rideBroadcast.iPC_ID = plr.plr->iID;
+            rideBroadcast.eRT = 0;
             it->first->sendPacket((void*)&rideSucc, P_FE2CL_REP_PC_RIDING_SUCC, sizeof(sP_FE2CL_REP_PC_RIDING_SUCC));
-            // TODO: send packet to nearby players?
+            // send packet to players in view (the client does NOT like this for some reason)
+            for (CNSocket* otherSock : plr.viewable)
+                otherSock->sendPacket((void*)&rideBroadcast, P_FE2CL_PC_RIDING, sizeof(sP_FE2CL_PC_RIDING));
             it = SkywayQueue.erase(it); // remove player from tracking map + update iterator
         }
         else {
@@ -189,12 +190,16 @@ void TransportManager::tickSkywaySystem(CNServer* serv, time_t currTime) {
             queue->pop(); // remove point from front of queue
 
             INITSTRUCT(sP_FE2CL_PC_BROOMSTICK_MOVE, bmstk);
-            bmstk.iPC_ID = plr == nullptr ? 0 : plr->iID;
+            bmstk.iPC_ID = plr.plr->iID;
             bmstk.iToX = point.x;
             bmstk.iToY = point.y;
             bmstk.iToZ = point.z;
             it->first->sendPacket((void*)&bmstk, P_FE2CL_PC_BROOMSTICK_MOVE, sizeof(sP_FE2CL_PC_BROOMSTICK_MOVE));
-            // TODO: send packet to nearby players?
+            // set player location to point to get better view
+            PlayerManager::updatePlayerPosition(it->first, point.x, point.y, point.z);
+            // send packet to players in view
+            for(CNSocket* otherSock : plr.viewable)
+                otherSock->sendPacket((void*)&bmstk, P_FE2CL_PC_BROOMSTICK_MOVE, sizeof(sP_FE2CL_PC_BROOMSTICK_MOVE));
 
             it++; // go to next entry in map
         }
