@@ -52,11 +52,7 @@ void TableData::init() {
 
         nlohmann::json pathDataSkyway = pathData["skyway"];
         for (nlohmann::json::iterator skywayPath = pathDataSkyway.begin(); skywayPath != pathDataSkyway.end(); skywayPath++) {
-            std::vector<WarpLocation> points;
-            nlohmann::json pathPoints = skywayPath.value()["points"];
-            for (nlohmann::json::iterator point = pathPoints.begin(); point != pathPoints.end(); point++)
-                points.push_back({point.value()["iX"], point.value()["iY"], point.value()["iZ"] });
-            TransportManager::SkywayPaths[skywayPath.value()["iRouteID"]] = points;
+            constructPath(skywayPath);
         }
 
         std::cout << "[INFO] Loaded " << TransportManager::SkywayPaths.size() << " skyway paths" << std::endl;
@@ -234,4 +230,30 @@ int TableData::getItemType(int itemSet) {
         overriden = -1;
     }
     return overriden;
+}
+
+void TableData::constructPath(nlohmann::json::iterator pathData) {
+    // Interpolate
+    nlohmann::json pathPoints = pathData.value()["points"];
+    std::queue<WarpLocation> points;
+    nlohmann::json::iterator point = pathPoints.begin();
+    WarpLocation last = { point.value()["iX"] , point.value()["iY"] , point.value()["iZ"] }; // start pos
+    // use some for loop trickery
+    for (point++; point != pathPoints.end(); point++) {
+        WarpLocation coords = { point.value()["iX"] , point.value()["iY"] , point.value()["iZ"] };
+        // avoiding pow here
+        int distanceBetween = sqrt((last.x - coords.x) * (last.x - coords.x) + (last.y - coords.y) * (last.y - coords.y) + (last.z - coords.z) * (last.z - coords.z));
+        int lerps = distanceBetween / (int)pathData.value()["iMaxGapSize"]; // integer division to ensure a whole number
+        for (int i = 0; i < lerps; i++) {
+            WarpLocation lerp;
+            float frac = (i + 1) * 1.0f / (lerps + 1);
+            lerp.x = (last.x * (1.0f - frac)) + (coords.x * frac);
+            lerp.y = (last.y * (1.0f - frac)) + (coords.y * frac);
+            lerp.z = (last.z * (1.0f - frac)) + (coords.z * frac);
+            points.push(lerp); // add lerp'd point to the queue
+        }
+        points.push(coords);
+        last = coords; // update start pos
+    }
+    TransportManager::SkywayPaths[pathData.value()["iRouteID"]] = points;
 }

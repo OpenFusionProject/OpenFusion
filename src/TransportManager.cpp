@@ -7,7 +7,7 @@
 
 std::map<int32_t, TransportRoute> TransportManager::Routes;
 std::map<int32_t, TransportLocation> TransportManager::Locations;
-std::map<int32_t, std::vector<WarpLocation>> TransportManager::SkywayPaths;
+std::map<int32_t, std::queue<WarpLocation>> TransportManager::SkywayPaths;
 std::unordered_map<CNSocket*, std::queue<WarpLocation>> TransportManager::SkywayQueue;
 
 void TransportManager::init() {
@@ -118,7 +118,7 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
 
     TransportLocation target;
     PlayerView& plrv = PlayerManager::players[sock];
-    std::vector<WarpLocation>* points = nullptr;
+    std::queue<WarpLocation>* points = nullptr;
     switch (route.type)
     {
     case 1: // S.C.A.M.P.E.R.
@@ -153,37 +153,13 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
     resp.iZ = plr->z;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC));
 
-    /*
-     * Not strictly necessary since there isn't a valid SCAMPER that puts you in the
-     * same map tile you were already in, but we might as well force an NPC reload.
-     */
     PlayerView& plrv = PlayerManager::players[sock];
     
     PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
     plrv.currentChunks.clear();
     plrv.chunkPos = std::make_pair<int, int>(0, 0);
-    if (points == nullptr) // no skyway path set
-        return;
-
-    // Interpolate
-    std::queue<WarpLocation> queue;
-    WarpLocation last = { plr->x, plr->y, plr->z }; // start pos
-    for (std::vector<WarpLocation>::iterator point = points->begin(); point != points->end(); point++) {
-        // avoiding pow here
-        int distanceBetween = sqrt((last.x - point->x) * (last.x - point->x) + (last.y - point->y) * (last.y - point->y) + (last.z - point->z) * (last.z - point->z));
-        int lerps = distanceBetween / (int)LERP_GAP; // integer division to ensure a whole number
-        for (int i = 0; i < lerps; i++) {
-            WarpLocation lerp;
-            float frac = (i + 1) * 1.0f / (lerps + 1);
-            lerp.x = (last.x * (1.0f - frac)) + (point->x * frac);
-            lerp.y = (last.y * (1.0f - frac)) + (point->y * frac);
-            lerp.z = (last.z * (1.0f - frac)) + (point->z * frac);
-            queue.push(lerp); // add lerp'd point to the queue
-        }
-        queue.push(*point);
-        last = { point->x, point->y, point->z }; // update start pos
-    }
-    SkywayQueue[sock] = queue;
+    if (points != nullptr) // check if skyway path set
+        SkywayQueue[sock] = *points;
 }
 
 void TransportManager::tickSkywaySystem(CNServer* serv, time_t currTime) {
