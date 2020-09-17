@@ -222,7 +222,9 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iActiveNanoSlotNum = -1;
     response.PCLoadData2CL.iFatigue = 50;
     response.PCLoadData2CL.PCStyle = plr.PCStyle;
-    response.PCLoadData2CL.PCStyle2 = plr.PCStyle2;
+    
+    //client doesnt read this, it gets it from charinfo
+    //response.PCLoadData2CL.PCStyle2 = plr.PCStyle2;
     // inventory
     for (int i = 0; i < AEQUIP_COUNT; i++)
         response.PCLoadData2CL.aEquip[i] = plr.Equip[i];
