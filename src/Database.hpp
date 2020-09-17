@@ -74,12 +74,9 @@ namespace Database {
     struct DbQuest {
         int PlayerId;
         int32_t TaskId;
-        int KillNPCCount1;
-        int KillNPCCount2;
-        int KillNPCCount3;
-        int NeededItemCount1;
-        int NeededItemCount2;
-        int NeededItemCount3;
+        int RemainingNPCCount1;
+        int RemainingNPCCount2;
+        int RemainingNPCCount3;
     };
 
 
