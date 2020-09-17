@@ -112,7 +112,8 @@ void TableData::init() {
             itemSet = xdtData[setNames[i]]["m_pItemData"];
             for (nlohmann::json::iterator _item = itemSet.begin(); _item != itemSet.end(); _item++) {
                 auto item = _item.value();
-                ItemManager::ItemData[std::pair<int32_t, int32_t>(item["m_iItemNumber"], i == 11 ? 9 : (i == 10 ? 7 : (int)item["m_iEquipLoc"]))]
+                int typeOverride = getItemType(i);
+                ItemManager::ItemData[std::pair<int32_t, int32_t>(item["m_iItemNumber"], typeOverride != -1 ? typeOverride : (int)item["m_iEquipLoc"])]
                 = { item["m_iTradeAble"] == 1, item["m_iSellAble"] == 1, item["m_iItemPrice"], item["m_iItemSellPrice"], item["m_iStackNumber"], i > 9 ? 0 : (int)item["m_iMinReqLev"],
                 i > 9 ? 1 : (int)item["m_iRarity"] };
             }
@@ -189,4 +190,23 @@ void TableData::cleanup() {
         delete pair.second;
     for (auto& pair : NPCManager::NPCs)
         delete pair.second;
+}
+
+int TableData::getItemType(int itemSet) {
+    int overriden;
+    switch (itemSet)
+    {
+    case 11:
+        overriden = 9;
+        break;
+    case 10:
+        overriden = 7;
+        break;
+    case 9:
+        overriden = 10;
+        break;
+    default:
+        overriden = -1;
+    }
+    return overriden;
 }
