@@ -6,6 +6,8 @@
 
 #include "settings.hpp"
 
+#include <assert.h>
+
 #include <algorithm>
 #include <vector>
 #include <cmath>
@@ -45,6 +47,8 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
     players[key].plr = p;
     players[key].lastHeartbeat = 0;
 
+    key->plr = p;
+
     std::cout << U16toU8(plr.PCStyle.szFirstName) << " " << U16toU8(plr.PCStyle.szLastName) << " has joined!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
 }
@@ -66,10 +70,15 @@ void PlayerManager::removePlayer(CNSocket* key) {
     std::cout << U16toU8(cachedView.plr->PCStyle.szFirstName) << " " << U16toU8(cachedView.plr->PCStyle.szLastName) << " has left!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
 
+    key->plr = nullptr;
     delete cachedView.plr;
     players.erase(key);
 }
 
+void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, int angle) {
+    players[sock].plr->angle = angle;
+    updatePlayerPosition(sock, X, Y, Z);
+}
 void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
     players[sock].plr->x = X;
     players[sock].plr->y = Y;
@@ -159,6 +168,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
     NPCManager::updatePlayerNPCS(sock, players[sock]);
 }
 
+
 std::list<CNSocket*> PlayerManager::getNearbyPlayers(int x, int y, int dist) {
     std::list<CNSocket*> plrs;
 
@@ -192,51 +202,48 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tPC_UID: " << plr.PCStyle.iPC_UID << std::endl;
     )
 
-    response.iID = rand();
+    response.iID = plr.iID;
     response.uiSvrTime = getTime();
-    response.PCLoadData2CL.iUserLevel = 1;
-    response.PCLoadData2CL.iHP = 3625; //TODO: Check player levelupdata and get this right
+    response.PCLoadData2CL.iUserLevel = plr.level;
+    response.PCLoadData2CL.iHP = plr.HP;
     response.PCLoadData2CL.iLevel = plr.level;
     response.PCLoadData2CL.iCandy = plr.money;
-    response.PCLoadData2CL.iMentor = 1;
-    response.PCLoadData2CL.iMentorCount = 4;
+    response.PCLoadData2CL.iMentor = 5; // Computress
+    response.PCLoadData2CL.iMentorCount = 1; // how many guides the player has had
     response.PCLoadData2CL.iMapNum = 0;
     response.PCLoadData2CL.iX = plr.x;
     response.PCLoadData2CL.iY = plr.y;
     response.PCLoadData2CL.iZ = plr.z;
-    response.PCLoadData2CL.iAngle = 130;
+    response.PCLoadData2CL.iAngle = plr.angle;
+
     response.PCLoadData2CL.iActiveNanoSlotNum = -1;
     response.PCLoadData2CL.iFatigue = 50;
     response.PCLoadData2CL.PCStyle = plr.PCStyle;
     response.PCLoadData2CL.PCStyle2 = plr.PCStyle2;
-
+    // inventory
     for (int i = 0; i < AEQUIP_COUNT; i++)
         response.PCLoadData2CL.aEquip[i] = plr.Equip[i];
 
     for (int i = 0; i < AINVEN_COUNT; i++)
         response.PCLoadData2CL.aInven[i] = plr.Inven[i];
-
-    // don't ask..
-    for (int i = 1; i < 37; i++) {
-        response.PCLoadData2CL.aNanoBank[i].iID = i;
-        response.PCLoadData2CL.aNanoBank[i].iSkillID = 1;
-        response.PCLoadData2CL.aNanoBank[i].iStamina = 150;
+    // nanos
+    for (int i = 1; i < SIZEOF_NANO_BANK_SLOT; i++) {
+        response.PCLoadData2CL.aNanoBank[i] = plr.Nanos[i];
+    }
+    for (int i = 0; i < 3; i++) {
+        response.PCLoadData2CL.aNanoSlots[i] = plr.equippedNanos[i];
     }
 
-    // temporarily not add nanos for nano add test through commands
-    //response.PCLoadData2CL.aNanoSlots[0] = 1;
-    //response.PCLoadData2CL.aNanoSlots[1] = 2;
-    //response.PCLoadData2CL.aNanoSlots[2] = 3;
+    // missions
+    for (int i = 0; i < 16; i++) {
+        response.PCLoadData2CL.aQuestFlag[i] = plr.aQuestFlag[i];
+    }
 
-    response.PCLoadData2CL.aQuestFlag[0] = -1;
-
-    // shut computress up
+    // shut Computress up
     response.PCLoadData2CL.iFirstUseFlag1 = UINT64_MAX;
     response.PCLoadData2CL.iFirstUseFlag2 = UINT64_MAX;
 
-    plr.iID = response.iID;
     plr.SerialKey = enter->iEnterSerialKey;
-    plr.HP = response.PCLoadData2CL.iHP;
 
     motd.iType = 1;
     U8toU16(settings::MOTDSTRING, (char16_t*)motd.szSystemMsg);
@@ -269,7 +276,7 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
     response.iPC_ID = complete->iPC_ID;
 
     // reload players & NPCs
-    updatePlayerPosition(sock, plr->x, plr->y, plr->z);
+    updatePlayerPosition(sock, plr->x, plr->y, plr->z, plr->angle);
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC));
 }
@@ -279,7 +286,7 @@ void PlayerManager::movePlayer(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_REQ_PC_MOVE* moveData = (sP_CL2FE_REQ_PC_MOVE*)data->buf;
-    updatePlayerPosition(sock, moveData->iX, moveData->iY, moveData->iZ);
+    updatePlayerPosition(sock, moveData->iX, moveData->iY, moveData->iZ, moveData->iAngle);
 
     players[sock].plr->angle = moveData->iAngle;
     uint64_t tm = getTime();
@@ -336,7 +343,7 @@ void PlayerManager::jumpPlayer(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_REQ_PC_JUMP* jumpData = (sP_CL2FE_REQ_PC_JUMP*)data->buf;
-    updatePlayerPosition(sock, jumpData->iX, jumpData->iY, jumpData->iZ);
+    updatePlayerPosition(sock, jumpData->iX, jumpData->iY, jumpData->iZ, jumpData->iAngle);
 
     uint64_t tm = getTime();
 
@@ -367,7 +374,7 @@ void PlayerManager::jumppadPlayer(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_REQ_PC_JUMPPAD* jumppadData = (sP_CL2FE_REQ_PC_JUMPPAD*)data->buf;
-    updatePlayerPosition(sock, jumppadData->iX, jumppadData->iY, jumppadData->iZ);
+    updatePlayerPosition(sock, jumppadData->iX, jumppadData->iY, jumppadData->iZ, jumppadData->iAngle);
 
     uint64_t tm = getTime();
 
@@ -396,7 +403,7 @@ void PlayerManager::launchPlayer(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_REQ_PC_LAUNCHER* launchData = (sP_CL2FE_REQ_PC_LAUNCHER*)data->buf;
-    updatePlayerPosition(sock, launchData->iX, launchData->iY, launchData->iZ);
+    updatePlayerPosition(sock, launchData->iX, launchData->iY, launchData->iZ, launchData->iAngle);
 
     uint64_t tm = getTime();
 
@@ -426,7 +433,7 @@ void PlayerManager::ziplinePlayer(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_REQ_PC_ZIPLINE* ziplineData = (sP_CL2FE_REQ_PC_ZIPLINE*)data->buf;
-    updatePlayerPosition(sock, ziplineData->iX, ziplineData->iY, ziplineData->iZ);
+    updatePlayerPosition(sock, ziplineData->iX, ziplineData->iY, ziplineData->iZ, ziplineData->iAngle);
 
     uint64_t tm = getTime();
 
@@ -443,7 +450,7 @@ void PlayerManager::ziplinePlayer(CNSocket* sock, CNPacketData* data) {
     ziplineResponse.fVZ = ziplineData->fVZ;
     ziplineResponse.fMovDistance = ziplineData->fMovDistance;
     ziplineResponse.fMaxDistance = ziplineData->fMaxDistance;
-    ziplineResponse.fDummy = ziplineData->fDummy; //wtf is this for?
+    ziplineResponse.fDummy = ziplineData->fDummy; // wtf is this for?
     ziplineResponse.iStX = ziplineData->iStX;
     ziplineResponse.iStY = ziplineData->iStY;
     ziplineResponse.iStZ = ziplineData->iStZ;
@@ -463,7 +470,7 @@ void PlayerManager::movePlatformPlayer(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_REQ_PC_MOVEPLATFORM* platformData = (sP_CL2FE_REQ_PC_MOVEPLATFORM*)data->buf;
-    updatePlayerPosition(sock, platformData->iX, platformData->iY, platformData->iZ);
+    updatePlayerPosition(sock, platformData->iX, platformData->iY, platformData->iZ, platformData->iAngle);
 
     uint64_t tm = getTime();
 
@@ -497,7 +504,7 @@ void PlayerManager::moveSlopePlayer(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_REQ_PC_SLOPE* slopeData = (sP_CL2FE_REQ_PC_SLOPE*)data->buf;
-    updatePlayerPosition(sock, slopeData->iX, slopeData->iY, slopeData->iZ);
+    updatePlayerPosition(sock, slopeData->iX, slopeData->iY, slopeData->iZ,slopeData->iAngle);
 
     uint64_t tm = getTime();
 
@@ -528,6 +535,7 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_GOTO* gotoData = (sP_CL2FE_REQ_PC_GOTO*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, response);
+    PlayerView& plrv = players[sock];
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_GOTO:" << std::endl;
@@ -536,9 +544,13 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tZ: " << gotoData->iToZ << std::endl;
     )
 
-    response.iX = gotoData->iToX;
-    response.iY = gotoData->iToY;
-    response.iZ = gotoData->iToZ;
+    response.iX = plrv.plr->x = gotoData->iToX;
+    response.iY = plrv.plr->y = gotoData->iToY;
+    response.iZ = plrv.plr->z = gotoData->iToZ;
+
+    // force player & NPC reload
+    plrv.viewable.clear();
+    plrv.viewableNPCs.clear();
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
 }
@@ -548,6 +560,8 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_GM_REQ_PC_SET_VALUE* setData = (sP_CL2FE_GM_REQ_PC_SET_VALUE*)data->buf;
+    Player *plr = PlayerManager::getPlayer(sock);
+
     INITSTRUCT(sP_FE2CL_GM_REP_PC_SET_VALUE, response);
 
     DEBUGLOG(
@@ -556,6 +570,27 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tSetValueType: " << setData->iSetValueType << std::endl;
         std::cout << "\tSetValue: " << setData->iSetValue << std::endl;
     )
+
+    // Handle serverside value-changes
+    switch (setData->iSetValueType) {
+    case 1:
+        plr->HP = setData->iSetValue;
+        break;
+    case 2:
+        // TODO: batteryW
+        break;
+    case 3:
+        // TODO: batteryN nanopotion
+        break;
+    case 4:
+        plr->fusionmatter = setData->iSetValue;
+        break;
+    case 5:
+        plr->money = setData->iSetValue;
+        break;
+    default:
+        break;
+    }
 
     response.iPC_ID = setData->iPC_ID;
     response.iSetValue = setData->iSetValue;
@@ -588,37 +623,66 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
     WarpLocation target = PlayerManager::getRespawnPoint(plr);
 
-    // players respawn at same spot they died at for now...
     sP_CL2FE_REQ_PC_REGEN* reviveData = (sP_CL2FE_REQ_PC_REGEN*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_REGEN_SUCC, response);
+    INITSTRUCT(sP_FE2CL_PC_REGEN, resp2);
+
+    // Nanos
+    for (int n = 0; n < 3; n++) {
+        int nanoID = plr->equippedNanos[n];
+        plr->Nanos[nanoID].iStamina = 75; // max is 150, so 75 is half
+        response.PCRegenData.Nanos[n] = plr->Nanos[nanoID];
+    }
+
+    // Update player
+    plr->x = target.x;
+    plr->y = target.y;
+    plr->z = target.z;
+    plr->HP = 1000 * plr->level;
+
+    // Response parameters
+    response.PCRegenData.iActiveNanoSlotNum = plr->activeNano;
+    response.PCRegenData.iX = plr->x;
+    response.PCRegenData.iY = plr->y;
+    response.PCRegenData.iZ = plr->z;
+    response.PCRegenData.iHP = plr->HP;
+    response.iFusionMatter = plr->fusionmatter;
     response.bMoveLocation = reviveData->eIL;
     response.PCRegenData.iMapNum = reviveData->iIndex;
-    response.PCRegenData.iHP = 1000 * plr->level;
-    response.PCRegenData.iX = target.x;
-    response.PCRegenData.iY = target.y;
-    response.PCRegenData.iZ = target.z;
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_REGEN_SUCC, sizeof(sP_FE2CL_REP_PC_REGEN_SUCC));
+
+    // Update other players
+    resp2.PCRegenDataForOtherPC.iPC_ID = plr->iID;
+    resp2.PCRegenDataForOtherPC.iX = plr->x;
+    resp2.PCRegenDataForOtherPC.iY = plr->y;
+    resp2.PCRegenDataForOtherPC.iZ = plr->z;
+    resp2.PCRegenDataForOtherPC.iHP = plr->HP;
+    resp2.PCRegenDataForOtherPC.iAngle = plr->angle;
+    resp2.PCRegenDataForOtherPC.Nano = plr->Nanos[plr->activeNano];
+
+    for (CNSocket *s : players[sock].viewable)
+        s->sendPacket((void*)&resp2, P_FE2CL_PC_REGEN, sizeof(sP_FE2CL_PC_REGEN));
 }
 
 void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
-    
+
     PlayerView& plr = PlayerManager::players[sock];
- 
+
     if (plr.plr->Equip[8].iID > 0) {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_SUCC, response);
         sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_ON_SUCC));
-        
-        //send to other players
+
+        // send to other players
         plr.plr->iPCState = 8;
         INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
         response2.iPC_ID = plr.plr->iID;
         response2.iState = 8;
-        
+
         for (CNSocket* otherSock : plr.viewable) {
             otherSock->sendPacket((void*)&response2, P_FE2CL_PC_STATE_CHANGE, sizeof(sP_FE2CL_PC_STATE_CHANGE));
         }
-    
+
     } else {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_FAIL, response);
         sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_FAIL, sizeof(sP_FE2CL_PC_VEHICLE_ON_FAIL));
@@ -626,21 +690,21 @@ void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
-    
+
     INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
     sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_OFF_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_OFF_SUCC));
-    
+
     PlayerView plr = PlayerManager::players[sock];
 
-    //send to other players
+    // send to other players
     plr.plr->iPCState = 0;
     INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
     response2.iPC_ID = plr.plr->iID;
     response2.iState = 0;
-        
+
     for (CNSocket* otherSock : plr.viewable) {
         otherSock->sendPacket((void*)&response2, P_FE2CL_PC_STATE_CHANGE, sizeof(sP_FE2CL_PC_STATE_CHANGE));
-    }    
+    }
 }
 
 void PlayerManager::setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {
@@ -669,7 +733,8 @@ void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
 
 #pragma region Helper methods
 Player *PlayerManager::getPlayer(CNSocket* key) {
-    return players[key].plr;
+    assert(key->plr != nullptr);
+    return key->plr;
 }
 
 WarpLocation PlayerManager::getRespawnPoint(Player *plr) {
@@ -685,5 +750,29 @@ WarpLocation PlayerManager::getRespawnPoint(Player *plr) {
     }
 
     return best;
+}
+bool PlayerManager::isAccountInUse(int accountId) {
+    std::map<CNSocket*, PlayerView>::iterator it;
+    for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++)
+    {
+        if (it->second.plr->accountId == accountId)
+            return true;
+    }
+    return false;
+}
+
+void PlayerManager::exitDuplicate(int accountId) {
+    std::map<CNSocket*, PlayerView>::iterator it;
+    for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++)
+    {
+        if (it->second.plr->accountId == accountId)
+        {
+            CNSocket* sock = it->first;
+            INITSTRUCT(sP_FE2CL_REP_PC_EXIT_DUPLICATE, resp);
+            resp.iErrorCode = 0;
+            sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_EXIT_DUPLICATE, sizeof(sP_FE2CL_REP_PC_EXIT_DUPLICATE));
+            sock->kill();
+        }
+    }
 }
 #pragma endregion

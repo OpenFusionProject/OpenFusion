@@ -11,7 +11,7 @@ Further documentation pending.
 
 tl;dr:
 
-1. Download the client+server bundle from [here](https://github.com/OpenFusionProject/OpenFusion/releases/download/1.0/OpenFusion.zip).
+1. Download the client+server bundle from [here](https://github.com/OpenFusionProject/OpenFusion/releases/download/1.1/OpenFusion.zip).
 2. Run `FreeClient/installUnity.bat` once
 
 From then on, any time you want to run the "game":
@@ -70,7 +70,7 @@ This just works if you're all under the same LAN, but if you want to play over t
 
 If you're in a region in which Turner's CDN doesn't still have the game's assets cached, you won't be able to play the game in its default configuration.
 You'll need to obtain the necessary assets elsewhere and set up your own local web server to host them, because unlike web browsers, the game itself cannot interpret the `file://` schema, and will thus need the assets hosted on an actual HTTP server.
-Don't forget to point `assetInfo.php` to where you're hosting the assets and change the `src` param of both the `<embed>` tag and the `<object>` tag in `FreeClient/resources/files/index.html` to where you're hosting the `.unity3d` entrypoint.
+Don't forget to point `assetInfo.php` to where you're hosting the assets and change the `src` param of both the `<embed>` tag and the `<object>` tag in `FreeClient/resources/app/files/index.html` to where you're hosting the `.unity3d` entrypoint.
 
 If you change `loginInfo.php` or `assetInfo.php`, make sure not to put any newline characters (or any other whitespace) at the end of the file(s).
 Some modern IDEs/text editors do this automatically. If all else fails, use Notepad.
@@ -86,6 +86,10 @@ A detailed compilation guide is available for Windows users in the wiki [using M
 ### CMake
 
 A detailed guide is available [in the wiki](https://github.com/OpenFusionProject/OpenFusion/wiki/Compilation-with-CMake-or-Visual-Studio) for people using regular old CMake or the version of CMake that comes with Visual Studio. tl;dr: `cmake -B build`
+
+## Contributing
+
+If you'd like to contribute to this project, please read [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## "Gameplay"
 
@@ -111,3 +115,7 @@ To make your landwalking experience more pleasant, you can make use of a few adm
 * `/nano_equip [id] (1-36) [slot] (0-2)`
 * `/nano_unequip [slot] (0-2)`
 * `/nano_active [slot] (0-2)`
+
+## Accounts
+
+A basic account system has been added, when logging in if the username doesn't exist in the database, a new account with the provided password will be made and you'll be automatically logged in. Otherwise a login attempt will be made. A username must be between 4 and 32 characters, and a password must be between 8 and 32 characters otherwise the account will be rejected. Characters currently save only upon creation, any items add/traded will not be saved.

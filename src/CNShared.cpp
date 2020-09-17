@@ -2,7 +2,7 @@
 
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
     #include "mingw/mingw.mutex.h"
-#else 
+#else
     #include <mutex>
 #endif
 std::map<int64_t, Player> CNSharedData::players;

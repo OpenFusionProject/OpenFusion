@@ -13,6 +13,7 @@ private:
     static void handlePacket(CNSocket* sock, CNPacketData* data);
 
     static void keepAliveTimer(CNServer*, uint64_t);
+    static void periodicSaveTimer(CNServer* serv, uint64_t currTime);
 
 public:
     static std::map<uint32_t, PacketHandler> ShardPackets;

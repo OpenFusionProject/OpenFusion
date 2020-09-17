@@ -53,7 +53,7 @@ void ChatManager::emoteHandler(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT* emote = (sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT*)data->buf;
     PlayerView plr = PlayerManager::players[sock];
-    
+
     // send to client
     INITSTRUCT(sP_FE2CL_REP_PC_AVATAR_EMOTES_CHAT, resp);
     resp.iEmoteCode = emote->iEmoteCode;

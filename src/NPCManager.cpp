@@ -1,4 +1,5 @@
 #include "NPCManager.hpp"
+#include "ItemManager.hpp"
 #include "settings.hpp"
 
 #include <cmath>
@@ -14,72 +15,158 @@ std::map<int32_t, WarpLocation> NPCManager::Warps;
 std::vector<WarpLocation> NPCManager::RespawnPoints;
 
 void NPCManager::init() {
-    // load NPCs from NPCs.json into our NPC manager
-
-    try {
-        std::ifstream inFile(settings::NPCJSON);
-        nlohmann::json npcData;
-
-        // read file into json
-        inFile >> npcData;
-
-        for (nlohmann::json::iterator npc = npcData.begin(); npc != npcData.end(); npc++) {
-            BaseNPC tmp(npc.value()["x"], npc.value()["y"], npc.value()["z"], npc.value()["id"]);
-            NPCs[tmp.appearanceData.iNPC_ID] = tmp;
-
-            if (npc.value()["id"] == 641 || npc.value()["id"] == 642)
-                RespawnPoints.push_back({ npc.value()["x"], npc.value()["y"], ((int)npc.value()["z"]) + RESURRECT_HEIGHT });
-        }
-
-    }
-    catch (const std::exception& err) {
-        std::cerr << "[WARN] Malformed NPCs.json file! Reason:" << err.what() << std::endl;
-    }
-
-    // load temporary mob dump
-    try {
-        std::ifstream inFile("data/mobs.json"); // not in settings, since it's temp
-        nlohmann::json npcData;
-
-        // read file into json
-        inFile >> npcData;
-
-        for (nlohmann::json::iterator npc = npcData.begin(); npc != npcData.end(); npc++) {
-            BaseNPC tmp(npc.value()["iX"], npc.value()["iY"], npc.value()["iZ"], npc.value()["iNPCType"],
-                npc.value()["iHP"], npc.value()["iConditionBitFlag"], npc.value()["iAngle"], npc.value()["iBarkerType"]);
-
-            NPCs[tmp.appearanceData.iNPC_ID] = tmp;
-        }
-
-        std::cout << "[INFO] populated " << NPCs.size() << " NPCs" << std::endl;
-    }
-    catch (const std::exception& err) {
-        std::cerr << "[WARN] Malformed mobs.json file! Reason:" << err.what() << std::endl;
-    }
-
-    try {
-        std::ifstream infile(settings::WARPJSON);
-        nlohmann::json warpData;
-
-        // read file into json
-        infile >> warpData;
-
-        for (nlohmann::json::iterator warp = warpData.begin(); warp != warpData.end(); warp++) {
-            WarpLocation warpLoc = { warp.value()["m_iToX"], warp.value()["m_iToY"], warp.value()["m_iToZ"] };
-            int warpID = atoi(warp.key().c_str());
-            Warps[warpID] = warpLoc;
-        }
-
-        std::cout << "[INFO] populated " << Warps.size() << " Warps" << std::endl;
-    }
-    catch (const std::exception& err) {
-        std::cerr << "[WARN] Malformed warps.json file! Reason:" << err.what() << std::endl;
-    }
-
-
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_NPC, npcWarpHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NPC_SUMMON, npcSummonHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_BARKER, npcBarkHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_START, npcVendorStart);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE, npcVendorTable);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_BUY, npcVendorBuy);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_SELL, npcVendorSell);
+}
+
+void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY*)data->buf;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    int itemCost = 100; // TODO: placeholder, look up the price of item
+
+    int slot = ItemManager::findFreeSlot(plr);
+
+    if (itemCost > plr->money || slot == -1) {
+        // NOTE: VENDOR_ITEM_BUY_FAIL is not actually handled client-side.
+        INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, failResp);
+        failResp.iErrorCode = 0;
+        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL));
+        return;
+    }
+
+    if (slot != req->iInvenSlotNum) {
+        // possible item stacking?
+        std::cout << "[WARN] Client and server disagree on bought item slot (" << req->iInvenSlotNum << " vs " << slot << ")" << std::endl;
+    }
+
+    INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_SUCC, resp);
+
+    plr->money = plr->money - itemCost;
+    plr->Inven[slot] = req->Item;
+
+    resp.iCandy = plr->money;
+    resp.iInvenSlotNum = slot;
+    resp.Item = req->Item;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_SUCC));
+}
+
+void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL*)data->buf;
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    if (req->iInvenSlotNum < 0 || req->iInvenSlotNum >= AINVEN_COUNT || req->iItemCnt < 0) {
+        std::cout << "[WARN] Client failed to sell item in slot " << req->iInvenSlotNum << std::endl;
+        INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, failResp);
+        failResp.iErrorCode = 0;
+        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL));
+        return;
+    }
+
+    sItemBase* item = &plr->Inven[req->iInvenSlotNum];
+
+    INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC, resp);
+
+    int sellValue = 100 * req->iItemCnt; // TODO: lookup item price
+
+    // increment taros
+    plr->money = plr->money + sellValue;
+
+    // empty the slot; probably needs to be changed for stacks
+    item->iID = 0;
+    item->iOpt = 0;
+    item->iType = 0;
+    item->iTimeLimit = 0;
+
+    // response parameters
+    resp.iInvenSlotNum = req->iInvenSlotNum;
+    resp.iCandy = plr->money;
+    resp.Item = *item;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC));
+}
+
+void NPCManager::npcVendorTable(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE))
+        return; // malformed packet
+
+    //sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE* req = (sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, resp);
+    // TODO: data needs to be read from shopkeeper tabledata
+    // check req->iVendorID and req->iNPC_ID
+
+    // Exaple Items
+    // shirt
+    sItemBase base1;
+    base1.iID = 60;
+    base1.iOpt = 0;
+    // expire date
+    base1.iTimeLimit = 0;
+    base1.iType = 1;
+
+    sItemVendor item1;
+    item1.item = base1;
+    item1.iSortNum = 0;
+    item1.iVendorID = 1;
+    // cost amount in float? (doesn't work rn, need to figure out)
+    item1.fBuyCost = 100.0;
+
+    // pants
+    sItemBase base2;
+    base2.iID = 61;
+    base2.iOpt = 0;
+    base2.iTimeLimit = 0;
+    base2.iType = 2;
+
+    sItemVendor item2;
+    item2.item = base2;
+    item2.iSortNum = 1;
+    item2.iVendorID = 1;
+    item2.fBuyCost = 250.0;
+
+    // shoes
+    sItemBase base3;
+    base3.iID = 51;
+    base3.iOpt = 0;
+    base3.iTimeLimit = 0;
+    base3.iType = 3;
+
+    sItemVendor item3;
+    item3.item = base3;
+    item3.iSortNum = 2;
+    item3.iVendorID = 1;
+    item3.fBuyCost = 350.0;
+
+    resp.item[0] = item1;
+    resp.item[1] = item2;
+    resp.item[2] = item3;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC));
+}
+
+void NPCManager::npcVendorStart(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_START))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_VENDOR_START* req = (sP_CL2FE_REQ_PC_VENDOR_START*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_START_SUCC, resp);
+
+    resp.iNPC_ID = req->iNPC_ID;
+    resp.iVendorID = req->iVendorID;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_START_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_START_SUCC));
 }
 
 void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
@@ -133,22 +220,7 @@ void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
     PlayerManager::players[sock].viewableNPCs = view.viewableNPCs;
 }
 
-void NPCManager::npcBarkHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_BARKER* bark = (sP_CL2FE_REQ_BARKER*)data->buf;
-    PlayerView& plr = PlayerManager::players[sock];
-
-    INITSTRUCT(sP_FE2CL_REP_BARKER, resp);
-    resp.iMissionStringID = bark->iMissionTaskID;
-    resp.iNPC_ID = bark->iNPC_ID;
-
-    // Send bark to other players.
-    for (CNSocket* otherSock : plr.viewable) {
-        otherSock->sendPacket((void*)&resp, P_FE2CL_REP_BARKER, sizeof(sP_FE2CL_REP_BARKER));
-    }
-
-    // Then ourself.
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_BARKER, sizeof(sP_FE2CL_REP_BARKER));
-}
+void NPCManager::npcBarkHandler(CNSocket* sock, CNPacketData* data) {} // stubbed for now
 
 void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_NPC_SUMMON))
@@ -170,6 +242,8 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     resp.NPCAppearanceData.iZ = plr->z;
 
     sock->sendPacket((void*)&resp, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
+    for (CNSocket *s : PlayerManager::players[sock].viewable)
+        s->sendPacket((void*)&resp, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
 }
 
 void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {

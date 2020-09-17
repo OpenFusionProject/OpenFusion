@@ -26,6 +26,7 @@ namespace PlayerManager {
     void removePlayer(CNSocket* key);
 
     void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z);
+    void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, int angle);
     std::list<CNSocket*> getNearbyPlayers(int X, int Y, int dist);
 
     void enterPlayer(CNSocket* sock, CNPacketData* data);
@@ -52,4 +53,7 @@ namespace PlayerManager {
 
     Player *getPlayer(CNSocket* key);
     WarpLocation getRespawnPoint(Player *plr);
+
+    bool isAccountInUse(int accountId);
+    void exitDuplicate(int accountId);
 }

@@ -5,7 +5,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <stdint.h>
-#ifdef _WIN32 
+#ifdef _WIN32
 // windows
     #define _WINSOCK_DEPRECATED_NO_WARNINGS
     #include <winsock2.h>
@@ -46,7 +46,7 @@
 
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
     #include "mingw/mingw.mutex.h"
-#else 
+#else
     #include <mutex>
 #endif
 
@@ -75,14 +75,14 @@ inline void* xmalloc(size_t sz) {
 // for outbound packets
 inline bool validOutVarPacket(size_t base, int32_t npayloads, size_t plsize) {
     // check for multiplication overflow
-    if (npayloads > 0 && CN_PACKET_BUFFER_SIZE / (size_t)npayloads < plsize)
+    if (npayloads > 0 && (CN_PACKET_BUFFER_SIZE - 8) / (size_t)npayloads < plsize)
         return false;
 
     // it's safe to multiply
     size_t trailing = npayloads * plsize;
 
     // does it fit in a packet?
-    if (base + trailing > CN_PACKET_BUFFER_SIZE)
+    if (base + trailing > CN_PACKET_BUFFER_SIZE - 8)
         return false;
 
     // everything is a-ok!
@@ -92,7 +92,7 @@ inline bool validOutVarPacket(size_t base, int32_t npayloads, size_t plsize) {
 // for inbound packets
 inline bool validInVarPacket(size_t base, int32_t npayloads, size_t plsize, size_t datasize) {
     // check for multiplication overflow
-    if (npayloads > 0 && CN_PACKET_BUFFER_SIZE / (size_t)npayloads < plsize)
+    if (npayloads > 0 && (CN_PACKET_BUFFER_SIZE - 8) / (size_t)npayloads < plsize)
         return false;
 
     // it's safe to multiply
@@ -132,6 +132,8 @@ enum ACTIVEKEY {
     SOCKETKEY_FE
 };
 
+struct Player;
+
 class CNSocket;
 typedef void (*PacketHandler)(CNSocket* sock, CNPacketData* data);
 
@@ -153,6 +155,7 @@ private:
 public:
     SOCKET sock;
     PacketHandler pHandler;
+    Player *plr = nullptr;
 
     CNSocket(SOCKET s, PacketHandler ph);
 

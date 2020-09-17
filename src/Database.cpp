@@ -1,424 +1,530 @@
-#include "contrib/sqlite/sqlite3pp.h"
+#include "Database.hpp"
 #include "contrib/bcrypt/BCrypt.hpp"
 #include "CNProtocol.hpp"
-#include "Database.hpp"
+#include <string>
+#include "contrib/JSON.hpp"
 #include "CNStructs.hpp"
 #include "settings.hpp"
 #include "Player.hpp"
-#include <regex>
-#include <fstream>
-#include "contrib/JSON.hpp"
+#include "CNStructs.hpp"
+#include "contrib/sqlite/sqlite_orm.h"
+#include "MissionManager.hpp"
 
+using namespace sqlite_orm;
 
-//TODO: replace this sqlite wrapper with something better, clean up queries, get rid of json
+# pragma region DatabaseScheme
+auto db = make_storage("database.db",
+    make_table("Accounts",
+        make_column("AccountID", &Database::Account::AccountID, autoincrement(), primary_key()),
+        make_column("Login", &Database::Account::Login),
+        make_column("Password", &Database::Account::Password),
+        make_column("Selected", &Database::Account::Selected)
+    ),
+    make_table("Players",
+        make_column("PlayerID", &Database::DbPlayer::PlayerID, autoincrement(), primary_key()),
+        make_column("AccountID", &Database::DbPlayer::AccountID),
+        make_column("Slot", &Database::DbPlayer::slot),
+        make_column("Firstname", &Database::DbPlayer::FirstName, collate_nocase()),
+        make_column("LastName", &Database::DbPlayer::LastName, collate_nocase()),
+        make_column("Level", &Database::DbPlayer::Level),
+        make_column("Nano1", &Database::DbPlayer::Nano1),
+        make_column("Nano2", &Database::DbPlayer::Nano2),
+        make_column("Nano3", &Database::DbPlayer::Nano3),
+        make_column("AppearanceFlag", &Database::DbPlayer::AppearanceFlag),
+        make_column("TutorialFlag", &Database::DbPlayer::TutorialFlag),
+        make_column("PayZoneFlag", &Database::DbPlayer::PayZoneFlag),
+        make_column("XCoordinates", &Database::DbPlayer::x_coordinates),
+        make_column("YCoordinates", &Database::DbPlayer::y_coordinates),
+        make_column("ZCoordinates", &Database::DbPlayer::z_coordinates),
+        make_column("Angle", &Database::DbPlayer::angle),
+        make_column("Body", &Database::DbPlayer::Body),
+        make_column("Class", &Database::DbPlayer::Class),
+        make_column("EyeColor", &Database::DbPlayer::EyeColor),
+        make_column("FaceStyle", &Database::DbPlayer::FaceStyle),
+        make_column("Gender", &Database::DbPlayer::Gender),
+        make_column("HP", &Database::DbPlayer::HP),
+        make_column("HairColor", &Database::DbPlayer::HairColor),
+        make_column("HairStyle", &Database::DbPlayer::HairStyle),
+        make_column("Height", &Database::DbPlayer::Height),
+        make_column("NameCheck", &Database::DbPlayer::NameCheck),
+        make_column("SkinColor", &Database::DbPlayer::SkinColor),
+        make_column("isGM", &Database::DbPlayer::isGM),
+        make_column("FusionMatter", &Database::DbPlayer::FusionMatter),
+        make_column("Taros", &Database::DbPlayer::Taros),
+        make_column("Quests", &Database::DbPlayer::QuestFlag)
+    ),
+    make_table("Inventory",
+        make_column("PlayerId", &Database::Inventory::playerId),
+        make_column("Slot", &Database::Inventory::slot),
+        make_column("Id", &Database::Inventory::id),
+        make_column("Type", &Database::Inventory::Type),
+        make_column("Opt", &Database::Inventory::Opt),
+        make_column("TimeLimit", &Database::Inventory::TimeLimit)
+    ),
+    make_table("Nanos",
+        make_column("PlayerId", &Database::Nano::playerId),
+        make_column("Id", &Database::Nano::iID),
+        make_column("Skill", &Database::Nano::iSkillID),
+        make_column("Stamina", &Database::Nano::iStamina)
+    )
+);
 
-sqlite3pp::database db;
+# pragma endregion DatabaseScheme
 
-void Database::open() {
-    //checking if database file exists
-    std::ifstream file;
-    file.open("data.db");
+#pragma region LoginServer
 
-    if (file) {
-        file.close();
-        // if exists, assign it		
-        db = sqlite3pp::database("data.db");
-        DEBUGLOG(std::cout << "[DB] Database in operation" << std::endl; )
-    }
-    else {
-        // if doesn't, create all the tables
-        DEBUGLOG(std::cout << "[DB] Creating new database" << std::endl;)
-            db = sqlite3pp::database("data.db");
-
-        // creates accounts
-        db.execute("CREATE TABLE Accounts(AccountID INTEGER PRIMARY KEY AUTOINCREMENT, Login TEXT NOT NULL, Password TEXT NOT NULL);");
-        // creates characters
-        db.execute("CREATE TABLE Players(PlayerID INTEGER PRIMARY KEY AUTOINCREMENT, AccountID INTEGER NOT NULL, Slot INTEGER NOT NULL, FirstName TEXT NOT NULL, LastName TEXT NOT NULL, CharData TEXT NOT NULL);");
-
-        DEBUGLOG(std::cout << "Done" << std::endl;)
-    }
+void Database::open()
+{
+    // this parameter means it will try to preserve data during migration
+    bool preserve = true;
+    db.sync_schema(preserve);
+    DEBUGLOG(
+        std::cout << "[DB] Database in operation" << std::endl;
+    )
 }
 
-// verifies that the username & passwords are valid
-bool Database::isLoginDataGood(std::string login, std::string password) {
-    std::regex loginRegex("^([A-Za-z\\d_\\-]){5,20}$");
-    std::regex passwordRegex("^([A-Za-z\\d_\\-@$!%*#?&,.+:;<=>]){2,20}$");
-    return (std::regex_match(login, loginRegex) && std::regex_match(password, passwordRegex));
-}
-
-void Database::addAccount(std::string login, std::string password) {
-    // generates prepared statment
-    sqlite3pp::command cmd(db, "INSERT INTO Accounts (Login, Password) VALUES (:login, :password)");
-
-    // generates a hashed password!
+int Database::addAccount(std::string login, std::string password)
+{
     password = BCrypt::generateHash(password);
-
-    // binds args to the command
-    cmd.bind(":login", login, sqlite3pp::nocopy);
-    cmd.bind(":password", password, sqlite3pp::nocopy);
-    cmd.execute();
+    Account x = {};
+    x.Login = login;
+    x.Password = password;
+    x.Selected = 1;
+    return db.insert(x);
 }
 
-bool Database::doesUserExist(std::string login) {
-    // generates prepared statement
-    sqlite3pp::query qry(db, "SELECT COUNT(AccountID) FROM Accounts WHERE Login = :login");
-    // binds to the query
-    qry.bind(":login", login, sqlite3pp::nocopy);
-
-    // executes
-    sqlite3pp::query::iterator i = qry.begin();
-
-    // grabs the first result (the count)
-    int result;
-    std::tie(result) = (*i).get_columns<int>(0);
-
-    // if there is more than 0 results, the user exists :eyes:
-    return (result > 0);
+void Database::updateSelected(int accountId, int slot)
+{
+    Account acc = db.get<Account>(accountId);
+    acc.Selected = slot;
+    db.update(acc);
 }
 
-bool Database::isPasswordCorrect(std::string login, std::string password) {
-    // generates prepared statement
-    sqlite3pp::query qry(db, "SELECT Password FROM Accounts WHERE Login = :login");
-    // binds username to the query
-    qry.bind(":login", login, sqlite3pp::nocopy);
-
-    // executes
-    sqlite3pp::query::iterator i = qry.begin();
-
-    // grabs the first result
-    const char* actual;
-    std::tie(actual) = (*i).get_columns<const char*>(0);
-
-    // validate password hash with provded password
-    return BCrypt::validatePassword(password, actual);
+std::unique_ptr<Database::Account> Database::findAccount(std::string login)
+{
+    // this is awful, I've tried everything to improve it
+    auto find = db.get_all<Account>(
+        where(c(&Account::Login) == login), limit(1));
+    if (find.empty())
+        return nullptr;
+    return
+        std::unique_ptr<Account>(new Account(find.front()));
 }
 
-int Database::getUserID(std::string login) {
-    // generates prep statement
-    sqlite3pp::query qry(db, "SELECT AccountID FROM Accounts WHERE Login = :login");
-    // binds the username to the login param
-    qry.bind(":login", login, sqlite3pp::nocopy);
-
-    // executes the query
-    sqlite3pp::query::iterator i = qry.begin();
-
-    // grabs the first result of the query
-    int result;
-    std::tie(result) = (*i).get_columns<int>(0);
-
-    // returns the result
-    return result;
+bool Database::isNameFree(sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck)
+{
+    std::string First = U16toU8(nameCheck->szFirstName);
+    std::string Last = U16toU8(nameCheck->szLastName);
+    return
+        (db.get_all<DbPlayer>
+            (where((c(&DbPlayer::FirstName) == First)
+                and (c(&DbPlayer::LastName) == Last)))
+            .empty());
 }
 
-int Database::getUserSlotsNum(int AccountId) {
-    // generates the prepared statement
-    sqlite3pp::query qry(db, "SELECT COUNT(PlayerID) FROM Players WHERE AccountID = :ID");
+int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
+{
+    // fail if the player already has 4 or more characters
+    if (db.count<DbPlayer>(where(c(&DbPlayer::AccountID) == AccountID)) >= 4)
+        return -1;
 
-    // binds the ID to the param
-    qry.bind(":ID", AccountId);
+    DbPlayer create = {};
 
-    // executes
-    sqlite3pp::query::iterator i = qry.begin();
+    // save packet data
+    create.FirstName = U16toU8(save->szFirstName);
+    create.LastName = U16toU8(save->szLastName);
+    create.slot = save->iSlotNum;
+    create.AccountID = AccountID;
 
-    // grabs the first result
-    int result;
-    std::tie(result) = (*i).get_columns<int>(0);
+    // set flags
+    create.AppearanceFlag = 0;
+    create.TutorialFlag = 0;
+    create.PayZoneFlag = 0;
 
-    // returns the result
-    return result;
-}
-
-bool Database::isNameFree(std::string First, std::string Second) {
-    // generates the prepared statement
-    sqlite3pp::query qry(db, "SELECT COUNT(PlayerID) FROM Players WHERE FirstName = :First COLLATE nocase AND LastName = :Second COLLATE nocase");
-
-    // binds the params
-    qry.bind(":First", First, sqlite3pp::nocopy);
-    qry.bind(":Second", Second, sqlite3pp::nocopy);
-
-    // executes the query
-    sqlite3pp::query::iterator i = qry.begin();
-
-    // grabs the result
-    int result;
-    std::tie(result) = (*i).get_columns<int>(0);
-
-    // if no results return, the the username is unused
-    return (result == 0);
-}
-
-void Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) {
-    // generate the command
-    sqlite3pp::command cmd(db, "INSERT INTO Players (AccountID, Slot, FirstName, LastName, CharData) VALUES (:AccountID, :Slot, :FirstName, :LastName, :CharData)");
-
-    // generate character data
-    std::string charData = CharacterToJson(save);
-    std::string first = U16toU8(save->szFirstName);
-    std::string last = U16toU8(save->szLastName);
-
-    // bind to command
-    cmd.bind(":AccountID", AccountID);
-    cmd.bind(":Slot", save->iSlotNum);
-    cmd.bind(":CharData", charData, sqlite3pp::nocopy);
-    cmd.bind(":FirstName", first, sqlite3pp::nocopy);
-    cmd.bind(":LastName", last, sqlite3pp::nocopy);
-
-    // run
-    cmd.execute();
-}
-
-void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character) {
-    sqlite3pp::command cmd(db, "UPDATE Players SET CharData = :data WHERE PlayerID = :id");
-
-    // grab the data to add to the command
-    int id = character->PCStyle.iPC_UID;
-    std::string charData = CharacterToJson(character);
-
-    // bind to the command & execute
-    cmd.bind(":data", charData, sqlite3pp::nocopy);
-    cmd.bind(":id", id);
-    cmd.execute();
-}
-
-void Database::finishTutorial(int PlayerID) {
-    sqlite3pp::query qry(db, "SELECT CharData FROM Players WHERE PlayerID = :ID");
-
-    // bind to the query and execute
-    qry.bind(":ID", PlayerID);
-    sqlite3pp::query::iterator i = qry.begin();
-
-    // grab the player json from the database
-    std::string json;
-    std::tie(json) = (*i).get_columns<std::string>(0);
-
-    // parse the json into a Player 
-    Player player = JsonToPlayer(json, PlayerID);
-
-    // set the tutorial flag & equip lightning gun
-    player.PCStyle2.iTutorialFlag = 1;
-    player.Equip[0].iID = 328;
-    json = PlayerToJson(player);
-
-    // update the database
-    sqlite3pp::command cmd(db, "UPDATE Players SET CharData = :data WHERE PlayerID = :id");
-    cmd.bind(":data", json, sqlite3pp::nocopy);
-    cmd.bind(":id", PlayerID);
-    cmd.execute();
-}
-
-int Database::getCharacterID(int AccountID, int slot) {
-    // make the query
-    sqlite3pp::query qry(db, "SELECT PlayerID FROM Players WHERE AccountID = :ID AND Slot = :Slot");
-
-    // bind the params & execute
-    qry.bind(":ID", AccountID);
-    qry.bind(":Slot", slot);
-    sqlite3pp::query::iterator i = qry.begin();
-
-    // grab the result
-    int result;
-    std::tie(result) = (*i).get_columns<int>(0);
-
-    return result;
-}
-
-int Database::deleteCharacter(int characterID, int accountID) {
-    // checking if requested player exist and is bound to the account
-
-    sqlite3pp::query qry(db, "SELECT COUNT(AccountID) FROM Players WHERE AccountID = :AccID AND PlayerID = :PID");
-
-    qry.bind(":AccID", accountID);
-    qry.bind(":PID", characterID);
-    sqlite3pp::query::iterator i = qry.begin();
-
-    int result;
-    std::tie(result) = (*i).get_columns<int>(0);
-
-    if (result > 0) {
-        // get player character slot
-        sqlite3pp::query qry(db, "SELECT Slot FROM Players WHERE PlayerID = :PID");
-
-        // bind & execute
-        qry.bind(":PID", characterID);
-        sqlite3pp::query::iterator i = qry.begin();
-
-        // grab the slot to return
-        int slot;
-        std::tie(slot) = (*i).get_columns<int>(0);
-
-        // actually delete the record
-        sqlite3pp::command cmd(db, "DELETE FROM Players WHERE PlayerID = :ID");
-        cmd.bind(":ID", characterID);
-        cmd.execute();
-
-        // finally, return the grabbed slot
-        return slot;
-    }
-
-    return -1;
-}
-
-// TODO: this should really be std::vector, but for the sake of compatibility with PRs, I'll change this after merging
-std::list<Player> Database::getCharacters(int userID) {
-    std::list<Player> result = std::list<Player>();
-
-    sqlite3pp::query qry(db, "SELECT * FROM Players WHERE AccountID = :ID");
-
-    qry.bind(":ID", userID);
-
-    // for each character owned by the account, 
-    for (sqlite3pp::query::iterator i = qry.begin(); i != qry.end(); ++i) {
-        // grab the data
-        int ID, AccountID, slot;
-        char const* charData, * first, * second;
-        std::tie(ID, AccountID, slot, first, second, charData) =
-            (*i).get_columns<int, int, int, char const*, char const*, char const*>(0, 1, 2, 3, 4, 5);
-
-        // convert to player
-        Player toadd = JsonToPlayer(charData, ID);
-        toadd.slot = slot;
-
-        // add it to the results
-        result.push_back(toadd);
-    }
-    return result;
-}
-
-std::string Database::CharacterToJson(sP_CL2LS_REQ_SAVE_CHAR_NAME* save) {
-    nlohmann::json json = {
-        {"Level",36},
-        //to check
-        {"HP",1000},
-        {"NameCheck", 1},
-        {"FirstName",U16toU8(save->szFirstName)},
-        {"LastName",U16toU8(save->szLastName)},
-        {"Gender",rand() % 2 + 1 },
-        {"FaceStyle",1},
-        {"HairStyle",1},
-        {"HairColor",(rand() % 19) + 1},
-        {"SkinColor",(rand() % 13) + 1},
-        {"EyeColor",(rand() % 6) + 1},
-        {"Height",(rand() % 6)},
-        {"Body",(rand() % 4)},
-        {"Class",0},
-        {"AppearanceFlag",0},
-        {"PayzoneFlag",1},
-        {"TutorialFlag",0},
-        {"EquipUB", 217},
-        {"EquipLB", 203},
-        {"EquipFoot", 314},
-        {"EquipWeapon", 0},
-        {"x",settings::SPAWN_X},
-        {"y",settings::SPAWN_Y},
-        {"z",settings::SPAWN_Z},
-        {"isGM",false},
-    };
-    return json.dump();
-}
-
-std::string Database::PlayerToJson(Player player) {
-    nlohmann::json json = {
-        {"Level",player.level},
-        //to check
-        {"HP",player.HP},
-        {"NameCheck", 1},
-        {"FirstName",U16toU8(player.PCStyle.szFirstName)},
-        {"LastName",U16toU8(player.PCStyle.szLastName)},
-        {"Gender",player.PCStyle.iGender},
-        {"FaceStyle",player.PCStyle.iFaceStyle},
-        {"HairStyle",player.PCStyle.iHairStyle},
-        {"HairColor",player.PCStyle.iHairColor},
-        {"SkinColor",player.PCStyle.iSkinColor},
-        {"EyeColor",player.PCStyle.iEyeColor},
-        {"Height",player.PCStyle.iHeight},
-        {"Body",player.PCStyle.iBody},
-        {"Class",player.PCStyle.iClass},
-        {"AppearanceFlag",player.PCStyle2.iAppearanceFlag},
-        {"PayzoneFlag",player.PCStyle2.iPayzoneFlag},
-        {"TutorialFlag",player.PCStyle2.iTutorialFlag},
-        {"EquipUB", player.Equip[1].iID},
-        {"EquipLB", player.Equip[2].iID},
-        {"EquipFoot", player.Equip[3].iID},
-        {"EquipWeapon", player.Equip[0].iID},
-        {"x",player.x},
-        {"y",player.y},
-        {"z",player.z},
-        {"isGM",false},
-    };
-    return json.dump();
-}
-
-Player Database::JsonToPlayer(std::string input, int PC_UID) {
-    std::string err;
-    const auto json = nlohmann::json::parse(input);
-    Player player;
-    player.PCStyle.iPC_UID = (int64_t)PC_UID;
-    player.level = std::stoi(json["Level"].dump());
-    player.HP = std::stoi(json["HP"].dump());
-    player.PCStyle.iNameCheck = std::stoi(json["NameCheck"].dump());
-    U8toU16(json["FirstName"].get<std::string>(), player.PCStyle.szFirstName);
-    U8toU16(json["LastName"].get<std::string>(), player.PCStyle.szLastName);
-    player.PCStyle.iGender = std::stoi(json["Gender"].dump());
-    player.PCStyle.iFaceStyle = std::stoi(json["FaceStyle"].dump());
-    player.PCStyle.iHairStyle = std::stoi(json["HairStyle"].dump());
-    player.PCStyle.iHairColor = std::stoi(json["HairColor"].dump());
-    player.PCStyle.iSkinColor = std::stoi(json["SkinColor"].dump());
-    player.PCStyle.iEyeColor = std::stoi(json["EyeColor"].dump());
-    player.PCStyle.iHeight = std::stoi(json["Height"].dump());
-    player.PCStyle.iBody = std::stoi(json["Body"].dump());
-    player.PCStyle.iClass = std::stoi(json["Class"].dump());
-    player.PCStyle2.iAppearanceFlag = std::stoi(json["AppearanceFlag"].dump());
-    player.PCStyle2.iPayzoneFlag = std::stoi(json["PayzoneFlag"].dump());
-    player.PCStyle2.iTutorialFlag = std::stoi(json["TutorialFlag"].dump());
-    player.Equip[0].iID = std::stoi(json["EquipWeapon"].dump());
-    if (player.Equip[0].iID != 0)
-        player.Equip[0].iOpt = 1;
+    // set namecheck based on setting
+    if (settings::APPROVEALLNAMES || save->iFNCode)
+        create.NameCheck = 1;
     else
-        player.Equip[0].iOpt = 0;
-    player.Equip[0].iType = 0;
-    player.Equip[1].iID = std::stoi(json["EquipUB"].dump());
-    player.Equip[1].iOpt = 1;
-    player.Equip[1].iType = 1;
-    player.Equip[2].iID = std::stoi(json["EquipLB"].dump());
-    player.Equip[2].iOpt = 1;
-    player.Equip[2].iType = 2;
-    player.Equip[3].iID = std::stoi(json["EquipFoot"].dump());
-    player.Equip[3].iOpt = 1;
-    player.Equip[3].iType = 3;
-    player.x = std::stoi(json["x"].dump());
-    player.y = std::stoi(json["y"].dump());
-    player.z = std::stoi(json["z"].dump());
-    return player;
+        create.NameCheck = 0;
+
+    // create default body character
+    create.Body = 0;
+    create.Class = 0;
+    create.EyeColor = 1;
+    create.FaceStyle = 1;
+    create.Gender = 1;
+    create.HP = 1000;
+    create.HairColor = 1;
+    create.HairStyle = 1;
+    create.Height = 0;
+    create.Level = 1;
+    create.SkinColor = 1;
+    create.isGM = false;
+    create.x_coordinates = settings::SPAWN_X;
+    create.y_coordinates = settings::SPAWN_Y;
+    create.z_coordinates = settings::SPAWN_Z;
+    create.angle = settings::SPAWN_ANGLE;
+    create.QuestFlag = std::vector<char>();
+
+    return db.insert(create);
 }
 
-std::string Database::CharacterToJson(sP_CL2LS_REQ_CHAR_CREATE* character) {
-    nlohmann::json json = {
-        {"Level",36},
-        //to check
-        {"HP",1000},
-        {"NameCheck", 1},
-        {"FirstName",U16toU8(character->PCStyle.szFirstName)},
-        {"LastName",U16toU8(character->PCStyle.szLastName)},
-        {"Gender",character->PCStyle.iGender},
-        {"FaceStyle",character->PCStyle.iFaceStyle},
-        {"HairStyle",character->PCStyle.iHairStyle},
-        {"HairColor",character->PCStyle.iHairColor},
-        {"SkinColor",character->PCStyle.iSkinColor},
-        {"EyeColor",character->PCStyle.iEyeColor},
-        {"Height",character->PCStyle.iHeight},
-        {"Body",character->PCStyle.iBody},
-        {"Class",character->PCStyle.iClass},
-        {"AppearanceFlag",1},
-        {"PayzoneFlag",1},
-        {"TutorialFlag",0},
-        {"EquipUB", character->sOn_Item.iEquipUBID},
-        {"EquipLB", character->sOn_Item.iEquipLBID},
-        {"EquipFoot", character->sOn_Item.iEquipFootID},
-        {"EquipWeapon", 0},
-        {"x",settings::SPAWN_X},
-        {"y",settings::SPAWN_Y},
-        {"z",settings::SPAWN_Z},
-        {"isGM",false},
-    };
-    return json.dump();
+void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character)
+{
+    DbPlayer finish = getDbPlayerById(character->PCStyle.iPC_UID);
+    finish.AppearanceFlag = 1;
+    finish.Body = character->PCStyle.iBody;
+    finish.Class = character->PCStyle.iClass;
+    finish.EyeColor = character->PCStyle.iEyeColor;
+    finish.FaceStyle = character->PCStyle.iFaceStyle;
+    finish.Gender = character->PCStyle.iGender;
+    finish.HairColor = character->PCStyle.iHairColor;
+    finish.HairStyle = character->PCStyle.iHairStyle;
+    finish.Height = character->PCStyle.iHeight;
+    finish.Level = 1;
+    finish.SkinColor = character->PCStyle.iSkinColor;
+    db.update(finish);
+    // clothes
+    Inventory Foot, LB, UB;
+    Foot.playerId = character->PCStyle.iPC_UID;
+    Foot.id = character->sOn_Item.iEquipFootID;
+    Foot.Type = 3;
+    Foot.slot = 3;
+    Foot.Opt = 1;
+    Foot.TimeLimit = 0;
+    db.insert(Foot);
+    LB.playerId = character->PCStyle.iPC_UID;
+    LB.id = character->sOn_Item.iEquipLBID;
+    LB.Type = 2;
+    LB.slot = 2;
+    LB.Opt = 1;
+    LB.TimeLimit = 0;
+    db.insert(LB);
+    UB.playerId = character->PCStyle.iPC_UID;
+    UB.id = character->sOn_Item.iEquipUBID;
+    UB.Type = 1;
+    UB.slot = 1;
+    UB.Opt = 1;
+    UB.TimeLimit = 0;
+    db.insert(UB);
 }
+
+void Database::finishTutorial(int PlayerID)
+{
+    Player finish = getPlayer(PlayerID);
+    // set flag
+    finish.PCStyle2.iTutorialFlag= 1;
+    // add Gun
+    Inventory LightningGun = {};
+    LightningGun.playerId = PlayerID;
+    LightningGun.id = 328;
+    LightningGun.slot = 0;
+    LightningGun.Type = 0;
+    LightningGun.Opt = 1;
+    db.insert(LightningGun);
+    // add Nano
+    Nano Buttercup = {};
+    Buttercup.playerId = PlayerID;
+    Buttercup.iID = 1;
+    Buttercup.iSkillID = 1;
+    Buttercup.iStamina = 150;
+    finish.equippedNanos[0] = 1;
+    db.insert(Buttercup);
+    // save missions
+    MissionManager::saveMission(&finish, 0);
+    MissionManager::saveMission(&finish, 1);
+
+    db.update(playerToDb(&finish));
+}
+
+int Database::deleteCharacter(int characterID, int userID)
+{
+    auto find =
+        db.get_all<DbPlayer>(where(c(&DbPlayer::PlayerID) == characterID and c(&DbPlayer::AccountID)==userID));
+    int slot = find.front().slot;
+    db.remove<DbPlayer>(find.front().PlayerID);
+    db.remove_all<Inventory>(where(c(&Inventory::playerId) == characterID));
+    db.remove_all<Nano>(where(c(&Nano::playerId) == characterID));
+
+    return slot;
+}
+
+std::vector <Player> Database::getCharacters(int UserID)
+{
+    std::vector<DbPlayer>characters =
+        db.get_all<DbPlayer>(where
+        (c(&DbPlayer::AccountID) == UserID));
+    // parsing DbPlayer to Player
+    std::vector<Player> result = std::vector<Player>();
+    for (auto &character : characters) {
+        Player toadd = DbToPlayer(character);
+        result.push_back(
+            toadd
+        );
+    }
+    return result;
+}
+
+// XXX: This is never called?
+void Database::evaluateCustomName(int characterID, CustomName decision) {
+    DbPlayer player = getDbPlayerById(characterID);
+    player.NameCheck = (int)decision;
+    db.update(player);
+}
+
+void Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save) {
+    DbPlayer Player = getDbPlayerById(save->iPCUID);
+    Player.FirstName = U16toU8(save->szFirstName);
+    Player.LastName = U16toU8(save->szLastName);
+    if (settings::APPROVEALLNAMES || save->iFNCode)
+        Player.NameCheck = 1;
+    else
+        Player.NameCheck = 0;
+    db.update(Player);
+}
+
+Database::DbPlayer Database::playerToDb(Player *player)
+{
+    DbPlayer result = {};  // fixes some weird memory errors, this zeros out the members (not the padding inbetween though)
+
+    result.PlayerID = player->iID;
+    result.AccountID = player->accountId;
+    result.AppearanceFlag = player->PCStyle2.iAppearanceFlag;
+    result.Body = player->PCStyle.iBody;
+    result.Class = player->PCStyle.iClass;
+    result.EyeColor = player->PCStyle.iEyeColor;
+    result.FaceStyle = player->PCStyle.iFaceStyle;
+    result.FirstName = U16toU8( player->PCStyle.szFirstName);
+    result.FusionMatter = player->fusionmatter;
+    result.Gender = player->PCStyle.iGender;
+    result.HairColor = player->PCStyle.iHairColor;
+    result.HairStyle = player->PCStyle.iHairStyle;
+    result.Height = player->PCStyle.iHeight;
+    result.HP = player->HP;
+    result.isGM = player->IsGM;
+    result.LastName = U16toU8(player->PCStyle.szLastName);
+    result.Level = player->level;
+    result.NameCheck = player->PCStyle.iNameCheck;
+    result.PayZoneFlag = player->PCStyle2.iPayzoneFlag;
+    result.PlayerID = player->PCStyle.iPC_UID;
+    result.SkinColor = player->PCStyle.iSkinColor;
+    result.slot = player->slot;
+    result.Taros = player->money;
+    result.TutorialFlag = player->PCStyle2.iTutorialFlag;
+    result.x_coordinates = player->x;
+    result.y_coordinates = player->y;
+    result.z_coordinates = player->z;
+    result.angle = player->angle;
+    result.Nano1 = player->equippedNanos[0];
+    result.Nano2 = player->equippedNanos[1];
+    result.Nano3 = player->equippedNanos[2];
+
+    // quests
+    result.QuestFlag = std::vector<char>();
+    // parsing long array to char vector
+    for (int i=0; i<16; i++)
+    {
+        int64_t temp = player->aQuestFlag[i];
+        for (int j = 0; j < 8; j++) {
+            int64_t check2 = (temp >> (8 * (7 - j)));
+            char toadd = check2;
+            result.QuestFlag.push_back(
+                toadd
+            );
+        }
+    }
+
+
+    return result;
+}
+
+Player Database::DbToPlayer(DbPlayer player) {
+    Player result = {}; // fixes some weird memory errors, this zeros out the members (not the padding inbetween though)
+
+    result.iID = player.PlayerID;
+    result.accountId = player.AccountID;
+    result.PCStyle2.iAppearanceFlag = player.AppearanceFlag;
+    result.PCStyle.iBody = player.Body;
+    result.PCStyle.iClass = player.Class;
+    result.PCStyle.iEyeColor = player.EyeColor;
+    result.PCStyle.iFaceStyle = player.FaceStyle;
+    U8toU16(player.FirstName, result.PCStyle.szFirstName);
+    result.PCStyle.iGender = player.Gender;
+    result.PCStyle.iHairColor = player.HairColor;
+    result.PCStyle.iHairStyle = player.HairStyle;
+    result.PCStyle.iHeight = player.Height;
+    result.HP = player.HP;
+    result.IsGM = player.isGM;
+    U8toU16(player.LastName, result.PCStyle.szLastName);
+    result.level = player.Level;
+    result.PCStyle.iNameCheck = player.NameCheck;
+    result.PCStyle2.iPayzoneFlag = player.PayZoneFlag;
+    result.iID = player.PlayerID;
+    result.PCStyle.iPC_UID = player.PlayerID;
+    result.PCStyle.iSkinColor = player.SkinColor;
+    result.slot = player.slot;
+    result.PCStyle2.iTutorialFlag = player.TutorialFlag;
+    result.x = player.x_coordinates;
+    result.y = player.y_coordinates;
+    result.z = player.z_coordinates;
+    result.angle = player.angle;
+    result.money = player.Taros;
+    result.fusionmatter = player.FusionMatter;
+
+    result.equippedNanos[0] = player.Nano1;
+    result.equippedNanos[1] = player.Nano2;
+    result.equippedNanos[2] = player.Nano3;
+
+    Database::getInventory(&result);
+    Database::getNanos(&result);
+
+    std::vector<char>::iterator it = player.QuestFlag.begin();
+    for (int i = 0; i < 16; i++)
+    {
+        if (it == player.QuestFlag.end())
+            break;
+
+        int64_t toAdd = 0;
+        for (int j = 0; j < 8; j++) {
+            int64_t temp = *it;
+            int64_t check2 = (temp << (8 * (7 - j)));
+            toAdd += check2;
+            it++;
+        }
+        result.aQuestFlag[i] = toAdd;
+    }
+
+    return result;
+}
+
+Database::DbPlayer Database::getDbPlayerById(int id) {
+        return db.get_all<DbPlayer>(where(c(&DbPlayer::PlayerID) == id))
+            .front();
+}
+
+Player Database::getPlayer(int id) {
+    return DbToPlayer(
+        getDbPlayerById(id)
+    );
+}
+
+#pragma endregion LoginServer
+
+#pragma region ShardServer
+
+void Database::updatePlayer(Player *player) {
+    DbPlayer toUpdate = playerToDb(player);
+    db.update(toUpdate);
+    updateInventory(player);
+    updateNanos(player);
+}
+
+void Database::updateInventory(Player *player){
+    // start transaction
+    db.begin_transaction();
+    // remove all
+    db.remove_all<Inventory>(
+        where(c(&Inventory::playerId) == player->iID)
+        );
+    // insert equip
+    for (int i = 0; i < AEQUIP_COUNT; i++) {
+        if (player->Equip[i].iID != 0) {
+            sItemBase* next = &player->Equip[i];
+            Inventory toAdd = {};
+            toAdd.playerId = player->iID;
+            toAdd.slot = i;
+            toAdd.id = next->iID;
+            toAdd.Opt = next->iOpt;
+            toAdd.Type = next->iType;
+            toAdd.TimeLimit = next->iTimeLimit;
+            db.insert(toAdd);
+        }
+    }
+    // insert inventory
+    for (int i = 0; i < AINVEN_COUNT; i++) {
+        if (player->Inven[i].iID != 0) {
+            sItemBase* next = &player->Inven[i];
+            Inventory toAdd = {};
+            toAdd.playerId = player->iID;
+            toAdd.slot = i + AEQUIP_COUNT;
+            toAdd.id = next->iID;
+            toAdd.Opt = next->iOpt;
+            toAdd.Type = next->iType;
+            toAdd.TimeLimit = next->iTimeLimit;
+            db.insert(toAdd);
+        }
+    }
+    // insert bank
+    for (int i = 0; i < ABANK_COUNT; i++) {
+        if (player->Bank[i].iID != 0) {
+            sItemBase* next = &player->Bank[i];
+            Inventory toAdd = {};
+            toAdd.playerId = player->iID;
+            toAdd.slot = i + AEQUIP_COUNT + AINVEN_COUNT;
+            toAdd.id = next->iID;
+            toAdd.Opt = next->iOpt;
+            toAdd.Type = next->iType;
+            toAdd.TimeLimit = next->iTimeLimit;
+            db.insert(toAdd);
+        }
+    }
+    db.commit();
+}
+void Database::updateNanos(Player *player) {
+    // start transaction
+    db.begin_transaction();
+    // remove all
+    db.remove_all<Nano>(
+        where(c(&Nano::playerId) == player->iID)
+        );
+    // insert
+    for (int i=1; i < SIZEOF_NANO_BANK_SLOT; i++)
+    {
+        if ((player->Nanos[i]).iID == 0)
+            continue;
+        Nano toAdd = {};
+        sNano* next = &player->Nanos[i];
+        toAdd.playerId = player->iID;
+        toAdd.iID = next->iID;
+        toAdd.iSkillID = next->iSkillID;
+        toAdd.iStamina = next->iStamina;
+        db.insert(toAdd);
+    }
+    db.commit();
+}
+void Database::getInventory(Player* player) {
+    // get items from DB
+    auto items = db.get_all<Inventory>(
+        where(c(&Inventory::playerId) == player->iID)
+        );
+    // set items
+    for (const Inventory &current : items) {
+        sItemBase toSet = {};
+        toSet.iID = current.id;
+        toSet.iType = current.Type;
+        toSet.iOpt = current.Opt;
+        toSet.iTimeLimit = current.TimeLimit;
+        // assign to proper arrays
+        if (current.slot <= AEQUIP_COUNT)
+            player->Equip[current.slot] = toSet;
+        else if (current.slot <= (AEQUIP_COUNT + AINVEN_COUNT))
+            player->Inven[current.slot - AEQUIP_COUNT] = toSet;
+        else
+            player->Bank[current.slot - AEQUIP_COUNT - AINVEN_COUNT] = toSet;
+    }
+
+}
+void Database::getNanos(Player* player) {
+    // get from DB
+    auto nanos = db.get_all<Nano>(
+        where(c(&Nano::playerId) == player->iID)
+        );
+    // set
+    for (const Nano& current : nanos) {
+        sNano *toSet = &player->Nanos[current.iID];
+        toSet->iID = current.iID;
+        toSet->iSkillID = current.iSkillID;
+        toSet->iStamina = current.iStamina;
+    }
+}
+#pragma endregion ShardServer
