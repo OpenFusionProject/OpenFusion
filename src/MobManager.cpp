@@ -59,8 +59,6 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
         mob->appearanceData.iHP -= 100;
 
-        std::cout << "mob health is now " << mob->appearanceData.iHP << std::endl;
-
         if (mob->appearanceData.iHP <= 0)
             killMob(sock, mob);
 

@@ -210,5 +210,5 @@ public:
     static void printPacket(CNPacketData *data, int type);
     virtual void newConnection(CNSocket* cns);
     virtual void killConnection(CNSocket* cns);
-    virtual void onStep(); // called every 2 seconds
+    virtual void onStep();
 };

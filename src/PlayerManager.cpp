@@ -57,22 +57,29 @@ void PlayerManager::removePlayer(CNSocket* key) {
     PlayerView cachedView = players[key];
 
     // if players have them in their viewable lists, remove it
-    for (CNSocket* otherSock : players[key].viewable) {
-        players[otherSock].viewable.remove(key); // gone
+    for (auto& pair : players) {
+        if (pair.first == key)
+            continue;
+
+        PlayerView& otherPlayer = pair.second;
+        otherPlayer.viewable.remove(key); // gone
+
+        std::cout << "PlayerId = " << otherPlayer.plr->iID << " removed from " << otherPlayer.plr->iID << "'s viewable list" << std::endl;
 
         // now send PC_EXIT packet
-        sP_FE2CL_PC_EXIT exitPacket;
+        INITSTRUCT(sP_FE2CL_PC_EXIT, exitPacket);
         exitPacket.iID = players[key].plr->iID;
 
-        otherSock->sendPacket((void*)&exitPacket, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT));
+        pair.first->sendPacket((void*)&exitPacket, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT));
     }
 
-    std::cout << U16toU8(cachedView.plr->PCStyle.szFirstName) << " " << U16toU8(cachedView.plr->PCStyle.szLastName) << " has left!" << std::endl;
-    std::cout << players.size() << " players" << std::endl;
+    std::cout << U16toU8(cachedView.plr->PCStyle.szFirstName) << " " << U16toU8(cachedView.plr->PCStyle.szLastName) << " (PlayerId = " << key->plr->iID << ") has left!" << std::endl;
 
     key->plr = nullptr;
     delete cachedView.plr;
     players.erase(key);
+
+    std::cout << players.size() << " players" << std::endl;
 }
 
 void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, int angle) {
