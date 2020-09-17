@@ -174,7 +174,7 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
         int lerps = distanceBetween / (int)LERP_GAP; // integer division to ensure a whole number
         for (int i = 0; i < lerps; i++) {
             WarpLocation lerp;
-            float frac = 1.0f / (lerps + 1);
+            float frac = (i + 1) * 1.0f / (lerps + 1);
             lerp.x = (last.x * (1.0f - frac)) + (point->x * frac);
             lerp.y = (last.y * (1.0f - frac)) + (point->y * frac);
             lerp.z = (last.z * (1.0f - frac)) + (point->z * frac);
@@ -188,7 +188,7 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
 
 void TransportManager::tickSkywaySystem(CNServer* serv, time_t currTime) {
     
-    std::cout << SkywayQueue.size();
+    //std::cout << SkywayQueue.size();
     // using an unordered list so we can remove finished players in one iteration
     std::unordered_map<CNSocket*, std::queue<WarpLocation>>::iterator it = SkywayQueue.begin();
     while (it != SkywayQueue.end()) {

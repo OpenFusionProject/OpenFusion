@@ -5,7 +5,7 @@
 
 #include <unordered_map>
 
-#define LERP_GAP 5000
+#define LERP_GAP 3000
 
 struct WarpLocation;
 
