@@ -245,10 +245,14 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
         TaskData &task = *MissionManager::Tasks[plr.tasks[i]];
         for (int j = 0; j < 3; j++) {
             response.PCLoadData2CL.aRunningQuest[i].m_aKillNPCID[j] = (int)task["m_iCSUEnemyID"][j];
-            response.PCLoadData2CL.aRunningQuest[i].m_aNeededItemID[j] = (int)task["m_iCSUItemID"][j];
-            response.PCLoadData2CL.aRunningQuest[i].m_aKillNPCCount[j] = plr.killNPCCount[i][j];
-            //response.PCLoadData2CL.aRunningQuest[i].m_aNeededItemCount[j] = plr.NeededItemCount[i][j];
-            //why is client not using that smh
+            response.PCLoadData2CL.aRunningQuest[i].m_aKillNPCCount[j] = plr.RemainingNPCCount[i][j];
+            /*
+             * client doesn't care about NeededItem ID and Count,
+             * it gets Count from Quest Inventory
+             * 
+             * KillNPCCount sets RemainEnemyNum in the client
+             * Yes, this is extraordinary stupid, even for Grigon
+            */
         }
     }
     response.PCLoadData2CL.iCurrentMissionID = plr.CurrentMissionID;

@@ -77,12 +77,9 @@ auto db = make_storage("database.db",
     make_table("RunningQuests",
         make_column("PlayerId", &Database::DbQuest::PlayerId),
         make_column("TaskId", &Database::DbQuest::TaskId),
-        make_column("KillNPCCount1", &Database::DbQuest::KillNPCCount1),
-        make_column("KillNPCCount2", &Database::DbQuest::KillNPCCount2),
-        make_column("KillNPCCount3", &Database::DbQuest::KillNPCCount3),
-        make_column("NeededItemCount1", &Database::DbQuest::NeededItemCount1),
-        make_column("NeededItemCount2", &Database::DbQuest::NeededItemCount2),
-        make_column("NeededItemCount3", &Database::DbQuest::NeededItemCount3)
+        make_column("RemainingNPCCount1", &Database::DbQuest::RemainingNPCCount1),
+        make_column("RemainingNPCCount2", &Database::DbQuest::RemainingNPCCount2),
+        make_column("RemainingNPCCount3", &Database::DbQuest::RemainingNPCCount3)
     )
 );
 
@@ -525,6 +522,7 @@ void Database::updateInventory(Player *player){
     }
     db.commit();
 }
+
 void Database::updateNanos(Player *player) {
     // start transaction
     db.begin_transaction();
@@ -563,12 +561,9 @@ void Database::updateQuests(Player* player) {
         DbQuest toAdd = {};
         toAdd.PlayerId = player->iID;
         toAdd.TaskId = player->tasks[i];
-        toAdd.KillNPCCount1 = player->killNPCCount[i][0];
-        toAdd.KillNPCCount2 = player->killNPCCount[i][1];
-        toAdd.KillNPCCount3 = player->killNPCCount[i][2];
-        toAdd.NeededItemCount1 = player->NeededItemCount[i][0];
-        toAdd.NeededItemCount2 = player->NeededItemCount[i][1];
-        toAdd.NeededItemCount3 = player->NeededItemCount[i][2];
+        toAdd.RemainingNPCCount1 = player->RemainingNPCCount[i][0];
+        toAdd.RemainingNPCCount2 = player->RemainingNPCCount[i][1];
+        toAdd.RemainingNPCCount3 = player->RemainingNPCCount[i][2];
         db.insert(toAdd);
     }
     db.commit();
@@ -598,6 +593,7 @@ void Database::getInventory(Player* player) {
     }
 
 }
+
 void Database::getNanos(Player* player) {
     // get from DB
     auto nanos = db.get_all<Nano>(
@@ -621,12 +617,9 @@ void Database::getQuests(Player* player) {
     int i = 0;
     for (const DbQuest& current : quests) {
         player->tasks[i] = current.TaskId;
-        player->killNPCCount[i][0] = current.KillNPCCount1;
-        player->killNPCCount[i][1] = current.KillNPCCount2;
-        player->killNPCCount[i][2] = current.KillNPCCount3;
-        player->NeededItemCount[i][0] = current.NeededItemCount1;
-        player->NeededItemCount[i][1] = current.NeededItemCount2;
-        player->NeededItemCount[i][2] = current.NeededItemCount3;
+        player->RemainingNPCCount[i][0] = current.RemainingNPCCount1;
+        player->RemainingNPCCount[i][1] = current.RemainingNPCCount2;
+        player->RemainingNPCCount[i][2] = current.RemainingNPCCount3;
         i++;
     }
 }
