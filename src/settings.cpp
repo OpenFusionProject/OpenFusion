@@ -1,5 +1,4 @@
 #include <iostream>
-#include <iostream>
 #include "settings.hpp"
 #include "contrib/INIReader.hpp"
 
