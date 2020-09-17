@@ -217,6 +217,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iAngle = plr.angle;
     response.PCLoadData2CL.iBatteryN = plr.batteryN;
     response.PCLoadData2CL.iBatteryW = plr.batteryW;
+    response.PCLoadData2CL.iBuddyWarpTime = 60; //sets 60s warp cooldown on login
 
     response.PCLoadData2CL.iActiveNanoSlotNum = -1;
     response.PCLoadData2CL.iFatigue = 50;
