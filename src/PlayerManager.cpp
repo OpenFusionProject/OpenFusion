@@ -169,12 +169,12 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
     // first, remove all the old npcs & players from the old chunks
     removePlayerFromChunks(ChunkManager::getDeltaChunks(view.currentChunks, allChunks), sock);
 
-    // now, add all the new npcs & players!
-    addPlayerToChunks(ChunkManager::getDeltaChunks(allChunks, view.currentChunks), sock);
-
     // remove us from that old stinky chunk (+ a sanity check)
     if (ChunkManager::chunks.find(view.chunkPos) != ChunkManager::chunks.end())
         ChunkManager::chunks[view.chunkPos]->players.erase(sock);
+    
+    // now, add all the new npcs & players!
+    addPlayerToChunks(ChunkManager::getDeltaChunks(allChunks, view.currentChunks), sock);
     
     ChunkManager::addPlayer(X, Y, sock); // takes care of adding the player to the chunk if it exists or not
     view.chunkPos = newPos;
