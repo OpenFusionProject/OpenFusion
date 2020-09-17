@@ -475,7 +475,9 @@ bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, i
     return true;
 }
 
-template<class sPAYLOAD, void *_work, bool isLeech=false>
+template<class sPAYLOAD,
+    bool (*work)(CNSocket*,int32_t*,sPAYLOAD*,int,int16_t,int32_t),
+    bool isLeech=false>
 void activePower(CNSocket *sock, CNPacketData *data,
                  int16_t nanoId, int16_t skillId, SkillType eSkillType,
                  int32_t iCBFlag, int32_t amount) {
@@ -520,9 +522,6 @@ void activePower(CNSocket *sock, CNPacketData *data,
     resp->eST = (int32_t)eSkillType;
     resp->iTargetCnt = pkt->iTargetCnt;
 
-    // cast the void* to the appropriate function pointer type
-    bool (*work)(CNSocket *sock, int32_t *pktdata, sPAYLOAD *respdata, int i, int16_t iCBFlag, int32_t amount) = _work;
-
     for (int i = 0; i < pkt->iTargetCnt; i++) {
         if (!work(sock, pktdata, respdata, i, iCBFlag, amount))
             return;
@@ -535,15 +534,15 @@ void activePower(CNSocket *sock, CNPacketData *data,
 
 // active nano power dispatch table
 std::vector<ActivePower> ActivePowers = {
-    ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  (void*)doDebuff>,         SkillType::STUN, 0x200, 0),
-    ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          (void*)doHeal>,           SkillType::HEAL, 0, 333),
+    ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  doDebuff>,         SkillType::STUN, 0x200, 0),
+    ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          doHeal>,           SkillType::HEAL, 0, 333),
     // TODO: Recall
-    ActivePower(DrainPowers, activePower<sSkillResult_Damage_N_Debuff, (void*)doDebuff>,         SkillType::DRAIN, 0x40000, 0),
-    ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, (void*)doDebuff>,         SkillType::SNARE, 0x80, 0),
-    ActivePower(DamagePowers, activePower<sSkillResult_Damage,         (void*)doDamage>,         SkillType::DAMAGE, 0, 133),
+    ActivePower(DrainPowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         SkillType::DRAIN, 0x40000, 0),
+    ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         SkillType::SNARE, 0x80, 0),
+    ActivePower(DamagePowers, activePower<sSkillResult_Damage,         doDamage>,         SkillType::DAMAGE, 0, 133),
     // TODO: GroupRevive
-    ActivePower(LeechPowers, activePower<sSkillResult_Heal_HP,         (void*)doLeech, true>,    SkillType::LEECH, 0, 133),
-    ActivePower(SleepPowers, activePower<sSkillResult_Damage_N_Debuff, (void*)doDebuff>,         SkillType::SLEEP, 0x400, 0),
+    ActivePower(LeechPowers, activePower<sSkillResult_Heal_HP,         doLeech, true>,    SkillType::LEECH, 0, 133),
+    ActivePower(SleepPowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         SkillType::SLEEP, 0x400, 0),
 };
 
 }; // namespace
