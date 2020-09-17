@@ -211,7 +211,6 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iCandy = plr.money;
     response.PCLoadData2CL.iMentor = plr.mentor;
     response.PCLoadData2CL.iMentorCount = 1; // how many guides the player has had
-    response.PCLoadData2CL.iMapNum = 0;
     response.PCLoadData2CL.iX = plr.x;
     response.PCLoadData2CL.iY = plr.y;
     response.PCLoadData2CL.iZ = plr.z;
