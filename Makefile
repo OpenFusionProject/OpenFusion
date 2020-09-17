@@ -46,6 +46,7 @@ CXXSRC=\
 	src/settings.cpp\
 	src/TransportManager.cpp\
 	src/TableData.cpp\
+	src/ChunkManager.cpp\
 
 # headers (for timestamp purposes)
 CHDR=\
@@ -81,6 +82,7 @@ CXXHDR=\
 	src/settings.hpp\
 	src/TransportManager.hpp\
 	src/TableData.hpp\
+	src/ChunkManager.hpp\
 
 COBJ=$(CSRC:.c=.o)
 CXXOBJ=$(CXXSRC:.cpp=.o)

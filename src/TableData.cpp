@@ -5,6 +5,7 @@
 #include "settings.hpp"
 #include "MissionManager.hpp"
 #include "MobManager.hpp"
+#include "ChunkManager.hpp"
 
 #include "contrib/JSON.hpp"
 
@@ -27,9 +28,10 @@ void TableData::init() {
 
             // Temporary fix, IDs will be pulled from json later
             tmp->appearanceData.iNPC_ID = i;
-            i++;
 
-            NPCManager::NPCs[tmp->appearanceData.iNPC_ID] = tmp;
+            NPCManager::NPCs[i] = tmp;
+            ChunkManager::addNPC(npc["x"], npc["y"], i);
+            i++;
 
             if (npc["id"] == 641 || npc["id"] == 642)
                 NPCManager::RespawnPoints.push_back({ npc["x"], npc["y"], ((int)npc["z"]) + RESURRECT_HEIGHT });
@@ -153,6 +155,7 @@ void TableData::init() {
 
             NPCManager::NPCs[i] = tmp;
             MobManager::Mobs[i] = (Mob*)NPCManager::NPCs[i];
+            ChunkManager::addNPC(npc["iX"], npc["iY"], i);
 
             i++;
         }

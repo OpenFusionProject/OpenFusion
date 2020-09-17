@@ -137,8 +137,8 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
      * same map tile you were already in, but we might as well force an NPC reload.
      */
     PlayerView& plrv = PlayerManager::players[sock];
-    plrv.viewable.clear();
-    plrv.viewableNPCs.clear();
+    plrv.currentChunks.clear();
+    plrv.chunkPos = std::make_pair<int, int>(0, 0);
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC));
 }

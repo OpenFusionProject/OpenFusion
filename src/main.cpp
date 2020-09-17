@@ -10,6 +10,7 @@
 #include "TransportManager.hpp"
 #include "Database.hpp"
 #include "TableData.hpp"
+#include "ChunkManager.hpp"
 
 #include "settings.hpp"
 
@@ -48,9 +49,8 @@ void terminate(int arg) {
         shardThread->join();
     }
 
-#if defined(__SANITIZE_ADDRESS__)
     TableData::cleanup();
-#endif
+    ChunkManager::cleanup();
 
     exit(0);
 }

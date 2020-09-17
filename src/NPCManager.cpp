@@ -27,6 +27,34 @@ void NPCManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_BATTERY_BUY, npcVendorBuyBattery);
 }
 
+void NPCManager::addNPC(std::vector<Chunk*> viewableChunks, int32_t id) {
+    BaseNPC* npc = NPCs[id];
+
+    // create struct
+    INITSTRUCT(sP_FE2CL_NPC_ENTER, enterData);
+    enterData.NPCAppearanceData = npc->appearanceData;
+
+    for (Chunk* chunk : viewableChunks) {
+        for (CNSocket* sock : chunk->players) {
+            // send to socket
+            sock->sendPacket((void*)&enterData, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
+        }
+    }
+}
+
+void NPCManager::removeNPC(std::vector<Chunk*> viewableChunks, int32_t id) {
+    // create struct
+    INITSTRUCT(sP_FE2CL_NPC_EXIT, exitData);
+    exitData.iNPC_ID = id;
+
+    for (Chunk* chunk : viewableChunks) {
+        for (CNSocket* sock : chunk->players) {
+            // send to socket
+            sock->sendPacket((void*)&exitData, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
+        }
+    }
+}
+
 void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY))
         return; // malformed packet
@@ -251,64 +279,6 @@ void NPCManager::npcVendorBuyBattery(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_BATTERY_BUY_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_SUCC));
 }
 
-void NPCManager::updatePlayerNPCS(CNSocket* sock, PlayerView& view) {
-    std::list<int32_t> yesView;
-    std::list<int32_t> noView;
-
-    for (auto& pair : NPCs) {
-        int diffX = abs(view.plr->x - pair.second->appearanceData.iX);
-        int diffY = abs(view.plr->y - pair.second->appearanceData.iY);
-
-        if (diffX < settings::NPCDISTANCE && diffY < settings::NPCDISTANCE) {
-            // if it's a mob and it's dead (or otherwise not there), skip it.
-            if (MobManager::Mobs.find(pair.first) != MobManager::Mobs.end()) {
-                Mob *mob = (Mob*) pair.second;
-                if (mob->state == MobState::DEAD || mob->state == MobState::INACTIVE)
-                    continue;
-            }
-
-            yesView.push_back(pair.first);
-        }
-        else {
-            noView.push_back(pair.first);
-        }
-    }
-
-    INITSTRUCT(sP_FE2CL_NPC_EXIT, exitData);
-    std::list<int32_t>::iterator i = view.viewableNPCs.begin();
-    while (i != view.viewableNPCs.end()) {
-        int32_t id = *i;
-
-        if (std::find(noView.begin(), noView.end(), id) != noView.end()) {
-            // it shouldn't be visible, send NPC_EXIT
-
-            exitData.iNPC_ID = id;
-            sock->sendPacket((void*)&exitData, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
-
-            // remove from view
-            view.viewableNPCs.erase(i++);
-        }
-        else {
-            i++;
-        }
-    }
-
-    INITSTRUCT(sP_FE2CL_NPC_ENTER, enterData);
-    for (int32_t id : yesView) {
-        if (std::find(view.viewableNPCs.begin(), view.viewableNPCs.end(), id) == view.viewableNPCs.end()) {
-            // needs to be added to viewableNPCs! send NPC_ENTER
-
-            enterData.NPCAppearanceData = NPCs[id]->appearanceData;
-            sock->sendPacket((void*)&enterData, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
-
-            // add to viewable
-            view.viewableNPCs.push_back(id);
-        }
-    }
-
-    PlayerManager::players[sock].viewableNPCs = view.viewableNPCs;
-}
-
 void NPCManager::npcBarkHandler(CNSocket* sock, CNPacketData* data) {} // stubbed for now
 
 void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
@@ -330,9 +300,7 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     resp.NPCAppearanceData.iY = plr->y;
     resp.NPCAppearanceData.iZ = plr->z;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
-    for (CNSocket *s : PlayerManager::players[sock].viewable)
-        s->sendPacket((void*)&resp, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
+    ChunkManager::addNPC(plr->x, plr->y, resp.NPCAppearanceData.iNPC_ID);
 }
 
 void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
@@ -353,8 +321,8 @@ void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
     resp.iZ = Warps[warpNpc->iWarpID].z;
 
     // force player & NPC reload
-    plrv.viewable.clear();
-    plrv.viewableNPCs.clear();
+    plrv.currentChunks.clear();
+    plrv.chunkPos = std::make_pair<int, int>(0, 0);
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
 }

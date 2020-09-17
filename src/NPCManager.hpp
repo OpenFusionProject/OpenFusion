@@ -20,6 +20,9 @@ namespace NPCManager {
     extern std::vector<WarpLocation> RespawnPoints;
     void init();
 
+    void addNPC(std::vector<Chunk*> viewableChunks, int32_t);
+    void removeNPC(std::vector<Chunk*> viewableChunks, int32_t);
+
     void npcBarkHandler(CNSocket* sock, CNPacketData* data);
     void npcSummonHandler(CNSocket* sock, CNPacketData* data);
     void npcWarpHandler(CNSocket* sock, CNPacketData* data);
@@ -30,6 +33,4 @@ namespace NPCManager {
     void npcVendorSell(CNSocket* sock, CNPacketData* data);
     void npcVendorBuyback(CNSocket* sock, CNPacketData* data);
     void npcVendorBuyBattery(CNSocket* sock, CNPacketData* data);
-
-    void updatePlayerNPCS(CNSocket* sock, PlayerView& plr);
 }

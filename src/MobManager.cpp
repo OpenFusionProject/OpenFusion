@@ -77,8 +77,7 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     resp1->iPC_ID = plr->iID;
 
     // send to other players
-    for (CNSocket *s : PlayerManager::players[sock].viewable)
-        s->sendPacket((void*)respbuf, P_FE2CL_PC_ATTACK_NPCs, resplen);
+    PlayerManager::sendToViewable(sock, (void*)respbuf, P_FE2CL_PC_ATTACK_NPCs, resplen);
 }
 
 void MobManager::combatBegin(CNSocket *sock, CNPacketData *data) {} // stub
@@ -138,15 +137,12 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
     giveReward(sock);
     MissionManager::mobKilled(sock, mob->appearanceData.iNPCType);
 
-    PlayerView& plrv = PlayerManager::players[sock];
-
     INITSTRUCT(sP_FE2CL_NPC_EXIT, pkt);
 
     pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
 
     sock->sendPacket(&pkt, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
-    for (CNSocket *s : plrv.viewable)
-        s->sendPacket(&pkt, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
+    PlayerManager::sendToViewable(sock, (void*)&pkt, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
 }
 
 void MobManager::deadStep(Mob *mob, time_t currTime) {

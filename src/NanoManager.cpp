@@ -169,8 +169,7 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
     resp2.iPC_Level = level;
 
     // Update other players' perception of the player's level
-    for (CNSocket* s : PlayerManager::players[sock].viewable)
-        s->sendPacket((void*)&resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+    PlayerManager::sendToViewable(sock, (void*)&resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
 }
 
 void NanoManager::summonNano(CNSocket *sock, int slot) {
@@ -196,8 +195,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
     else
         pkt1.Nano = plr->Nanos[nanoId];
 
-    for (CNSocket* s : PlayerManager::players[sock].viewable)
-        s->sendPacket((void*)&pkt1, P_FE2CL_NANO_ACTIVE, sizeof(sP_FE2CL_NANO_ACTIVE));
+    PlayerManager::sendToViewable(sock, (void*)&pkt1, P_FE2CL_NANO_ACTIVE, sizeof(sP_FE2CL_NANO_ACTIVE));
 
     // update player
     plr->activeNano = nanoId;

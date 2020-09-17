@@ -112,9 +112,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
             plr.plr->iPCState = 0;
 
         // send equip event to other players
-        for (CNSocket* otherSock : plr.viewable) {
-            otherSock->sendPacket((void*)&equipChange, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
-        }
+        PlayerManager::sendToViewable(sock, (void*)&equipChange, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
     }
 
     // send response
