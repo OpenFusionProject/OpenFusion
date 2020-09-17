@@ -635,100 +635,12 @@ void Database::appendBlob(std::vector<char> *blob, int64_t input) {
     }
 }
 
-void Database::appendBlob(std::vector<char>* blob, int32_t input) {
-    for (int i = 0; i < 4; i++) {
-        char toadd = (input >> (8 * (3 - i)));
-        blob->push_back(toadd);
-    }
-}
-
-void Database::appendBlob(std::vector<char>* blob, int16_t input) {
-    for (int i = 0; i < 2; i++) {
-        char toadd = (input >> (8 * (1 - i)));
-        blob->push_back(toadd);
-    }
-}
-
-void Database::appendBlob(std::vector<char>* blob, sItemBase item) {
-    appendBlob(blob, item.iID);
-    appendBlob(blob, item.iType);
-    appendBlob(blob, item.iOpt);
-    appendBlob(blob, item.iTimeLimit); 
-}
-
-void Database::appendBlob(std::vector<char>* blob, sRunningQuest quest) {
-    appendBlob(blob, quest.m_aCurrTaskID);
-    for (int i = 0; i < 3; i++)
-        appendBlob(blob, quest.m_aKillNPCCount[i]);
-    for (int i = 0; i < 3; i++)
-        appendBlob(blob, quest.m_aKillNPCID[i]);
-    for (int i = 0; i < 3; i++)
-        appendBlob(blob, quest.m_aNeededItemCount[i]);
-    for (int i = 0; i < 3; i++)
-        appendBlob(blob, quest.m_aNeededItemID[i]);
-}
-
 int64_t Database::blobToInt64(std::vector<char>::iterator it) {
     int64_t result = 0;
     for (int i = 0; i < 8; i++) {
         int64_t toAdd = ((int64_t)*it << (8 * (7 - i)));
         result += toAdd;
         it++;
-    }
-    return result;
-}
-
-int32_t Database::blobToInt32(std::vector<char>::iterator it) {
-    int32_t result = 0;
-    for (int i = 0; i < 4; i++) {
-        int32_t toAdd = ((int32_t)*it << (8 * (3 - i)));
-        result += toAdd;
-        it++;
-    }
-    return result;
-}
-
-int16_t Database::blobToInt16(std::vector<char>::iterator it) {
-    int16_t result = 0;
-    for (int i = 0; i < 2; i++) {
-        int16_t toAdd = ((int16_t)*it << (8 * (1 - i)));
-        result += toAdd;
-        it++;
-    }
-    return result;
-}
-
-sItemBase Database::blobToItemBase(std::vector<char>::iterator it) {
-    sItemBase result = {};
-    result.iID = blobToInt16(it);
-    it += 2;
-    result.iOpt = blobToInt32(it);
-    it += 4;
-    result.iTimeLimit = blobToInt32(it);
-    it += 4;
-    result.iType = blobToInt16(it);
-    return result;
-}
-
-sRunningQuest Database::blobToRunningQuest(std::vector<char>::iterator it) {
-    sRunningQuest result = {};
-    result.m_aCurrTaskID = blobToInt32(it);
-    it += 4;
-    for (int i = 0; i < 3; i++) {
-        result.m_aKillNPCCount[i] = blobToInt32(it);
-        it += 4;
-    }
-    for (int i = 0; i < 3; i++) {
-        result.m_aKillNPCID[i] = blobToInt32(it);
-        it += 4;
-    }
-    for (int i = 0; i < 3; i++) {
-        result.m_aNeededItemCount[i] = blobToInt32(it);
-        it += 4;
-    }
-    for (int i = 0; i < 3; i++) {
-        result.m_aNeededItemID[i] = blobToInt32(it);
-        it += 4;
     }
     return result;
 }
