@@ -18,6 +18,7 @@ namespace settings {
     extern std::string NPCJSON;
     extern std::string XDTJSON;
     extern std::string MOBJSON;
+    extern std::string PATHJSON;
     extern bool GM;
 
     void init();

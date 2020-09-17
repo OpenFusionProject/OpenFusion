@@ -42,6 +42,28 @@ void TableData::init() {
         std::cerr << "[WARN] Malformed NPCs.json file! Reason:" << err.what() << std::endl;
     }
 
+    // load paths
+    try {
+        std::ifstream inFile(settings::PATHJSON);
+        nlohmann::json pathData;
+
+        // read file into json
+        inFile >> pathData;
+
+        nlohmann::json pathDataSkyway = pathData["skyway"];
+        for (nlohmann::json::iterator skywayPath = pathDataSkyway.begin(); skywayPath != pathDataSkyway.end(); skywayPath++) {
+            std::vector<WarpLocation> points;
+            nlohmann::json pathPoints = skywayPath.value()["points"];
+            for (nlohmann::json::iterator point = pathPoints.begin(); point != pathPoints.end(); point++)
+                points.push_back({point.value()["iX"], point.value()["iY"], point.value()["iZ"] });
+            TransportManager::SkywayPaths[skywayPath.value()["iRouteID"]] = points;
+        }
+
+        std::cout << "[INFO] Loaded " << TransportManager::SkywayPaths.size() << " skyway paths" << std::endl;
+    }
+    catch (const std::exception& err) {
+        std::cerr << "[WARN] Malformed paths.json file! Reason:" << err.what() << std::endl;
+    }
     // load everything else from xdttable
     std::cout << "[INFO] Parsing xdt.json..." << std::endl;
     std::ifstream infile(settings::XDTJSON);
