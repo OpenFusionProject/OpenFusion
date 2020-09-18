@@ -20,6 +20,7 @@ namespace ChunkManager {
     extern std::map<std::pair<int, int>, Chunk*> chunks;
 
     void addNPC(int posX, int posY, int32_t id);
+    void removeNPC(int posX, int posY, int32_t id);
     void addPlayer(int posX, int posY, CNSocket* sock);
     std::pair<int, int> grabChunk(int posX, int posY);
     std::vector<Chunk*> grabChunks(int chunkX, int chunkY);

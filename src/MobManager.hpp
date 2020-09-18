@@ -28,6 +28,7 @@ struct Mob : public BaseNPC {
         // NOTE: there appear to be discrepancies in the dump
         appearanceData.iHP = maxHealth;
     }
+    ~Mob() {}
 };
 
 namespace MobManager {
