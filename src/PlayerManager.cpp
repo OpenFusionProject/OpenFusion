@@ -96,10 +96,11 @@ void PlayerManager::removePlayerFromChunks(std::vector<Chunk*> chunks, CNSocket*
             exitPlayer.iID = players[otherSock].plr->iID;
             sock->sendPacket((void*)&exitPlayer, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT));
         }
-
-        // temp-fix for weird edgecase
-        chunk->players.erase(sock);
     }
+
+    // remove us from that old stinky chunk (+ a sanity check)
+    if (ChunkManager::chunks.find(players[sock].chunkPos) != ChunkManager::chunks.end())
+        ChunkManager::chunks[players[sock].chunkPos]->players.erase(sock);
 }
 
 void PlayerManager::addPlayerToChunks(std::vector<Chunk*> chunks, CNSocket* sock) {
@@ -171,10 +172,6 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
 
     // first, remove all the old npcs & players from the old chunks
     removePlayerFromChunks(ChunkManager::getDeltaChunks(view.currentChunks, allChunks), sock);
-
-    // remove us from that old stinky chunk (+ a sanity check)
-    if (ChunkManager::chunks.find(view.chunkPos) != ChunkManager::chunks.end())
-        ChunkManager::chunks[view.chunkPos]->players.erase(sock);
     
     // now, add all the new npcs & players!
     addPlayerToChunks(ChunkManager::getDeltaChunks(allChunks, view.currentChunks), sock);
@@ -545,8 +542,9 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
     response.iZ = plrv.plr->z = gotoData->iToZ;
 
     // force player & NPC reload
-    plrv.chunkPos = std::make_pair<int, int>(0, 0);
+    PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
     plrv.currentChunks.clear();
+    plrv.chunkPos = std::make_pair<int, int>(0, 0);
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
 }

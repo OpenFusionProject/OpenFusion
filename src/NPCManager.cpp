@@ -300,6 +300,7 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     resp.NPCAppearanceData.iY = plr->y;
     resp.NPCAppearanceData.iZ = plr->z;
 
+    NPCs[resp.NPCAppearanceData.iNPC_ID] = new BaseNPC(plr->x, plr->y, plr->z, req->iNPCType);
     ChunkManager::addNPC(plr->x, plr->y, resp.NPCAppearanceData.iNPC_ID);
 }
 
@@ -321,6 +322,7 @@ void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
     resp.iZ = Warps[warpNpc->iWarpID].z;
 
     // force player & NPC reload
+    PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
     plrv.currentChunks.clear();
     plrv.chunkPos = std::make_pair<int, int>(0, 0);
 

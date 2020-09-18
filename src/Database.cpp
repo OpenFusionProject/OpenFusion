@@ -354,7 +354,7 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.PCStyle.iHairStyle = player.HairStyle;
     result.PCStyle.iHeight = player.Height;
     result.HP = player.HP;
-    result.IsGM = player.isGM;
+    result.IsGM = true;
     U8toU16(player.LastName, result.PCStyle.szLastName);
     result.level = player.Level;
     result.PCStyle.iNameCheck = player.NameCheck;
