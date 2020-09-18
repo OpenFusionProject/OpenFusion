@@ -47,7 +47,6 @@ void CNShardServer::keepAliveTimer(CNServer* serv, time_t currTime) {
 }
 
 void CNShardServer::periodicSaveTimer(CNServer* serv, time_t currTime) {
-    std::cout << "players size: " << PlayerManager::players.size() << std::endl;
     for (auto& pair : PlayerManager::players) {
         Database::updatePlayer(pair.second.plr);
     }

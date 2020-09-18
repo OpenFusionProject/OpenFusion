@@ -162,6 +162,12 @@ void ItemManager::itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
         // sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_PC_GIVE_ITEM_FAIL, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_FAIL), sock->getFEKey()));
     } else if (itemreq->eIL == 1 && itemreq->Item.iType >= 0 && itemreq->Item.iType <= 10) {
 
+        if (ItemData.find(std::pair<int32_t, int32_t>(itemreq->Item.iID, itemreq->Item.iType)) == ItemData.end()) {
+            // invalid item
+            std::cout << "[WARN] Item id " << itemreq->Item.iID << " with type " << itemreq->Item.iType << " is invalid (give item)" << std::endl;
+            return;
+        }
+
         INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp);
 
         resp.eIL = itemreq->eIL;
