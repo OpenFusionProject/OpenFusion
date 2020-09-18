@@ -31,7 +31,7 @@ struct PassivePower {
     int16_t eCharStatusTimeBuffID;
     int16_t iValue;
     
-    PassivePower(std::set<int> p, int16_t h, int32_t t, int16_t f, int16_t a) : powers(p), eSkillType(h), iCBFlag(t), eCharStatusTimeBuffID(f), iValue(a) {}
+    PassivePower(std::set<int> p, int16_t t, int32_t f, int16_t b, int16_t a) : powers(p), eSkillType(t), iCBFlag(f), eCharStatusTimeBuffID(b), iValue(a) {}
 };
 
 namespace NanoManager {

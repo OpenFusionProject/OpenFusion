@@ -188,7 +188,6 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
     // Update player
     plr->Nanos[nanoId] = resp.Nano;
     plr->level = level;
-    plr->HP = 925 + 75 * plr->level;
     plr->iConditionBitFlag = 0;
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_NANO_CREATE_SUCC, sizeof(sP_FE2CL_REP_PC_NANO_CREATE_SUCC));
@@ -227,7 +226,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
     if (plr->activeNano > 0)
         for (auto& pwr : PassivePowers)
             if (pwr.powers.count(plr->Nanos[plr->activeNano].iSkillID)) // std::set's contains method is C++20 only...
-                nanoUnbuff(sock, pwr.eCharStatusTimeBuffID, pwr.iCBFlag, pwr.iValue);
+                nanoUnbuff(sock, pwr.iCBFlag, pwr.eCharStatusTimeBuffID, pwr.iValue);
     
     sNano nano = plr->Nanos[nanoId];
     skillId = nano.iSkillID;
@@ -238,7 +237,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
         for (auto& pwr : PassivePowers)
             if (pwr.powers.count(skillId)) { // std::set's contains method is C++20 only...
                 resp.eCSTB___Add = 1;
-                nanoBuff(sock, nanoId, skillId, pwr.eSkillType, pwr.eCharStatusTimeBuffID, pwr.iCBFlag, pwr.iValue);
+                nanoBuff(sock, nanoId, skillId, pwr.eSkillType, pwr.iCBFlag, pwr.eCharStatusTimeBuffID, pwr.iValue);
             }
     } else
         plr->activeNano = 0;
@@ -299,7 +298,7 @@ void NanoManager::resetNanoSkill(CNSocket* sock, int16_t nanoId) {
 #pragma region Active Powers
 namespace NanoManager {
 
-bool doDebuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage_N_Debuff *respdata, int i, int16_t iCBFlag, int32_t amount) {
+bool doDebuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage_N_Debuff *respdata, int i, int32_t iCBFlag, int32_t amount) {
     if (MobManager::Mobs.find(pktdata[i]) == MobManager::Mobs.end()) {
         // not sure how to best handle this
         std::cout << "[WARN] nanoDebuffEnemy: mob ID not found" << std::endl;
@@ -324,7 +323,25 @@ bool doDebuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage_N_Debuff *re
     return true;
 }
 
-bool doHeal(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *respdata, int i, int16_t iCBFlag, int32_t amount) {
+bool doBuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Buff *respdata, int i, int32_t iCBFlag, int32_t amount) {
+    if (MobManager::Mobs.find(pktdata[i]) == MobManager::Mobs.end()) {
+        // not sure how to best handle this
+        std::cout << "[WARN] nanoBuffEnemy: mob ID not found" << std::endl;
+        return false;
+    }
+
+    Mob* mob = MobManager::Mobs[pktdata[i]];
+    
+    respdata[i].eCT = 4;
+    respdata[i].iID = mob->appearanceData.iNPC_ID;
+    respdata[i].iConditionBitFlag = iCBFlag;
+
+    std::cout << (int)mob->appearanceData.iNPC_ID << " was debuffed" << std::endl;
+
+    return true;
+}
+
+bool doHeal(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *respdata, int i, int32_t iCBFlag, int32_t amount) {
     Player *plr = nullptr;
 
     for (auto& pair : PlayerManager::players) {
@@ -352,7 +369,7 @@ bool doHeal(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *respdata, in
     return true;
 }
 
-bool doDamage(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage *respdata, int i, int16_t iCBFlag, int32_t amount) {
+bool doDamage(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage *respdata, int i, int32_t iCBFlag, int32_t amount) {
     if (MobManager::Mobs.find(pktdata[i]) == MobManager::Mobs.end()) {
         // not sure how to best handle this
         std::cout << "[WARN] nanoDebuffEnemy: mob ID not found" << std::endl;
@@ -383,7 +400,7 @@ bool doDamage(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage *respdata, i
  * will only every leech a single mob, and the sanity check that enforces that
  * assumption is critical.
  */
-bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, int i, int16_t iCBFlag, int32_t amount) {
+bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, int i, int32_t iCBFlag, int32_t amount) {
     // this sanity check is VERY important
     if (i != 0) {
         std::cout << "[WARN] Player attempted to leech more than one mob!" << std::endl;
@@ -426,7 +443,7 @@ bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, i
 }
 
 template<class sPAYLOAD,
-    bool (*work)(CNSocket*,int32_t*,sPAYLOAD*,int,int16_t,int32_t),
+    bool (*work)(CNSocket*,int32_t*,sPAYLOAD*,int,int32_t,int32_t),
     bool isLeech=false>
 void activePower(CNSocket *sock, CNPacketData *data,
                  int16_t nanoId, int16_t skillId, int16_t eSkillType,
@@ -486,7 +503,7 @@ std::vector<ActivePower> ActivePowers = {
     ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  doDebuff>,         EST_STUN, CSB_BIT_STUN, 0),
     ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          doHeal>,           EST_HEAL_HP, CSB_BIT_NONE, 333),
     // TODO: Recall
-    ActivePower(DrainPowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_KNOCKDOWN, CSB_BIT_BOUNDINGBALL, 0),
+    ActivePower(DrainPowers, activePower<sSkillResult_Buff, doBuff>,                      EST_BOUNDINGBALL, CSB_BIT_BOUNDINGBALL, 0),
     ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SNARE, CSB_BIT_DN_MOVE_SPEED, 0),
     ActivePower(DamagePowers, activePower<sSkillResult_Damage,         doDamage>,         EST_DAMAGE, CSB_BIT_NONE, 133),
     // TODO: GroupRevive
