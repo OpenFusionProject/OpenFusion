@@ -8,6 +8,8 @@
 
 #define ACTIVE_MISSION_COUNT 6
 
+#define PC_MAXHEALTH(level) (925 + 75 * (level))
+
 struct Player {
     int accountId;
     int64_t SerialKey;
@@ -29,6 +31,7 @@ struct Player {
     int8_t iPCState;
     int32_t iWarpLocationFlag;
     int64_t aSkywayLocationFlag[2];
+    int32_t iConditionBitFlag;
 
     int x, y, z, angle;
     sItemBase Equip[AEQUIP_COUNT];
