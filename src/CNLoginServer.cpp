@@ -100,7 +100,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 resp.iPaymentFlag = 1;
                 resp.iOpenBetaFlag = 0;
                 resp.uiSvrTime = getTime();
-
+                
                 // send the resp in with original key
                 sock->sendPacket((void*)&resp, P_LS2CL_REP_LOGIN_SUCC, sizeof(sP_LS2CL_REP_LOGIN_SUCC));
 
@@ -144,10 +144,8 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             // Failure
             else {
                 INITSTRUCT(sP_LS2CL_REP_LOGIN_FAIL, resp);
-
-                memcpy(resp.szID, login->szID, sizeof(char16_t) * 33);
+                U8toU16(userLogin, resp.szID);
                 resp.iErrorCode = errorCode;
-
                 sock->sendPacket((void*)&resp, P_LS2CL_REP_LOGIN_FAIL, sizeof(sP_LS2CL_REP_LOGIN_FAIL));
             }
 
