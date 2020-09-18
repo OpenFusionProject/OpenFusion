@@ -96,6 +96,9 @@ void PlayerManager::removePlayerFromChunks(std::vector<Chunk*> chunks, CNSocket*
             exitPlayer.iID = players[otherSock].plr->iID;
             sock->sendPacket((void*)&exitPlayer, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT));
         }
+
+        // temp-fix for weird edgecase
+        chunk->players.erase(sock);
     }
 }
 

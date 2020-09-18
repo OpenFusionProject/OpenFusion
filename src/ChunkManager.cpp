@@ -43,8 +43,6 @@ void ChunkManager::addPlayer(int posX, int posY, CNSocket* sock) {
     Chunk* chunk = chunks[pos];
 
     chunk->players.insert(sock);
-    
-    // TODO: update view for all players in surrounding chunks
 }
 
 std::pair<int, int> ChunkManager::grabChunk(int posX, int posY) {
