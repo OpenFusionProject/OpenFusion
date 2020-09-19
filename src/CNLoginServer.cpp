@@ -348,7 +348,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             auto account = Database::findAccount(U16toU8(exit->szID));
             if (account == nullptr)
                 break;
-
+            
             int accountId = account->AccountID;
             if (!exitDuplicate(accountId))
                 PlayerManager::exitDuplicate(accountId);

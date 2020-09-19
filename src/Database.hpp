@@ -13,6 +13,8 @@ namespace Database {
         std::string Login;
         std::string Password;
         int Selected;
+        uint64_t Created;
+        uint64_t LastLogin;
     };
     struct Inventory
     {
@@ -36,6 +38,8 @@ namespace Database {
         short int slot;
         std::string FirstName;
         std::string LastName;
+        uint64_t Created;
+        uint64_t LastLogin;
         short int Level;
         int Nano1;
         int Nano2;

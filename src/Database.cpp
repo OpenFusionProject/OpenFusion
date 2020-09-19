@@ -18,7 +18,9 @@ auto db = make_storage("database.db",
         make_column("AccountID", &Database::Account::AccountID, autoincrement(), primary_key()),
         make_column("Login", &Database::Account::Login),
         make_column("Password", &Database::Account::Password),
-        make_column("Selected", &Database::Account::Selected)
+        make_column("Selected", &Database::Account::Selected),
+        make_column("Created", &Database::Account::Created),
+        make_column("LastLogin", &Database::Account::LastLogin)
     ),
     make_table("Players",
         make_column("PlayerID", &Database::DbPlayer::PlayerID, autoincrement(), primary_key()),
@@ -26,6 +28,8 @@ auto db = make_storage("database.db",
         make_column("Slot", &Database::DbPlayer::slot),
         make_column("Firstname", &Database::DbPlayer::FirstName, collate_nocase()),
         make_column("LastName", &Database::DbPlayer::LastName, collate_nocase()),
+        make_column("Created", &Database::DbPlayer::Created),
+        make_column("LastLogin", &Database::DbPlayer::LastLogin),
         make_column("Level", &Database::DbPlayer::Level),
         make_column("Nano1", &Database::DbPlayer::Nano1),
         make_column("Nano2", &Database::DbPlayer::Nano2),
@@ -112,6 +116,7 @@ void Database::open()
 int Database::getAccountsCount() {
     return db.count<Account>();
 }
+
 int Database::getPlayersCount() {
     return db.count<DbPlayer>();
 }
@@ -119,17 +124,20 @@ int Database::getPlayersCount() {
 int Database::addAccount(std::string login, std::string password)
 {
     password = BCrypt::generateHash(password);
-    Account x = {};
-    x.Login = login;
-    x.Password = password;
-    x.Selected = 1;
-    return db.insert(x);
+    Account account = {};
+    account.Login = login;
+    account.Password = password;
+    account.Selected = 1;
+    account.Created = getTime();
+    return db.insert(account);
 }
 
 void Database::updateSelected(int accountId, int slot)
 {
     Account acc = db.get<Account>(accountId);
     acc.Selected = slot;
+    //timestamp
+    acc.LastLogin = getTime();
     db.update(acc);
 }
 
@@ -162,7 +170,9 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
         return -1;
 
     DbPlayer create = {};
-
+    
+    //set timestamp
+    create.Created = getTime();
     // save packet data
     create.FirstName = U16toU8(save->szFirstName);
     create.LastName = U16toU8(save->szLastName);
@@ -320,7 +330,8 @@ void Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save) {
 
 Database::DbPlayer Database::playerToDb(Player *player)
 {
-    DbPlayer result = {};  // fixes some weird memory errors, this zeros out the members (not the padding inbetween though)
+    //TODO: move stuff that is never updated to separate table so it doesn't try to update it every time
+    DbPlayer result = {};
 
     result.PlayerID = player->iID;
     result.AccountID = player->accountId;
@@ -368,6 +379,9 @@ Database::DbPlayer Database::playerToDb(Player *player)
         int64_t flag = player->aQuestFlag[i];
         appendBlob(&result.QuestFlag, flag);
     }
+    //timestamp
+    result.LastLogin = getTime();
+    result.Created = getDbPlayerById(player->iID).Created;
 
     return result;
 }
