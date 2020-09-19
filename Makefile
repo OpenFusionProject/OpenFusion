@@ -103,9 +103,9 @@ windows : CXXFLAGS=$(WIN_CXXFLAGS)
 windows : LDFLAGS=$(WIN_LDFLAGS)
 windows : SERVER=$(WIN_SERVER)
 windows :
-ifneq ($(shell $(WIN_CXX) --version | head -1 | egrep -o [0-9]+ | tail -3 | head -1), 10)
-WIN_CXX_OPT_DISABLES=$(WIN_CXX_VANILLA_MINGW_OPT_DISABLES)
-endif
+	ifneq ($(shell $(WIN_CXX) --version | head -1 | egrep -o [0-9]+ | tail -3 | head -1), 10)
+	WIN_CXX_OPT_DISABLES=$(WIN_CXX_VANILLA_MINGW_OPT_DISABLES)
+	endif
 
 CXXFLAGS+= -DGIT_VERSION=\"$(shell git describe --tags)\"
 
