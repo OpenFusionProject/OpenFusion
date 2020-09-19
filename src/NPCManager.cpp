@@ -316,7 +316,7 @@ void NPCManager::npcCombineItems(CNSocket* sock, CNPacketData* data) {
 
     CrocPotEntry* recipe = &ItemManager::CrocPotTable[abs(itemStatsDat->level - itemLooksDat->level)];
     int cost = itemStatsDat->buyPrice * recipe->multStats + itemLooksDat->buyPrice * recipe->multLooks;
-    float successChance = recipe->base / 100.0f;
+    float successChance = recipe->base / 100.0f; // base success chance
 
     // rarity gap multiplier
     switch(abs(itemStatsDat->rarity - itemLooksDat->rarity))
@@ -337,8 +337,8 @@ void NPCManager::npcCombineItems(CNSocket* sock, CNPacketData* data) {
         break;
     }
 
-    float rolled = (rand() * 1.0f / RAND_MAX) * 100.0f;
-    std::cout << rolled << " vs " << successChance << std::endl;
+    float rolled = (rand() * 1.0f / RAND_MAX) * 100.0f; // success chance out of 100
+    //std::cout << rolled << " vs " << successChance << std::endl;
     plr->money -= cost;
 
 
