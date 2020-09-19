@@ -64,6 +64,9 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 // if user exists, check if password is correct
                 else if (CNLoginServer::isPasswordCorrect(findUser->Password, userPassword))
                 {
+                    /*calling this here to timestamp login attempt, 
+                     * in order to make duplicate exit sanity check work*/
+                    Database::updateSelected(findUser->AccountID, findUser->Selected);
                     // check if account isn't currently in use
                     if (CNLoginServer::isAccountInUse(findUser->AccountID) ||
                         PlayerManager::isAccountInUse(findUser->AccountID))
@@ -346,9 +349,23 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             sP_CL2LS_REQ_PC_EXIT_DUPLICATE* exit = (sP_CL2LS_REQ_PC_EXIT_DUPLICATE*)data->buf;
             auto account = Database::findAccount(U16toU8(exit->szID));
+            //sanity check
             if (account == nullptr)
+            {
+                std::cout << "[WARN] P_CL2LS_REQ_PC_EXIT_DUPLICATE submitted unknown username: " << exit->szID << std::endl;
                 break;
-            
+            }
+            /* sanity check
+             * client is supposed to send us user password for verification,
+             * however it never sends it (>_<)
+             * therefore, we check if the account made a login attempt within last 30s
+             */
+            if (account->LastLogin + 30000 < getTime())
+            {
+                std::cout << "[WARN] P_CL2LS_REQ_PC_EXIT_DUPLICATE submitted without a login attempt on: " << exit->szID << std::endl;
+                break;
+            }
+
             int accountId = account->AccountID;
             if (!exitDuplicate(accountId))
                 PlayerManager::exitDuplicate(accountId);
