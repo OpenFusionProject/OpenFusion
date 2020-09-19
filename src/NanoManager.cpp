@@ -274,6 +274,7 @@ void NanoManager::setNanoSkill(CNSocket* sock, int16_t nanoId, int16_t skillId) 
     INITSTRUCT(sP_FE2CL_REP_NANO_TUNE_SUCC, resp);
     resp.iNanoID = nanoId;
     resp.iSkillID = skillId;
+    resp.aItem[9] = plr->Inven[0]; // temp fix for a bug TODO: Use this for nano power changing later
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_TUNE_SUCC, sizeof(sP_FE2CL_REP_NANO_TUNE_SUCC));
 
