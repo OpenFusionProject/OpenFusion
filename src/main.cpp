@@ -8,6 +8,7 @@
 #include "NanoManager.hpp"
 #include "NPCManager.hpp"
 #include "TransportManager.hpp"
+#include "BuddyManager.hpp"
 #include "Database.hpp"
 #include "TableData.hpp"
 #include "ChunkManager.hpp"
@@ -99,6 +100,7 @@ int main() {
     NanoManager::init();
     NPCManager::init();
     TransportManager::init();
+    BuddyManager::init();
 
     Database::open();
 
