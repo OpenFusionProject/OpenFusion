@@ -4,6 +4,7 @@ namespace settings {
     extern int VERBOSITY;
     extern int LOGINPORT;
     extern bool APPROVEALLNAMES;
+    extern bool USEWEBAPI;
     extern int DBSAVEINTERVAL;
     extern int SHARDPORT;
     extern std::string SHARDSERVERIP;
