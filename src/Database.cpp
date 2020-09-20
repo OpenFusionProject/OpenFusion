@@ -62,7 +62,9 @@ auto db = make_storage("database.db",
         make_column("WarpLocationFlag", &Database::DbPlayer::WarpLocationFlag),
         make_column("SkywayLocationFlag1", &Database::DbPlayer::SkywayLocationFlag1),
         make_column("SkywayLocationFlag2", &Database::DbPlayer::SkywayLocationFlag2),
-        make_column("CurrentMissionID", &Database::DbPlayer::CurrentMissionID)
+        make_column("CurrentMissionID", &Database::DbPlayer::CurrentMissionID),
+        make_column("iFirstUseFlag1", &Database::DbPlayer::iFirstUseFlag1),
+        make_column("iFirstUseFlag2", &Database::DbPlayer::iFirstUseFlag2)
     ),
     make_table("Inventory",
         make_column("PlayerId", &Database::Inventory::playerId),
@@ -210,6 +212,10 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     create.QuestFlag = std::vector<char>();
     //set mentor to computress
     create.Mentor = 5;
+    //set default first use flags to zero (Camputress will start providing tips to help first time users),
+    //this is ignored if the disablecomputresstips in config.ini is set to true
+    create.iFirstUseFlag1 = 0;
+    create.iFirstUseFlag1 = 0;
 
     return db.insert(create);
 }
@@ -382,6 +388,9 @@ Database::DbPlayer Database::playerToDb(Player *player)
     //timestamp
     result.LastLogin = getTime();
     result.Created = getDbPlayerById(player->iID).Created;
+    //first use flags
+    result.iFirstUseFlag1 = player->iFirstUseFlag1;
+    result.iFirstUseFlag2 = player->iFirstUseFlag2;
 
     return result;
 }
@@ -445,6 +454,9 @@ Player Database::DbToPlayer(DbPlayer player) {
         it += 8;
     }
 
+    result.iFirstUseFlag1 = player.iFirstUseFlag1;
+    result.iFirstUseFlag2 = player.iFirstUseFlag2;
+    
     return result;
 }
 

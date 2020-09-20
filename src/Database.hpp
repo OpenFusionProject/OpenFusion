@@ -74,6 +74,8 @@ namespace Database {
         int32_t WarpLocationFlag;
         int64_t SkywayLocationFlag1;
         int64_t SkywayLocationFlag2;
+        int64_t iFirstUseFlag1;
+        int64_t iFirstUseFlag2;
     };
     struct DbQuest {
         int PlayerId;
