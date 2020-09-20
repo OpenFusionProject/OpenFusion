@@ -19,6 +19,7 @@ namespace settings {
     extern std::string XDTJSON;
     extern std::string MOBJSON;
     extern std::string PATHJSON;
+    extern bool DISABLECOMPUTRESSTIPS;
 
     void init();
 }
