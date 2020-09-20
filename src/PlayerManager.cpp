@@ -36,6 +36,7 @@ void PlayerManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_ON, PlayerManager::enterPlayerVehicle);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_OFF, PlayerManager::exitPlayerVehicle);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_CHANGE_MENTOR, PlayerManager::changePlayerGuide);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_FIRST_USE_FLAG_SET, PlayerManager::setFirstUseFlags);
 }
 
 void PlayerManager::addPlayer(CNSocket* key, Player plr) {
@@ -749,6 +750,21 @@ void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_CHANGE_MENTOR_SUCC, sizeof(sP_FE2CL_REP_PC_CHANGE_MENTOR_SUCC));
     //save it on player
     plr->mentor = pkt->iMentor;
+}
+
+void PlayerManager::setFirstUseFlags(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET))
+        return;         //ignore malformed packet
+    sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET* flag = (sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET*)data->buf;
+    Player* plr = getPlayer(sock);
+    if (flag->iFlagCode <= 64) {
+        int newflag = 1ULL << (flag->iFlagCode - 1);
+        plr->iFirstUseFlag1 |= newflag;
+    }
+    else {
+        int newflag = 1ULL << (flag->iFlagCode - 64 - 1);
+        plr->iFirstUseFlag2 |= newflag;
+    }
 }
 
 #pragma region Helper methods
