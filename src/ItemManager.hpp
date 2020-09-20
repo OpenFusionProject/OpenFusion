@@ -5,10 +5,14 @@
 
 struct Item {
     bool tradeable, sellable;
-    int buyPrice, sellPrice, stackSize, level; // TODO: implement more as needed
+    int buyPrice, sellPrice, stackSize, level, rarity; // TODO: implement more as needed
 };
 struct VendorListing {
     int sort, type, iID;
+};
+struct CrocPotEntry {
+    int multStats, multLooks;
+    float base, rd0, rd1, rd2, rd3;
 };
 
 namespace ItemManager {
@@ -20,6 +24,7 @@ namespace ItemManager {
     // hopefully this is fine since it's never modified after load
     extern std::map<std::pair<int32_t, int32_t>, Item> ItemData; // <id, type> -> data
     extern std::map<int32_t, std::vector<VendorListing>> VendorTables;
+    extern std::map<int32_t, CrocPotEntry> CrocPotTable; // level gap -> entry
 
     void init();	
 

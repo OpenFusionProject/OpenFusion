@@ -110,11 +110,12 @@ void TableData::init() {
         nlohmann::json itemSet;
         for (int i = 0; i < 12; i++) {
             itemSet = xdtData[setNames[i]]["m_pItemData"];
-
             for (nlohmann::json::iterator _item = itemSet.begin(); _item != itemSet.end(); _item++) {
                 auto item = _item.value();
-                ItemManager::ItemData[std::pair<int32_t, int32_t>(item["m_iItemNumber"], i == 11 ? 9 : (i == 10 ? 7 : (int)item["m_iEquipLoc"]))]
-                = { item["m_iTradeAble"] == 1, item["m_iSellAble"] == 1, item["m_iItemPrice"], item["m_iItemSellPrice"], item["m_iStackNumber"], i > 9 ? 0 : (int)item["m_iMinReqLev"] };
+                int typeOverride = getItemType(i); // used for special cases where iEquipLoc doesn't indicate item type
+                ItemManager::ItemData[std::pair<int32_t, int32_t>(item["m_iItemNumber"], typeOverride != -1 ? typeOverride : (int)item["m_iEquipLoc"])]
+                = { item["m_iTradeAble"] == 1, item["m_iSellAble"] == 1, item["m_iItemPrice"], item["m_iItemSellPrice"], item["m_iStackNumber"], i > 9 ? 0 : (int)item["m_iMinReqLev"],
+                i > 9 ? 1 : (int)item["m_iRarity"] };
             }
         }
 
@@ -130,6 +131,17 @@ void TableData::init() {
         }
 
         std::cout << "[INFO] Loaded " << ItemManager::VendorTables.size() << " vendor tables" << std::endl;
+
+        // load crocpot entries
+        nlohmann::json crocs = xdtData["m_pCombiningTable"]["m_pCombiningData"];
+
+        for (nlohmann::json::iterator croc = crocs.begin(); croc != crocs.end(); croc++) {
+            CrocPotEntry crocEntry = { croc.value()["m_iStatConstant"], croc.value()["m_iLookConstant"], croc.value()["m_fLevelGapStandard"],
+                croc.value()["m_fSameGrade"], croc.value()["m_fOneGrade"], croc.value()["m_fTwoGrade"], croc.value()["m_fThreeGrade"] };
+            ItemManager::CrocPotTable[croc.value()["m_iLevelGap"]] = crocEntry;
+        }
+
+        std::cout << "[INFO] Loaded " << ItemManager::CrocPotTable.size() << " croc pot value sets" << std::endl;
     }
     catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed xdt.json file! Reason:" << err.what() << std::endl;
@@ -178,4 +190,26 @@ void TableData::cleanup() {
         delete pair.second;
     for (auto& pair : NPCManager::NPCs)
         delete pair.second;
+}
+
+/*
+* Some item categories either don't possess iEquipLoc or use a different value for item type.
+*/
+int TableData::getItemType(int itemSet) {
+    int overriden;
+    switch (itemSet)
+    {
+    case 11: // Chest items don't have iEquipLoc and are type 9.
+        overriden = 9;
+        break;
+    case 10: // General items don't have iEquipLoc and are type 7.
+        overriden = 7;
+        break;
+    case 9: // Vehicles have iEquipLoc 8, but type 10.
+        overriden = 10;
+        break;
+    default:
+        overriden = -1;
+    }
+    return overriden;
 }
