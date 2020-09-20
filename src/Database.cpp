@@ -159,7 +159,7 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     create.Height = 0;
     create.Level = 1;
     create.SkinColor = 1;
-    create.isGM = false;
+    create.isGM = settings::GM;
     create.x_coordinates = settings::SPAWN_X;
     create.y_coordinates = settings::SPAWN_Y;
     create.z_coordinates = settings::SPAWN_Z;

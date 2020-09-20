@@ -24,7 +24,7 @@ std::string settings::NPCJSON = "tdata/NPCs.json";
 std::string settings::XDTJSON = "tdata/xdt.json";
 std::string settings::MOBJSON = "tdata/mobs.json";
 std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
-bool settings::GM = false;
+bool settings::GM = true;
 
 void settings::init() {
     INIReader reader("config.ini");
