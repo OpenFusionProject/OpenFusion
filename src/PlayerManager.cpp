@@ -265,8 +265,8 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     }
 
     // shut Computress up
-    response.PCLoadData2CL.iFirstUseFlag1 = UINT64_MAX;
-    response.PCLoadData2CL.iFirstUseFlag2 = UINT64_MAX;
+    response.PCLoadData2CL.iFirstUseFlag1 = plr.iFirstUseFlag1;
+    response.PCLoadData2CL.iFirstUseFlag2 = plr.iFirstUseFlag2;
 
     plr.SerialKey = enter->iEnterSerialKey;
 
