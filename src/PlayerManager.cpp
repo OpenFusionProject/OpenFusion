@@ -755,15 +755,21 @@ void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
 void PlayerManager::setFirstUseFlags(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET))
         return;         //ignore malformed packet
-    sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET* flag = (sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET*)data->buf;
     Player* plr = getPlayer(sock);
-    if (flag->iFlagCode <= 64) {
-        uint64_t newflag = 1ULL << (flag->iFlagCode - 1);
-        plr->iFirstUseFlag1 |= newflag;
+    if (!settings::DISABLECOMPUTRESSTIPS) {
+        sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET* flag = (sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET*)data->buf;
+        if (flag->iFlagCode <= 64) {
+            uint64_t newflag = 1ULL << (flag->iFlagCode - 1);
+            plr->iFirstUseFlag1 |= newflag;
+        }
+        else {
+            uint64_t newflag = 1ULL << (flag->iFlagCode - 64 - 1);
+            plr->iFirstUseFlag2 |= newflag;
+            }
     }
     else {
-        uint64_t newflag = 1ULL << (flag->iFlagCode - 64 - 1);
-        plr->iFirstUseFlag2 |= newflag;
+        plr->iFirstUseFlag1=UINT64_MAX;
+        plr->iFirstUseFlag2=UINT64_MAX;
     }
 }
 
