@@ -49,4 +49,7 @@ struct Player {
     int RemainingNPCCount[ACTIVE_MISSION_COUNT][3];
     sItemBase QInven[AQINVEN_COUNT];
     int32_t CurrentMissionID;
+
+    int64_t iFirstUseFlag1;
+    int64_t iFirstUseFlag2;    
 };
