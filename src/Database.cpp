@@ -215,7 +215,7 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     //set default first use flags to zero (Camputress will start providing tips to help first time users),
     //this is ignored if the disablecomputresstips in config.ini is set to true
     create.iFirstUseFlag1 = 0;
-    create.iFirstUseFlag1 = 0;
+    create.iFirstUseFlag2 = 0;
 
     return db.insert(create);
 }
