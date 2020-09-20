@@ -264,7 +264,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
         response.PCLoadData2CL.aQuestFlag[i] = plr.aQuestFlag[i];
     }
 
-    // shut Computress up
+    // Load first use flags from player struct (Computress' tips)
     response.PCLoadData2CL.iFirstUseFlag1 = plr.iFirstUseFlag1;
     response.PCLoadData2CL.iFirstUseFlag2 = plr.iFirstUseFlag2;
 
