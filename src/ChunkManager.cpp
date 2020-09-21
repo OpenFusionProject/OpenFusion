@@ -61,7 +61,7 @@ bool ChunkManager::checkChunk(std::pair<int, int> chunk) {
 }
 
 std::pair<int, int> ChunkManager::grabChunk(int posX, int posY) {
-    return std::make_pair<int, int>(posX / (settings::PLAYERDISTANCE / 3), posY / (settings::PLAYERDISTANCE / 3));
+    return std::make_pair<int, int>(posX / (settings::CHUNKSIZE / 3), posY / (settings::CHUNKSIZE / 3));
 }
 
 std::vector<Chunk*> ChunkManager::grabChunks(std::pair<int, int> chunk) {

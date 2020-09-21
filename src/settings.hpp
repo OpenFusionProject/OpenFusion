@@ -8,8 +8,7 @@ namespace settings {
     extern int SHARDPORT;
     extern std::string SHARDSERVERIP;
     extern time_t TIMEOUT;
-    extern int PLAYERDISTANCE;
-    extern int NPCDISTANCE;
+    extern int CHUNKSIZE;
     extern int SPAWN_X;
     extern int SPAWN_Y;
     extern int SPAWN_Z;

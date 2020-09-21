@@ -252,7 +252,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
              * it gets Count from Quest Inventory
              * 
              * KillNPCCount sets RemainEnemyNum in the client
-             * Yes, this is extraordinary stupid, even for Grigon
+             * Yes, this is extraordinary stupid.
             */
         }
     }
