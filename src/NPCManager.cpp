@@ -71,7 +71,7 @@ void NPCManager::removeNPC(int32_t id) {
     exitData.iNPC_ID = id;
 
     // remove it from the clients
-    for (Chunk* chunk : ChunkManager::grabChunks(pos.first, pos.second)) {
+    for (Chunk* chunk : ChunkManager::grabChunks(pos)) {
         for (CNSocket* sock : chunk->players) {
             // send to socket
             sock->sendPacket((void*)&exitData, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));

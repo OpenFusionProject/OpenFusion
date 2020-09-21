@@ -21,7 +21,9 @@ namespace ChunkManager {
 
     void addNPC(int posX, int posY, int32_t id);
     void addPlayer(int posX, int posY, CNSocket* sock);
+    void removePlayer(std::pair<int, int> chunkPos, CNSocket* sock);
+    bool checkChunk(std::pair<int, int> chunk);
     std::pair<int, int> grabChunk(int posX, int posY);
-    std::vector<Chunk*> grabChunks(int chunkX, int chunkY);
+    std::vector<Chunk*> grabChunks(std::pair<int, int> chunkPos);
     std::vector<Chunk*> getDeltaChunks(std::vector<Chunk*> from, std::vector<Chunk*> to);
 }
