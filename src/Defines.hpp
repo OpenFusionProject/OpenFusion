@@ -8,6 +8,7 @@
  * implementing just yet anyway.
  */
 
+// floats
 const float VALUE_BATTERY_EMPTY_PENALTY = 0.5f;
 const float CN_EP_RANK_1 = 0.8f;
 const float CN_EP_RANK_2 = 0.7f;
@@ -15,6 +16,7 @@ const float CN_EP_RANK_3 = 0.5f;
 const float CN_EP_RANK_4 = 0.3f;
 const float CN_EP_RANK_5 = 0.29f;
 
+// nano powers
 enum {
     EST_NONE = 0,
     EST_DAMAGE = 1,

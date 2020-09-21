@@ -633,7 +633,7 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     plr->x = target.x;
     plr->y = target.y;
     plr->z = target.z;
-    plr->HP = 1000 * plr->level;
+    plr->HP = PC_MAXHEALTH(plr->level);
 
     // Response parameters
     response.PCRegenData.iActiveNanoSlotNum = plr->activeNano;

@@ -184,6 +184,7 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
     resp.Nano.iStamina = 150;
     resp.iQuestItemSlotNum = slot;
     resp.iPC_Level = level;
+    resp.iPC_FusionMatter = plr->fusionmatter; // will decrese in actual nano missions
 
     // Update player
     plr->Nanos[nanoId] = resp.Nano;
@@ -311,7 +312,7 @@ bool doDebuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage_N_Debuff *re
     mob->appearanceData.iHP -= amount;
 
     if (mob->appearanceData.iHP <= 0)
-        MobManager::giveReward(sock);
+        MobManager::killMob(sock, mob);
     
     respdata[i].eCT = 4;
     respdata[i].iDamage = amount;
@@ -352,6 +353,7 @@ bool doHeal(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *respdata, in
         }
     }
 
+    // player not found
     if (plr == nullptr)
         return false;
 
@@ -381,7 +383,7 @@ bool doDamage(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage *respdata, i
     mob->appearanceData.iHP -= amount;
 
     if (mob->appearanceData.iHP <= 0)
-        MobManager::giveReward(sock);
+        MobManager::killMob(sock, mob);
     
     respdata[i].eCT = 4;
     respdata[i].iDamage = amount;
@@ -431,7 +433,7 @@ bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, i
     mob->appearanceData.iHP -= amount;
 
     if (mob->appearanceData.iHP <= 0)
-        MobManager::giveReward(sock);
+        MobManager::killMob(sock, mob);
     
     damagedata->eCT = 4;
     damagedata->iDamage = amount;
@@ -444,8 +446,8 @@ bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, i
 }
 
 template<class sPAYLOAD,
-    bool (*work)(CNSocket*,int32_t*,sPAYLOAD*,int,int32_t,int32_t),
-    bool isLeech=false>
+    	 bool (*work)(CNSocket*,int32_t*,sPAYLOAD*,int,int32_t,int32_t),
+    	 bool isLeech=false>
 void activePower(CNSocket *sock, CNPacketData *data,
                  int16_t nanoId, int16_t skillId, int16_t eSkillType,
                  int32_t iCBFlag, int32_t amount) {
@@ -501,15 +503,15 @@ void activePower(CNSocket *sock, CNPacketData *data,
 
 // active nano power dispatch table
 std::vector<ActivePower> ActivePowers = {
-    ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  doDebuff>,         EST_STUN, CSB_BIT_STUN, 0),
-    ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          doHeal>,           EST_HEAL_HP, CSB_BIT_NONE, 333),
+    ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  doDebuff>,         EST_STUN, CSB_BIT_STUN,                 0),
+    ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          doHeal>,           EST_HEAL_HP, CSB_BIT_NONE,            333),
     // TODO: Recall
     ActivePower(DrainPowers, activePower<sSkillResult_Buff, doBuff>,                      EST_BOUNDINGBALL, CSB_BIT_BOUNDINGBALL, 0),
-    ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SNARE, CSB_BIT_DN_MOVE_SPEED, 0),
-    ActivePower(DamagePowers, activePower<sSkillResult_Damage,         doDamage>,         EST_DAMAGE, CSB_BIT_NONE, 133),
+    ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SNARE, CSB_BIT_DN_MOVE_SPEED,       0),
+    ActivePower(DamagePowers, activePower<sSkillResult_Damage,         doDamage>,         EST_DAMAGE, CSB_BIT_NONE,             133),
     // TODO: GroupRevive
-    ActivePower(LeechPowers, activePower<sSkillResult_Heal_HP,         doLeech, true>,    EST_BLOODSUCKING, CSB_BIT_NONE, 133),
-    ActivePower(SleepPowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SLEEP, CSB_BIT_MEZ, 0),
+    ActivePower(LeechPowers, activePower<sSkillResult_Heal_HP,         doLeech, true>,    EST_BLOODSUCKING, CSB_BIT_NONE,       133),
+    ActivePower(SleepPowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SLEEP, CSB_BIT_MEZ,                 0),
 };
 
 }; // namespace
@@ -588,17 +590,17 @@ void NanoManager::nanoUnbuff(CNSocket* sock, int32_t iCBFlag, int16_t eCharStatu
 namespace NanoManager {
 
 std::vector<PassivePower> PassivePowers = {
-    PassivePower(ScavangePowers,       EST_REWARDBLOB,       CSB_BIT_REWARD_BLOB,       ECSB_REWARD_BLOB, 0),
-    PassivePower(RunPowers,            EST_RUN,              CSB_BIT_UP_MOVE_SPEED,     ECSB_UP_MOVE_SPEED, 200),
-    PassivePower(BonusPowers,          EST_REWARDCASH,       CSB_BIT_REWARD_CASH,       ECSB_REWARD_CASH, 0),
-    PassivePower(GuardPowers,          EST_PROTECTBATTERY,   CSB_BIT_PROTECT_BATTERY,   ECSB_PROTECT_BATTERY, 0),
-    PassivePower(RadarPowers,          EST_MINIMAPENEMY,     CSB_BIT_MINIMAP_ENEMY,     ECSB_MINIMAP_ENEMY, 0),
+    PassivePower(ScavangePowers,       EST_REWARDBLOB,       CSB_BIT_REWARD_BLOB,       ECSB_REWARD_BLOB,       0),
+    PassivePower(RunPowers,            EST_RUN,              CSB_BIT_UP_MOVE_SPEED,     ECSB_UP_MOVE_SPEED,   200),
+    PassivePower(BonusPowers,          EST_REWARDCASH,       CSB_BIT_REWARD_CASH,       ECSB_REWARD_CASH,       0),
+    PassivePower(GuardPowers,          EST_PROTECTBATTERY,   CSB_BIT_PROTECT_BATTERY,   ECSB_PROTECT_BATTERY,   0),
+    PassivePower(RadarPowers,          EST_MINIMAPENEMY,     CSB_BIT_MINIMAP_ENEMY,     ECSB_MINIMAP_ENEMY,     0),
     PassivePower(AntidotePowers,       EST_PROTECTINFECTION, CSB_BIT_PROTECT_INFECTION, ECSB_PROTECT_INFECTION, 0),
-    PassivePower(FreedomPowers,        EST_FREEDOM,          CSB_BIT_FREEDOM,           ECSB_FREEDOM, 0),
-    PassivePower(JumpPowers,           EST_JUMP,             CSB_BIT_UP_JUMP_HEIGHT,    ECSB_UP_JUMP_HEIGHT, 400),
-    PassivePower(SelfRevivePowers,     EST_PHOENIX,          CSB_BIT_PHOENIX,           ECSB_PHOENIX, 0),
-    PassivePower(SneakPowers,          EST_STEALTH,          CSB_BIT_UP_STEALTH,        ECSB_UP_STEALTH, 0),
-    PassivePower(TreasureFinderPowers, EST_MINIMAPTRESURE,   CSB_BIT_MINIMAP_TRESURE,   ECSB_MINIMAP_TRESURE, 0),
+    PassivePower(FreedomPowers,        EST_FREEDOM,          CSB_BIT_FREEDOM,           ECSB_FREEDOM,           0),
+    PassivePower(JumpPowers,           EST_JUMP,             CSB_BIT_UP_JUMP_HEIGHT,    ECSB_UP_JUMP_HEIGHT,  400),
+    PassivePower(SelfRevivePowers,     EST_PHOENIX,          CSB_BIT_PHOENIX,           ECSB_PHOENIX,           0),
+    PassivePower(SneakPowers,          EST_STEALTH,          CSB_BIT_UP_STEALTH,        ECSB_UP_STEALTH,        0),
+    PassivePower(TreasureFinderPowers, EST_MINIMAPTRESURE,   CSB_BIT_MINIMAP_TRESURE,   ECSB_MINIMAP_TRESURE,   0),
 };
 
 }; // namespace
