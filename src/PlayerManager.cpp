@@ -756,11 +756,6 @@ void PlayerManager::setFirstUseFlags(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET))
         return;         // ignore malformed packet
     Player* plr = getPlayer(sock);
-    if (settings::DISABLECOMPUTRESSTIPS) {
-        plr->iFirstUseFlag1 = UINT64_MAX;
-        plr->iFirstUseFlag2 = UINT64_MAX;
-        return;
-    }
     sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET* flag = (sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET*)data->buf;
     if (flag->iFlagCode <= 64) {
         uint64_t newflag = 1ULL << (flag->iFlagCode - 1);
