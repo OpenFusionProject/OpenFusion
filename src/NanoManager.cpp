@@ -184,7 +184,7 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot) {
     resp.Nano.iStamina = 150;
     resp.iQuestItemSlotNum = slot;
     resp.iPC_Level = level;
-    resp.iPC_FusionMatter = plr->fusionmatter; // will decrese in actual nano missions
+    resp.iPC_FusionMatter = plr->fusionmatter; // will decrease in actual nano missions
 
     // Update player
     plr->Nanos[nanoId] = resp.Nano;

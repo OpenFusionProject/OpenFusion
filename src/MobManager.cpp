@@ -137,15 +137,28 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
     giveReward(sock);
     MissionManager::mobKilled(sock, mob->appearanceData.iNPCType);
 
-    INITSTRUCT(sP_FE2CL_NPC_EXIT, pkt);
-
-    pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
-
-    sock->sendPacket(&pkt, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
-    PlayerManager::sendToViewable(sock, (void*)&pkt, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
+    mob->despawned = false;
 }
 
 void MobManager::deadStep(Mob *mob, time_t currTime) {
+    auto chunk = ChunkManager::grabChunk(mob->appearanceData.iX, mob->appearanceData.iY);
+    auto chunks = ChunkManager::grabChunks(chunk);
+
+    // despawn the mob after a short delay
+    if (mob->killedTime != 0 && !mob->despawned && currTime - mob->killedTime > 2000) {
+        mob->despawned = true;
+
+        INITSTRUCT(sP_FE2CL_NPC_EXIT, pkt);
+
+        pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
+
+        for (Chunk *chunk : chunks) {
+            for (CNSocket *s : chunk->players) {
+                s->sendPacket(&pkt, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
+            }
+        }
+    }
+
     if (mob->killedTime != 0 && currTime - mob->killedTime < mob->regenTime * 100)
         return;
 
@@ -157,9 +170,6 @@ void MobManager::deadStep(Mob *mob, time_t currTime) {
     INITSTRUCT(sP_FE2CL_NPC_NEW, pkt);
 
     pkt.NPCAppearanceData = mob->appearanceData;
-
-    auto chunk = ChunkManager::grabChunk(mob->appearanceData.iX, mob->appearanceData.iY);
-    auto chunks = ChunkManager::grabChunks(chunk);
 
     // notify all nearby players
     for (Chunk *chunk : chunks) {

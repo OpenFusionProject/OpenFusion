@@ -20,6 +20,7 @@ struct Mob : public BaseNPC {
     const int maxHealth;
     time_t killedTime = 0;
     const int regenTime;
+    bool despawned = false; // for the sake of death animations
 
     Mob(int x, int y, int z, int type, int hp, int angle, int rt)
         : BaseNPC(x, y, z, type), maxHealth(hp), regenTime(rt) {
