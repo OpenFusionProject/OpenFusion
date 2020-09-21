@@ -131,7 +131,7 @@ namespace Database {
     void getNanos(Player* player);
     void getQuests(Player* player);
 
-    //parsing blobs
+    // parsing blobs
     void appendBlob(std::vector<char>*blob, int64_t input);
     int64_t blobToInt64(std::vector<char>::iterator it);
 }

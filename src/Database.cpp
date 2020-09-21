@@ -138,7 +138,7 @@ void Database::updateSelected(int accountId, int slot)
 {
     Account acc = db.get<Account>(accountId);
     acc.Selected = slot;
-    //timestamp
+    // timestamp
     acc.LastLogin = getTime();
     db.update(acc);
 }
@@ -173,7 +173,7 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
 
     DbPlayer create = {};
     
-    //set timestamp
+    // set timestamp
     create.Created = getTime();
     // save packet data
     create.FirstName = U16toU8(save->szFirstName);
@@ -210,10 +210,10 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     create.z_coordinates = settings::SPAWN_Z;
     create.angle = settings::SPAWN_ANGLE;
     create.QuestFlag = std::vector<char>();
-    //set mentor to computress
+    // set mentor to computress
     create.Mentor = 5;
-    //set default first use flags to zero (Camputress will start providing tips to help first time users),
-    //this is ignored if the disablecomputresstips in config.ini is set to true
+    // set default first use flags to zero (Camputress will start providing tips to help first time users),
+    // this is ignored if the disablecomputresstips in config.ini is set to true
     create.iFirstUseFlag1 = 0;
     create.iFirstUseFlag2 = 0;
 
@@ -336,7 +336,7 @@ void Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save) {
 
 Database::DbPlayer Database::playerToDb(Player *player)
 {
-    //TODO: move stuff that is never updated to separate table so it doesn't try to update it every time
+    // TODO: move stuff that is never updated to separate table so it doesn't try to update it every time
     DbPlayer result = {};
 
     result.PlayerID = player->iID;
@@ -385,10 +385,10 @@ Database::DbPlayer Database::playerToDb(Player *player)
         int64_t flag = player->aQuestFlag[i];
         appendBlob(&result.QuestFlag, flag);
     }
-    //timestamp
+    // timestamp
     result.LastLogin = getTime();
     result.Created = getDbPlayerById(player->iID).Created;
-    //first use flags
+    // first use flags
     result.iFirstUseFlag1 = player->iFirstUseFlag1;
     result.iFirstUseFlag2 = player->iFirstUseFlag2;
 
@@ -450,7 +450,7 @@ Player Database::DbToPlayer(DbPlayer player) {
         if (it == player.QuestFlag.end())
             break;
         result.aQuestFlag[i] = blobToInt64(it);
-        //move iterator to the next flag
+        // move iterator to the next flag
         it += 8;
     }
 

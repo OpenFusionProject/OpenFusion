@@ -748,28 +748,27 @@ void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
     resp.iFusionMatter = plr->fusionmatter; // no cost
     
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_CHANGE_MENTOR_SUCC, sizeof(sP_FE2CL_REP_PC_CHANGE_MENTOR_SUCC));
-    //save it on player
+    // save it on player
     plr->mentor = pkt->iMentor;
 }
 
 void PlayerManager::setFirstUseFlags(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET))
-        return;         //ignore malformed packet
+        return;         // ignore malformed packet
     Player* plr = getPlayer(sock);
-    if (!settings::DISABLECOMPUTRESSTIPS) {
-        sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET* flag = (sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET*)data->buf;
-        if (flag->iFlagCode <= 64) {
-            uint64_t newflag = 1ULL << (flag->iFlagCode - 1);
-            plr->iFirstUseFlag1 |= newflag;
-        }
-        else {
-            uint64_t newflag = 1ULL << (flag->iFlagCode - 64 - 1);
-            plr->iFirstUseFlag2 |= newflag;
-            }
+    if (settings::DISABLECOMPUTRESSTIPS) {
+        plr->iFirstUseFlag1 = UINT64_MAX;
+        plr->iFirstUseFlag2 = UINT64_MAX;
+        return;
+    }
+    sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET* flag = (sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET*)data->buf;
+    if (flag->iFlagCode <= 64) {
+        uint64_t newflag = 1ULL << (flag->iFlagCode - 1);
+        plr->iFirstUseFlag1 |= newflag;
     }
     else {
-        plr->iFirstUseFlag1=UINT64_MAX;
-        plr->iFirstUseFlag2=UINT64_MAX;
+        uint64_t newflag = 1ULL << (flag->iFlagCode - 64 - 1);
+        plr->iFirstUseFlag2 |= newflag;
     }
 }
 
