@@ -53,20 +53,13 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             else
             {
                 std::unique_ptr<Database::Account> findUser = Database::findAccount(userLogin);
-                // if account not found
+                // if account not found, make new one
                 if (findUser == nullptr)
                 {
-                    //web api takes care of registration
-                    if (settings::USEWEBAPI)
-                        errorCode = (int)LoginError::ID_DOESNT_EXIST;
-                    //without web api, create new account
-                    else 
-                    {
                         loginSessions[sock] = CNLoginData();
                         loginSessions[sock].userID = Database::addAccount(userLogin, userPassword);
                         loginSessions[sock].slot = 1;
                         success = true;
-                    }
                 }
                 // if user exists, check if password is correct
                 else if (CNLoginServer::isPasswordCorrect(findUser->Password, userPassword))
@@ -429,19 +422,12 @@ bool CNLoginServer::exitDuplicate(int accountId) {
 
 bool CNLoginServer::isLoginDataGood(std::string login, std::string password) {
     std::regex loginRegex("[a-zA-Z0-9_-]{4,32}");
-    //web api sends password hashed, so we don't check it
-    if (settings::USEWEBAPI)
-        return (std::regex_match(login, loginRegex));   
-    //without web api
     std::regex passwordRegex("[a-zA-Z0-9!@#$%^&*()_+]{8,32}");
+
     return (std::regex_match(login, loginRegex) && std::regex_match(password, passwordRegex));
 }
 
 bool CNLoginServer::isPasswordCorrect(std::string actualPassword, std::string tryPassword) {
-    //web api sends password already hashed
-    if (settings::USEWEBAPI)
-        return actualPassword == tryPassword;
-    //without web api
     return BCrypt::validatePassword(tryPassword, actualPassword);
 }
 
