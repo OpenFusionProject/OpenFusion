@@ -53,17 +53,27 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             else
             {
                 std::unique_ptr<Database::Account> findUser = Database::findAccount(userLogin);
-                // if account not found, create it
+                // if account not found
                 if (findUser == nullptr)
                 {
-                    loginSessions[sock] = CNLoginData();
-                    loginSessions[sock].userID =  Database::addAccount(userLogin, userPassword);
-                    loginSessions[sock].slot = 1;
-                    success = true;
+                    //web api takes care of registration
+                    if (settings::USEWEBAPI)
+                        errorCode = (int)LoginError::ID_DOESNT_EXIST;
+                    //without web api, create new account
+                    else 
+                    {
+                        loginSessions[sock] = CNLoginData();
+                        loginSessions[sock].userID = Database::addAccount(userLogin, userPassword);
+                        loginSessions[sock].slot = 1;
+                        success = true;
+                    }
                 }
                 // if user exists, check if password is correct
                 else if (CNLoginServer::isPasswordCorrect(findUser->Password, userPassword))
                 {
+                    /*calling this here to timestamp login attempt, 
+                     * in order to make duplicate exit sanity check work*/
+                    Database::updateSelected(findUser->AccountID, findUser->Selected);
                     // check if account isn't currently in use
                     if (CNLoginServer::isAccountInUse(findUser->AccountID) ||
                         PlayerManager::isAccountInUse(findUser->AccountID))
@@ -100,7 +110,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 resp.iPaymentFlag = 1;
                 resp.iOpenBetaFlag = 0;
                 resp.uiSvrTime = getTime();
-
+                
                 // send the resp in with original key
                 sock->sendPacket((void*)&resp, P_LS2CL_REP_LOGIN_SUCC, sizeof(sP_LS2CL_REP_LOGIN_SUCC));
 
@@ -144,10 +154,8 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             // Failure
             else {
                 INITSTRUCT(sP_LS2CL_REP_LOGIN_FAIL, resp);
-
-                memcpy(resp.szID, login->szID, sizeof(char16_t) * 33);
+                U8toU16(userLogin, resp.szID);
                 resp.iErrorCode = errorCode;
-
                 sock->sendPacket((void*)&resp, P_LS2CL_REP_LOGIN_FAIL, sizeof(sP_LS2CL_REP_LOGIN_FAIL));
             }
 
@@ -348,8 +356,22 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             sP_CL2LS_REQ_PC_EXIT_DUPLICATE* exit = (sP_CL2LS_REQ_PC_EXIT_DUPLICATE*)data->buf;
             auto account = Database::findAccount(U16toU8(exit->szID));
+            //sanity check
             if (account == nullptr)
+            {
+                std::cout << "[WARN] P_CL2LS_REQ_PC_EXIT_DUPLICATE submitted unknown username: " << exit->szID << std::endl;
                 break;
+            }
+            /* sanity check
+             * client is supposed to send us user password for verification,
+             * however it never sends it (>_<)
+             * therefore, we check if the account made a login attempt within last 30s
+             */
+            if (account->LastLogin + 30000 < getTime())
+            {
+                std::cout << "[WARN] P_CL2LS_REQ_PC_EXIT_DUPLICATE submitted without a login attempt on: " << exit->szID << std::endl;
+                break;
+            }
 
             int accountId = account->AccountID;
             if (!exitDuplicate(accountId))
@@ -407,11 +429,19 @@ bool CNLoginServer::exitDuplicate(int accountId) {
 
 bool CNLoginServer::isLoginDataGood(std::string login, std::string password) {
     std::regex loginRegex("[a-zA-Z0-9_-]{4,32}");
+    //web api sends password hashed, so we don't check it
+    if (settings::USEWEBAPI)
+        return (std::regex_match(login, loginRegex));   
+    //without web api
     std::regex passwordRegex("[a-zA-Z0-9!@#$%^&*()_+]{8,32}");
     return (std::regex_match(login, loginRegex) && std::regex_match(password, passwordRegex));
 }
 
 bool CNLoginServer::isPasswordCorrect(std::string actualPassword, std::string tryPassword) {
+    //web api sends password already hashed
+    if (settings::USEWEBAPI)
+        return actualPassword == tryPassword;
+    //without web api
     return BCrypt::validatePassword(tryPassword, actualPassword);
 }
 

@@ -13,6 +13,8 @@ namespace Database {
         std::string Login;
         std::string Password;
         int Selected;
+        uint64_t Created;
+        uint64_t LastLogin;
     };
     struct Inventory
     {
@@ -36,6 +38,8 @@ namespace Database {
         short int slot;
         std::string FirstName;
         std::string LastName;
+        uint64_t Created;
+        uint64_t LastLogin;
         short int Level;
         int Nano1;
         int Nano2;
@@ -62,15 +66,30 @@ namespace Database {
         int z_coordinates;
         int angle;
         short int PCState;
+        int BatteryW;
+        int BatteryN;
+        int16_t Mentor;
         std::vector<char> QuestFlag;
+        int32_t CurrentMissionID;
+        int32_t WarpLocationFlag;
+        int64_t SkywayLocationFlag1;
+        int64_t SkywayLocationFlag2;
     };
-
+    struct DbQuest {
+        int PlayerId;
+        int32_t TaskId;
+        int RemainingNPCCount1;
+        int RemainingNPCCount2;
+        int RemainingNPCCount3;
+    };
 
 
 #pragma endregion DatabaseStructs
 
     // handles migrations
     void open();
+    int getAccountsCount();
+    int getPlayersCount();
     // returns ID
     int addAccount(std::string login, std::string password);
     void updateSelected(int accountId, int playerId);
@@ -104,7 +123,13 @@ namespace Database {
     void updatePlayer(Player *player);
     void updateInventory(Player *player);
     void updateNanos(Player *player);
+    void updateQuests(Player* player);
 
     void getInventory(Player* player);
     void getNanos(Player* player);
+    void getQuests(Player* player);
+
+    //parsing blobs
+    void appendBlob(std::vector<char>*blob, int64_t input);
+    int64_t blobToInt64(std::vector<char>::iterator it);
 }

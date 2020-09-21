@@ -18,7 +18,9 @@ auto db = make_storage("database.db",
         make_column("AccountID", &Database::Account::AccountID, autoincrement(), primary_key()),
         make_column("Login", &Database::Account::Login),
         make_column("Password", &Database::Account::Password),
-        make_column("Selected", &Database::Account::Selected)
+        make_column("Selected", &Database::Account::Selected),
+        make_column("Created", &Database::Account::Created),
+        make_column("LastLogin", &Database::Account::LastLogin)
     ),
     make_table("Players",
         make_column("PlayerID", &Database::DbPlayer::PlayerID, autoincrement(), primary_key()),
@@ -26,6 +28,8 @@ auto db = make_storage("database.db",
         make_column("Slot", &Database::DbPlayer::slot),
         make_column("Firstname", &Database::DbPlayer::FirstName, collate_nocase()),
         make_column("LastName", &Database::DbPlayer::LastName, collate_nocase()),
+        make_column("Created", &Database::DbPlayer::Created),
+        make_column("LastLogin", &Database::DbPlayer::LastLogin),
         make_column("Level", &Database::DbPlayer::Level),
         make_column("Nano1", &Database::DbPlayer::Nano1),
         make_column("Nano2", &Database::DbPlayer::Nano2),
@@ -51,7 +55,14 @@ auto db = make_storage("database.db",
         make_column("isGM", &Database::DbPlayer::isGM),
         make_column("FusionMatter", &Database::DbPlayer::FusionMatter),
         make_column("Taros", &Database::DbPlayer::Taros),
-        make_column("Quests", &Database::DbPlayer::QuestFlag)
+        make_column("Quests", &Database::DbPlayer::QuestFlag),
+        make_column("BatteryW", &Database::DbPlayer::BatteryW),
+        make_column("BatteryN", &Database::DbPlayer::BatteryN),
+        make_column("Mentor", &Database::DbPlayer::Mentor),
+        make_column("WarpLocationFlag", &Database::DbPlayer::WarpLocationFlag),
+        make_column("SkywayLocationFlag1", &Database::DbPlayer::SkywayLocationFlag1),
+        make_column("SkywayLocationFlag2", &Database::DbPlayer::SkywayLocationFlag2),
+        make_column("CurrentMissionID", &Database::DbPlayer::CurrentMissionID)
     ),
     make_table("Inventory",
         make_column("PlayerId", &Database::Inventory::playerId),
@@ -66,6 +77,13 @@ auto db = make_storage("database.db",
         make_column("Id", &Database::Nano::iID),
         make_column("Skill", &Database::Nano::iSkillID),
         make_column("Stamina", &Database::Nano::iStamina)
+    ),
+    make_table("RunningQuests",
+        make_column("PlayerId", &Database::DbQuest::PlayerId),
+        make_column("TaskId", &Database::DbQuest::TaskId),
+        make_column("RemainingNPCCount1", &Database::DbQuest::RemainingNPCCount1),
+        make_column("RemainingNPCCount2", &Database::DbQuest::RemainingNPCCount2),
+        make_column("RemainingNPCCount3", &Database::DbQuest::RemainingNPCCount3)
     )
 );
 
@@ -78,25 +96,48 @@ void Database::open()
     // this parameter means it will try to preserve data during migration
     bool preserve = true;
     db.sync_schema(preserve);
-    DEBUGLOG(
-        std::cout << "[DB] Database in operation" << std::endl;
-    )
+    std::cout << "[INFO] Database in operation ";
+    int accounts = getAccountsCount();
+    int players = getPlayersCount();
+    std::string message = "";
+    if (accounts > 0) {
+        message += ": Found " + std::to_string(accounts) + " Account";
+        if (accounts > 1)
+            message += "s";
+    }
+    if (players > 0) {
+        message += " and " + std::to_string(players) + " Player Character";
+        if (players > 1)
+            message += "s";
+    }
+    std::cout << message << std::endl;
+}
+
+int Database::getAccountsCount() {
+    return db.count<Account>();
+}
+
+int Database::getPlayersCount() {
+    return db.count<DbPlayer>();
 }
 
 int Database::addAccount(std::string login, std::string password)
 {
     password = BCrypt::generateHash(password);
-    Account x = {};
-    x.Login = login;
-    x.Password = password;
-    x.Selected = 1;
-    return db.insert(x);
+    Account account = {};
+    account.Login = login;
+    account.Password = password;
+    account.Selected = 1;
+    account.Created = getTime();
+    return db.insert(account);
 }
 
 void Database::updateSelected(int accountId, int slot)
 {
     Account acc = db.get<Account>(accountId);
     acc.Selected = slot;
+    //timestamp
+    acc.LastLogin = getTime();
     db.update(acc);
 }
 
@@ -129,7 +170,9 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
         return -1;
 
     DbPlayer create = {};
-
+    
+    //set timestamp
+    create.Created = getTime();
     // save packet data
     create.FirstName = U16toU8(save->szFirstName);
     create.LastName = U16toU8(save->szLastName);
@@ -165,6 +208,8 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     create.z_coordinates = settings::SPAWN_Z;
     create.angle = settings::SPAWN_ANGLE;
     create.QuestFlag = std::vector<char>();
+    //set mentor to computress
+    create.Mentor = 5;
 
     return db.insert(create);
 }
@@ -285,7 +330,8 @@ void Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save) {
 
 Database::DbPlayer Database::playerToDb(Player *player)
 {
-    DbPlayer result = {};  // fixes some weird memory errors, this zeros out the members (not the padding inbetween though)
+    //TODO: move stuff that is never updated to separate table so it doesn't try to update it every time
+    DbPlayer result = {};
 
     result.PlayerID = player->iID;
     result.AccountID = player->accountId;
@@ -318,22 +364,24 @@ Database::DbPlayer Database::playerToDb(Player *player)
     result.Nano1 = player->equippedNanos[0];
     result.Nano2 = player->equippedNanos[1];
     result.Nano3 = player->equippedNanos[2];
+    result.BatteryN = player->batteryN;
+    result.BatteryW = player->batteryW;
+    result.Mentor = player->mentor;
+    result.WarpLocationFlag = player->iWarpLocationFlag;
+    result.SkywayLocationFlag1 = player->aSkywayLocationFlag[0];
+    result.SkywayLocationFlag2 = player->aSkywayLocationFlag[1];
+    result.CurrentMissionID = player->CurrentMissionID;
 
-    // quests
+    // finished quests: parsing to blob
     result.QuestFlag = std::vector<char>();
-    // parsing long array to char vector
     for (int i=0; i<16; i++)
     {
-        int64_t temp = player->aQuestFlag[i];
-        for (int j = 0; j < 8; j++) {
-            int64_t check2 = (temp >> (8 * (7 - j)));
-            char toadd = check2;
-            result.QuestFlag.push_back(
-                toadd
-            );
-        }
+        int64_t flag = player->aQuestFlag[i];
+        appendBlob(&result.QuestFlag, flag);
     }
-
+    //timestamp
+    result.LastLogin = getTime();
+    result.Created = getDbPlayerById(player->iID).Created;
 
     return result;
 }
@@ -370,28 +418,31 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.angle = player.angle;
     result.money = player.Taros;
     result.fusionmatter = player.FusionMatter;
+    result.batteryN = player.BatteryN;
+    result.batteryW = player.BatteryW;
+    result.mentor = player.Mentor;
+    result.CurrentMissionID = player.CurrentMissionID;
 
     result.equippedNanos[0] = player.Nano1;
     result.equippedNanos[1] = player.Nano2;
     result.equippedNanos[2] = player.Nano3;
 
+    result.iWarpLocationFlag = player.WarpLocationFlag;
+    result.aSkywayLocationFlag[0] = player.SkywayLocationFlag1;
+    result.aSkywayLocationFlag[1] = player.SkywayLocationFlag2;
+
     Database::getInventory(&result);
     Database::getNanos(&result);
+    Database::getQuests(&result);
 
     std::vector<char>::iterator it = player.QuestFlag.begin();
     for (int i = 0; i < 16; i++)
     {
         if (it == player.QuestFlag.end())
             break;
-
-        int64_t toAdd = 0;
-        for (int j = 0; j < 8; j++) {
-            int64_t temp = *it;
-            int64_t check2 = (temp << (8 * (7 - j)));
-            toAdd += check2;
-            it++;
-        }
-        result.aQuestFlag[i] = toAdd;
+        result.aQuestFlag[i] = blobToInt64(it);
+        //move iterator to the next flag
+        it += 8;
     }
 
     return result;
@@ -417,6 +468,7 @@ void Database::updatePlayer(Player *player) {
     db.update(toUpdate);
     updateInventory(player);
     updateNanos(player);
+    updateQuests(player);
 }
 
 void Database::updateInventory(Player *player){
@@ -468,8 +520,23 @@ void Database::updateInventory(Player *player){
             db.insert(toAdd);
         }
     }
+    // insert quest items
+    for (int i = 0; i < AQINVEN_COUNT; i++) {
+        if (player->QInven[i].iID != 0) {
+            sItemBase* next = &player->QInven[i];
+            Inventory toAdd = {};
+            toAdd.playerId = player->iID;
+            toAdd.slot = i + AEQUIP_COUNT + AINVEN_COUNT + ABANK_COUNT;
+            toAdd.id = next->iID;
+            toAdd.Opt = next->iOpt;
+            toAdd.Type = next->iType;
+            toAdd.TimeLimit = next->iTimeLimit;
+            db.insert(toAdd);
+        }
+    }
     db.commit();
 }
+
 void Database::updateNanos(Player *player) {
     // start transaction
     db.begin_transaction();
@@ -492,6 +559,30 @@ void Database::updateNanos(Player *player) {
     }
     db.commit();
 }
+
+void Database::updateQuests(Player* player) {
+    // start transaction
+    db.begin_transaction();
+    // remove all
+    db.remove_all<DbQuest>(
+        where(c(&DbQuest::PlayerId) == player->iID)
+        );
+    // insert
+    for (int i = 0; i < ACTIVE_MISSION_COUNT; i++)
+    {
+        if (player->tasks[i] == 0)
+            continue;
+        DbQuest toAdd = {};
+        toAdd.PlayerId = player->iID;
+        toAdd.TaskId = player->tasks[i];
+        toAdd.RemainingNPCCount1 = player->RemainingNPCCount[i][0];
+        toAdd.RemainingNPCCount2 = player->RemainingNPCCount[i][1];
+        toAdd.RemainingNPCCount3 = player->RemainingNPCCount[i][2];
+        db.insert(toAdd);
+    }
+    db.commit();
+}
+
 void Database::getInventory(Player* player) {
     // get items from DB
     auto items = db.get_all<Inventory>(
@@ -505,15 +596,18 @@ void Database::getInventory(Player* player) {
         toSet.iOpt = current.Opt;
         toSet.iTimeLimit = current.TimeLimit;
         // assign to proper arrays
-        if (current.slot <= AEQUIP_COUNT)
+        if (current.slot < AEQUIP_COUNT)
             player->Equip[current.slot] = toSet;
-        else if (current.slot <= (AEQUIP_COUNT + AINVEN_COUNT))
+        else if (current.slot < (AEQUIP_COUNT + AINVEN_COUNT))
             player->Inven[current.slot - AEQUIP_COUNT] = toSet;
-        else
+        else if (current.slot < (AEQUIP_COUNT + AINVEN_COUNT + ABANK_COUNT))
             player->Bank[current.slot - AEQUIP_COUNT - AINVEN_COUNT] = toSet;
+        else
+            player->QInven[current.slot - AEQUIP_COUNT - AINVEN_COUNT - ABANK_COUNT] = toSet;
     }
 
 }
+
 void Database::getNanos(Player* player) {
     // get from DB
     auto nanos = db.get_all<Nano>(
@@ -527,4 +621,42 @@ void Database::getNanos(Player* player) {
         toSet->iStamina = current.iStamina;
     }
 }
+
+void Database::getQuests(Player* player) {
+    // get from DB
+    auto quests = db.get_all<DbQuest>(
+        where(c(&DbQuest::PlayerId) == player->iID)
+        );
+    // set
+    int i = 0;
+    for (const DbQuest& current : quests) {
+        player->tasks[i] = current.TaskId;
+        player->RemainingNPCCount[i][0] = current.RemainingNPCCount1;
+        player->RemainingNPCCount[i][1] = current.RemainingNPCCount2;
+        player->RemainingNPCCount[i][2] = current.RemainingNPCCount3;
+        i++;
+    }
+}
+
 #pragma endregion ShardServer
+
+#pragma region parsingBlobs
+
+void Database::appendBlob(std::vector<char> *blob, int64_t input) {
+    for (int i = 0; i < 8; i++) {
+        char toadd = (input >> (8 * (7 - i)));
+        blob->push_back(toadd);
+    }
+}
+
+int64_t Database::blobToInt64(std::vector<char>::iterator it) {
+    int64_t result = 0;
+    for (int i = 0; i < 8; i++) {
+        int64_t toAdd = ((int64_t)*it << (8 * (7 - i)));
+        result += toAdd;
+        it++;
+    }
+    return result;
+}
+
+#pragma endregion parsingBlobs

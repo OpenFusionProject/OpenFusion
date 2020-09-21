@@ -3,6 +3,7 @@
 #include "NPCManager.hpp"
 #include "CNShardServer.hpp"
 #include "CNShared.hpp"
+#include "MissionManager.hpp"
 
 #include "settings.hpp"
 
@@ -207,24 +208,30 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iLevel = plr.level;
     response.PCLoadData2CL.iCandy = plr.money;
     response.PCLoadData2CL.iFusionMatter = plr.fusionmatter;
-    response.PCLoadData2CL.iMentor = 5; // Computress
+    response.PCLoadData2CL.iMentor = plr.mentor;
     response.PCLoadData2CL.iMentorCount = 1; // how many guides the player has had
-    response.PCLoadData2CL.iMapNum = 0;
     response.PCLoadData2CL.iX = plr.x;
     response.PCLoadData2CL.iY = plr.y;
     response.PCLoadData2CL.iZ = plr.z;
     response.PCLoadData2CL.iAngle = plr.angle;
+    response.PCLoadData2CL.iBatteryN = plr.batteryN;
+    response.PCLoadData2CL.iBatteryW = plr.batteryW;
+    response.PCLoadData2CL.iBuddyWarpTime = 60; //sets 60s warp cooldown on login
 
     response.PCLoadData2CL.iActiveNanoSlotNum = -1;
     response.PCLoadData2CL.iFatigue = 50;
     response.PCLoadData2CL.PCStyle = plr.PCStyle;
-    response.PCLoadData2CL.PCStyle2 = plr.PCStyle2;
+    
+    //client doesnt read this, it gets it from charinfo
+    //response.PCLoadData2CL.PCStyle2 = plr.PCStyle2;
     // inventory
     for (int i = 0; i < AEQUIP_COUNT; i++)
         response.PCLoadData2CL.aEquip[i] = plr.Equip[i];
-
     for (int i = 0; i < AINVEN_COUNT; i++)
         response.PCLoadData2CL.aInven[i] = plr.Inven[i];
+    // quest inventory
+    for (int i = 0; i < AQINVEN_COUNT; i++)
+        response.PCLoadData2CL.aQInven[i] = plr.QInven[i];
     // nanos
     for (int i = 1; i < SIZEOF_NANO_BANK_SLOT; i++) {
         response.PCLoadData2CL.aNanoBank[i] = plr.Nanos[i];
@@ -232,8 +239,28 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     for (int i = 0; i < 3; i++) {
         response.PCLoadData2CL.aNanoSlots[i] = plr.equippedNanos[i];
     }
+    //missions in progress
+    for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+        if (plr.tasks[i] == 0)
+            break;
+        response.PCLoadData2CL.aRunningQuest[i].m_aCurrTaskID = plr.tasks[i];
+        TaskData &task = *MissionManager::Tasks[plr.tasks[i]];
+        for (int j = 0; j < 3; j++) {
+            response.PCLoadData2CL.aRunningQuest[i].m_aKillNPCID[j] = (int)task["m_iCSUEnemyID"][j];
+            response.PCLoadData2CL.aRunningQuest[i].m_aKillNPCCount[j] = plr.RemainingNPCCount[i][j];
+            /*
+             * client doesn't care about NeededItem ID and Count,
+             * it gets Count from Quest Inventory
+             * 
+             * KillNPCCount sets RemainEnemyNum in the client
+             * Yes, this is extraordinary stupid, even for Grigon
+            */
+        }
+    }
+    response.PCLoadData2CL.iCurrentMissionID = plr.CurrentMissionID;
 
-    // missions
+    // completed missions
+    // the packet requires 32 items, but the client only checks the first 16 (shrug)
     for (int i = 0; i < 16; i++) {
         response.PCLoadData2CL.aQuestFlag[i] = plr.aQuestFlag[i];
     }
@@ -719,8 +746,10 @@ void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
     resp.iMentor = pkt->iMentor;
     resp.iMentorCnt = 1;
     resp.iFusionMatter = plr->fusionmatter; // no cost
-
+    
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_CHANGE_MENTOR_SUCC, sizeof(sP_FE2CL_REP_PC_CHANGE_MENTOR_SUCC));
+    //save it on player
+    plr->mentor = pkt->iMentor;
 }
 
 #pragma region Helper methods

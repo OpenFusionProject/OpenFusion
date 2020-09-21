@@ -19,6 +19,7 @@ struct Player {
     int level;
     int HP;
     int slot; // player slot, not nano slot
+    int16_t mentor;
     int32_t money;
     int32_t fusionmatter;
     int32_t batteryW;
@@ -45,5 +46,7 @@ struct Player {
 
     int64_t aQuestFlag[16];
     int tasks[ACTIVE_MISSION_COUNT];
+    int RemainingNPCCount[ACTIVE_MISSION_COUNT][3];
     sItemBase QInven[AQINVEN_COUNT];
+    int32_t CurrentMissionID;
 };

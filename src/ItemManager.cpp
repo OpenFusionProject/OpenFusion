@@ -69,6 +69,9 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         case SlotType::BANK:
             fromItem = &plr.plr->Bank[itemmove->iFromSlotNum];
             break;
+        default:
+            std::cout << "[WARN] MoveItem submitted unknown Item Type?! " << itemmove->eFrom << std::endl;
+            return;
     }
 
     // get the toItem
@@ -83,6 +86,9 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     case SlotType::BANK:
         toItem = &plr.plr->Bank[itemmove->iToSlotNum];
         break;
+    default:
+        std::cout << "[WARN] MoveItem submitted unknown Item Type?! " << itemmove->eTo << std::endl;
+        return;
     }
 
     // save items to response
