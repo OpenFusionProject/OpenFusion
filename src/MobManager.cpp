@@ -158,15 +158,14 @@ void MobManager::deadStep(Mob *mob, time_t currTime) {
 
     pkt.NPCAppearanceData = mob->appearanceData;
 
-    // FIXME: use the chunk's visibility list, when that becomes a thing
-    for (auto& pair : PlayerManager::players) {
-        Player *plr = pair.second.plr;
+    auto chunk = ChunkManager::grabChunk(mob->appearanceData.iX, mob->appearanceData.iY);
+    auto chunks = ChunkManager::grabChunks(chunk);
 
-        int diffX = abs(plr->x - mob->appearanceData.iX);
-        int diffY = abs(plr->y - mob->appearanceData.iY);
-
-        if (diffX < settings::PLAYERDISTANCE && diffY < settings::PLAYERDISTANCE)
-            pair.first->sendPacket(&pkt, P_FE2CL_NPC_NEW, sizeof(sP_FE2CL_NPC_NEW));
+    // notify all nearby players
+    for (Chunk *chunk : chunks) {
+        for (CNSocket *s : chunk->players) {
+            s->sendPacket(&pkt, P_FE2CL_NPC_NEW, sizeof(sP_FE2CL_NPC_NEW));
+        }
     }
 }
 
