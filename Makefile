@@ -2,7 +2,7 @@ CC=clang
 CXX=clang++
 # -w suppresses all warnings (the part that's commented out helps me find memory leaks, it ruins performance though!)
 CFLAGS=-O3 #-g3 -fsanitize=address
-CXXFLAGS=-Wall -Wno-unknown-pragmas -std=c++17 -O2 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
+CXXFLAGS=-Wall -Wno-unknown-pragmas -std=c++17 -O2 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) -DGIT_VERSION=\"$(shell git describe --tags)\" #-g3 -fsanitize=address
 LDFLAGS=-lpthread -ldl #-g3 -fsanitize=address
 # specifies the name of our exectuable
 SERVER=bin/fusion
@@ -16,8 +16,8 @@ WIN_CC=x86_64-w64-mingw32-gcc
 WIN_CXX=x86_64-w64-mingw32-g++
 WIN_CFLAGS=-O3 #-g3 -fsanitize=address
 WIN_CXX_VANILLA_MINGW_OPT_DISABLES=-fno-tree-dce -fno-inline-small-functions
-WIN_CXX_OPT_DISABLES=-fno-tree-dce -fno-tree-fre -fno-tree-vrp -fno-ipa-sra
-WIN_CXXFLAGS=-Wall -Wno-unknown-pragmas -std=c++17 -O3 $(WIN_CXX_OPT_DISABLES) -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) #-g3 -fsanitize=address
+WIN_CXX_MSYS2_MINGW_OPT_DISABLES=-fno-tree-dce -fno-tree-fre -fno-tree-vrp -fno-ipa-sra
+WIN_CXXFLAGS=-Wall -Wno-unknown-pragmas -std=c++17 -O3 $(WIN_CXX_OPT_DISABLES) -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) -DGIT_VERSION=\"$(shell git describe --tags)\" #-g3 -fsanitize=address
 WIN_LDFLAGS=-static -lws2_32 -lwsock32 #-g3 -fsanitize=address
 WIN_SERVER=bin/winfusion.exe
 
@@ -102,12 +102,7 @@ windows : CFLAGS=$(WIN_CFLAGS)
 windows : CXXFLAGS=$(WIN_CXXFLAGS)
 windows : LDFLAGS=$(WIN_LDFLAGS)
 windows : SERVER=$(WIN_SERVER)
-windows :
-ifneq ($(shell $(WIN_CXX) --version | head -1 | egrep -o [0-9]+ | tail -3 | head -1), 10)
-WIN_CXX_OPT_DISABLES=$(WIN_CXX_VANILLA_MINGW_OPT_DISABLES)
-endif
-
-CXXFLAGS+= -DGIT_VERSION=\"$(shell git describe --tags)\"
+windows : WIN_CXX_OPT_DISABLES=$(if $(filter-out 10, $(shell $(WIN_CXX) -dumpversion | egrep -o ^[0-9]+)), $(WIN_CXX_VANILLA_MINGW_OPT_DISABLES), $(WIN_CXX_MSYS2_MINGW_OPT_DISABLES))
 
 .SUFFIX: .o .c .cpp .h .hpp
 
