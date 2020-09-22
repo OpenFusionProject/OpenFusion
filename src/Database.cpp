@@ -637,8 +637,8 @@ void Database::removeExpiredVehicles(Player* player) {
     }
 
     //delete all but one vehicles, leave last one for ceremonial deletion
-    for (int i = 1; i < toRemove.size(); i++) {
-        memset(toRemove[i-1], 0, sizeof(sItemBase));
+    for (int i = 0; i < (int)toRemove.size()-1; i++) {
+        memset(toRemove[i], 0, sizeof(sItemBase));
     }
 }
 
