@@ -56,7 +56,7 @@ namespace MobManager {
     extern std::map<int32_t, Mob*> Mobs;
 
     void init();
-    void step(time_t);
+    void step(CNServer*, time_t);
 
     void deadStep(Mob*, time_t);
     void roamingStep(Mob*, time_t);

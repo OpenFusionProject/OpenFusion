@@ -87,6 +87,4 @@ void CNShardServer::onStep() {
             event.scheduledEvent = currTime + event.delta;
         }
     }
-
-    MobManager::step(currTime);
 }

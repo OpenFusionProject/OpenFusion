@@ -9,6 +9,8 @@
 std::map<int32_t, Mob*> MobManager::Mobs;
 
 void MobManager::init() {
+    REGISTER_SHARD_TIMER(step, 200);
+
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ATTACK_NPCs, pcAttackNpcs);
 
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_COMBAT_BEGIN, combatBegin);
@@ -207,7 +209,7 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
     }
 }
 
-void MobManager::step(time_t currTime) {
+void MobManager::step(CNServer *serv, time_t currTime) {
     for (auto& pair : Mobs) {
         int x = pair.second->appearanceData.iX;
         int y = pair.second->appearanceData.iY;
