@@ -318,7 +318,7 @@ bool doDebuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage_N_Debuff *re
     respdata[i].iDamage = amount;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
     respdata[i].iHP = mob->appearanceData.iHP;
-    respdata[i].iConditionBitFlag = iCBFlag;
+    respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag |= iCBFlag;
 
     std::cout << (int)mob->appearanceData.iNPC_ID << " was debuffed" << std::endl;
 
@@ -336,7 +336,7 @@ bool doBuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Buff *respdata, int i
     
     respdata[i].eCT = 4;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
-    respdata[i].iConditionBitFlag = iCBFlag;
+    respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag |= iCBFlag;
 
     std::cout << (int)mob->appearanceData.iNPC_ID << " was debuffed" << std::endl;
 
@@ -381,6 +381,9 @@ bool doDamage(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage *respdata, i
     Mob* mob = MobManager::Mobs[pktdata[i]];
     
     mob->appearanceData.iHP -= amount;
+
+    // wake up sleeping monster
+    mob->appearanceData.iConditionBitFlag &= ~CSB_BIT_MEZ;
 
     if (mob->appearanceData.iHP <= 0)
         MobManager::killMob(sock, mob);
@@ -431,6 +434,9 @@ bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, i
     Mob* mob = MobManager::Mobs[pktdata[i]];
     
     mob->appearanceData.iHP -= amount;
+
+    // wake up sleeping monster
+    mob->appearanceData.iConditionBitFlag &= ~CSB_BIT_MEZ;
 
     if (mob->appearanceData.iHP <= 0)
         MobManager::killMob(sock, mob);
@@ -506,7 +512,7 @@ std::vector<ActivePower> ActivePowers = {
     ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  doDebuff>,         EST_STUN, CSB_BIT_STUN,                 0),
     ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          doHeal>,           EST_HEAL_HP, CSB_BIT_NONE,            333),
     // TODO: Recall
-    ActivePower(DrainPowers, activePower<sSkillResult_Buff, doBuff>,                      EST_BOUNDINGBALL, CSB_BIT_BOUNDINGBALL, 0),
+    ActivePower(DrainPowers, activePower<sSkillResult_Buff,            doBuff>,           EST_BOUNDINGBALL, CSB_BIT_BOUNDINGBALL, 0),
     ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SNARE, CSB_BIT_DN_MOVE_SPEED,       0),
     ActivePower(DamagePowers, activePower<sSkillResult_Damage,         doDamage>,         EST_DAMAGE, CSB_BIT_NONE,             133),
     // TODO: GroupRevive

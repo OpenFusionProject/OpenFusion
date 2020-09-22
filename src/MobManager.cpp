@@ -61,6 +61,9 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
         mob->appearanceData.iHP -= 100;
 
+        // wake up sleeping monster
+        mob->appearanceData.iConditionBitFlag &= ~CSB_BIT_MEZ;
+
         if (mob->appearanceData.iHP <= 0)
             killMob(sock, mob);
 
@@ -132,6 +135,7 @@ void MobManager::giveReward(CNSocket *sock) {
 
 void MobManager::killMob(CNSocket *sock, Mob *mob) {
     mob->state = MobState::DEAD;
+    mob->appearanceData.iConditionBitFlag = 0;
     mob->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
 
     std::cout << "killed mob " << mob->appearanceData.iNPC_ID << std::endl;
@@ -188,6 +192,10 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
     int delay = (int)mob->data["m_iDelayTime"] * 1000;
     mob->nextMovement = currTime + delay/2 + rand() % (delay/2);
 
+    // skip move if stunned or asleep
+    if (mob->appearanceData.iConditionBitFlag & (CSB_BIT_STUN|CSB_BIT_MEZ))
+        return;
+
     INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
     int xStart = mob->spawnX - mob->idleRange/2;
     int yStart = mob->spawnY - mob->idleRange/2;
@@ -197,6 +205,13 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
     pkt.iToX = mob->appearanceData.iX = xStart + rand() % mob->idleRange;
     pkt.iToY = mob->appearanceData.iY = yStart + rand() % mob->idleRange;
     pkt.iToZ = mob->appearanceData.iZ;
+
+    // roughly halve movement speed if snared
+    // TODO: this logic isn't quite right yet, since they still get to the same spot
+    if (mob->appearanceData.iConditionBitFlag & CSB_BIT_DN_MOVE_SPEED) {
+        mob->nextMovement += delay;
+        pkt.iSpeed /= 2;
+    }
 
     auto chunk = ChunkManager::grabChunk(mob->appearanceData.iX, mob->appearanceData.iY);
     auto chunks = ChunkManager::grabChunks(chunk);

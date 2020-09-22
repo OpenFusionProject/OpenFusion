@@ -20,6 +20,7 @@ enum class MobState {
 struct Mob : public BaseNPC {
     MobState state;
     const int maxHealth;
+
     time_t killedTime = 0;
     const int regenTime;
     bool despawned = false; // for the sake of death animations
@@ -41,6 +42,8 @@ struct Mob : public BaseNPC {
         spawnX = appearanceData.iX;
         spawnY = appearanceData.iY;
         spawnZ = appearanceData.iZ;
+
+        appearanceData.iConditionBitFlag = 0;
 
         // NOTE: there appear to be discrepancies in the dump
         appearanceData.iHP = maxHealth;
