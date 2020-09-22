@@ -18,8 +18,8 @@ struct TransportLocation {
 namespace TransportManager {
     extern std::map<int32_t, TransportRoute> Routes;
     extern std::map<int32_t, TransportLocation> Locations;
-    extern std::map<int32_t, std::queue<WarpLocation>> SkywayPaths;
-    extern std::unordered_map<CNSocket*, std::queue<WarpLocation>> SkywayQueue;
+    extern std::map<int32_t, std::queue<WarpLocation>> SkywayPaths; // predefined skyway paths with points
+    extern std::unordered_map<CNSocket*, std::queue<WarpLocation>> SkywayQueues; // player sockets with queued broomstick points
 
     void init();
 

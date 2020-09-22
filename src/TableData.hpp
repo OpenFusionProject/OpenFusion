@@ -8,5 +8,6 @@ namespace TableData {
     void cleanup();
 
     int getItemType(int);
+    void loadPaths();
     void constructPath(nlohmann::json::iterator);
 }
