@@ -218,8 +218,7 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
         create.iFirstUseFlag1 = UINT64_MAX;
         create.iFirstUseFlag2 = UINT64_MAX;
     }
-    else
-    {
+    else {
         create.iFirstUseFlag1 = 0;
         create.iFirstUseFlag2 = 0;
     }
