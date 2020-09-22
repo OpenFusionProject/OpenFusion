@@ -216,6 +216,10 @@ void MobManager::step(time_t currTime) {
         if (!ChunkManager::inPopulatedChunks(x, y))
             continue;
 
+        // skip mob movement and combat if disabled
+        if (!settings::SIMULATEMOBS && pair.second->state != MobState::DEAD)
+            continue;
+
         switch (pair.second->state) {
         case MobState::ROAMING:
             roamingStep(pair.second, currTime);

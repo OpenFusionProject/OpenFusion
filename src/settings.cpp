@@ -13,6 +13,7 @@ int settings::SHARDPORT = 8002;
 std::string settings::SHARDSERVERIP = "127.0.0.1";
 time_t settings::TIMEOUT = 60000;
 int settings::CHUNKSIZE = 40000;
+bool settings::SIMULATEMOBS = true;
 
 // default spawn point is Sector V (future)
 int settings::SPAWN_X = 632032;
@@ -46,6 +47,7 @@ void settings::init() {
     DBSAVEINTERVAL = reader.GetInteger("shard", "dbsaveinterval", DBSAVEINTERVAL);
     TIMEOUT = reader.GetInteger("shard", "timeout", TIMEOUT);
     CHUNKSIZE = reader.GetInteger("shard", "chunksize", CHUNKSIZE);
+    SIMULATEMOBS = reader.GetBoolean("shard", "simulatemobs", SIMULATEMOBS);
     SPAWN_X = reader.GetInteger("shard", "spawnx", SPAWN_X);
     SPAWN_Y = reader.GetInteger("shard", "spawny", SPAWN_Y);
     SPAWN_Z = reader.GetInteger("shard", "spawnz", SPAWN_Z);
@@ -55,5 +57,5 @@ void settings::init() {
     MOBJSON = reader.Get("shard", "mobdata", MOBJSON);
     PATHJSON = reader.Get("shard", "pathdata", PATHJSON);
     MOTDSTRING = reader.Get("shard", "motd", MOTDSTRING);
-    ACCLEVEL = reader.GetBoolean("shard", "accountlevel", ACCLEVEL);
+    ACCLEVEL = reader.GetInteger("shard", "accountlevel", ACCLEVEL);
 }
