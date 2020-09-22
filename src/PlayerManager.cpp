@@ -202,7 +202,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     response.iID = plr.iID;
     response.uiSvrTime = getTime();
-    response.PCLoadData2CL.iUserLevel = plr.level;
+    response.PCLoadData2CL.iUserLevel = plr.accountLevel;
     response.PCLoadData2CL.iHP = plr.HP;
     response.PCLoadData2CL.iLevel = plr.level;
     response.PCLoadData2CL.iCandy = plr.money;

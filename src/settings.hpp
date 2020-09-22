@@ -17,7 +17,7 @@ namespace settings {
     extern std::string NPCJSON;
     extern std::string XDTJSON;
     extern std::string MOBJSON;
-    extern bool GM;
+    extern int ACCLEVEL;
 
     void init();
 }

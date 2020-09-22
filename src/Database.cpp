@@ -52,7 +52,7 @@ auto db = make_storage("database.db",
         make_column("Height", &Database::DbPlayer::Height),
         make_column("NameCheck", &Database::DbPlayer::NameCheck),
         make_column("SkinColor", &Database::DbPlayer::SkinColor),
-        make_column("isGM", &Database::DbPlayer::isGM),
+        make_column("AccountLevel", &Database::DbPlayer::AccountLevel),
         make_column("FusionMatter", &Database::DbPlayer::FusionMatter),
         make_column("Taros", &Database::DbPlayer::Taros),
         make_column("Quests", &Database::DbPlayer::QuestFlag),
@@ -202,7 +202,7 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     create.HairStyle = 1;
     create.Height = 0;
     create.SkinColor = 1;
-    create.isGM = settings::GM;
+    create.AccountLevel = settings::ACCLEVEL;
     create.x_coordinates = settings::SPAWN_X;
     create.y_coordinates = settings::SPAWN_Y;
     create.z_coordinates = settings::SPAWN_Z;
@@ -347,7 +347,7 @@ Database::DbPlayer Database::playerToDb(Player *player)
     result.HairStyle = player->PCStyle.iHairStyle;
     result.Height = player->PCStyle.iHeight;
     result.HP = player->HP;
-    result.isGM = player->IsGM;
+    result.AccountLevel = player->accountLevel;
     result.LastName = U16toU8(player->PCStyle.szLastName);
     result.Level = player->level;
     result.NameCheck = player->PCStyle.iNameCheck;
@@ -402,7 +402,7 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.PCStyle.iHairStyle = player.HairStyle;
     result.PCStyle.iHeight = player.Height;
     result.HP = player.HP;
-    result.IsGM = player.isGM;
+    result.accountLevel = player.AccountLevel;
     U8toU16(player.LastName, result.PCStyle.szLastName);
     result.level = player.Level;
     result.PCStyle.iNameCheck = player.NameCheck;

@@ -408,7 +408,7 @@ void NPCManager::npcUnsummonHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_NPC_UNSUMMON))
         return; // malformed packet
 
-    if (!PlayerManager::getPlayer(sock)->IsGM)
+    if (PlayerManager::getPlayer(sock)->accountLevel > 30)
         return;
     
     sP_CL2FE_REQ_NPC_UNSUMMON* req = (sP_CL2FE_REQ_NPC_UNSUMMON*)data->buf;
@@ -424,7 +424,7 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     // permission & sanity check
-    if (!plr->IsGM || req->iNPCType >= 3314)
+    if (plr->accountLevel > 30 || req->iNPCType >= 3314)
         return;
 
     resp.NPCAppearanceData.iNPC_ID = NPCs.size()+1;
