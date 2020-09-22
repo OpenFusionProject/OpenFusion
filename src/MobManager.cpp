@@ -14,6 +14,7 @@ void MobManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_COMBAT_BEGIN, combatBegin);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_COMBAT_END, combatEnd);
     REGISTER_SHARD_PACKET(P_CL2FE_DOT_DAMAGE_ONOFF, dotDamageOnOff);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ATTACK_CHARs, pcAttackChars);
 }
 
 void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
@@ -190,4 +191,76 @@ void MobManager::step(time_t currTime) {
             break;
         }
     }
+}
+
+void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
+    sP_CL2FE_REQ_PC_ATTACK_CHARs* pkt = (sP_CL2FE_REQ_PC_ATTACK_CHARs*)data->buf;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    // Unlike the attack mob packet, attacking players packet has an 8-byte trail (Instead of 4 bytes).
+    if (!validInVarPacket(sizeof(sP_CL2FE_REQ_PC_ATTACK_CHARs), pkt->iTargetCnt, sizeof(int32_t) * 2, data->size)) {
+        std::cout << "[WARN] bad sP_CL2FE_REQ_PC_ATTACK_CHARs packet size\n";
+        return;
+    }
+
+    int32_t *pktdata = (int32_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_PC_ATTACK_CHARs));
+
+    /*
+     * Due to the possibility of multiplication overflow (and regular buffer overflow),
+     * both incoming and outgoing variable-length packets must be validated, at least if
+     * the number of trailing structs isn't well known (ie. it's from the client).
+     */
+    if (!validOutVarPacket(sizeof(sP_FE2CL_PC_ATTACK_CHARs_SUCC), pkt->iTargetCnt, sizeof(sAttackResult))) {
+        std::cout << "[WARN] bad sP_FE2CL_PC_ATTACK_CHARs_SUCC packet size\n";
+        return;
+    }
+
+    // initialize response struct
+    size_t resplen = sizeof(sP_FE2CL_PC_ATTACK_CHARs_SUCC) + pkt->iTargetCnt * sizeof(sAttackResult);
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+
+    memset(respbuf, 0, resplen);
+
+    sP_FE2CL_PC_ATTACK_CHARs_SUCC *resp = (sP_FE2CL_PC_ATTACK_CHARs_SUCC*)respbuf;
+    sAttackResult *respdata = (sAttackResult*)(respbuf+sizeof(sP_FE2CL_PC_ATTACK_CHARs_SUCC));
+    
+    resp->iTargetCnt = pkt->iTargetCnt;
+
+    for (int i = 0; i < pkt->iTargetCnt; i++) {
+        
+        Player *target;
+        bool shallPass = false;
+        
+        for (auto& pair : PlayerManager::players) {
+            if (pair.second.plr->iID == pktdata[i*2]) {
+                target = pair.second.plr;
+                shallPass = true;
+                break;
+            }
+        }
+        
+        if (!shallPass) {
+            // you shall not pass
+            std::cout << "[WARN] pcAttackChars: player ID not found" << std::endl;
+            return;
+        }
+
+        target->HP -= 100;
+
+        respdata[i].iID = target->iID;
+        respdata[i].iDamage = 100;
+        respdata[i].iHP = target->HP;
+        respdata[i].iHitFlag = 2; // hitscan, not a rocket or a grenade
+    }
+
+    sock->sendPacket((void*)respbuf, P_FE2CL_PC_ATTACK_CHARs_SUCC, resplen);
+
+    // a bit of a hack: these are the same size, so we can reuse the response packet
+    assert(sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC) == sizeof(sP_FE2CL_PC_ATTACK_CHARs));
+    sP_FE2CL_PC_ATTACK_CHARs *resp1 = (sP_FE2CL_PC_ATTACK_CHARs*)respbuf;
+
+    resp1->iPC_ID = plr->iID;
+
+    // send to other players
+    PlayerManager::sendToViewable(sock, (void*)respbuf, P_FE2CL_PC_ATTACK_CHARs, resplen);
 }

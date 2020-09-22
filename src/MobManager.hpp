@@ -47,4 +47,6 @@ namespace MobManager {
 
     void killMob(CNSocket *sock, Mob *mob);
     void giveReward(CNSocket *sock);
+    
+    void pcAttackChars(CNSocket *sock, CNPacketData *data);
 }
