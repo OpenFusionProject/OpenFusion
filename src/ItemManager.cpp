@@ -767,3 +767,35 @@ Item* ItemManager::getItemData(int32_t id, int32_t type) {
         return &ItemData[std::pair<int32_t, int32_t>(id, type)];
     return nullptr;
 }
+
+void ItemManager::checkItemExpire(CNSocket* sock, Player* player) {
+    if (player->toRemoveVehicle.eIL == 0 && player->toRemoveVehicle.iSlotNum == 0)
+        return;
+
+    /* prepare packet
+    * yes, this is a varadic packet, however analyzing client behavior and code
+    * it only checks takes the first item sent into account
+    * yes, this is very stupid
+    * therefore, we delete all but 1 expired vehicle while loading player
+    * to delete the last one here so player gets a notification
+    */
+
+    const size_t resplen = sizeof(sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM) + sizeof(sTimeLimitItemDeleteInfo2CL);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+    // we know it's only one trailing struct, so we can skip full validation
+    uint8_t respbuf[resplen]; // not a variable length array, don't worry   
+    sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM* packet = (sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM*)respbuf;
+    sTimeLimitItemDeleteInfo2CL* itemData = (sTimeLimitItemDeleteInfo2CL*)(respbuf + sizeof(sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM));
+    memset(respbuf, 0, resplen);
+
+    packet->iItemListCount = 1;
+    itemData->eIL = player->toRemoveVehicle.eIL;
+    itemData->iSlotNum = player->toRemoveVehicle.iSlotNum;
+    sock->sendPacket((void*)&respbuf, P_FE2CL_PC_DELETE_TIME_LIMIT_ITEM, resplen);
+    
+    //delete serverside
+    if (player->toRemoveVehicle.eIL == 0)
+        memset(&player->Equip[8], 0, sizeof(sItemBase));
+    else
+        memset(&player->Inven[player->toRemoveVehicle.iSlotNum], 0, sizeof(sItemBase));
+}

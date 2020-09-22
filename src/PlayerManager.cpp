@@ -4,6 +4,7 @@
 #include "CNShardServer.hpp"
 #include "CNShared.hpp"
 #include "MissionManager.hpp"
+#include "ItemManager.hpp"
 
 #include "settings.hpp"
 
@@ -283,6 +284,8 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&motd, P_FE2CL_PC_MOTD_LOGIN, sizeof(sP_FE2CL_PC_MOTD_LOGIN));
 
     addPlayer(sock, plr);
+    //check if there is an expiring vehicle
+    ItemManager::checkItemExpire(sock, getPlayer(sock));
 }
 
 void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size) {
