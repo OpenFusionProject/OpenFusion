@@ -22,6 +22,7 @@ int settings::SPAWN_ANGLE = 130;
 std::string settings::NPCJSON = "tdata/NPCs.json";
 std::string settings::XDTJSON = "tdata/xdt.json";
 std::string settings::MOBJSON = "tdata/mobs.json";
+std::string settings::PATHJSON = "tdata/paths.json";
 std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
 int settings::ACCLEVEL = 1;
 
@@ -52,6 +53,7 @@ void settings::init() {
     NPCJSON = reader.Get("shard", "npcdata", NPCJSON);
     XDTJSON = reader.Get("shard", "xdtdata", XDTJSON);
     MOBJSON = reader.Get("shard", "mobdata", MOBJSON);
+    PATHJSON = reader.Get("shard", "pathdata", PATHJSON);
     MOTDSTRING = reader.Get("shard", "motd", MOTDSTRING);
     ACCLEVEL = reader.GetBoolean("shard", "accountlevel", ACCLEVEL);
 }
