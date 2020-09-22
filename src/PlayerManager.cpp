@@ -217,6 +217,10 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iBatteryW = plr.batteryW;
     response.PCLoadData2CL.iBuddyWarpTime = 60; //sets 60s warp cooldown on login
 
+    response.PCLoadData2CL.iWarpLocationFlag = plr.iWarpLocationFlag;
+    response.PCLoadData2CL.aWyvernLocationFlag[0] = plr.aSkywayLocationFlag[0];
+    response.PCLoadData2CL.aWyvernLocationFlag[1] = plr.aSkywayLocationFlag[1];
+
     response.PCLoadData2CL.iActiveNanoSlotNum = -1;
     response.PCLoadData2CL.iFatigue = 50;
     response.PCLoadData2CL.PCStyle = plr.PCStyle;

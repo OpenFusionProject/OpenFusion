@@ -40,7 +40,7 @@ void TransportManager::transportRegisterLocationHandler(CNSocket* sock, CNPacket
         }
 
         // update registration bitfield using bitmask
-        uint32_t newScamperFlag = plr->iWarpLocationFlag | (plr->accountLevel <= 40 ? UINT32_MAX : (1UL << (transport->iLocationID - 1)));
+        uint32_t newScamperFlag = plr->iWarpLocationFlag | (plr->accountLevel <= 40 ? INT32_MAX : (1UL << (transport->iLocationID - 1)));
         if (newScamperFlag != plr->iWarpLocationFlag) {
             plr->iWarpLocationFlag = newScamperFlag;
             newReg = true;
@@ -62,8 +62,8 @@ void TransportManager::transportRegisterLocationHandler(CNSocket* sock, CNPacket
          * assuming the two bitfields are just stuck together to make a longer one, do a similar operation
          */
         if (plr->accountLevel <= 40) {
-            plr->aSkywayLocationFlag[0] = UINT64_MAX;
-            plr->aSkywayLocationFlag[1] = UINT64_MAX;
+            plr->aSkywayLocationFlag[0] = INT64_MAX;
+            plr->aSkywayLocationFlag[1] = INT64_MAX;
             newReg = true;
         } else {
             int index = transport->iLocationID > 64 ? 1 : 0;
