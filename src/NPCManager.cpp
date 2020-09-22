@@ -118,7 +118,7 @@ void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
     // if vehicle
     if (req->Item.iType == 10)
         // set time limit: current time + 7days
-        req->Item.iTimeLimit = getTime() + 604800;
+        req->Item.iTimeLimit = getTimestamp() + 604800;
 
 
     if (slot != req->iInvenSlotNum) {

@@ -149,3 +149,11 @@ time_t getTime() {
 
     return (time_t)value.count();
 }
+
+time_t getTimestamp() {
+    using namespace std::chrono;
+
+    milliseconds value = duration_cast<milliseconds>((time_point_cast<milliseconds>(system_clock::now())).time_since_epoch());
+
+    return (time_t)value.count();
+}

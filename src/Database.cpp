@@ -128,7 +128,7 @@ int Database::addAccount(std::string login, std::string password)
     account.Login = login;
     account.Password = password;
     account.Selected = 1;
-    account.Created = getTime();
+    account.Created = getTimestamp();
     return db.insert(account);
 }
 
@@ -137,7 +137,7 @@ void Database::updateSelected(int accountId, int slot)
     Account acc = db.get<Account>(accountId);
     acc.Selected = slot;
     //timestamp
-    acc.LastLogin = getTime();
+    acc.LastLogin = getTimestamp();
     db.update(acc);
 }
 
@@ -172,7 +172,7 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     DbPlayer create = {};
     
     //set timestamp
-    create.Created = getTime();
+    create.Created = getTimestamp();
     // save packet data
     create.FirstName = U16toU8(save->szFirstName);
     create.LastName = U16toU8(save->szLastName);
@@ -380,7 +380,7 @@ Database::DbPlayer Database::playerToDb(Player *player)
         appendBlob(&result.QuestFlag, flag);
     }
     //timestamp
-    result.LastLogin = getTime();
+    result.LastLogin = getTimestamp();
     result.Created = getDbPlayerById(player->iID).Created;
 
     return result;
@@ -611,7 +611,7 @@ void Database::getInventory(Player* player) {
 }
 
 void Database::removeExpiredVehicles(Player* player) {
-    uint64_t currentTime = getTime();
+    uint64_t currentTime = getTimestamp();
     //remove from bank immediately
     for (int i = 0; i < ABANK_COUNT; i++) {
         if (player->Bank[i].iType == 10 && player->Bank[i].iTimeLimit < currentTime)
