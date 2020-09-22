@@ -16,6 +16,7 @@ void BuddyManager::init() {
 	REGISTER_SHARD_PACKET(P_CL2FE_REQ_GET_BUDDY_STATE, reqPktGetBuddyState);
 	REGISTER_SHARD_PACKET(P_CL2FE_REQ_SET_BUDDY_BLOCK, reqBuddyBlock);
 	REGISTER_SHARD_PACKET(P_CL2FE_REQ_REMOVE_BUDDY, reqBuddyDelete);
+	REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_BUDDY_WARP, reqBuddyWarp);
 }
 
 //Buddy request
@@ -308,6 +309,32 @@ void BuddyManager::reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
 	resp.iBuddySlot = pkt->iBuddySlot;
 
 	sock->sendPacket((void*)&resp, P_FE2CL_REP_REMOVE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_REMOVE_BUDDY_SUCC));
+}
+
+//Warping to buddy
+void BuddyManager::reqBuddyWarp(CNSocket* sock, CNPacketData* data) {
+	if (data->size != sizeof(sP_CL2FE_REQ_PC_BUDDY_WARP))
+		return; //malformed packet
+
+	sP_CL2FE_REQ_PC_BUDDY_WARP* pkt = (sP_CL2FE_REQ_PC_BUDDY_WARP*)data->buf;
+
+	INITSTRUCT(sP_FE2CL_REP_PC_BUDDY_WARP_OTHER_SHARD_SUCC, resp);
+	resp.iBuddyPCUID = pkt->iBuddyPCUID;
+	
+	CNSocket* otherSock = sock;
+
+	for (auto pair : PlayerManager::players) {
+		if (pair.second.plr->PCStyle.iPC_UID == pkt->iBuddyPCUID) {
+			otherSock = pair.first;
+		}
+	}
+
+	Player* buddy = PlayerManager::getPlayer(otherSock);
+
+	PlayerManager::updatePlayerPosition(sock, buddy->x, buddy->y, buddy->z);
+
+	sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BUDDY_WARP_OTHER_SHARD_SUCC, sizeof(sP_FE2CL_REP_PC_BUDDY_WARP_OTHER_SHARD_SUCC));
+
 }
 
 #pragma region Helper methods

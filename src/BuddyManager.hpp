@@ -30,6 +30,9 @@ namespace BuddyManager {
 	void reqBuddyBlock(CNSocket* sock, CNPacketData* data);
 	void reqBuddyDelete(CNSocket* sock, CNPacketData* data);
 
+	//Buddy warping
+	void reqBuddyWarp(CNSocket* sock, CNPacketData* data);
+
 	//helper methods
 	void requestedBuddy(CNSocket* sock, Player* plrReq, PlayerView& plr);
 	void buddyList(CNSocket* sock, sBuddyBaseInfo BuddyInfo); //updates the buddylist
