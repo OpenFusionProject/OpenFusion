@@ -58,7 +58,7 @@ namespace Database {
         short int PayZoneFlag;
         short int SkinColor;
         bool TutorialFlag;
-        bool isGM;
+        int AccountLevel;
         int FusionMatter;
         int Taros;
         int x_coordinates;

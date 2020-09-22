@@ -24,7 +24,7 @@ std::string settings::XDTJSON = "tdata/xdt.json";
 std::string settings::MOBJSON = "tdata/mobs.json";
 std::string settings::PATHJSON = "tdata/paths.json";
 std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
-bool settings::GM = true;
+int settings::ACCLEVEL = 1;
 
 void settings::init() {
     INIReader reader("config.ini");
@@ -55,5 +55,5 @@ void settings::init() {
     MOBJSON = reader.Get("shard", "mobdata", MOBJSON);
     PATHJSON = reader.Get("shard", "pathdata", PATHJSON);
     MOTDSTRING = reader.Get("shard", "motd", MOTDSTRING);
-    GM = reader.GetBoolean("shard", "gm", GM);
+    ACCLEVEL = reader.GetBoolean("shard", "accountlevel", ACCLEVEL);
 }

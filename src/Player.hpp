@@ -12,6 +12,7 @@
 
 struct Player {
     int accountId;
+    int accountLevel; // permission level (see CN_ACCOUNT_LEVEL enums)
     int64_t SerialKey;
     int32_t iID;
     uint64_t FEKey;
@@ -42,7 +43,6 @@ struct Player {
     int32_t moneyInTrade;
     bool isTrading;
     bool isTradeConfirm;
-    bool IsGM;
 
     int64_t aQuestFlag[16];
     int tasks[ACTIVE_MISSION_COUNT];
