@@ -328,7 +328,13 @@ void MissionManager::mobKilled(CNSocket *sock, int mobid) {
             if (task["m_iCSUNumToKill"][j] != 0)
             {
                 missionmob = true;
-                plr->RemainingNPCCount[i][j]--;
+                //sanity check
+                if (plr->RemainingNPCCount[i][j] == 0) {
+                    std::cout << "[WARN] RemainingNPCCount tries to go below 0?!" << std::endl;
+                }
+                else {
+                    plr->RemainingNPCCount[i][j]--;
+                }
             }
             // drop quest item
             if (task["m_iCSUItemNumNeeded"][j] != 0 && !isQuestItemFull(sock, task["m_iCSUItemID"][j], task["m_iCSUItemNumNeeded"][j]) ) {
