@@ -162,7 +162,7 @@ void TableData::init() {
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
             auto td = npcTableData[(int)npc["iNPCType"]];
-            Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iNPCType"], npc["iHP"], npc["iAngle"], td["m_iRegenTime"]);
+            Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iNPCType"], npc["iHP"], npc["iAngle"], td);
 
             // Temporary fix, IDs will be pulled from json later
             tmp->appearanceData.iNPC_ID = i;

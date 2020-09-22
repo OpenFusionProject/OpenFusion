@@ -104,3 +104,15 @@ std::vector<Chunk*> ChunkManager::getDeltaChunks(std::vector<Chunk*> from, std::
 
     return delta;
 }
+
+bool ChunkManager::inPopulatedChunks(int posX, int posY) {
+    auto chunk = ChunkManager::grabChunk(posX, posY);
+    auto nearbyChunks = ChunkManager::grabChunks(chunk);
+
+    for (Chunk *c: nearbyChunks) {
+        if (!c->players.empty())
+            return true;
+    }
+
+    return false;
+}

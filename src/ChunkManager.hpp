@@ -26,4 +26,5 @@ namespace ChunkManager {
     std::pair<int, int> grabChunk(int posX, int posY);
     std::vector<Chunk*> grabChunks(std::pair<int, int> chunkPos);
     std::vector<Chunk*> getDeltaChunks(std::vector<Chunk*> from, std::vector<Chunk*> to);
+    bool inPopulatedChunks(int posX, int posY);
 }

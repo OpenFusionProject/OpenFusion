@@ -179,9 +179,47 @@ void MobManager::deadStep(Mob *mob, time_t currTime) {
     }
 }
 
+void MobManager::roamingStep(Mob *mob, time_t currTime) {
+    if (mob->nextMovement != 0 && currTime < mob->nextMovement)
+        return;
+
+    int delay = (int)mob->data["m_iDelayTime"] * 1000;
+    mob->nextMovement = currTime + delay/2 + rand() % (delay/2);
+
+    INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
+    int xStart = mob->spawnX - mob->idleRange/2;
+    int yStart = mob->spawnY - mob->idleRange/2;
+
+    pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
+    pkt.iSpeed = mob->data["m_iWalkSpeed"];
+    pkt.iToX = mob->appearanceData.iX = xStart + rand() % mob->idleRange;
+    pkt.iToY = mob->appearanceData.iY = yStart + rand() % mob->idleRange;
+    pkt.iToZ = mob->appearanceData.iZ;
+
+    auto chunk = ChunkManager::grabChunk(mob->appearanceData.iX, mob->appearanceData.iY);
+    auto chunks = ChunkManager::grabChunks(chunk);
+
+    // notify all nearby players
+    for (Chunk *chunk : chunks) {
+        for (CNSocket *s : chunk->players) {
+            s->sendPacket(&pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
+        }
+    }
+}
+
 void MobManager::step(time_t currTime) {
     for (auto& pair : Mobs) {
+        int x = pair.second->appearanceData.iX;
+        int y = pair.second->appearanceData.iY;
+
+        // skip chunks without players
+        if (!ChunkManager::inPopulatedChunks(x, y))
+            continue;
+
         switch (pair.second->state) {
+        case MobState::ROAMING:
+            roamingStep(pair.second, currTime);
+            break;
         case MobState::DEAD:
             deadStep(pair.second, currTime);
             break;
