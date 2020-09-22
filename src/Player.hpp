@@ -34,6 +34,7 @@ struct Player {
     int32_t iWarpLocationFlag;
     int64_t aSkywayLocationFlag[2];
     int32_t iConditionBitFlag;
+    int8_t iSpecialState;
 
     int x, y, z, angle;
     sItemBase Equip[AEQUIP_COUNT];

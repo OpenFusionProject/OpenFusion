@@ -54,6 +54,7 @@ namespace PlayerManager {
     void exitGame(CNSocket* sock, CNPacketData* data);
 
     void setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data);
+    void setGMSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data);
     void changePlayerGuide(CNSocket *sock, CNPacketData *data);
 
     void enterPlayerVehicle(CNSocket* sock, CNPacketData* data);
@@ -64,4 +65,5 @@ namespace PlayerManager {
 
     bool isAccountInUse(int accountId);
     void exitDuplicate(int accountId);
+    void setSpecialState(CNSocket* sock, CNPacketData* data);
 }

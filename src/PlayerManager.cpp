@@ -35,6 +35,7 @@ void PlayerManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_REGEN, PlayerManager::revivePlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_EXIT, PlayerManager::exitGame);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SPECIAL_STATE_SWITCH, PlayerManager::setSpecialSwitchPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_SPECIAL_STATE_SWITCH, PlayerManager::setGMSpecialSwitchPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_ON, PlayerManager::enterPlayerVehicle);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_OFF, PlayerManager::exitPlayerVehicle);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_CHANGE_MENTOR, PlayerManager::changePlayerGuide);   
@@ -152,6 +153,7 @@ void PlayerManager::addPlayerToChunks(std::vector<Chunk*> chunks, CNSocket* sock
             newPlayer.PCAppearanceData.PCStyle = plr->PCStyle;
             newPlayer.PCAppearanceData.Nano = plr->Nanos[plr->activeNano];
             newPlayer.PCAppearanceData.iPCState = plr->iPCState;
+            newPlayer.PCAppearanceData.iSpecialState = plr->iSpecialState;
             memcpy(newPlayer.PCAppearanceData.ItemEquip, plr->Equip, sizeof(sItemBase) * AEQUIP_COUNT);
 
             otherSock->sendPacket((void*)&newPlayer, P_FE2CL_PC_NEW, sizeof(sP_FE2CL_PC_NEW));
@@ -166,6 +168,7 @@ void PlayerManager::addPlayerToChunks(std::vector<Chunk*> chunks, CNSocket* sock
             newPlayer.PCAppearanceData.PCStyle = otherPlr->PCStyle;
             newPlayer.PCAppearanceData.Nano = otherPlr->Nanos[otherPlr->activeNano];
             newPlayer.PCAppearanceData.iPCState = otherPlr->iPCState;
+            newPlayer.PCAppearanceData.iSpecialState = otherPlr->iSpecialState;
             memcpy(newPlayer.PCAppearanceData.ItemEquip, otherPlr->Equip, sizeof(sItemBase) * AEQUIP_COUNT);
 
             sock->sendPacket((void*)&newPlayer, P_FE2CL_PC_NEW, sizeof(sP_FE2CL_PC_NEW));
@@ -811,12 +814,15 @@ void PlayerManager::exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_SPECIAL_STATE_SWITCH* specialData = (sP_CL2FE_REQ_PC_SPECIAL_STATE_SWITCH*)data->buf;
-    INITSTRUCT(sP_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC, response);
+    setSpecialState(sock, data);
+}
 
-    response.iPC_ID = specialData->iPC_ID;
-    response.iReqSpecialStateFlag = specialData->iSpecialStateFlag;
-    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC, sizeof(sP_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC));
+void PlayerManager::setGMSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {
+
+    if (getPlayer(sock)->accountLevel > 30)
+        return;
+
+    setSpecialState(sock, data);
 }
 
 void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
@@ -892,5 +898,25 @@ void PlayerManager::exitDuplicate(int accountId) {
             sock->kill();
         }
     }
+}
+
+void PlayerManager::setSpecialState(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_GM_REQ_PC_SPECIAL_STATE_SWITCH))
+        return; // ignore the malformed packet
+
+    Player *plr = getPlayer(sock);
+
+    sP_CL2FE_GM_REQ_PC_SPECIAL_STATE_SWITCH* setData = (sP_CL2FE_GM_REQ_PC_SPECIAL_STATE_SWITCH*)data->buf;
+
+    INITSTRUCT(sP_FE2CL_PC_SPECIAL_STATE_CHANGE, response);
+
+    plr->iSpecialState ^= setData->iSpecialStateFlag;
+
+    response.iPC_ID = setData->iPC_ID;
+    response.iReqSpecialStateFlag = setData->iSpecialStateFlag;
+    response.iSpecialState = plr->iSpecialState;
+
+    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC, sizeof(sP_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC));
+    sendToViewable(sock, (void*)&response, P_FE2CL_PC_SPECIAL_STATE_CHANGE, sizeof(sP_FE2CL_PC_SPECIAL_STATE_CHANGE));
 }
 #pragma endregion
