@@ -164,6 +164,8 @@ void TableData::init() {
             auto td = npcTableData[(int)npc["iNPCType"]];
             Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iNPCType"], npc["iHP"], npc["iAngle"], td);
 
+            std::cout << td["m_iDelayTime"] << std::endl;
+
             // Temporary fix, IDs will be pulled from json later
             tmp->appearanceData.iNPC_ID = i;
 
