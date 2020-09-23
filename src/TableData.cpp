@@ -123,6 +123,14 @@ void TableData::init() {
 
         std::cout << "[INFO] Loaded " << ItemManager::ItemData.size() << " items" << std::endl;
 
+        // load player limits from m_pAvatarTable.m_pAvatarGrowData
+        
+        nlohmann::json growth = xdtData["m_pAvatarTable"]["m_pAvatarGrowData"];
+
+        for (int i = 0; i < 36; i++) {
+            MissionManager::AvatarGrowth[i] = growth[i];
+        }
+
         // load vendor listings
         nlohmann::json listings = xdtData["m_pVendorTable"]["m_pItemData"];
 

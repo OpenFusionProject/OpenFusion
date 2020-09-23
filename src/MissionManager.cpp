@@ -2,18 +2,45 @@
 #include "CNStructs.hpp"
 #include "MissionManager.hpp"
 #include "PlayerManager.hpp"
+#include "NanoManager.hpp"
 #include "ItemManager.hpp"
 
 #include "string.h"
 
 std::map<int32_t, Reward*> MissionManager::Rewards;
 std::map<int32_t, TaskData*> MissionManager::Tasks;
+nlohmann::json MissionManager::AvatarGrowth[36];
 
 void MissionManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_START, taskStart);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_END, taskEnd);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID, setMission);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_STOP, quitMission);
+}
+
+bool startTask(Player* plr, int TaskID) {
+    if (MissionManager::Tasks.find(TaskID) == MissionManager::Tasks.end()) {
+        std::cout << "[WARN] Player submitted unknown task!?" << std::endl;
+        return false;
+    }
+    
+    TaskData& task = *MissionManager::Tasks[TaskID];
+    int i;
+    for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+        if (plr->tasks[i] == 0) {
+            plr->tasks[i] = TaskID;
+            for (int j = 0; j < 3; j++) {
+                plr->RemainingNPCCount[i][j] = (int)task["m_iCSUNumToKill"][j];
+            }
+            break;
+        }
+    }
+
+    if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != TaskID) {
+        std::cout << "[WARN] Player has more than 6 active missions!?" << std::endl;
+    }
+
+    return true;
 }
 
 void MissionManager::taskStart(CNSocket* sock, CNPacketData* data) {
@@ -24,30 +51,13 @@ void MissionManager::taskStart(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_SUCC, response);
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (Tasks.find(missionData->iTaskNum) == Tasks.end()) {
-        std::cout << "[WARN] Player submitted unknown task!?" << std::endl;
+    if (!startTask(plr, missionData->iTaskNum)) {
         // TODO: TASK_FAIL?
         response.iTaskNum = missionData->iTaskNum;
         sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
         return;
     }
     
-    TaskData& task = *Tasks[missionData->iTaskNum];
-    int i;
-    for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
-        if (plr->tasks[i] == 0) {
-            plr->tasks[i] = missionData->iTaskNum;
-            for (int j = 0; j < 3; j++) {
-                plr->RemainingNPCCount[i][j] = (int)task["m_iCSUNumToKill"][j];
-            }
-            break;
-        }
-    }
-
-    if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != missionData->iTaskNum) {
-        std::cout << "[WARN] Player has more than 6 active missions!?" << std::endl;
-    }
-
     response.iTaskNum = missionData->iTaskNum;
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
 }
@@ -116,6 +126,12 @@ void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
     {
         // save completed mission on player
         saveMission(plr, (int)(task["m_iHMissionID"])-1);
+
+        // if it's a nano mission, reward the nano.
+        if (task["m_iSTNanoID"] != 0) {
+            NanoManager::addNano(sock, task["m_iSTNanoID"], 0);
+        }
+
         // remove current mission
         plr->CurrentMissionID = 0;
     }
@@ -306,7 +322,32 @@ int MissionManager::giveMissionReward(CNSocket *sock, int task) {
     }
 
     sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
+
+    MissionManager::updateFusionMatter(sock);
     return 0;
+}
+
+void MissionManager::updateFusionMatter(CNSocket* sock) {
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    // check if it is over the limit
+    std::cout << plr->fusionmatter << " > " << AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"] << std::endl;
+    if (plr->fusionmatter > AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"]) {
+        // check if the nano task is already started
+
+        for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+            TaskData& task = *Tasks[plr->tasks[i]];
+            if (task["m_iSTNanoID"] != 0)
+                return; // nano mission was already started!
+        }
+
+        // start the nano mission
+        startTask(plr, AvatarGrowth[plr->level]["m_iNanoQuestTaskID"]);
+
+        INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_SUCC, response);
+        response.iTaskNum = AvatarGrowth[plr->level]["m_iNanoQuestTaskID"];
+        sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
+    }
 }
 
 void MissionManager::mobKilled(CNSocket *sock, int mobid) {

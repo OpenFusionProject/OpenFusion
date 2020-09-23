@@ -131,6 +131,8 @@ void MobManager::giveReward(CNSocket *sock) {
 
         sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
     }
+
+    MissionManager::updateFusionMatter(sock);
 }
 
 void MobManager::killMob(CNSocket *sock, Mob *mob) {
