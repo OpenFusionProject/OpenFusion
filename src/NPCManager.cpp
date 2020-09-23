@@ -121,6 +121,24 @@ void NPCManager::removeNPC(int32_t id) {
     std::cout << "npc removed!" << std::endl;
 }
 
+void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
+    BaseNPC* npc = NPCs[id];
+
+    std::pair<int, int> oldPos = ChunkManager::grabChunk(npc->appearanceData.iX, npc->appearanceData.iY);
+    npc->appearanceData.iX = X;
+    npc->appearanceData.iY = Y;
+    npc->appearanceData.iZ = Z;
+    std::pair<int, int> newPos = ChunkManager::grabChunk(X, Y);
+
+    // nothing to be done
+    if (newPos == oldPos)
+        return;
+
+    // pull NPC from old chunk and add to new chunk
+    ChunkManager::removeNPC(oldPos, npc->appearanceData.iNPC_ID);
+    ChunkManager::addNPC(X, Y, npc->appearanceData.iNPC_ID);
+}
+
 void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY))
         return; // malformed packet

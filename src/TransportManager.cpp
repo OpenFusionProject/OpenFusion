@@ -4,6 +4,7 @@
 #include "TransportManager.hpp"
 
 #include <unordered_map>
+#include <cmath>
 
 std::map<int32_t, TransportRoute> TransportManager::Routes;
 std::map<int32_t, TransportLocation> TransportManager::Locations;
@@ -26,6 +27,7 @@ void TransportManager::init() {
     busPoints.push(start);
     TransportManager::lerp(&busPoints, start, end, 1000);
     busPoints.push(end);
+    TransportManager::lerp(&busPoints, end, start, 1000);
     NPCQueues[bus->appearanceData.iNPC_ID] = busPoints;
 }
 
@@ -271,10 +273,9 @@ void TransportManager::stepNPCPathing() {
         int distanceBetween = hypot(dXY, point.z - npc->appearanceData.iZ); // total distance
 
         // update NPC location to update viewables
-        npc->appearanceData.iX = point.x;
-        npc->appearanceData.iY = point.y;
-        npc->appearanceData.iZ = point.z;
+        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, point.x, point.y, point.z);
 
+        // get chunks in view
         auto chunk = ChunkManager::grabChunk(npc->appearanceData.iX, npc->appearanceData.iY);
         auto chunks = ChunkManager::grabChunks(chunk);
 
@@ -322,7 +323,7 @@ void TransportManager::stepNPCPathing() {
 /*
  * Linearly interpolate between two points and insert the results into a queue.
  */
-static void TransportManager::lerp(std::queue<WarpLocation>* queue, WarpLocation start, WarpLocation end, int gapSize) {
+void TransportManager::lerp(std::queue<WarpLocation>* queue, WarpLocation start, WarpLocation end, int gapSize) {
     int dXY = hypot(end.x - start.x, end.y - start.y); // XY plane distance
     int distanceBetween = hypot(dXY, end.z - start.z); // total distance
     int lerps = distanceBetween / gapSize; // integer division to ensure a whole number of in-between points

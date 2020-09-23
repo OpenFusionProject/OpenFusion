@@ -22,6 +22,7 @@ namespace NPCManager {
 
     void addNPC(std::vector<Chunk*> viewableChunks, int32_t);
     void removeNPC(int32_t);
+    void updateNPCPosition(int32_t, int X, int Y, int Z);
 
     void npcBarkHandler(CNSocket* sock, CNPacketData* data);
     void npcSummonHandler(CNSocket* sock, CNPacketData* data);
