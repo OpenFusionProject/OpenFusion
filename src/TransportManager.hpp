@@ -20,11 +20,16 @@ namespace TransportManager {
     extern std::map<int32_t, TransportLocation> Locations;
     extern std::map<int32_t, std::queue<WarpLocation>> SkywayPaths; // predefined skyway paths with points
     extern std::unordered_map<CNSocket*, std::queue<WarpLocation>> SkywayQueues; // player sockets with queued broomstick points
+    extern std::unordered_map<int32_t, std::queue<WarpLocation>> NPCQueues; // NPC ids with queued pathing points
 
     void init();
 
-    void transportRegisterLocationHandler(CNSocket* sock, CNPacketData* data);
-    void transportWarpHandler(CNSocket* sock, CNPacketData* data);
+    void transportRegisterLocationHandler(CNSocket*, CNPacketData*);
+    void transportWarpHandler(CNSocket*, CNPacketData*);
 
-    void tickSkywaySystem(CNServer* serv, time_t currTime);
+    void tickTransportationSystem(CNServer*, time_t);
+    void stepNPCPathing();
+    void stepSkywaySystem();
+
+    static void lerp(std::queue<WarpLocation>*, WarpLocation, WarpLocation, int);
 }
