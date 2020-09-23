@@ -56,6 +56,17 @@ void ChunkManager::removePlayer(std::pair<int, int> chunkPos, CNSocket* sock) {
     // TODO: if players and NPCs are empty, free chunk and remove it from surrounding views
 }
 
+void ChunkManager::removeNPC(std::pair<int, int> chunkPos, int32_t id) {
+    if (!checkChunk(chunkPos))
+        return; // do nothing if chunk doesn't even exist
+
+    Chunk* chunk = chunks[chunkPos];
+
+    chunk->NPCs.erase(id); // gone
+
+    // TODO: if players and NPCs are empty, free chunk and remove it from surrounding views
+}
+
 bool ChunkManager::checkChunk(std::pair<int, int> chunk) {
     return chunks.find(chunk) != chunks.end();
 }

@@ -4,17 +4,31 @@
 #include "TransportManager.hpp"
 
 #include <unordered_map>
+#include <cmath>
 
 std::map<int32_t, TransportRoute> TransportManager::Routes;
 std::map<int32_t, TransportLocation> TransportManager::Locations;
 std::map<int32_t, std::queue<WarpLocation>> TransportManager::SkywayPaths;
 std::unordered_map<CNSocket*, std::queue<WarpLocation>> TransportManager::SkywayQueues;
+std::unordered_map<int32_t, std::queue<WarpLocation>> TransportManager::NPCQueues;
 
 void TransportManager::init() {
-    REGISTER_SHARD_TIMER(tickSkywaySystem, 1000);
+    REGISTER_SHARD_TIMER(tickTransportationSystem, 1000);
 
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION, transportRegisterLocationHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_TRANSPORTATION, transportWarpHandler);
+
+    BaseNPC* bus = new BaseNPC(220447, 162431, -3650, 1, NPC_BUS);
+    NPCManager::NPCs[bus->appearanceData.iNPC_ID] = bus;
+    ChunkManager::addNPC(bus->appearanceData.iX, bus->appearanceData.iY, bus->appearanceData.iNPC_ID);
+    std::queue<WarpLocation> busPoints;
+    WarpLocation start = { bus->appearanceData.iX, bus->appearanceData.iY, -3650 };
+    WarpLocation end = { 220441, 188102, -3653 };
+    busPoints.push(start);
+    TransportManager::lerp(&busPoints, start, end, 1000);
+    busPoints.push(end);
+    TransportManager::lerp(&busPoints, end, start, 1000);
+    NPCQueues[bus->appearanceData.iNPC_ID] = busPoints;
 }
 
 void TransportManager::transportRegisterLocationHandler(CNSocket* sock, CNPacketData* data) {
@@ -174,13 +188,17 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC));
 }
 
+void TransportManager::tickTransportationSystem(CNServer* serv, time_t currTime) {
+    stepNPCPathing();
+    stepSkywaySystem();
+}
+
 /*
  * Go through every socket that has broomstick points queued up, and advance to the next point.
  * If the player has disconnected or finished the route, clean up and remove them from the queue.
  */
-void TransportManager::tickSkywaySystem(CNServer* serv, time_t currTime) {
+void TransportManager::stepSkywaySystem() {
     
-    //std::cout << SkywayQueue.size();
     // using an unordered map so we can remove finished players in one iteration
     std::unordered_map<CNSocket*, std::queue<WarpLocation>>::iterator it = SkywayQueues.begin();
     while (it != SkywayQueues.end()) {
@@ -226,5 +244,96 @@ void TransportManager::tickSkywaySystem(CNServer* serv, time_t currTime) {
 
             it++; // go to next entry in map
         }
+    }
+}
+
+void TransportManager::stepNPCPathing() {
+
+    // all NPC pathing queues
+    std::unordered_map<int32_t, std::queue<WarpLocation>>::iterator it = NPCQueues.begin();
+    while (it != NPCQueues.end()) {
+
+        std::queue<WarpLocation>* queue = &it->second;
+
+        BaseNPC* npc = nullptr;
+        if (NPCManager::NPCs.find(it->first) != NPCManager::NPCs.end())
+            npc = NPCManager::NPCs[it->first];
+
+        if (npc == nullptr) {
+            // pluck out dead path + update iterator
+            it = NPCQueues.erase(it);
+            continue;
+        }
+
+        WarpLocation point = queue->front(); // get point
+        queue->pop(); // remove point from front of queue
+
+        // calculate displacement
+        int dXY = hypot(point.x - npc->appearanceData.iX, point.y - npc->appearanceData.iY); // XY plane distance
+        int distanceBetween = hypot(dXY, point.z - npc->appearanceData.iZ); // total distance
+
+        // update NPC location to update viewables
+        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, point.x, point.y, point.z);
+
+        // get chunks in view
+        auto chunk = ChunkManager::grabChunk(npc->appearanceData.iX, npc->appearanceData.iY);
+        auto chunks = ChunkManager::grabChunks(chunk);
+
+        switch (npc->npcClass) {
+        case NPC_BUS:
+            INITSTRUCT(sP_FE2CL_TRANSPORTATION_MOVE, busMove);
+            busMove.eTT = 3;
+            busMove.iT_ID = npc->appearanceData.iNPC_ID;
+            busMove.iMoveStyle = 0; // ???
+            busMove.iToX = point.x;
+            busMove.iToY = point.y;
+            busMove.iToZ = point.z;
+            busMove.iSpeed = distanceBetween; // set to distance to match how monkeys work
+
+            // send packet to players in view
+            for (Chunk* chunk : chunks) {
+                for (CNSocket* s : chunk->players) {
+                    s->sendPacket(&busMove, P_FE2CL_TRANSPORTATION_MOVE, sizeof(sP_FE2CL_TRANSPORTATION_MOVE));
+                }
+            }
+            break;
+        default:
+            INITSTRUCT(sP_FE2CL_NPC_MOVE, move);
+            move.iNPC_ID = npc->appearanceData.iNPC_ID;
+            move.iMoveStyle = 0; // ???
+            move.iToX = point.x;
+            move.iToY = point.y;
+            move.iToZ = point.z;
+            move.iSpeed = 600; // TODO: figure out a way to make this variable
+
+            // send packet to players in view
+            for (Chunk* chunk : chunks) {
+                for (CNSocket* s : chunk->players) {
+                    s->sendPacket(&move, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
+                }
+            }
+            break;
+        }
+
+        queue->push(point); // move processed point to the back to maintain cycle
+        it++; // go to next entry in map
+    }
+}
+
+/*
+ * Linearly interpolate between two points and insert the results into a queue.
+ */
+void TransportManager::lerp(std::queue<WarpLocation>* queue, WarpLocation start, WarpLocation end, int gapSize) {
+    int dXY = hypot(end.x - start.x, end.y - start.y); // XY plane distance
+    int distanceBetween = hypot(dXY, end.z - start.z); // total distance
+    int lerps = distanceBetween / gapSize; // integer division to ensure a whole number of in-between points
+    for (int i = 0; i < lerps; i++) {
+        WarpLocation lerp;
+        // lerp math
+        float frac = (i + 1) * 1.0f / (lerps + 1);
+        lerp.x = (start.x * (1.0f - frac)) + (end.x * frac);
+        lerp.y = (start.y * (1.0f - frac)) + (end.y * frac);
+        lerp.z = (start.z * (1.0f - frac)) + (end.z * frac);
+        queue->push(lerp); // add lerp'd point
     }
 }

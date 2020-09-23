@@ -44,6 +44,7 @@ namespace PlayerManager {
     void launchPlayer(CNSocket* sock, CNPacketData* data);
     void ziplinePlayer(CNSocket* sock, CNPacketData* data);
     void movePlatformPlayer(CNSocket* sock, CNPacketData* data);
+    void moveSliderPlayer(CNSocket* sock, CNPacketData* data);
     void moveSlopePlayer(CNSocket* sock, CNPacketData* data);
     void gotoPlayer(CNSocket* sock, CNPacketData* data);
     void setSpecialPlayer(CNSocket* sock, CNPacketData* data);
