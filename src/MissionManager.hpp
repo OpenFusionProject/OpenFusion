@@ -51,7 +51,7 @@ namespace MissionManager {
     //checks if player doesn't have n/n quest items
     bool isQuestItemFull(CNSocket* sock, int itemId, int itemCount);
     int giveMissionReward(CNSocket *sock, int task);
-    void updateFusionMatter(CNSocket* sock);
+    void updateFusionMatter(CNSocket* sock, int fusion);
 
     void mobKilled(CNSocket *sock, int mobid);
 

@@ -105,7 +105,7 @@ void MobManager::giveReward(CNSocket *sock) {
 
     // update player
     plr->money += 50;
-    plr->fusionmatter += 70;
+    MissionManager::updateFusionMatter(sock, 70);
 
     // simple rewards
     reward->m_iCandy = plr->money;
@@ -132,7 +132,6 @@ void MobManager::giveReward(CNSocket *sock) {
         sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
     }
 
-    MissionManager::updateFusionMatter(sock);
 }
 
 void MobManager::killMob(CNSocket *sock, Mob *mob) {

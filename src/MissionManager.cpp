@@ -302,7 +302,7 @@ int MissionManager::giveMissionReward(CNSocket *sock, int task) {
 
     // update player
     plr->money += reward->money;
-    plr->fusionmatter += reward->fusionmatter;
+    MissionManager::updateFusionMatter(sock, reward->fusionmatter);
 
     // simple rewards
     resp->m_iCandy = plr->money;
@@ -323,15 +323,15 @@ int MissionManager::giveMissionReward(CNSocket *sock, int task) {
 
     sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
 
-    MissionManager::updateFusionMatter(sock);
     return 0;
 }
 
-void MissionManager::updateFusionMatter(CNSocket* sock) {
+void MissionManager::updateFusionMatter(CNSocket* sock, int fusion) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    plr->fusionmatter += fusion;
+
     // check if it is over the limit
-    std::cout << plr->fusionmatter << " > " << AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"] << std::endl;
     if (plr->fusionmatter > AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"]) {
         // check if the nano task is already started
 
@@ -347,6 +347,7 @@ void MissionManager::updateFusionMatter(CNSocket* sock) {
         INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_SUCC, response);
         response.iTaskNum = AvatarGrowth[plr->level]["m_iNanoQuestTaskID"];
         sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
+        return;
     }
 }
 
