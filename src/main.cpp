@@ -150,10 +150,11 @@ time_t getTime() {
     return (time_t)value.count();
 }
 
+//returns system time in seconds
 time_t getTimestamp() {
     using namespace std::chrono;
 
-    milliseconds value = duration_cast<milliseconds>((time_point_cast<milliseconds>(system_clock::now())).time_since_epoch());
+    seconds value = duration_cast<seconds>((time_point_cast<seconds>(system_clock::now())).time_since_epoch());
 
     return (time_t)value.count();
 }

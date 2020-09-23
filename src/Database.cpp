@@ -611,7 +611,7 @@ void Database::getInventory(Player* player) {
 }
 
 void Database::removeExpiredVehicles(Player* player) {
-    int32_t currentTime = getTimestamp()/1000;
+    int32_t currentTime = getTimestamp();
     //remove from bank immediately
     for (int i = 0; i < ABANK_COUNT; i++) {
         if (player->Bank[i].iType == 10 && player->Bank[i].iTimeLimit < currentTime)
