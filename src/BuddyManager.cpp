@@ -4,7 +4,10 @@
 #include "PlayerManager.hpp"
 #include "BuddyManager.hpp"
 
+#include <iostream>
+#include <chrono>
 #include <algorithm>
+#include <thread>
 
 void BuddyManager::init() {
 	REGISTER_SHARD_PACKET(P_CL2FE_REQ_REQUEST_MAKE_BUDDY, requestBuddy);
@@ -72,8 +75,6 @@ void BuddyManager::reqBuddyByName(CNSocket* sock, CNPacketData* data) {
 			otherSock = pair.first;
 		}
 	}
-
-	PlayerView& plr = PlayerManager::players[otherSock];
 
 	resp.iPCUID = plrReq->PCStyle.iPC_UID;
 	resp.iNameCheckFlag = plrReq->PCStyle.iNameCheck;
@@ -312,30 +313,7 @@ void BuddyManager::reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
 }
 
 //Warping to buddy
-void BuddyManager::reqBuddyWarp(CNSocket* sock, CNPacketData* data) {
-	if (data->size != sizeof(sP_CL2FE_REQ_PC_BUDDY_WARP))
-		return; //malformed packet
-
-	sP_CL2FE_REQ_PC_BUDDY_WARP* pkt = (sP_CL2FE_REQ_PC_BUDDY_WARP*)data->buf;
-
-	INITSTRUCT(sP_FE2CL_REP_PC_BUDDY_WARP_OTHER_SHARD_SUCC, resp);
-	resp.iBuddyPCUID = pkt->iBuddyPCUID;
-	
-	CNSocket* otherSock = sock;
-
-	for (auto pair : PlayerManager::players) {
-		if (pair.second.plr->PCStyle.iPC_UID == pkt->iBuddyPCUID) {
-			otherSock = pair.first;
-		}
-	}
-
-	Player* buddy = PlayerManager::getPlayer(otherSock);
-
-	PlayerManager::updatePlayerPosition(sock, buddy->x, buddy->y, buddy->z);
-
-	sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BUDDY_WARP_OTHER_SHARD_SUCC, sizeof(sP_FE2CL_REP_PC_BUDDY_WARP_OTHER_SHARD_SUCC));
-
-}
+void BuddyManager::reqBuddyWarp(CNSocket* sock, CNPacketData* data) {} //stub
 
 #pragma region Helper methods
 
