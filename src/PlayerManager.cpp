@@ -691,7 +691,7 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
 void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     PlayerView& plr = PlayerManager::players[sock];
 
-    if (plr.plr->Equip[8].iID > 0) {
+    if (plr.plr->Equip[8].iID > 0 && plr.plr->Equip[8].iTimeLimit>(getTimestamp()/1000)) {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_SUCC, response);
         sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_ON_SUCC));
 
@@ -709,6 +709,14 @@ void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     } else {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_FAIL, response);
         sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_FAIL, sizeof(sP_FE2CL_PC_VEHICLE_ON_FAIL));
+
+        //check if vehicle didn't expire
+        if (plr.plr->Equip[8].iTimeLimit < (getTimestamp() / 1000))
+        {
+            plr.plr->toRemoveVehicle.eIL = 0;
+            plr.plr->toRemoveVehicle.iSlotNum = 8;
+            ItemManager::checkItemExpire(sock, plr.plr);
+        }
     }
 }
 
