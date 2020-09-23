@@ -26,6 +26,7 @@ void PlayerManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_LAUNCHER, PlayerManager::launchPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ZIPLINE, PlayerManager::ziplinePlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_MOVEPLATFORM, PlayerManager::movePlatformPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_MOVETRANSPORTATION, PlayerManager::moveSliderPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SLOPE, PlayerManager::moveSlopePlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GOTO, PlayerManager::gotoPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_SET_VALUE, PlayerManager::setSpecialPlayer);
@@ -78,7 +79,6 @@ void PlayerManager::removePlayer(CNSocket* key) {
 }
 
 void PlayerManager::removePlayerFromChunks(std::vector<Chunk*> chunks, CNSocket* sock) {
-    INITSTRUCT(sP_FE2CL_NPC_EXIT, exitData);
     INITSTRUCT(sP_FE2CL_PC_EXIT, exitPlayer);
 
     // for chunks that need the player to be removed from
@@ -86,8 +86,20 @@ void PlayerManager::removePlayerFromChunks(std::vector<Chunk*> chunks, CNSocket*
 
         // remove NPCs
         for (int32_t id : chunk->NPCs) {
-            exitData.iNPC_ID = id;
-            sock->sendPacket((void*)&exitData, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
+            BaseNPC* npc = NPCManager::NPCs[id];
+            switch (npc->npcClass) {
+            case NPC_BUS:
+                INITSTRUCT(sP_FE2CL_TRANSPORTATION_EXIT, exitBusData);
+                exitBusData.eTT = 3;
+                exitBusData.iT_ID = id;
+                sock->sendPacket((void*)&exitBusData, P_FE2CL_TRANSPORTATION_EXIT, sizeof(sP_FE2CL_TRANSPORTATION_EXIT));
+                break;
+            default:
+                INITSTRUCT(sP_FE2CL_NPC_EXIT, exitData);
+                exitData.iNPC_ID = id;
+                sock->sendPacket((void*)&exitData, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
+                break;
+            }
         }
 
         // remove players from eachother
@@ -104,14 +116,24 @@ void PlayerManager::removePlayerFromChunks(std::vector<Chunk*> chunks, CNSocket*
 }
 
 void PlayerManager::addPlayerToChunks(std::vector<Chunk*> chunks, CNSocket* sock) {
-    INITSTRUCT(sP_FE2CL_NPC_ENTER, enterData);
     INITSTRUCT(sP_FE2CL_PC_NEW, newPlayer);
 
     for (Chunk* chunk : chunks) {
         // add npcs
         for (int32_t id : chunk->NPCs) {
-            enterData.NPCAppearanceData = NPCManager::NPCs[id]->appearanceData;
-            sock->sendPacket((void*)&enterData, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
+            BaseNPC* npc = NPCManager::NPCs[id];
+            switch (npc->npcClass) {
+            case NPC_BUS:
+                INITSTRUCT(sP_FE2CL_TRANSPORTATION_ENTER, enterBusData);
+                enterBusData.AppearanceData = { 3, npc->appearanceData.iNPC_ID, npc->appearanceData.iNPCType, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ };
+                sock->sendPacket((void*)&enterBusData, P_FE2CL_TRANSPORTATION_ENTER, sizeof(sP_FE2CL_TRANSPORTATION_ENTER));
+                break;
+            default:
+                INITSTRUCT(sP_FE2CL_NPC_ENTER, enterData);
+                enterData.NPCAppearanceData = NPCManager::NPCs[id]->appearanceData;
+                sock->sendPacket((void*)&enterData, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
+                break;
+            }
         }
 
         // add players
@@ -523,6 +545,37 @@ void PlayerManager::movePlatformPlayer(CNSocket* sock, CNPacketData* data) {
     platResponse.iPlatformID = platformData->iPlatformID;
 
     sendToViewable(sock, (void*)&platResponse, P_FE2CL_PC_MOVEPLATFORM, sizeof(sP_FE2CL_PC_MOVEPLATFORM));
+}
+
+void PlayerManager::moveSliderPlayer(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_MOVETRANSPORTATION))
+        return; // ignore the malformed packet
+
+    sP_CL2FE_REQ_PC_MOVETRANSPORTATION* sliderData = (sP_CL2FE_REQ_PC_MOVETRANSPORTATION*)data->buf;
+    updatePlayerPosition(sock, sliderData->iX, sliderData->iY, sliderData->iZ, sliderData->iAngle);
+
+    uint64_t tm = getTime();
+
+    INITSTRUCT(sP_FE2CL_PC_MOVETRANSPORTATION, sliderResponse);
+
+    sliderResponse.iPC_ID = players[sock].plr->iID;
+    sliderResponse.iCliTime = sliderData->iCliTime;
+    sliderResponse.iSvrTime = tm;
+    sliderResponse.iX = sliderData->iX;
+    sliderResponse.iY = sliderData->iY;
+    sliderResponse.iZ = sliderData->iZ;
+    sliderResponse.iAngle = sliderData->iAngle;
+    sliderResponse.fVX = sliderData->fVX;
+    sliderResponse.fVY = sliderData->fVY;
+    sliderResponse.fVZ = sliderData->fVZ;
+    sliderResponse.iLcX = sliderData->iLcX;
+    sliderResponse.iLcY = sliderData->iLcY;
+    sliderResponse.iLcZ = sliderData->iLcZ;
+    sliderResponse.iSpeed = sliderData->iSpeed;
+    sliderResponse.cKeyValue = sliderData->cKeyValue;
+    sliderResponse.iT_ID = sliderData->iT_ID;
+
+    sendToViewable(sock, (void*)&sliderResponse, P_FE2CL_PC_MOVETRANSPORTATION, sizeof(sP_FE2CL_PC_MOVETRANSPORTATION));
 }
 
 void PlayerManager::moveSlopePlayer(CNSocket* sock, CNPacketData* data) {
