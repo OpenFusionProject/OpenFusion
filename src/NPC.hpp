@@ -5,6 +5,7 @@
 class BaseNPC {
 public:
     sNPCAppearanceData appearanceData;
+    NPCClass npcClass;
 
     BaseNPC() {};
     BaseNPC(int x, int y, int z, int type) {
@@ -20,4 +21,7 @@ public:
         // hopefully no collisions happen :eyes:
         appearanceData.iNPC_ID = (int32_t)rand();
     };
+    BaseNPC(int x, int y, int z, int type, NPCClass classType) : BaseNPC(x, y, z, type) {
+        npcClass = classType;
+    }
 };
