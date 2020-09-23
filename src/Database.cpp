@@ -612,22 +612,22 @@ void Database::getInventory(Player* player) {
 
 void Database::removeExpiredVehicles(Player* player) {
     int32_t currentTime = getTimestamp();
-    //remove from bank immediately
+    // remove from bank immediately
     for (int i = 0; i < ABANK_COUNT; i++) {
         if (player->Bank[i].iType == 10 && player->Bank[i].iTimeLimit < currentTime)
             player->Bank[i] = {};
     }
-    //for the rest, we want to leave only 1 expired vehicle on player to delete it with the client packet
+    // for the rest, we want to leave only 1 expired vehicle on player to delete it with the client packet
     std::vector<sItemBase*> toRemove;
 
-    //equiped vehicle
+    // equiped vehicle
     if (player->Equip[8].iOpt > 0 && player->Equip[8].iTimeLimit < currentTime)
     {
         toRemove.push_back(&player->Equip[8]);
         player->toRemoveVehicle.eIL = 0;
         player->toRemoveVehicle.iSlotNum = 8;
     }
-    //inventory
+    // inventory
     for (int i = 0; i < AINVEN_COUNT; i++) {
         if (player->Inven[i].iType == 10 && player->Inven[i].iTimeLimit < currentTime) {
             toRemove.push_back(&player->Inven[i]);
@@ -636,7 +636,7 @@ void Database::removeExpiredVehicles(Player* player) {
         }
     }
 
-    //delete all but one vehicles, leave last one for ceremonial deletion
+    // delete all but one vehicles, leave last one for ceremonial deletion
     for (int i = 0; i < (int)toRemove.size()-1; i++) {
         memset(toRemove[i], 0, sizeof(sItemBase));
     }

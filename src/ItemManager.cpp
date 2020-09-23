@@ -793,9 +793,12 @@ void ItemManager::checkItemExpire(CNSocket* sock, Player* player) {
     itemData->iSlotNum = player->toRemoveVehicle.iSlotNum;
     sock->sendPacket((void*)&respbuf, P_FE2CL_PC_DELETE_TIME_LIMIT_ITEM, resplen);
     
-    //delete serverside
+    // delete serverside
     if (player->toRemoveVehicle.eIL == 0)
         memset(&player->Equip[8], 0, sizeof(sItemBase));
     else
         memset(&player->Inven[player->toRemoveVehicle.iSlotNum], 0, sizeof(sItemBase));
+
+    player->toRemoveVehicle.eIL = 0;
+    player->toRemoveVehicle.iSlotNum = 0;
 }

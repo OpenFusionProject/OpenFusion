@@ -150,7 +150,7 @@ time_t getTime() {
     return (time_t)value.count();
 }
 
-//returns system time in seconds
+// returns system time in seconds
 time_t getTimestamp() {
     using namespace std::chrono;
 
