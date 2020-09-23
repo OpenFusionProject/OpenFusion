@@ -4,6 +4,7 @@
 #include "CNShardServer.hpp"
 #include "CNShared.hpp"
 #include "MissionManager.hpp"
+#include "ItemManager.hpp"
 
 #include "settings.hpp"
 
@@ -287,6 +288,8 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&motd, P_FE2CL_PC_MOTD_LOGIN, sizeof(sP_FE2CL_PC_MOTD_LOGIN));
 
     addPlayer(sock, plr);
+    //check if there is an expiring vehicle
+    ItemManager::checkItemExpire(sock, getPlayer(sock));
 }
 
 void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size) {
@@ -327,7 +330,7 @@ void PlayerManager::movePlayer(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_MOVE* moveData = (sP_CL2FE_REQ_PC_MOVE*)data->buf;
     updatePlayerPosition(sock, moveData->iX, moveData->iY, moveData->iZ, moveData->iAngle);
-
+    
     players[sock].plr->angle = moveData->iAngle;
     uint64_t tm = getTime();
 
@@ -692,7 +695,7 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
 void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     PlayerView& plr = PlayerManager::players[sock];
 
-    if (plr.plr->Equip[8].iID > 0) {
+    if (plr.plr->Equip[8].iID > 0 && plr.plr->Equip[8].iTimeLimit>getTimestamp()) {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_SUCC, response);
         sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_ON_SUCC));
 
@@ -710,6 +713,14 @@ void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     } else {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_FAIL, response);
         sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_FAIL, sizeof(sP_FE2CL_PC_VEHICLE_ON_FAIL));
+
+        // check if vehicle didn't expire
+        if (plr.plr->Equip[8].iTimeLimit < getTimestamp())
+        {
+            plr.plr->toRemoveVehicle.eIL = 0;
+            plr.plr->toRemoveVehicle.iSlotNum = 8;
+            ItemManager::checkItemExpire(sock, plr.plr);
+        }
     }
 }
 

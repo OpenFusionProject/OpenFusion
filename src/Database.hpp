@@ -126,6 +126,7 @@ namespace Database {
     void updateQuests(Player* player);
 
     void getInventory(Player* player);
+    void removeExpiredVehicles(Player* player);
     void getNanos(Player* player);
     void getQuests(Player* player);
 

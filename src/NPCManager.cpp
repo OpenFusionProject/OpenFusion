@@ -115,6 +115,10 @@ void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL));
         return;
     }
+    // if vehicle
+    if (req->Item.iType == 10)
+        // set time limit: current time + 7days
+        req->Item.iTimeLimit = getTimestamp() + 604800;
 
     if (slot != req->iInvenSlotNum) {
         // possible item stacking?

@@ -33,6 +33,7 @@
 std::string U16toU8(char16_t* src);
 size_t U8toU16(std::string src, char16_t* des); // returns number of char16_t that was written at des
 time_t getTime();
+time_t getTimestamp();
 
 // The PROTOCOL_VERSION definition is defined by the build system.
 #if !defined(PROTOCOL_VERSION)

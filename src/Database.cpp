@@ -128,7 +128,7 @@ int Database::addAccount(std::string login, std::string password)
     account.Login = login;
     account.Password = password;
     account.Selected = 1;
-    account.Created = getTime();
+    account.Created = getTimestamp();
     return db.insert(account);
 }
 
@@ -137,7 +137,7 @@ void Database::updateSelected(int accountId, int slot)
     Account acc = db.get<Account>(accountId);
     acc.Selected = slot;
     //timestamp
-    acc.LastLogin = getTime();
+    acc.LastLogin = getTimestamp();
     db.update(acc);
 }
 
@@ -172,7 +172,7 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     DbPlayer create = {};
     
     //set timestamp
-    create.Created = getTime();
+    create.Created = getTimestamp();
     // save packet data
     create.FirstName = U16toU8(save->szFirstName);
     create.LastName = U16toU8(save->szLastName);
@@ -380,7 +380,7 @@ Database::DbPlayer Database::playerToDb(Player *player)
         appendBlob(&result.QuestFlag, flag);
     }
     //timestamp
-    result.LastLogin = getTime();
+    result.LastLogin = getTimestamp();
     result.Created = getDbPlayerById(player->iID).Created;
 
     return result;
@@ -432,8 +432,9 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.aSkywayLocationFlag[1] = player.SkywayLocationFlag2;
 
     Database::getInventory(&result);
+    Database::removeExpiredVehicles(&result);
     Database::getNanos(&result);
-    Database::getQuests(&result);
+    Database::getQuests(&result);   
 
     std::vector<char>::iterator it = player.QuestFlag.begin();
     for (int i = 0; i < 16; i++)
@@ -606,6 +607,39 @@ void Database::getInventory(Player* player) {
             player->QInven[current.slot - AEQUIP_COUNT - AINVEN_COUNT - ABANK_COUNT] = toSet;
     }
 
+
+}
+
+void Database::removeExpiredVehicles(Player* player) {
+    int32_t currentTime = getTimestamp();
+    // remove from bank immediately
+    for (int i = 0; i < ABANK_COUNT; i++) {
+        if (player->Bank[i].iType == 10 && player->Bank[i].iTimeLimit < currentTime)
+            player->Bank[i] = {};
+    }
+    // for the rest, we want to leave only 1 expired vehicle on player to delete it with the client packet
+    std::vector<sItemBase*> toRemove;
+
+    // equiped vehicle
+    if (player->Equip[8].iOpt > 0 && player->Equip[8].iTimeLimit < currentTime)
+    {
+        toRemove.push_back(&player->Equip[8]);
+        player->toRemoveVehicle.eIL = 0;
+        player->toRemoveVehicle.iSlotNum = 8;
+    }
+    // inventory
+    for (int i = 0; i < AINVEN_COUNT; i++) {
+        if (player->Inven[i].iType == 10 && player->Inven[i].iTimeLimit < currentTime) {
+            toRemove.push_back(&player->Inven[i]);
+            player->toRemoveVehicle.eIL = 1;
+            player->toRemoveVehicle.iSlotNum = i;
+        }
+    }
+
+    // delete all but one vehicles, leave last one for ceremonial deletion
+    for (int i = 0; i < (int)toRemove.size()-1; i++) {
+        memset(toRemove[i], 0, sizeof(sItemBase));
+    }
 }
 
 void Database::getNanos(Player* player) {
