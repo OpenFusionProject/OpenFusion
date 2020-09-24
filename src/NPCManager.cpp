@@ -18,6 +18,7 @@ std::vector<WarpLocation> NPCManager::RespawnPoints;
 
 void NPCManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_NPC, npcWarpHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TIME_TO_GO_WARP, npcWarpTimeMachine);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NPC_SUMMON, npcSummonHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NPC_UNSUMMON, npcUnsummonHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_BARKER, npcBarkHandler);
@@ -499,17 +500,28 @@ void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_PC_WARP_USE_NPC* warpNpc = (sP_CL2FE_REQ_PC_WARP_USE_NPC*)data->buf;
-    PlayerView& plrv = PlayerManager::players[sock];
+    handleWarp(sock, warpNpc->iWarpID);
+}
 
+void NPCManager::npcWarpTimeMachine(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_TIME_TO_GO_WARP))
+        return; // malformed packet
+    // this is just a warp request
+    handleWarp(sock, 28);
+}
+
+void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
     // sanity check
-    if (Warps.find(warpNpc->iWarpID) == Warps.end())
+    if (Warps.find(warpId) == Warps.end())
         return;
+
+    PlayerView& plrv = PlayerManager::players[sock];
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC, resp);
-    resp.iX = Warps[warpNpc->iWarpID].x;
-    resp.iY = Warps[warpNpc->iWarpID].y;
-    resp.iZ = Warps[warpNpc->iWarpID].z;
+    resp.iX = Warps[warpId].x;
+    resp.iY = Warps[warpId].y;
+    resp.iZ = Warps[warpId].z;
 
     // force player & NPC reload
     PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
