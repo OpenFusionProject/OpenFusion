@@ -4,6 +4,7 @@
 #include "ItemManager.hpp"
 #include "MissionManager.hpp"
 
+#include <cmath>
 #include <assert.h>
 
 std::map<int32_t, Mob*> MobManager::Mobs;
@@ -59,13 +60,30 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         }
         Mob *mob = Mobs[pktdata[i]];
 
+        // cannot kill mobs multiple times; cannot harm retreating mobs
+        if (mob->state != MobState::ROAMING && mob->state != MobState::COMBAT) {
+            respdata[i].iID = mob->appearanceData.iNPC_ID;
+            respdata[i].iHP = mob->appearanceData.iHP;
+            respdata[i].iHitFlag = 2; // probably still necessary
+            continue;
+        }
+
+        if (mob->state == MobState::ROAMING) {
+            assert(mob->target == nullptr);
+            mob->target = sock;
+            mob->state = MobState::COMBAT;
+            mob->nextMovement = getTime();
+            std::cout << "combat state\n";
+        }
+
         mob->appearanceData.iHP -= 100;
 
         // wake up sleeping monster
+        // TODO: remove client-side bit somehow
         mob->appearanceData.iConditionBitFlag &= ~CSB_BIT_MEZ;
 
         if (mob->appearanceData.iHP <= 0)
-            killMob(sock, mob);
+            killMob(mob->target, mob);
 
         respdata[i].iID = mob->appearanceData.iNPC_ID;
         respdata[i].iDamage = 100;
@@ -83,6 +101,38 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
     // send to other players
     PlayerManager::sendToViewable(sock, (void*)respbuf, P_FE2CL_PC_ATTACK_NPCs, resplen);
+}
+
+void MobManager::npcAttackPc(Mob *mob) {
+    // player pointer has already been validated
+    Player *plr = PlayerManager::getPlayer(mob->target);
+
+    const size_t resplen = sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC) + sizeof(sAttackResult);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    memset(respbuf, 0, resplen);
+
+    sP_FE2CL_NPC_ATTACK_PCs *pkt = (sP_FE2CL_NPC_ATTACK_PCs*)respbuf;
+    sAttackResult *atk = (sAttackResult*)(respbuf + sizeof(sP_FE2CL_NPC_ATTACK_PCs));
+
+    plr->HP += (int)mob->data["m_iPower"]; // already negative
+
+    pkt->iNPC_ID = mob->appearanceData.iNPC_ID;
+    pkt->iPCCnt = 1;
+
+    atk->iID = plr->iID;
+    atk->iDamage = -(int)mob->data["m_iPower"];
+    atk->iHP = plr->HP;
+    atk->iHitFlag = 2;
+
+    mob->target->sendPacket((void*)respbuf, P_FE2CL_NPC_ATTACK_PCs, resplen);
+    PlayerManager::sendToViewable(mob->target, (void*)&pkt, P_FE2CL_NPC_ATTACK_PCs, resplen);
+
+    if (plr->HP <= 0) {
+        mob->target = nullptr;
+        mob->state = MobState::RETREAT;
+        std::cout << "retreat state\n";
+    }
 }
 
 void MobManager::combatBegin(CNSocket *sock, CNPacketData *data) {} // stub
@@ -136,10 +186,11 @@ void MobManager::giveReward(CNSocket *sock) {
 
 void MobManager::killMob(CNSocket *sock, Mob *mob) {
     mob->state = MobState::DEAD;
+    mob->target = nullptr;
     mob->appearanceData.iConditionBitFlag = 0;
     mob->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
 
-    std::cout << "killed mob " << mob->appearanceData.iNPC_ID << std::endl;
+    std::cout << "dead state mob " << mob->appearanceData.iNPC_ID << std::endl;
 
     giveReward(sock);
     MissionManager::mobKilled(sock, mob->appearanceData.iNPCType);
@@ -173,6 +224,7 @@ void MobManager::deadStep(Mob *mob, time_t currTime) {
 
     mob->appearanceData.iHP = mob->maxHealth;
     mob->state = MobState::ROAMING;
+    std::cout << "roaming state\n";
 
     INITSTRUCT(sP_FE2CL_NPC_NEW, pkt);
 
@@ -184,6 +236,68 @@ void MobManager::deadStep(Mob *mob, time_t currTime) {
             s->sendPacket(&pkt, P_FE2CL_NPC_NEW, sizeof(sP_FE2CL_NPC_NEW));
         }
     }
+}
+
+void MobManager::combatStep(Mob *mob, time_t currTime) {
+    assert(mob->target != nullptr);
+
+    // sanity check: did the target player lose connection?
+    if (PlayerManager::players.find(mob->target) == PlayerManager::players.end()) {
+        mob->target = nullptr;
+        mob->state = MobState::RETREAT;
+        std::cout << "RETREAT state\n";
+        return;
+    }
+    Player *plr = PlayerManager::getPlayer(mob->target);
+
+    // skip attack/move if stunned or asleep
+    if (mob->appearanceData.iConditionBitFlag & (CSB_BIT_STUN|CSB_BIT_MEZ))
+        return;
+
+    int distance = hypot(plr->x - mob->appearanceData.iX, plr->y - mob->appearanceData.iY);
+
+    /*
+     * If the mob is close enough to attack, do so. If not, get closer.
+     * No, I'm not 100% sure this is how it's supposed to work.
+     */
+    if (distance <= (int)mob->data["m_iAtkRange"]) {
+        std::cout << "attack logic\n";
+        // attack logic
+        if (mob->nextAttack == 0) {
+            mob->nextAttack = currTime + (int)mob->data["m_iInitalTime"] * 100; // I *think* this is what this is
+            npcAttackPc(mob);
+        } else if (mob->nextAttack != 0 && currTime >= mob->nextAttack) {
+            mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
+            npcAttackPc(mob);
+        }
+    } else {
+        std::cout << "movement logic\n";
+        std::cout << "distance: " << distance << " attack range: " << mob->data["m_iAtkRange"] << std::endl;
+        // movement logic
+        if (mob->nextMovement != 0 && currTime < mob->nextMovement)
+            return;
+        mob->nextMovement = currTime + (int)mob->data["m_iDelayTime"] * 100;
+
+        INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
+
+        pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
+        pkt.iSpeed = mob->data["m_iWalkSpeed"];
+        pkt.iToX = mob->appearanceData.iX = mob->target->plr->x; // FIXME: lerping
+        pkt.iToY = mob->appearanceData.iY = mob->target->plr->y;
+        pkt.iToZ = mob->appearanceData.iZ = mob->target->plr->z;
+
+        auto chunk = ChunkManager::grabChunk(mob->appearanceData.iX, mob->appearanceData.iY);
+        auto chunks = ChunkManager::grabChunks(chunk);
+
+        // notify all nearby players
+        for (Chunk *chunk : chunks) {
+            for (CNSocket *s : chunk->players) {
+                s->sendPacket(&pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
+            }
+        }
+    }
+
+    // TODO: retreat if kited too far
 }
 
 void MobManager::roamingStep(Mob *mob, time_t currTime) {
@@ -225,6 +339,41 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
     }
 }
 
+void MobManager::retreatStep(Mob *mob, time_t currTime) {
+    // distance between spawn point and current location
+    int distance = hypot(mob->appearanceData.iX - mob->spawnX, mob->appearanceData.iY - mob->spawnY);
+
+    if (distance > mob->data["m_iIdleRange"]) {
+        INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
+
+        auto chunk = ChunkManager::grabChunk(mob->appearanceData.iX, mob->appearanceData.iY);
+        auto chunks = ChunkManager::grabChunks(chunk);
+
+        pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
+        pkt.iSpeed = mob->data["m_iWalkSpeed"];
+        pkt.iToX = mob->appearanceData.iX = mob->spawnX;
+        pkt.iToY = mob->appearanceData.iY = mob->spawnY;
+        pkt.iToZ = mob->appearanceData.iZ;
+
+        // notify all nearby players
+        for (Chunk *chunk : chunks) {
+            for (CNSocket *s : chunk->players) {
+                s->sendPacket(&pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
+            }
+        }
+    }
+
+    // if we got there
+    if (distance <= mob->data["m_iIdleRange"]) {
+        mob->state = MobState::ROAMING;
+        std::cout << "roaming state\n";
+        mob->appearanceData.iHP = mob->maxHealth;
+        mob->killedTime = 0;
+        mob->nextAttack = 0;
+        mob->appearanceData.iConditionBitFlag = 0;
+    }
+}
+
 void MobManager::step(CNServer *serv, time_t currTime) {
     for (auto& pair : Mobs) {
         int x = pair.second->appearanceData.iX;
@@ -241,6 +390,12 @@ void MobManager::step(CNServer *serv, time_t currTime) {
         switch (pair.second->state) {
         case MobState::ROAMING:
             roamingStep(pair.second, currTime);
+            break;
+        case MobState::COMBAT:
+            combatStep(pair.second, currTime);
+            break;
+        case MobState::RETREAT:
+            retreatStep(pair.second, currTime);
             break;
         case MobState::DEAD:
             deadStep(pair.second, currTime);

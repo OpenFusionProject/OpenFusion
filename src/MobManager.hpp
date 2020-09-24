@@ -18,26 +18,37 @@ enum class MobState {
 };
 
 struct Mob : public BaseNPC {
+    // general
     MobState state;
     const int maxHealth;
-
-    time_t killedTime = 0;
-    const int regenTime;
-    bool despawned = false; // for the sake of death animations
-
     int spawnX;
     int spawnY;
     int spawnZ;
 
-    const int idleRange;
+    // dead
+    time_t killedTime = 0;
+    int regenTime;
+    bool despawned = false; // for the sake of death animations
+
+    // roaming
+    int idleRange;
     time_t nextMovement = 0;
+
+    // combat
+    CNSocket *target = nullptr;
+    time_t nextAttack = 0;
 
     // temporary; until we're sure what's what
     nlohmann::json data;
 
     Mob(int x, int y, int z, int type, int hp, int angle, nlohmann::json d)
-        : BaseNPC(x, y, z, type), maxHealth(hp), regenTime(d["m_iRegenTime"]), idleRange(d["m_iIdleRange"]), data(d) {
+        : BaseNPC(x, y, z, type), maxHealth(hp) {
         state = MobState::ROAMING;
+
+        data = d;
+
+        regenTime = data["m_iRegenTime"];
+        idleRange = data["m_iIdleRange"];
 
         spawnX = appearanceData.iX;
         spawnY = appearanceData.iY;
@@ -62,6 +73,8 @@ namespace MobManager {
     void step(CNServer*, time_t);
 
     void deadStep(Mob*, time_t);
+    void combatStep(Mob*, time_t);
+    void retreatStep(Mob*, time_t);
     void roamingStep(Mob*, time_t);
 
     void pcAttackNpcs(CNSocket *sock, CNPacketData *data);
@@ -69,6 +82,7 @@ namespace MobManager {
     void combatEnd(CNSocket *sock, CNPacketData *data);
     void dotDamageOnOff(CNSocket *sock, CNPacketData *data);
 
+    void npcAttackPc(Mob *mob);
     void killMob(CNSocket *sock, Mob *mob);
     void giveReward(CNSocket *sock);
 }
