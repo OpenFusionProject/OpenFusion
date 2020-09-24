@@ -189,19 +189,6 @@ void TableData::init() {
     }
 }
 
-void TableData::cleanup() {
-    /*
-     * This is just to shut the address sanitizer up. Dynamically allocated data
-     * doesn't need to be cleaned up if it's supposed to last the program's full runtime.
-     */
-    for (auto& pair : MissionManager::Rewards)
-        delete pair.second;
-    for (auto& pair : MissionManager::Tasks)
-        delete pair.second;
-    for (auto& pair : NPCManager::NPCs)
-        delete pair.second;
-}
-
 /*
 * Some item categories either don't possess iEquipLoc or use a different value for item type.
 */

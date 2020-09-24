@@ -6,12 +6,6 @@
 std::map<std::pair<int, int>, Chunk*> ChunkManager::chunks;
 
 void ChunkManager::init() {} // stubbed
-void ChunkManager::cleanup() {
-    // cleans up all the allocated chunks
-    for (auto& pair : chunks) {
-        delete pair.second;
-    }
-}
 
 void ChunkManager::addNPC(int posX, int posY, int32_t id) {
     std::pair<int, int> pos = grabChunk(posX, posY);

@@ -49,9 +49,6 @@ void terminate(int arg) {
         shardThread->join();
     }
 
-    TableData::cleanup();
-    ChunkManager::cleanup();
-
     exit(0);
 }
 
