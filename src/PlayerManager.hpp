@@ -32,6 +32,7 @@ namespace PlayerManager {
 
     void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z);
     void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, int angle);
+    void updatePlayerChunk(CNSocket* sock, int X, int Y);
 
     void sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size);
 

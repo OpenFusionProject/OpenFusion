@@ -183,11 +183,15 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
     view.plr->x = X;
     view.plr->y = Y;
     view.plr->z = Z;
+    updatePlayerChunk(sock, X, Y);
+}
 
+void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y) {
+    PlayerView& view = players[sock];
     std::pair<int, int> newPos = ChunkManager::grabChunk(X, Y);
 
     // nothing to be done
-    if (newPos == view.chunkPos) 
+    if (newPos == view.chunkPos)
         return;
 
     // add player to chunk
@@ -195,10 +199,10 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
 
     // first, remove all the old npcs & players from the old chunks
     removePlayerFromChunks(ChunkManager::getDeltaChunks(view.currentChunks, allChunks), sock);
-    
+
     // now, add all the new npcs & players!
     addPlayerToChunks(ChunkManager::getDeltaChunks(allChunks, view.currentChunks), sock);
-    
+
     ChunkManager::addPlayer(X, Y, sock); // takes care of adding the player to the chunk if it exists or not
     view.chunkPos = newPos;
     view.currentChunks = allChunks;
