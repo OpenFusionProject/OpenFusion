@@ -157,13 +157,17 @@ void MissionManager::quitMission(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_PC_TASK_STOP* missionData = (sP_CL2FE_REQ_PC_TASK_STOP*)data->buf;
+    quitTask(sock, missionData->iTaskNum);
+}
+
+void MissionManager::quitTask(CNSocket* sock, int32_t TaskNum) {
     INITSTRUCT(sP_FE2CL_REP_PC_TASK_STOP_SUCC, response);
-    Player *plr = PlayerManager::getPlayer(sock);
+    Player* plr = PlayerManager::getPlayer(sock);
 
     // update player
     int i;
     for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
-        if (plr->tasks[i] == missionData->iTaskNum)
+        if (plr->tasks[i] == TaskNum)
         {
             plr->tasks[i] = 0;
             for (int j = 0; j < 3; j++) {
@@ -177,7 +181,7 @@ void MissionManager::quitMission(CNSocket* sock, CNPacketData* data) {
     // remove current mission
     plr->CurrentMissionID = 0;
 
-    TaskData& task = *Tasks[missionData->iTaskNum];
+    TaskData& task = *Tasks[TaskNum];
 
     // clean up quest items
     for (i = 0; i < 3; i++) {
@@ -193,7 +197,7 @@ void MissionManager::quitMission(CNSocket* sock, CNPacketData* data) {
                 memset(&plr->QInven[j], 0, sizeof(sItemBase));
     }
 
-    response.iTaskNum = missionData->iTaskNum;
+    response.iTaskNum = TaskNum;
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_STOP_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_STOP_SUCC));
 }
 

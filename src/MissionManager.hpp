@@ -56,4 +56,5 @@ namespace MissionManager {
     void mobKilled(CNSocket *sock, int mobid);
 
     void saveMission(Player* player, int missionId);
+    void quitTask(CNSocket* sock, int32_t TaskNum);
 }
