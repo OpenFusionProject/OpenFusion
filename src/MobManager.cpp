@@ -215,6 +215,13 @@ void MobManager::deadStep(Mob *mob, time_t currTime) {
                 s->sendPacket(&pkt, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
             }
         }
+
+        // if it was summoned, remove it permanently
+        if (mob->summoned) {
+            std::cout << "[INFO] Deallocating killed summoned mob" << std::endl;
+            NPCManager::removeNPC(mob->appearanceData.iNPC_ID);
+            return;
+        }
     }
 
     if (mob->killedTime != 0 && currTime - mob->killedTime < mob->regenTime * 100)

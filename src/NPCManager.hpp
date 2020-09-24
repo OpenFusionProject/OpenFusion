@@ -4,6 +4,8 @@
 #include "PlayerManager.hpp"
 #include "NPC.hpp"
 
+#include "contrib/JSON.hpp"
+
 #include <map>
 #include <vector>
 
@@ -18,6 +20,8 @@ namespace NPCManager {
     extern std::map<int32_t, BaseNPC*> NPCs;
     extern std::map<int32_t, WarpLocation> Warps;
     extern std::vector<WarpLocation> RespawnPoints;
+    extern nlohmann::json NPCData;
+    extern int32_t nextId;
     void init();
 
     void addNPC(std::vector<Chunk*> viewableChunks, int32_t);

@@ -12,7 +12,7 @@
 #include <fstream>
 
 void TableData::init() {
-    int i = 0;
+    int32_t nextId = 0;
 
     // load NPCs from NPC.json
     try {
@@ -24,14 +24,11 @@ void TableData::init() {
 
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
-            BaseNPC *tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], npc["id"]);
+            BaseNPC *tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], npc["id"], nextId);
 
-            // Temporary fix, IDs will be pulled from json later
-            tmp->appearanceData.iNPC_ID = i;
-
-            NPCManager::NPCs[i] = tmp;
-            ChunkManager::addNPC(npc["x"], npc["y"], i);
-            i++;
+            NPCManager::NPCs[nextId] = tmp;
+            ChunkManager::addNPC(npc["x"], npc["y"], nextId);
+            nextId++;
 
             if (npc["id"] == 641 || npc["id"] == 642)
                 NPCManager::RespawnPoints.push_back({ npc["x"], npc["y"], ((int)npc["z"]) + RESURRECT_HEIGHT });
@@ -51,6 +48,9 @@ void TableData::init() {
 
     // read file into json
     infile >> xdtData;
+
+    // data we'll need for summoned mobs
+    NPCManager::NPCData = xdtData["m_pNpcTable"]["m_pNpcData"];
 
     try {
         // load warps
@@ -74,7 +74,7 @@ void TableData::init() {
             TransportLocation transLoc = { tLoc["m_iNPCID"], tLoc["m_iXpos"], tLoc["m_iYpos"], tLoc["m_iZpos"] };
             TransportManager::Locations[tLoc["m_iLocationID"]] = transLoc;
         }
-        std::cout << "[INFO] Loaded " << TransportManager::Locations.size() << " S.C.A.M.P.E.R. locations" << std::endl; // TODO: Skyway operates differently
+        std::cout << "[INFO] Loaded " << TransportManager::Locations.size() << " S.C.A.M.P.E.R. locations" << std::endl;
 
         for (nlohmann::json::iterator _tRoute = transRouteData.begin(); _tRoute != transRouteData.end(); _tRoute++) {
             auto tRoute = _tRoute.value();
@@ -165,21 +165,16 @@ void TableData::init() {
         // read file into json
         inFile >> npcData;
 
-        nlohmann::json npcTableData = xdtData["m_pNpcTable"]["m_pNpcData"];
-
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
-            auto td = npcTableData[(int)npc["iNPCType"]];
-            Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iNPCType"], npc["iHP"], npc["iAngle"], td);
+            auto td = NPCManager::NPCData[(int)npc["iNPCType"]];
+            Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iNPCType"], npc["iHP"], npc["iAngle"], td, nextId);
 
-            // Temporary fix, IDs will be pulled from json later
-            tmp->appearanceData.iNPC_ID = i;
+            NPCManager::NPCs[nextId] = tmp;
+            MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
+            ChunkManager::addNPC(npc["iX"], npc["iY"], nextId);
 
-            NPCManager::NPCs[i] = tmp;
-            MobManager::Mobs[i] = (Mob*)NPCManager::NPCs[i];
-            ChunkManager::addNPC(npc["iX"], npc["iY"], i);
-
-            i++;
+            nextId++;
         }
 
         std::cout << "[INFO] Populated " << NPCManager::NPCs.size() << " NPCs" << std::endl;
@@ -187,6 +182,8 @@ void TableData::init() {
     catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed mobs.json file! Reason:" << err.what() << std::endl;
     }
+
+    NPCManager::nextId = nextId;
 }
 
 /*

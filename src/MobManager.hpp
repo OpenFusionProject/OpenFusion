@@ -20,7 +20,7 @@ enum class MobState {
 struct Mob : public BaseNPC {
     // general
     MobState state;
-    const int maxHealth;
+    int maxHealth;
     int spawnX;
     int spawnY;
     int spawnZ;
@@ -28,6 +28,7 @@ struct Mob : public BaseNPC {
     // dead
     time_t killedTime = 0;
     time_t regenTime;
+    bool summoned = false;
     bool despawned = false; // for the sake of death animations
 
     // roaming
@@ -41,8 +42,8 @@ struct Mob : public BaseNPC {
     // temporary; until we're sure what's what
     nlohmann::json data;
 
-    Mob(int x, int y, int z, int type, int hp, int angle, nlohmann::json d)
-        : BaseNPC(x, y, z, type), maxHealth(hp) {
+    Mob(int x, int y, int z, int type, int hp, int angle, nlohmann::json d, int32_t id)
+        : BaseNPC(x, y, z, type, id), maxHealth(hp) {
         state = MobState::ROAMING;
 
         data = d;
@@ -58,7 +59,17 @@ struct Mob : public BaseNPC {
 
         // NOTE: there appear to be discrepancies in the dump
         appearanceData.iHP = maxHealth;
+
+        npcClass = NPC_MOB;
     }
+
+    // constructor for /summon
+    Mob(int x, int y, int z, int type, nlohmann::json d, int32_t id)
+        : Mob(x, y, z, type, 0, 0, d, id) {
+        summoned = true; // will be despawned and deallocated when killed
+        appearanceData.iHP = maxHealth = d["m_iHP"];
+    }
+
     ~Mob() {}
 
     auto operator[](std::string s) {

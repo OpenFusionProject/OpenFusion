@@ -8,13 +8,21 @@
 #include <list>
 #include <fstream>
 #include <vector>
+#include <assert.h>
 
 #include "contrib/JSON.hpp"
 
 std::map<int32_t, BaseNPC*> NPCManager::NPCs;
 std::map<int32_t, WarpLocation> NPCManager::Warps;
 std::vector<WarpLocation> NPCManager::RespawnPoints;
+nlohmann::json NPCManager::NPCData;
 
+/*
+ * Initialized at the end of TableData::init().
+ * This allows us to summon and kill mobs in arbitrary order without
+ * NPC ID collisions.
+ */
+int32_t NPCManager::nextId;
 
 void NPCManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_NPC, npcWarpHandler);
@@ -481,15 +489,21 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     if (plr->accountLevel > 30 || req->iNPCType >= 3314)
         return;
 
-    resp.NPCAppearanceData.iNPC_ID = NPCs.size()+1;
+    int team = NPCData[req->iNPCType]["m_iTeam"];
+
+    assert(nextId < INT32_MAX);
+    resp.NPCAppearanceData.iNPC_ID = nextId++;
     resp.NPCAppearanceData.iNPCType = req->iNPCType;
-    resp.NPCAppearanceData.iHP = 1000; // TODO: placeholder
+    resp.NPCAppearanceData.iHP = 1000;
     resp.NPCAppearanceData.iX = plr->x;
     resp.NPCAppearanceData.iY = plr->y;
     resp.NPCAppearanceData.iZ = plr->z;
 
-    NPCs[resp.NPCAppearanceData.iNPC_ID] = new BaseNPC(plr->x, plr->y, plr->z, req->iNPCType);
-    NPCs[resp.NPCAppearanceData.iNPC_ID]->appearanceData.iNPC_ID = resp.NPCAppearanceData.iNPC_ID;
+    if (team == 2) {
+        NPCs[resp.NPCAppearanceData.iNPC_ID] = new Mob(plr->x, plr->y, plr->z, req->iNPCType, NPCData[req->iNPCType], resp.NPCAppearanceData.iNPC_ID);
+        MobManager::Mobs[resp.NPCAppearanceData.iNPC_ID] = (Mob*)NPCs[resp.NPCAppearanceData.iNPC_ID];
+    } else
+        NPCs[resp.NPCAppearanceData.iNPC_ID] = new BaseNPC(plr->x, plr->y, plr->z, req->iNPCType, resp.NPCAppearanceData.iNPC_ID);
 
     ChunkManager::addNPC(plr->x, plr->y, resp.NPCAppearanceData.iNPC_ID);
 }

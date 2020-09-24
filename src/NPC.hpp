@@ -8,7 +8,7 @@ public:
     NPCClass npcClass;
 
     BaseNPC() {};
-    BaseNPC(int x, int y, int z, int type) {
+    BaseNPC(int x, int y, int z, int type, int id) {
         appearanceData.iX = x;
         appearanceData.iY = y;
         appearanceData.iZ = z;
@@ -17,11 +17,9 @@ public:
         appearanceData.iAngle = 0;
         appearanceData.iConditionBitFlag = 0;
         appearanceData.iBarkerType = 0;
-
-        // hopefully no collisions happen :eyes:
-        appearanceData.iNPC_ID = (int32_t)rand();
+        appearanceData.iNPC_ID = id;
     };
-    BaseNPC(int x, int y, int z, int type, NPCClass classType) : BaseNPC(x, y, z, type) {
+    BaseNPC(int x, int y, int z, int type, int id, NPCClass classType) : BaseNPC(x, y, z, type, id) {
         npcClass = classType;
     }
 };

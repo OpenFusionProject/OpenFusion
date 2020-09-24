@@ -18,7 +18,7 @@ void TransportManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION, transportRegisterLocationHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_TRANSPORTATION, transportWarpHandler);
 
-    BaseNPC* bus = new BaseNPC(220447, 162431, -3650, 1, NPC_BUS);
+    BaseNPC* bus = new BaseNPC(220447, 162431, -3650, 1, NPCManager::nextId++, NPC_BUS);
     NPCManager::NPCs[bus->appearanceData.iNPC_ID] = bus;
     ChunkManager::addNPC(bus->appearanceData.iX, bus->appearanceData.iY, bus->appearanceData.iNPC_ID);
     std::queue<WarpLocation> busPoints;

@@ -1,4 +1,5 @@
 leak:TableData::init
 leak:ChunkManager::addPlayer
 leak:ChunkManager::addNPC
+leak:NPCManager::npcSummonHandler
 leak:nlohmann::basic_json
