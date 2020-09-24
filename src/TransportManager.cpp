@@ -304,7 +304,7 @@ void TransportManager::stepNPCPathing() {
             move.iToX = point.x;
             move.iToY = point.y;
             move.iToZ = point.z;
-            move.iSpeed = 600; // TODO: figure out a way to make this variable
+            move.iSpeed = distanceBetween;
 
             // send packet to players in view
             for (Chunk* chunk : chunks) {
