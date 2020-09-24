@@ -73,7 +73,7 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
             mob->target = sock;
             mob->state = MobState::COMBAT;
             mob->nextMovement = getTime();
-            std::cout << "combat state\n";
+            //std::cout << "combat state\n";
         }
 
         mob->appearanceData.iHP -= 100;
@@ -131,7 +131,7 @@ void MobManager::npcAttackPc(Mob *mob) {
     if (plr->HP <= 0) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        std::cout << "retreat state\n";
+        //std::cout << "retreat state\n";
     }
 }
 
@@ -190,7 +190,7 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
     mob->appearanceData.iConditionBitFlag = 0;
     mob->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
 
-    std::cout << "dead state mob " << mob->appearanceData.iNPC_ID << std::endl;
+    //std::cout << "dead state mob " << mob->appearanceData.iNPC_ID << std::endl;
 
     giveReward(sock);
     MissionManager::mobKilled(sock, mob->appearanceData.iNPCType);
@@ -224,7 +224,7 @@ void MobManager::deadStep(Mob *mob, time_t currTime) {
 
     mob->appearanceData.iHP = mob->maxHealth;
     mob->state = MobState::ROAMING;
-    std::cout << "roaming state\n";
+    //std::cout << "roaming state\n";
 
     INITSTRUCT(sP_FE2CL_NPC_NEW, pkt);
 
@@ -245,7 +245,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     if (PlayerManager::players.find(mob->target) == PlayerManager::players.end()) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        std::cout << "RETREAT state\n";
+        //std::cout << "RETREAT state\n";
         return;
     }
     Player *plr = PlayerManager::getPlayer(mob->target);
@@ -261,7 +261,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
      * No, I'm not 100% sure this is how it's supposed to work.
      */
     if (distance <= (int)mob->data["m_iAtkRange"]) {
-        std::cout << "attack logic\n";
+        //std::cout << "attack logic\n";
         // attack logic
         if (mob->nextAttack == 0) {
             mob->nextAttack = currTime + (int)mob->data["m_iInitalTime"] * 100; // I *think* this is what this is
@@ -271,20 +271,28 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
             npcAttackPc(mob);
         }
     } else {
-        std::cout << "movement logic\n";
-        std::cout << "distance: " << distance << " attack range: " << mob->data["m_iAtkRange"] << std::endl;
+        //std::cout << "movement logic\n";
+        //std::cout << "distance: " << distance << " attack range: " << mob->data["m_iAtkRange"] << std::endl;
         // movement logic
         if (mob->nextMovement != 0 && currTime < mob->nextMovement)
             return;
         mob->nextMovement = currTime + (int)mob->data["m_iDelayTime"] * 100;
 
+        int speed = mob->data["m_iRunSpeed"];
+
+        // halve movement speed if snared
+        if (mob->appearanceData.iConditionBitFlag & CSB_BIT_DN_MOVE_SPEED)
+            speed /= 2;
+
+        auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, mob->target->plr->x, mob->target->plr->y, speed);
+
         INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
 
         pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
-        pkt.iSpeed = mob->data["m_iWalkSpeed"];
-        pkt.iToX = mob->appearanceData.iX = mob->target->plr->x; // FIXME: lerping
-        pkt.iToY = mob->appearanceData.iY = mob->target->plr->y;
-        pkt.iToZ = mob->appearanceData.iZ = mob->target->plr->z;
+        pkt.iSpeed = speed;
+        pkt.iToX = mob->appearanceData.iX = targ.first;
+        pkt.iToY = mob->appearanceData.iY = targ.second;
+        pkt.iToZ = mob->appearanceData.iZ;
 
         auto chunk = ChunkManager::grabChunk(mob->appearanceData.iX, mob->appearanceData.iY);
         auto chunks = ChunkManager::grabChunks(chunk);
@@ -297,10 +305,26 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
         }
     }
 
-    // TODO: retreat if kited too far
+    // retreat if kited too far
+    distance = hypot(mob->appearanceData.iX - mob->spawnX, mob->appearanceData.iY - mob->spawnY);
+    if (distance >= mob->data["m_iCombatRange"]) {
+        mob->target = nullptr;
+        mob->state = MobState::RETREAT;
+        //std::cout << "retreat state\n";
+    }
 }
 
+/*
+ * TODO: precalculate a path, lerp through it, repeat.
+ * The way it works right now, mobs only move around a little bit. This will result
+ * in more natural movement, and will mesh well with pre-calculated paths (for Don Doom,
+ * Bad Max, etc.) once those have been made.
+ */
 void MobManager::roamingStep(Mob *mob, time_t currTime) {
+    // some mobs don't move (and we mustn't divide/modulus by zero)
+    if (mob->idleRange == 0)
+        return;
+
     if (mob->nextMovement != 0 && currTime < mob->nextMovement)
         return;
 
@@ -315,18 +339,21 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
     int xStart = mob->spawnX - mob->idleRange/2;
     int yStart = mob->spawnY - mob->idleRange/2;
 
-    pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
-    pkt.iSpeed = mob->data["m_iWalkSpeed"];
-    pkt.iToX = mob->appearanceData.iX = xStart + rand() % mob->idleRange;
-    pkt.iToY = mob->appearanceData.iY = yStart + rand() % mob->idleRange;
-    pkt.iToZ = mob->appearanceData.iZ;
+    int farX = xStart + rand() % mob->idleRange;
+    int farY = yStart + rand() % mob->idleRange;
+    int speed = mob->data["m_iWalkSpeed"];
 
-    // roughly halve movement speed if snared
-    // TODO: this logic isn't quite right yet, since they still get to the same spot
-    if (mob->appearanceData.iConditionBitFlag & CSB_BIT_DN_MOVE_SPEED) {
-        mob->nextMovement += delay;
-        pkt.iSpeed /= 2;
-    }
+    // halve movement speed if snared
+    if (mob->appearanceData.iConditionBitFlag & CSB_BIT_DN_MOVE_SPEED)
+        speed /= 2;
+
+    auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, farX, farY, speed);
+
+    pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
+    pkt.iSpeed = speed;
+    pkt.iToX = mob->appearanceData.iX = targ.first;
+    pkt.iToY = mob->appearanceData.iY = targ.second;
+    pkt.iToZ = mob->appearanceData.iZ;
 
     auto chunk = ChunkManager::grabChunk(mob->appearanceData.iX, mob->appearanceData.iY);
     auto chunks = ChunkManager::grabChunks(chunk);
@@ -349,10 +376,12 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
         auto chunk = ChunkManager::grabChunk(mob->appearanceData.iX, mob->appearanceData.iY);
         auto chunks = ChunkManager::grabChunks(chunk);
 
+        auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, mob->spawnX, mob->spawnY, mob->data["m_iRunSpeed"]);
+
         pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
-        pkt.iSpeed = mob->data["m_iWalkSpeed"];
-        pkt.iToX = mob->appearanceData.iX = mob->spawnX;
-        pkt.iToY = mob->appearanceData.iY = mob->spawnY;
+        pkt.iSpeed = mob->data["m_iRunSpeed"];
+        pkt.iToX = mob->appearanceData.iX = targ.first;
+        pkt.iToY = mob->appearanceData.iY = targ.second;
         pkt.iToZ = mob->appearanceData.iZ;
 
         // notify all nearby players
@@ -366,7 +395,7 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
     // if we got there
     if (distance <= mob->data["m_iIdleRange"]) {
         mob->state = MobState::ROAMING;
-        std::cout << "roaming state\n";
+        //std::cout << "roaming state\n";
         mob->appearanceData.iHP = mob->maxHealth;
         mob->killedTime = 0;
         mob->nextAttack = 0;
@@ -388,6 +417,9 @@ void MobManager::step(CNServer *serv, time_t currTime) {
             continue;
 
         switch (pair.second->state) {
+        case MobState::INACTIVE:
+            // no-op
+            break;
         case MobState::ROAMING:
             roamingStep(pair.second, currTime);
             break;
@@ -400,9 +432,24 @@ void MobManager::step(CNServer *serv, time_t currTime) {
         case MobState::DEAD:
             deadStep(pair.second, currTime);
             break;
-        default:
-            // unhandled for now
-            break;
         }
     }
+}
+
+/*
+ * Dynamic lerp; distinct from TransportManager::lerp(). This one doesn't care about height and
+ * only returns the first step, since the rest will need to be recalculated anyway if chasing player.
+ */
+std::pair<int,int> MobManager::lerp(int x1, int y1, int x2, int y2, int speed) {
+    std::pair<int,int> ret = {};
+
+    int distance = hypot(x1 - x2, y1 - y2);
+    int lerps = distance / speed;
+
+    // interpolate only the first point
+    float frac = 1.0f / (lerps+1);
+    ret.first = (x1 * (1.0f - frac)) + (x2 * frac);
+    ret.second = (y1 * (1.0f - frac)) + (y2 * frac);
+
+    return ret;
 }

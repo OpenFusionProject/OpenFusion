@@ -27,7 +27,7 @@ struct Mob : public BaseNPC {
 
     // dead
     time_t killedTime = 0;
-    int regenTime;
+    time_t regenTime;
     bool despawned = false; // for the sake of death animations
 
     // roaming
@@ -85,4 +85,5 @@ namespace MobManager {
     void npcAttackPc(Mob *mob);
     void killMob(CNSocket *sock, Mob *mob);
     void giveReward(CNSocket *sock);
+    std::pair<int,int> lerp(int, int, int, int, int);
 }
