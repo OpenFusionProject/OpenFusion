@@ -52,6 +52,7 @@ namespace NanoManager {
     void nanoSkillSetHandler(CNSocket* sock, CNPacketData* data);
     void nanoSkillSetGMHandler(CNSocket* sock, CNPacketData* data);
     void nanoRecallHandler(CNSocket* sock, CNPacketData* data);
+    void nanoPotionHandler(CNSocket* sock, CNPacketData* data);
 
     // Helper methods
     void addNano(CNSocket* sock, int16_t nanoId, int16_t slot);
