@@ -530,7 +530,6 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
         NPCs[resp.NPCAppearanceData.iNPC_ID] = new BaseNPC(plr->x, plr->y, plr->z, req->iNPCType, resp.NPCAppearanceData.iNPC_ID);
 
     updateNPCPosition(resp.NPCAppearanceData.iNPC_ID, plr->x, plr->y, plr->z);
-    ChunkManager::addNPC(plr->x, plr->y, resp.NPCAppearanceData.iNPC_ID);
 }
 
 void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {

@@ -22,8 +22,7 @@ public:
         appearanceData.iBarkerType = 0;
         appearanceData.iNPC_ID = id;
 
-        chunkPos = ChunkManager::grabChunk(x, y);
-        currentChunks = ChunkManager::grabChunks(chunkPos);
+        chunkPos = std::pair<int, int>(0, 0);
     };
     BaseNPC(int x, int y, int z, int type, int id, NPCClass classType) : BaseNPC(x, y, z, type, id) {
         npcClass = classType;
