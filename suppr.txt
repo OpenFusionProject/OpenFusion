@@ -2,5 +2,4 @@ leak:TableData::init
 leak:ChunkManager::addPlayer
 leak:ChunkManager::addNPC
 leak:NPCManager::npcSummonHandler
-leak:BaseNPC::BaseNPC
 leak:nlohmann::basic_json

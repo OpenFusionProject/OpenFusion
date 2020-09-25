@@ -36,9 +36,9 @@ std::set<int> TreasureFinderPowers = {26, 40, 74};
  * worker functions so we don't have to have unsightly function declarations.
  */
 
-std::map<int32_t, NanoData> NanoManager::NanoTable;
-
 }; // namespace
+
+std::map<int32_t, NanoData> NanoManager::NanoTable;
 
 void NanoManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_ACTIVE, nanoSummonHandler);

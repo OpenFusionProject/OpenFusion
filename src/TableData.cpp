@@ -199,8 +199,8 @@ void TableData::init() {
 }
 
 /*
-* Some item categories either don't possess iEquipLoc or use a different value for item type.
-*/
+ * Some item categories either don't possess iEquipLoc or use a different value for item type.
+ */
 int TableData::getItemType(int itemSet) {
     int overriden;
     switch (itemSet)
