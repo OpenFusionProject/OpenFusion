@@ -9,5 +9,6 @@ namespace TableData {
 
     int getItemType(int);
     void loadPaths();
-    void constructPath(nlohmann::json::iterator);
+    void constructPathSkyway(nlohmann::json::iterator);
+    void constructPathNPC(nlohmann::json::iterator);
 }

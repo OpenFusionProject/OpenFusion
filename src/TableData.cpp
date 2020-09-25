@@ -234,10 +234,16 @@ void TableData::loadPaths() {
         // skyway paths
         nlohmann::json pathDataSkyway = pathData["skyway"];
         for (nlohmann::json::iterator skywayPath = pathDataSkyway.begin(); skywayPath != pathDataSkyway.end(); skywayPath++) {
-            constructPath(skywayPath);
+            constructPathSkyway(skywayPath);
         }
-
         std::cout << "[INFO] Loaded " << TransportManager::SkywayPaths.size() << " skyway paths" << std::endl;
+
+        // npc paths
+        nlohmann::json pathDataNPC = pathData["npc"];
+        for (nlohmann::json::iterator npcPath = pathDataNPC.begin(); npcPath != pathDataNPC.end(); npcPath++) {
+            constructPathNPC(npcPath);
+        }
+        std::cout << "[INFO] Loaded " << TransportManager::NPCQueues.size() << " NPC paths" << std::endl;
     }
     catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed paths.json file! Reason:" << err.what() << std::endl;
@@ -245,9 +251,9 @@ void TableData::loadPaths() {
 }
 
 /*
- * Create a full and properly-paced Skyway System path by interpolating between keyframes.
+ * Create a full and properly-paced path by interpolating between keyframes.
  */
-void TableData::constructPath(nlohmann::json::iterator _pathData) {
+void TableData::constructPathSkyway(nlohmann::json::iterator _pathData) {
     auto pathData = _pathData.value();
     // Interpolate
     nlohmann::json pathPoints = pathData["points"];
@@ -264,4 +270,25 @@ void TableData::constructPath(nlohmann::json::iterator _pathData) {
         last = coords; // update start pos
     }
     TransportManager::SkywayPaths[pathData["iRouteID"]] = points;
+}
+
+void TableData::constructPathNPC(nlohmann::json::iterator _pathData) {
+    auto pathData = _pathData.value();
+    // Interpolate
+    nlohmann::json pathPoints = pathData["points"];
+    std::queue<WarpLocation> points;
+    nlohmann::json::iterator _point = pathPoints.begin();
+    auto point = _point.value();
+    WarpLocation from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
+    int stopTime = point["stop"];
+    for (_point++; _point != pathPoints.end(); _point++) { // loop through all point Bs
+        point = _point.value();
+        for(int i = 0; i < stopTime + 1; i++) // repeat point if it's a stop
+            points.push(from); // add point A to the queue
+        WarpLocation to = { point["iX"] , point["iY"] , point["iZ"] }; // point B coords
+        TransportManager::lerp(&points, from, to, pathData["iBaseSpeed"]); // lerp from A to B
+        from = to; // update point A
+        stopTime = point["stop"];
+    }
+    TransportManager::NPCQueues[pathData["iNPCID"]] = points;
 }
