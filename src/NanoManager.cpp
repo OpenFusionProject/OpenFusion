@@ -36,6 +36,8 @@ std::set<int> TreasureFinderPowers = {26, 40, 74};
  * worker functions so we don't have to have unsightly function declarations.
  */
 
+std::map<int32_t, NanoData> NanoManager::NanoTable;
+
 }; // namespace
 
 void NanoManager::init() {
@@ -591,6 +593,13 @@ void NanoManager::nanoUnbuff(CNSocket* sock, int32_t iCBFlag, int16_t eCharStatu
         resp1.TimeBuff.iValue = iValue;
     
     sock->sendPacket((void*)&resp1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+}
+
+// 0=A 1=B 2=C -1=Not found
+int NanoManager::nanoStyle(int nanoId) {
+    if (nanoId < 0 || nanoId >= NanoTable.size())
+        return -1;
+    return NanoTable[nanoId].style;
 }
 
 namespace NanoManager {

@@ -34,9 +34,14 @@ struct PassivePower {
     PassivePower(std::set<int> p, int16_t t, int32_t f, int16_t b, int16_t a) : powers(p), eSkillType(t), iCBFlag(f), eCharStatusTimeBuffID(b), iValue(a) {}
 };
 
+struct NanoData {
+    int style;
+};
+
 namespace NanoManager {
     extern std::vector<ActivePower> ActivePowers;
     extern std::vector<PassivePower> PassivePowers;
+    extern std::map<int32_t, NanoData> NanoTable;
     void init();
 
     void nanoSummonHandler(CNSocket* sock, CNPacketData* data);
@@ -56,4 +61,6 @@ namespace NanoManager {
     
     void nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t eSkillType, int32_t iCBFlag, int16_t eCharStatusTimeBuffID, int16_t iValue = 0);
     void nanoUnbuff(CNSocket* sock, int32_t iCBFlag, int16_t eCharStatusTimeBuffID, int16_t iValue = 0);
+    
+    int nanoStyle(int nanoId);
 }

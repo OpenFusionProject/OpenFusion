@@ -6,6 +6,7 @@
 #include "MissionManager.hpp"
 #include "MobManager.hpp"
 #include "ChunkManager.hpp"
+#include "NanoManager.hpp"
 
 #include "contrib/JSON.hpp"
 
@@ -152,6 +153,17 @@ void TableData::init() {
         }
 
         std::cout << "[INFO] Loaded " << ItemManager::CrocPotTable.size() << " croc pot value sets" << std::endl;
+
+        //load nano info
+        nlohmann::json nanoInfo = xdtData["m_pNanoTable"]["m_pNanoData"];
+        for (nlohmann::json::iterator _nano = nanoInfo.begin(); _nano != nanoInfo.end(); _nano++) {
+            auto nano = _nano.value();
+            NanoData nanoData;
+            nanoData.style = nano["m_iStyle"];
+            NanoManager::NanoTable[nano["m_iNanoNumber"]] = nanoData;
+        }
+
+        std::cout << "[INFO] Loaded " << NanoManager::NanoTable.size() << " nanos" << std::endl;
     }
     catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed xdt.json file! Reason:" << err.what() << std::endl;
