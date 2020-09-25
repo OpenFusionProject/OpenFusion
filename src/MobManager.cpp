@@ -211,7 +211,7 @@ void MobManager::deadStep(Mob *mob, time_t currTime) {
         // if it was summoned, remove it permanently
         if (mob->summoned) {
             std::cout << "[INFO] Deallocating killed summoned mob" << std::endl;
-            NPCManager::removeNPC(mob->appearanceData.iNPC_ID);
+            NPCManager::destroyNPC(mob->appearanceData.iNPC_ID);
             return;
         }
     }
@@ -279,6 +279,8 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
 
         auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, mob->target->plr->x, mob->target->plr->y, speed);
 
+        NPCManager::updateNPCPosition(mob->appearanceData.iNPC_ID, targ.first, targ.second, mob->appearanceData.iZ);
+
         INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
 
         pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
@@ -329,6 +331,8 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
         speed /= 2;
 
     auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, farX, farY, speed);
+
+    NPCManager::updateNPCPosition(mob->appearanceData.iNPC_ID, targ.first, targ.second, mob->appearanceData.iZ);
 
     pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
     pkt.iSpeed = speed;

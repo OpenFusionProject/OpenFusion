@@ -20,8 +20,6 @@ void ChunkManager::addNPC(int posX, int posY, int32_t id) {
     Chunk* chunk = chunks[pos];
 
     chunk->NPCs.insert(id);
-    
-    NPCManager::addNPC(grabChunks(pos), id);
 }
 
 void ChunkManager::addPlayer(int posX, int posY, CNSocket* sock) {

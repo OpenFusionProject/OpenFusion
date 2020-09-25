@@ -27,7 +27,7 @@ void TableData::init() {
             BaseNPC *tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], npc["id"], nextId);
 
             NPCManager::NPCs[nextId] = tmp;
-            ChunkManager::addNPC(npc["x"], npc["y"], nextId);
+            NPCManager::updateNPCPosition(nextId, npc["x"], npc["y"], npc["z"]);
             nextId++;
 
             if (npc["id"] == 641 || npc["id"] == 642)
@@ -172,7 +172,7 @@ void TableData::init() {
 
             NPCManager::NPCs[nextId] = tmp;
             MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
-            ChunkManager::addNPC(npc["iX"], npc["iY"], nextId);
+            NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"]);
 
             nextId++;
         }

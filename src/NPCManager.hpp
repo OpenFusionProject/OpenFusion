@@ -24,8 +24,9 @@ namespace NPCManager {
     extern int32_t nextId;
     void init();
 
-    void addNPC(std::vector<Chunk*> viewableChunks, int32_t);
-    void removeNPC(int32_t);
+    void addNPC(std::vector<Chunk*> viewableChunks, int32_t id);
+    void removeNPC(std::vector<Chunk*> viewableChunks, int32_t id);
+    void destroyNPC(int32_t);
     void updateNPCPosition(int32_t, int X, int Y, int Z);
 
     void sendToViewable(BaseNPC* npc, void* buf, uint32_t type, size_t size);
