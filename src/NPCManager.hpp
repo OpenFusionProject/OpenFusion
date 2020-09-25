@@ -28,6 +28,8 @@ namespace NPCManager {
     void removeNPC(int32_t);
     void updateNPCPosition(int32_t, int X, int Y, int Z);
 
+    void sendToViewable(BaseNPC* npc, void* buf, uint32_t type, size_t size);
+
     void npcBarkHandler(CNSocket* sock, CNPacketData* data);
     void npcSummonHandler(CNSocket* sock, CNPacketData* data);
     void npcUnsummonHandler(CNSocket* sock, CNPacketData* data);

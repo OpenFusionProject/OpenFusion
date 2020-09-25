@@ -94,6 +94,7 @@ namespace MobManager {
     void dotDamageOnOff(CNSocket *sock, CNPacketData *data);
 
     void npcAttackPc(Mob *mob);
+    int hitMob(CNSocket *sock, Mob *mob, int damage);
     void killMob(CNSocket *sock, Mob *mob);
     void giveReward(CNSocket *sock);
     std::pair<int,int> lerp(int, int, int, int, int);

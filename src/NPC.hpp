@@ -1,11 +1,14 @@
 #pragma once
 
 #include "CNStructs.hpp"
+#include "ChunkManager.hpp"
 
 class BaseNPC {
 public:
     sNPCAppearanceData appearanceData;
     NPCClass npcClass;
+    std::pair<int, int> chunkPos;
+    std::vector<Chunk*> currentChunks;
 
     BaseNPC() {};
     BaseNPC(int x, int y, int z, int type, int id) {
@@ -18,6 +21,9 @@ public:
         appearanceData.iConditionBitFlag = 0;
         appearanceData.iBarkerType = 0;
         appearanceData.iNPC_ID = id;
+
+        chunkPos = ChunkManager::grabChunk(x, y);
+        currentChunks = ChunkManager::grabChunks(chunkPos);
     };
     BaseNPC(int x, int y, int z, int type, int id, NPCClass classType) : BaseNPC(x, y, z, type, id) {
         npcClass = classType;

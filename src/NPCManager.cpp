@@ -147,6 +147,14 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
     ChunkManager::addNPC(X, Y, npc->appearanceData.iNPC_ID);
 }
 
+void NPCManager::sendToViewable(BaseNPC *npc, void *buf, uint32_t type, size_t size) {
+    for (Chunk *chunk : npc->currentChunks) {
+        for (CNSocket *s : chunk->players) {
+            s->sendPacket(buf, type, size);
+        }
+    }
+}
+
 void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY))
         return; // malformed packet

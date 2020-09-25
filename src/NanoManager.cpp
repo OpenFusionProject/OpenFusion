@@ -309,13 +309,10 @@ bool doDebuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage_N_Debuff *re
 
     Mob* mob = MobManager::Mobs[pktdata[i]];
     
-    mob->appearanceData.iHP -= amount;
-
-    if (mob->appearanceData.iHP <= 0)
-        MobManager::killMob(sock, mob);
+    int damage = MobManager::hitMob(sock, mob, amount);
     
     respdata[i].eCT = 4;
-    respdata[i].iDamage = amount;
+    respdata[i].iDamage = damage;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
     respdata[i].iHP = mob->appearanceData.iHP;
     respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag |= iCBFlag;
@@ -380,16 +377,10 @@ bool doDamage(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage *respdata, i
     }
     Mob* mob = MobManager::Mobs[pktdata[i]];
     
-    mob->appearanceData.iHP -= amount;
+    int damage = MobManager::hitMob(sock, mob, amount);
 
-    // wake up sleeping monster
-    mob->appearanceData.iConditionBitFlag &= ~CSB_BIT_MEZ;
-
-    if (mob->appearanceData.iHP <= 0)
-        MobManager::killMob(sock, mob);
-    
     respdata[i].eCT = 4;
-    respdata[i].iDamage = amount;
+    respdata[i].iDamage = damage;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
     respdata[i].iHP = mob->appearanceData.iHP;
 
@@ -433,16 +424,10 @@ bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, i
     }
     Mob* mob = MobManager::Mobs[pktdata[i]];
     
-    mob->appearanceData.iHP -= amount;
-
-    // wake up sleeping monster
-    mob->appearanceData.iConditionBitFlag &= ~CSB_BIT_MEZ;
-
-    if (mob->appearanceData.iHP <= 0)
-        MobManager::killMob(sock, mob);
+    int damage = MobManager::hitMob(sock, mob, amount);
     
     damagedata->eCT = 4;
-    damagedata->iDamage = amount;
+    damagedata->iDamage = damage;
     damagedata->iID = mob->appearanceData.iNPC_ID;
     damagedata->iHP = mob->appearanceData.iHP;
 
