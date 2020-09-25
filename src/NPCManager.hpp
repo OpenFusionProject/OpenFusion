@@ -35,6 +35,7 @@ namespace NPCManager {
     void npcSummonHandler(CNSocket* sock, CNPacketData* data);
     void npcUnsummonHandler(CNSocket* sock, CNPacketData* data);
     void npcWarpHandler(CNSocket* sock, CNPacketData* data);
+    void npcWarpTimeMachine(CNSocket* sock, CNPacketData* data);
 
     void npcVendorStart(CNSocket* sock, CNPacketData* data);
     void npcVendorTable(CNSocket* sock, CNPacketData* data);
@@ -43,4 +44,6 @@ namespace NPCManager {
     void npcVendorBuyback(CNSocket* sock, CNPacketData* data);
     void npcVendorBuyBattery(CNSocket* sock, CNPacketData* data);
     void npcCombineItems(CNSocket* sock, CNPacketData* data);
+
+    void handleWarp(CNSocket* sock, int32_t warpId);
 }

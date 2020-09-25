@@ -37,7 +37,7 @@ void PlayerManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SPECIAL_STATE_SWITCH, PlayerManager::setSpecialSwitchPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_ON, PlayerManager::enterPlayerVehicle);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_OFF, PlayerManager::exitPlayerVehicle);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_CHANGE_MENTOR, PlayerManager::changePlayerGuide);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_CHANGE_MENTOR, PlayerManager::changePlayerGuide);   
 }
 
 void PlayerManager::addPlayer(CNSocket* key, Player plr) {
@@ -819,7 +819,17 @@ void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
     resp.iFusionMatter = plr->fusionmatter; // no cost
     
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_CHANGE_MENTOR_SUCC, sizeof(sP_FE2CL_REP_PC_CHANGE_MENTOR_SUCC));
-    //save it on player
+    // if it's changed from computress
+    if (plr->mentor == 5) {
+        // we're warping to the past
+        plr->PCStyle2.iPayzoneFlag = 1;
+        // remove all active missions
+        for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+            if (plr->tasks[i] != 0)
+                MissionManager::quitTask(sock, plr->tasks[i]);
+        }
+    }
+    // save it on player
     plr->mentor = pkt->iMentor;
 }
 

@@ -36,6 +36,8 @@ std::set<int> TreasureFinderPowers = {26, 40, 74};
  * worker functions so we don't have to have unsightly function declarations.
  */
 
+std::map<int32_t, NanoData> NanoManager::NanoTable;
+
 }; // namespace
 
 void NanoManager::init() {
@@ -47,6 +49,7 @@ void NanoManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GIVE_NANO_SKILL, nanoSkillSetGMHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_SKILL_USE, nanoSkillUseHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_WARP_USE_RECALL, nanoRecallHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_CHARGE_NANO_STAMINA, nanoPotionHandler);
 }
 
 void NanoManager::nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
@@ -167,6 +170,35 @@ void NanoManager::nanoRecallHandler(CNSocket* sock, CNPacketData* data) {
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_WARP_USE_RECALL_FAIL, sizeof(sP_FE2CL_REP_WARP_USE_RECALL_FAIL));
     // stubbed for now
+}
+
+void NanoManager::nanoPotionHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_CHARGE_NANO_STAMINA))
+        return;
+    
+    Player* player = PlayerManager::getPlayer(sock);
+    //sanity check
+    if (player->activeNano == -1 || player->batteryN == 0)
+        return;
+
+    sNano nano = player->Nanos[player->activeNano];
+    int difference = 150 - nano.iStamina;
+    if (player->batteryN < difference)
+        difference = player->batteryN;
+
+    if (difference == 0)
+        return;
+
+    INITSTRUCT(sP_FE2CL_REP_CHARGE_NANO_STAMINA, response);
+    response.iNanoID = nano.iID;
+    response.iNanoStamina = nano.iStamina + difference;
+    response.iBatteryN = player->batteryN - difference;
+
+    sock->sendPacket((void*)&response, P_FE2CL_REP_CHARGE_NANO_STAMINA, sizeof(sP_FE2CL_REP_CHARGE_NANO_STAMINA));
+    //now update serverside
+    player->batteryN -= difference;
+    player->Nanos[nano.iID].iStamina += difference;
+
 }
 
 #pragma region Helper methods
@@ -576,6 +608,13 @@ void NanoManager::nanoUnbuff(CNSocket* sock, int32_t iCBFlag, int16_t eCharStatu
         resp1.TimeBuff.iValue = iValue;
     
     sock->sendPacket((void*)&resp1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+}
+
+// 0=A 1=B 2=C -1=Not found
+int NanoManager::nanoStyle(int nanoId) {
+    if (nanoId < 0 || nanoId >= NanoTable.size())
+        return -1;
+    return NanoTable[nanoId].style;
 }
 
 namespace NanoManager {
