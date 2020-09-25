@@ -713,10 +713,14 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_PC_REGEN, resp2);
 
     // Nanos
+    int activeSlot = -1;
     for (int n = 0; n < 3; n++) {
         int nanoID = plr->equippedNanos[n];
         plr->Nanos[nanoID].iStamina = 75; // max is 150, so 75 is half
         response.PCRegenData.Nanos[n] = plr->Nanos[nanoID];
+        if (plr->activeNano == nanoID) {
+            activeSlot = n;
+        }
     }
 
     // Update player
@@ -726,7 +730,7 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     plr->HP = PC_MAXHEALTH(plr->level);
 
     // Response parameters
-    response.PCRegenData.iActiveNanoSlotNum = plr->activeNano;
+    response.PCRegenData.iActiveNanoSlotNum = activeSlot;
     response.PCRegenData.iX = plr->x;
     response.PCRegenData.iY = plr->y;
     response.PCRegenData.iZ = plr->z;
