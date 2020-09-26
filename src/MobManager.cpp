@@ -140,8 +140,13 @@ void MobManager::giveReward(CNSocket *sock) {
     reward->iFatigue_Level = 1;
     reward->iItemCnt = 1; // remember to update resplen if you change this
 
+#if 0
     int slot = ItemManager::findFreeSlot(plr);
     if (slot == -1) {
+#else
+    int slot = -1;
+    if (true) {
+#endif
         // no room for an item, but you still get FM and taros
         reward->iItemCnt = 0;
         sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, sizeof(sP_FE2CL_REP_REWARD_ITEM));
