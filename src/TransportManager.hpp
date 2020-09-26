@@ -34,5 +34,6 @@ namespace TransportManager {
     void stepNPCPathing();
     void stepSkywaySystem();
 
+    void lerp(std::queue<WarpLocation>*, WarpLocation, WarpLocation, int, float);
     void lerp(std::queue<WarpLocation>*, WarpLocation, WarpLocation, int);
 }

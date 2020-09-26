@@ -311,17 +311,21 @@ void TransportManager::stepNPCPathing() {
 /*
  * Linearly interpolate between two points and insert the results into a queue.
  */
-void TransportManager::lerp(std::queue<WarpLocation>* queue, WarpLocation start, WarpLocation end, int gapSize) {
+void TransportManager::lerp(std::queue<WarpLocation>* queue, WarpLocation start, WarpLocation end, int gapSize, float curve) {
     int dXY = hypot(end.x - start.x, end.y - start.y); // XY plane distance
     int distanceBetween = hypot(dXY, end.z - start.z); // total distance
-    int lerps = distanceBetween / gapSize; // integer division to ensure a whole number of in-between points
-    for (int i = 0; i < lerps; i++) {
+    int lerps = distanceBetween / gapSize; // number of intermediate points to add
+    for (int i = 1; i <= lerps; i++) {
         WarpLocation lerp;
         // lerp math
-        float frac = (i + 1) * 1.0f / (lerps + 1);
+        //float frac = i / (lerps + 1);
+        float frac = powf(i, curve) / powf(lerps + 1, curve);
         lerp.x = (start.x * (1.0f - frac)) + (end.x * frac);
         lerp.y = (start.y * (1.0f - frac)) + (end.y * frac);
         lerp.z = (start.z * (1.0f - frac)) + (end.z * frac);
         queue->push(lerp); // add lerp'd point
     }
+}
+void TransportManager::lerp(std::queue<WarpLocation>* queue, WarpLocation start, WarpLocation end, int gapSize) {
+    lerp(queue, start, end, gapSize, 1);
 }
