@@ -481,7 +481,7 @@ void MobManager::dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
 void MobManager::dealGooDamage(CNSocket *sock, int amount) {
     size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_DotDamage);
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
-    uint8_t respbuf[resplen];
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
 
     memset(respbuf, 0, resplen);
 
