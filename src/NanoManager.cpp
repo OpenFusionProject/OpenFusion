@@ -517,11 +517,13 @@ void activePower(CNSocket *sock, CNPacketData *data,
     sPAYLOAD *respdata = (sPAYLOAD*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC));
         
     Player *plr = PlayerManager::getPlayer(sock);
+
+    plr->Nanos[plr->activeNano].iStamina -= 40;
         
     resp->iPC_ID = plr->iID;
     resp->iSkillID = skillId;
     resp->iNanoID = nanoId;
-    resp->iNanoStamina = 150;
+    resp->iNanoStamina = plr->Nanos[plr->activeNano].iStamina;
     resp->eST = eSkillType;
     resp->iTargetCnt = pkt->iTargetCnt;
 
@@ -570,7 +572,7 @@ void NanoManager::nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t 
     resp->iPC_ID = plr->iID;
     resp->iSkillID = skillId;
     resp->iNanoID = nanoId;
-    resp->iNanoStamina = 150;
+    resp->iNanoStamina = plr->Nanos[plr->activeNano].iStamina;
     resp->eST = eSkillType;
     resp->iTargetCnt = 1;
         

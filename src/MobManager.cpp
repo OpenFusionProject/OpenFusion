@@ -11,6 +11,7 @@ std::map<int32_t, Mob*> MobManager::Mobs;
 
 void MobManager::init() {
     REGISTER_SHARD_TIMER(step, 200);
+    REGISTER_SHARD_TIMER(playerTick, 2000);
 
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ATTACK_NPCs, pcAttackNpcs);
 
@@ -103,17 +104,13 @@ void MobManager::npcAttackPc(Mob *mob) {
     atk->iHitFlag = 2;
 
     mob->target->sendPacket((void*)respbuf, P_FE2CL_NPC_ATTACK_PCs, resplen);
-    PlayerManager::sendToViewable(mob->target, (void*)&pkt, P_FE2CL_NPC_ATTACK_PCs, resplen);
+    PlayerManager::sendToViewable(mob->target, (void*)respbuf, P_FE2CL_NPC_ATTACK_PCs, resplen);
 
     if (plr->HP <= 0) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
     }
 }
-
-void MobManager::combatBegin(CNSocket *sock, CNPacketData *data) {} // stub
-void MobManager::combatEnd(CNSocket *sock, CNPacketData *data) {} // stub
-void MobManager::dotDamageOnOff(CNSocket *sock, CNPacketData *data) {} // stub
 
 void MobManager::giveReward(CNSocket *sock) {
     Player *plr = PlayerManager::getPlayer(sock);
@@ -176,6 +173,7 @@ int MobManager::hitMob(CNSocket *sock, Mob *mob, int damage) {
             mob->target = sock;
             mob->state = MobState::COMBAT;
             mob->nextMovement = getTime();
+            mob->nextAttack = 0;
         }
 
         mob->appearanceData.iHP -= damage;
@@ -298,8 +296,8 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
         NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
     }
 
-    // retreat if kited too far
-    distance = hypot(mob->appearanceData.iX - mob->spawnX, mob->appearanceData.iY - mob->spawnY);
+    // retreat if the player leaves combat range
+    distance = hypot(plr->x - mob->spawnX, plr->y - mob->spawnY);
     if (distance >= mob->data["m_iCombatRange"]) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
@@ -313,6 +311,35 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
  * Bad Max, etc.) once those have been made.
  */
 void MobManager::roamingStep(Mob *mob, time_t currTime) {
+    /*
+     * We reuse nextAttack to avoid scanning for players all the time, but to still
+     * do so more often than if we waited for nextMovement (which is way too slow).
+     */
+    if (mob->nextAttack == 0 || currTime < mob->nextAttack) {
+        mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
+
+        /*
+         * Aggro on nearby players.
+         * Even if they're in range, we can't assume they're all in the same one chunk
+         * as the mob, since it might be near a chunk boundary.
+         */
+        for (Chunk *chunk : mob->currentChunks) {
+            for (CNSocket *s : chunk->players) {
+                Player *plr = s->plr;
+                int distance = hypot(mob->appearanceData.iX - plr->x, mob->appearanceData.iY - plr->y);
+                if (distance > mob->data["m_iSightRange"])
+                    continue;
+
+                // found player. engage.
+                mob->target = s;
+                mob->state = MobState::COMBAT;
+                mob->nextMovement = currTime;
+                mob->nextAttack = 0;
+                return;
+            }
+        }
+    }
+
     // some mobs don't move (and we mustn't divide/modulus by zero)
     if (mob->idleRange == 0)
         return;
@@ -432,4 +459,108 @@ std::pair<int,int> MobManager::lerp(int x1, int y1, int x2, int y2, int speed) {
     ret.second = (y1 * (1.0f - frac)) + (y2 * frac);
 
     return ret;
+}
+
+void MobManager::combatBegin(CNSocket *sock, CNPacketData *data) {
+    Player *plr = PlayerManager::getPlayer(sock);
+    plr->inCombat = true;
+}
+
+void MobManager::combatEnd(CNSocket *sock, CNPacketData *data) {
+    Player *plr = PlayerManager::getPlayer(sock);
+    plr->inCombat = false;
+}
+
+void MobManager::dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
+    sP_CL2FE_DOT_DAMAGE_ONOFF *pkt = (sP_CL2FE_DOT_DAMAGE_ONOFF*)data->buf;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    plr->dotDamage = (bool)pkt->iFlag;
+}
+
+void MobManager::dealGooDamage(CNSocket *sock, int amount) {
+    size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_DotDamage);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+    uint8_t respbuf[resplen];
+
+    memset(respbuf, 0, resplen);
+
+    sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK *pkt = (sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK*)respbuf;
+    sSkillResult_DotDamage *dmg = (sSkillResult_DotDamage*)(respbuf + sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    // update player
+    plr->HP -= amount;
+
+    pkt->iID = plr->iID;
+    pkt->eCT = 1; // player
+    pkt->iTB_ID = ECSB_INFECTION; // sSkillResult_DotDamage
+
+    dmg->eCT = 1;
+    dmg->iID = plr->iID;
+    dmg->iDamage = amount;
+    dmg->iHP = plr->HP;
+
+    sock->sendPacket((void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
+    PlayerManager::sendToViewable(sock, (void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
+}
+
+void MobManager::playerTick(CNServer *serv, time_t currTime) {
+    static time_t lastHealTime = 0;
+    for (auto& pair : PlayerManager::players) {
+        CNSocket *sock = pair.first;
+        Player *plr = pair.second.plr;
+        bool transmit = false;
+
+        // fm patch/lake damage
+        if (plr->dotDamage)
+            dealGooDamage(sock, 150);
+
+        // a somewhat hacky way tick goo damage faster than heal, but eh
+        if (currTime - lastHealTime < 4000)
+            continue;
+        lastHealTime = currTime;
+
+        // heal
+        if (!plr->inCombat && plr->HP < PC_MAXHEALTH(plr->level)) {
+            plr->HP += 200;
+            if (plr->HP > PC_MAXHEALTH(plr->level))
+                plr->HP = PC_MAXHEALTH(plr->level);
+            transmit = true;
+        }
+
+        for (int i = 0; i < 3; i++) {
+            if (plr->activeNano != 0 && plr->equippedNanos[i] == plr->activeNano) { // spend stamina
+                plr->Nanos[plr->activeNano].iStamina -= 3;
+
+                if (plr->Nanos[plr->activeNano].iStamina < 0)
+                    plr->activeNano = 0;
+
+                transmit = true;
+            } else if (plr->Nanos[plr->equippedNanos[i]].iStamina < 150) { // regain stamina
+                sNano& nano = plr->Nanos[plr->equippedNanos[i]];
+                nano.iStamina += 3;
+
+                if (nano.iStamina > 150)
+                    nano.iStamina = 150;
+
+                transmit = true;
+            }
+        }
+
+        if (transmit) {
+            INITSTRUCT(sP_FE2CL_REP_PC_TICK, pkt);
+
+            std::cout << "sending sP_FE2CL_REP_PC_TICK" << std::endl;
+
+            pkt.iHP = plr->HP;
+            pkt.iBatteryN = plr->batteryN;
+
+            pkt.aNano[0] = plr->Nanos[plr->equippedNanos[0]];
+            pkt.aNano[1] = plr->Nanos[plr->equippedNanos[1]];
+            pkt.aNano[2] = plr->Nanos[plr->equippedNanos[2]];
+
+            sock->sendPacket((void*)&pkt, P_FE2CL_REP_PC_TICK, sizeof(sP_FE2CL_REP_PC_TICK));
+        }
+    }
 }

@@ -44,6 +44,9 @@ struct Player {
     bool isTrading;
     bool isTradeConfirm;
 
+    bool inCombat;
+    bool dotDamage;
+
     int64_t aQuestFlag[16];
     int tasks[ACTIVE_MISSION_COUNT];
     int RemainingNPCCount[ACTIVE_MISSION_COUNT][3];

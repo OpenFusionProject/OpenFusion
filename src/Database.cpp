@@ -427,6 +427,9 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.equippedNanos[1] = player.Nano2;
     result.equippedNanos[2] = player.Nano3;
 
+    result.dotDamage = false;
+    result.inCombat = false;
+
     result.iWarpLocationFlag = player.WarpLocationFlag;
     result.aSkywayLocationFlag[0] = player.SkywayLocationFlag1;
     result.aSkywayLocationFlag[1] = player.SkywayLocationFlag2;

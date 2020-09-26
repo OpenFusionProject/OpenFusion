@@ -38,6 +38,7 @@ void BuddyManager::requestBuddy(CNSocket* sock, CNPacketData* data) {
 	for (auto pair : PlayerManager::players) {
 		if (pair.second.plr->PCStyle.iPC_UID == pkt->iBuddyPCUID) {
 			otherSock = pair.first;
+            break;
 		}
 	}
 
@@ -73,6 +74,7 @@ void BuddyManager::reqBuddyByName(CNSocket* sock, CNPacketData* data) {
 		int sizeOfLNReq = sizeof(pair.second.plr->PCStyle.szLastName) / 17;
 		if (BuddyManager::firstNameCheck(pair.second.plr->PCStyle.szFirstName, pkt->szFirstName, sizeOfReq, sizeOfRes) == true && BuddyManager::lastNameCheck(pair.second.plr->PCStyle.szLastName, pkt->szLastName, sizeOfLNReq, sizeOfLNRes) == true) { //This long line of gorgeous parameters is to check if the player's name matches :eyes:
 			otherSock = pair.first;
+            break;
 		}
 	}
 
@@ -100,6 +102,7 @@ void BuddyManager::reqAcceptBuddy(CNSocket* sock, CNPacketData* data) {
 	for (auto pair : PlayerManager::players) {
 		if (pair.second.plr->PCStyle.iPC_UID == pkt->iBuddyPCUID) {
 			otherSock = pair.first;
+            break;
 		}
 	}
 
@@ -166,6 +169,7 @@ void BuddyManager::reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
 		int sizeOfLNReq = sizeof(pair.second.plr->PCStyle.szLastName) / 17;
 		if (BuddyManager::firstNameCheck(pair.second.plr->PCStyle.szFirstName, pkt->szFirstName, sizeOfReq, sizeOfRes) == true && BuddyManager::lastNameCheck(pair.second.plr->PCStyle.szLastName, pkt->szLastName, sizeOfLNReq, sizeOfLNRes) == true) {
 			otherSock = pair.first;
+            break;
 		}
 	}
 

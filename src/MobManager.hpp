@@ -86,6 +86,7 @@ namespace MobManager {
 
     void init();
     void step(CNServer*, time_t);
+    void playerTick(CNServer*, time_t);
 
     void deadStep(Mob*, time_t);
     void combatStep(Mob*, time_t);
@@ -96,6 +97,7 @@ namespace MobManager {
     void combatBegin(CNSocket *sock, CNPacketData *data);
     void combatEnd(CNSocket *sock, CNPacketData *data);
     void dotDamageOnOff(CNSocket *sock, CNPacketData *data);
+    void dealGooDamage(CNSocket *sock, int amount);
 
     void npcAttackPc(Mob *mob);
     int hitMob(CNSocket *sock, Mob *mob, int damage);
