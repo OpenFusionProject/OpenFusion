@@ -832,6 +832,9 @@ void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
             if (plr->tasks[i] != 0)
                 MissionManager::quitTask(sock, plr->tasks[i]);
         }
+
+        // start Blossom nano mission if applicable
+        MissionManager::updateFusionMatter(sock, 0);
     }
     // save it on player
     plr->mentor = pkt->iMentor;

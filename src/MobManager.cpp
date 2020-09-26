@@ -60,7 +60,7 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         }
         Mob *mob = Mobs[pktdata[i]];
 
-        int damage = hitMob(sock, mob, 100);
+        int damage = hitMob(sock, mob, 150);
 
         respdata[i].iID = mob->appearanceData.iNPC_ID;
         respdata[i].iDamage = damage;
@@ -129,9 +129,9 @@ void MobManager::giveReward(CNSocket *sock) {
     // don't forget to zero the buffer!
     memset(respbuf, 0, resplen);
 
-    // update player
-    plr->money += 50;
-    MissionManager::updateFusionMatter(sock, 70);
+    // NOTE: these will need to be scaled according to the player/mob level difference
+    plr->money += (int)MissionManager::AvatarGrowth[plr->level]["m_iMobFM"]; // this one's innacurate, but close enough for now
+    MissionManager::updateFusionMatter(sock, MissionManager::AvatarGrowth[plr->level]["m_iMobFM"]);
 
     // simple rewards
     reward->m_iCandy = plr->money;

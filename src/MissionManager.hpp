@@ -38,7 +38,7 @@ struct TaskData {
 namespace MissionManager {
     extern std::map<int32_t, Reward*> Rewards;
     extern std::map<int32_t, TaskData*> Tasks;
-    extern nlohmann::json AvatarGrowth[36];
+    extern nlohmann::json AvatarGrowth[37];
     void init();
 
     void taskStart(CNSocket* sock, CNPacketData* data);

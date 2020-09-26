@@ -9,7 +9,7 @@
 
 std::map<int32_t, Reward*> MissionManager::Rewards;
 std::map<int32_t, TaskData*> MissionManager::Tasks;
-nlohmann::json MissionManager::AvatarGrowth[36];
+nlohmann::json MissionManager::AvatarGrowth[37];
 
 void MissionManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_START, taskStart);
@@ -162,7 +162,7 @@ bool MissionManager::endTask(CNSocket *sock, int32_t taskNum) {
 
         // if it's a nano mission, reward the nano.
         if (task["m_iSTNanoID"] != 0) {
-            NanoManager::addNano(sock, task["m_iSTNanoID"], 0);
+            NanoManager::addNano(sock, task["m_iSTNanoID"], 0, true);
             // check if the player already has enough fm for the next mission
             updateFusionMatter(sock, 0);
         }
@@ -369,12 +369,18 @@ void MissionManager::updateFusionMatter(CNSocket* sock, int fusion) {
 
     plr->fusionmatter += fusion;
 
-    // sanity check
-    if (plr->level >= 36)
+    // there's a much lower FM cap in the Future
+    if (plr->fusionmatter > AvatarGrowth[plr->level]["m_iFMLimit"])
+        plr->fusionmatter = AvatarGrowth[plr->level]["m_iFMLimit"];
+    else if (plr->fusionmatter < 0) // if somehow lowered too far
+        plr->fusionmatter = 0;
+
+    // check if it is enough for the nano mission
+    if (plr->fusionmatter <= AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"])
         return;
 
-    // check if it is over the limit
-    if (plr->fusionmatter <= AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"])
+    // don't give the Blossom nano mission until the player's in the Past
+    if (plr->level == 4 && plr->PCStyle2.iPayzoneFlag == 0)
         return;
 
     // check if the nano task is already started

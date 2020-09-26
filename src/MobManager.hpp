@@ -51,6 +51,10 @@ struct Mob : public BaseNPC {
         regenTime = data["m_iRegenTime"];
         idleRange = data["m_iIdleRange"];
 
+        // XXX: temporarily force respawns for Fusions until we implement instancing
+        if (regenTime >= 300000000)
+            regenTime = 1500;
+
         spawnX = appearanceData.iX;
         spawnY = appearanceData.iY;
         spawnZ = appearanceData.iZ;

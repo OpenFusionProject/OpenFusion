@@ -128,7 +128,7 @@ void TableData::init() {
         
         nlohmann::json growth = xdtData["m_pAvatarTable"]["m_pAvatarGrowData"];
 
-        for (int i = 0; i < 36; i++) {
+        for (int i = 0; i < 37; i++) {
             MissionManager::AvatarGrowth[i] = growth[i];
         }
 
