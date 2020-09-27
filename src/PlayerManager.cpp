@@ -227,6 +227,12 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tPC_UID: " << plr.PCStyle.iPC_UID << std::endl;
     )
 
+    // check if account is already in use
+    if (isAccountInUse(plr.accountId)) {
+        // kick the other player
+        exitDuplicate(plr.accountId);
+    }
+
     response.iID = plr.iID;
     response.uiSvrTime = getTime();
     response.PCLoadData2CL.iUserLevel = plr.accountLevel;

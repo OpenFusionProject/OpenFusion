@@ -46,31 +46,24 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             int errorCode = 0;
 
             // checking regex
-            if (!CNLoginServer::isLoginDataGood(userLogin, userPassword))
-            {
+            if (!CNLoginServer::isLoginDataGood(userLogin, userPassword)) {
                 errorCode = (int)LoginError::LOGIN_ERROR;
-            }
-            else
-            {
+            } else {
                 std::unique_ptr<Database::Account> findUser = Database::findAccount(userLogin);
                 // if account not found, make new one
-                if (findUser == nullptr)
-                {
+                if (findUser == nullptr) {
                         loginSessions[sock] = CNLoginData();
                         loginSessions[sock].userID = Database::addAccount(userLogin, userPassword);
                         loginSessions[sock].slot = 1;
                         success = true;
                 }
                 // if user exists, check if password is correct
-                else if (CNLoginServer::isPasswordCorrect(findUser->Password, userPassword))
-                {
+                else if (CNLoginServer::isPasswordCorrect(findUser->Password, userPassword)) {
                     /*calling this here to timestamp login attempt, 
                      * in order to make duplicate exit sanity check work*/
                     Database::updateSelected(findUser->AccountID, findUser->Selected);
                     // check if account isn't currently in use
-                    if (CNLoginServer::isAccountInUse(findUser->AccountID) ||
-                        PlayerManager::isAccountInUse(findUser->AccountID))
-                    {
+                    if (CNLoginServer::isAccountInUse(findUser->AccountID)) {
                         errorCode = (int)LoginError::ID_ALREADY_IN_USE;
                     }
                     // if not, login success
@@ -82,15 +75,13 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                         success = true;
                     }
                 }
-                else
-                {
+                else {
                     errorCode = (int)LoginError::ID_AND_PASSWORD_DO_NOT_MATCH;
                 }
             }
 
 
-            if (success)
-            {
+            if (success) {
                 std::vector<Player> characters = Database::getCharacters(loginSessions[sock].userID);
                 int charCount = characters.size();
 
@@ -113,8 +104,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
                 // now send the characters :)
                 std::vector<Player>::iterator it;
-                for (it = characters.begin(); it != characters.end(); it++)
-                {
+                for (it = characters.begin(); it != characters.end(); it++) {
                     sP_LS2CL_REP_CHAR_INFO charInfo = sP_LS2CL_REP_CHAR_INFO();
 
                     charInfo.iSlot = (int8_t)it->slot;
@@ -143,9 +133,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
                     sock->sendPacket((void*)&charInfo, P_LS2CL_REP_CHAR_INFO, sizeof(sP_LS2CL_REP_CHAR_INFO));
                 }
-            }
-            // Failure
-            else {
+            } else {
                 INITSTRUCT(sP_LS2CL_REP_LOGIN_FAIL, resp);
                 U8toU16(userLogin, resp.szID);
                 resp.iErrorCode = errorCode;
@@ -175,7 +163,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 errorcode = 1;
             }
 
-            if (success){
+            if (success) {
                 INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC, resp);
 
                 DEBUGLOG(
@@ -333,13 +321,16 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
         case P_CL2LS_REQ_CHANGE_CHAR_NAME: {
             if (data->size != sizeof(sP_CL2LS_REQ_CHANGE_CHAR_NAME))
                 return;
+
             sP_CL2LS_REQ_CHANGE_CHAR_NAME* save = (sP_CL2LS_REQ_CHANGE_CHAR_NAME*)data->buf;
             Database::changeName(save);
+
             INITSTRUCT(sP_LS2CL_REP_CHANGE_CHAR_NAME_SUCC, resp);
             resp.iPC_UID = save->iPCUID;
             memcpy(resp.szFirstName, save->szFirstName, sizeof(char16_t)*9);
             memcpy(resp.szLastName, save->szLastName, sizeof(char16_t) * 17);
             resp.iSlotNum = save->iSlotNum;
+
             sock->sendPacket((void*)&resp, P_LS2CL_REP_CHANGE_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHANGE_CHAR_NAME_SUCC));
             break;
         }
@@ -349,27 +340,14 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
 
             sP_CL2LS_REQ_PC_EXIT_DUPLICATE* exit = (sP_CL2LS_REQ_PC_EXIT_DUPLICATE*)data->buf;
             auto account = Database::findAccount(U16toU8(exit->szID));
-            //sanity check
-            if (account == nullptr)
-            {
+            
+            // sanity check
+            if (account == nullptr) {
                 std::cout << "[WARN] P_CL2LS_REQ_PC_EXIT_DUPLICATE submitted unknown username: " << exit->szID << std::endl;
                 break;
             }
-            /* sanity check
-             * client is supposed to send us user password for verification,
-             * however it never sends it (>_<)
-             * therefore, we check if the account made a login attempt within last 30s
-             */
-            if (account->LastLogin + 30000 < getTime())
-            {
-                std::cout << "[WARN] P_CL2LS_REQ_PC_EXIT_DUPLICATE submitted without a login attempt on: " << exit->szID << std::endl;
-                break;
-            }
 
-            int accountId = account->AccountID;
-            if (!exitDuplicate(accountId))
-                PlayerManager::exitDuplicate(accountId);
-
+            exitDuplicate(account->AccountID);
             break;
         }
         default:
@@ -395,8 +373,7 @@ void CNLoginServer::killConnection(CNSocket* cns) {
 #pragma region helperMethods
 bool CNLoginServer::isAccountInUse(int accountId) {
     std::map<CNSocket*, CNLoginData>::iterator it;
-    for (it = CNLoginServer::loginSessions.begin(); it != CNLoginServer::loginSessions.end(); it++)
-    {
+    for (it = CNLoginServer::loginSessions.begin(); it != CNLoginServer::loginSessions.end(); it++) {
         if (it->second.userID == accountId)
             return true;
     }
@@ -405,10 +382,8 @@ bool CNLoginServer::isAccountInUse(int accountId) {
 
 bool CNLoginServer::exitDuplicate(int accountId) {
     std::map<CNSocket*, CNLoginData>::iterator it;
-    for (it = CNLoginServer::loginSessions.begin(); it != CNLoginServer::loginSessions.end(); it++)
-    {
-        if (it->second.userID == accountId)
-        {
+    for (it = CNLoginServer::loginSessions.begin(); it != CNLoginServer::loginSessions.end(); it++) {
+        if (it->second.userID == accountId) {
             CNSocket* sock = it->first;
             INITSTRUCT(sP_LS2CL_REP_PC_EXIT_DUPLICATE, resp);
             resp.iErrorCode = 0;
