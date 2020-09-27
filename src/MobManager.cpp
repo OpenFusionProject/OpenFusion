@@ -547,6 +547,10 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
         Player *plr = pair.second.plr;
         bool transmit = false;
 
+        // do not tick dead players
+        if (plr->HP <= 0)
+            continue;
+
         // fm patch/lake damage
         if (plr->dotDamage)
             dealGooDamage(sock, 150);
