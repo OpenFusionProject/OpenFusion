@@ -40,7 +40,7 @@ void TableData::init() {
         std::cerr << "[WARN] Malformed NPCs.json file! Reason:" << err.what() << std::endl;
     }
 
-    loadPaths(); // load paths
+    loadPaths(&nextId); // load paths
 
     // load everything else from xdttable
     std::cout << "[INFO] Parsing xdt.json..." << std::endl;
@@ -222,7 +222,7 @@ int TableData::getItemType(int itemSet) {
 /*
  * Load paths from paths JSON.
  */
-void TableData::loadPaths() {
+void TableData::loadPaths(int* nextId) {
     try {
         std::ifstream inFile(settings::PATHJSON);
         nlohmann::json pathData;
@@ -236,6 +236,23 @@ void TableData::loadPaths() {
             constructPathSkyway(skywayPath);
         }
         std::cout << "[INFO] Loaded " << TransportManager::SkywayPaths.size() << " skyway paths" << std::endl;
+
+        // slider circuit
+        int sliders = 0;
+        nlohmann::json pathDataSlider = pathData["slider"];
+        for (nlohmann::json::iterator _sliderPoint = pathDataSlider.begin(); _sliderPoint != pathDataSlider.end(); _sliderPoint++) {
+            auto sliderPoint = _sliderPoint.value();
+            if (sliderPoint["stop"] && sliders % 2 == 0) { // check if this point in the circuit is a stop
+                // spawn a slider
+                std::cout << "bus ID was " << *nextId << std::endl;
+                BaseNPC* slider = new BaseNPC(sliderPoint["iX"], sliderPoint["iY"], sliderPoint["iZ"], 1, (*nextId)++, NPC_BUS);
+                NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
+                NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->appearanceData.iX, slider->appearanceData.iY, slider->appearanceData.iZ);
+                // set slider path to a rotation of the circuit
+                constructPathSlider(pathDataSlider, 0, slider->appearanceData.iNPC_ID);
+                sliders++;
+            }
+        }
 
         // npc paths
         nlohmann::json pathDataNPC = pathData["npc"];
@@ -269,6 +286,33 @@ void TableData::constructPathSkyway(nlohmann::json::iterator _pathData) {
         last = coords; // update start pos
     }
     TransportManager::SkywayPaths[pathData["iRouteID"]] = points;
+}
+
+void TableData::constructPathSlider(nlohmann::json points, int rotations, int sliderID) {
+
+    std::queue<WarpLocation> route;
+    std::rotate(points.begin(), points.begin() + rotations, points.end()); // rotate points
+    nlohmann::json::iterator _point = points.begin(); // iterator
+    auto point = _point.value();
+    WarpLocation from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
+    int stopTime = point["stop"] ? SLIDER_STOP_TICKS : 0; // arbitrary stop length
+    for (_point++; _point != points.end(); _point++) { // loop through all point Bs
+        point = _point.value();
+        for (int i = 0; i < stopTime + 1; i++) // repeat point if it's a stop
+            route.push(from); // add point A to the queue
+        WarpLocation to = { point["iX"] , point["iY"] , point["iZ"] }; // point B coords
+        float curve = 1;
+        if (stopTime > 0) { // point A is a stop
+            curve = 2.0f;
+        } else if (point["stop"]) { // point B is a stop
+            curve = 0.35f;
+        }
+        TransportManager::lerp(&route, from, to, SLIDER_SPEED, curve); // lerp from A to B (arbitrary speed)
+        from = to; // update point A
+        stopTime = point["stop"] ? SLIDER_STOP_TICKS : 0;
+    }
+    std::rotate(points.rbegin(), points.rbegin() + rotations, points.rend()); // undo rotation
+    TransportManager::NPCQueues[sliderID] = route;
 }
 
 void TableData::constructPathNPC(nlohmann::json::iterator _pathData) {

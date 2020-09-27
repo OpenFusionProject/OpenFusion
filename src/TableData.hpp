@@ -8,7 +8,8 @@ namespace TableData {
     void cleanup();
 
     int getItemType(int);
-    void loadPaths();
+    void loadPaths(int*);
     void constructPathSkyway(nlohmann::json::iterator);
+    void constructPathSlider(nlohmann::json, int, int);
     void constructPathNPC(nlohmann::json::iterator);
 }

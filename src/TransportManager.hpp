@@ -5,6 +5,9 @@
 
 #include <unordered_map>
 
+const int SLIDER_SPEED = 1200;
+const int SLIDER_STOP_TICKS = 8;
+
 struct WarpLocation;
 
 struct TransportRoute {
@@ -31,5 +34,6 @@ namespace TransportManager {
     void stepNPCPathing();
     void stepSkywaySystem();
 
+    void lerp(std::queue<WarpLocation>*, WarpLocation, WarpLocation, int, float);
     void lerp(std::queue<WarpLocation>*, WarpLocation, WarpLocation, int);
 }
