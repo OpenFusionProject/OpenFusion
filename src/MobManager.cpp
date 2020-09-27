@@ -69,6 +69,7 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         respdata[i].iHitFlag = 2; // hitscan, not a rocket or a grenade
     }
 
+    resp->iBatteryW = plr->batteryW;
     sock->sendPacket((void*)respbuf, P_FE2CL_PC_ATTACK_NPCs_SUCC, resplen);
 
     // a bit of a hack: these are the same size, so we can reuse the response packet
@@ -133,6 +134,8 @@ void MobManager::giveReward(CNSocket *sock) {
     // simple rewards
     reward->m_iCandy = plr->money;
     reward->m_iFusionMatter = plr->fusionmatter;
+    reward->m_iBatteryN = plr->batteryN;
+    reward->m_iBatteryW = plr->batteryW;
     reward->iFatigue = 100; // prevents warning message
     reward->iFatigue_Level = 1;
     reward->iItemCnt = 1; // remember to update resplen if you change this
@@ -315,7 +318,7 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
      * We reuse nextAttack to avoid scanning for players all the time, but to still
      * do so more often than if we waited for nextMovement (which is way too slow).
      */
-    if (mob->nextAttack == 0 || currTime < mob->nextAttack) {
+    if (mob->nextAttack == 0 || currTime >= mob->nextAttack) {
         mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
 
         /*
