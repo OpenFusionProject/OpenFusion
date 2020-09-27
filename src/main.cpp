@@ -98,7 +98,7 @@ int main() {
     NanoManager::init();
     NPCManager::init();
     TransportManager::init();
-    BuddyManager::init();
+    // BuddyManager::init(); // stubbed until we have database integration + lots of bug fixes
 
     Database::open();
 
