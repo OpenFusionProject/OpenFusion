@@ -318,7 +318,7 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
      * We reuse nextAttack to avoid scanning for players all the time, but to still
      * do so more often than if we waited for nextMovement (which is way too slow).
      */
-    if (mob->nextAttack == 0 || currTime < mob->nextAttack) {
+    if (mob->nextAttack == 0 || currTime >= mob->nextAttack) {
         mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
 
         /*
