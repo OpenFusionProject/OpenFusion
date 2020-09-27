@@ -104,5 +104,5 @@ namespace MobManager {
     void killMob(CNSocket *sock, Mob *mob);
     void giveReward(CNSocket *sock);
     std::pair<int,int> lerp(int, int, int, int, int);
-    std::pair<int,int> getDamage(int, int, bool);
+    std::pair<int,int> getDamage(int, int, bool, int);
 }

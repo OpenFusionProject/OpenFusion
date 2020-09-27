@@ -7,6 +7,13 @@
 #include <cmath>
 #include <assert.h>
 
+#ifndef MIN
+# define MIN(A,B) ((A)<(B)?(A):(B))
+#endif
+#ifndef MAX
+# define MAX(A,B) ((A)>(B)?(A):(B))
+#endif
+
 std::map<int32_t, Mob*> MobManager::Mobs;
 
 void MobManager::init() {
@@ -64,9 +71,9 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         std::pair<int,int> damage;
 
         if (pkt->iNPCCnt > 1)
-            damage = getDamage(plr->groupDamage, (int)mob->data["m_iProtection"], true);
+            damage = getDamage(plr->groupDamage, (int)mob->data["m_iProtection"], true, (int)mob->data["m_iNpcLevel"]);
         else
-            damage = getDamage(plr->pointDamage, (int)mob->data["m_iProtection"], true);
+            damage = getDamage(plr->pointDamage, (int)mob->data["m_iProtection"], true, (int)mob->data["m_iNpcLevel"]);
 
         damage.first = hitMob(sock, mob, damage.first);
 
@@ -100,7 +107,7 @@ void MobManager::npcAttackPc(Mob *mob) {
     sP_FE2CL_NPC_ATTACK_PCs *pkt = (sP_FE2CL_NPC_ATTACK_PCs*)respbuf;
     sAttackResult *atk = (sAttackResult*)(respbuf + sizeof(sP_FE2CL_NPC_ATTACK_PCs));
 
-    auto damage = getDamage(440 + (int)mob->data["m_iPower"], plr->defense, false);
+    auto damage = getDamage(440 + (int)mob->data["m_iPower"], plr->defense, false, 36 - (int)mob->data["m_iNpcLevel"]);
     plr->HP -= damage.first;
 
     pkt->iNPC_ID = mob->appearanceData.iNPC_ID;
@@ -280,7 +287,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
         // movement logic
         if (mob->nextMovement != 0 && currTime < mob->nextMovement)
             return;
-        mob->nextMovement = currTime + (int)mob->data["m_iDelayTime"] * 100;
+        mob->nextMovement = currTime + 500;
 
         int speed = mob->data["m_iRunSpeed"];
 
@@ -386,6 +393,11 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
 
 void MobManager::retreatStep(Mob *mob, time_t currTime) {
     // distance between spawn point and current location
+    if (mob->nextMovement != 0 && currTime < mob->nextMovement)
+        return;
+
+    mob->nextMovement = currTime + 500;
+    
     int distance = hypot(mob->appearanceData.iX - mob->spawnX, mob->appearanceData.iY - mob->spawnY);
 
     if (distance > mob->data["m_iIdleRange"]) {
@@ -458,13 +470,21 @@ void MobManager::step(CNServer *serv, time_t currTime) {
 std::pair<int,int> MobManager::lerp(int x1, int y1, int x2, int y2, int speed) {
     std::pair<int,int> ret = {};
 
+    speed /= 2;
     int distance = hypot(x1 - x2, y1 - y2);
-    int lerps = distance / speed;
 
-    // interpolate only the first point
-    float frac = 1.0f / (lerps+1);
-    ret.first = (x1 * (1.0f - frac)) + (x2 * frac);
-    ret.second = (y1 * (1.0f - frac)) + (y2 * frac);
+    if (distance > speed) {
+        int lerps = distance / speed;
+
+        // interpolate only the first point
+        float frac = 1.0f / (lerps);     
+
+        ret.first = (x1 + (x2 - x1) * frac);
+        ret.second = (y1 + (y2 - y1) * frac);
+    } else {
+        ret.first = x2;
+        ret.second = y2;
+    }
 
     return ret;
 }
@@ -573,19 +593,18 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
     }
 }
 
-std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool shouldCrit) {
+std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool shouldCrit, int crutchLevel) {
 
     std::pair<int,int> ret = {};
 
-    int damage = attackPower * (rand() % 40 + 80) / 100; // 20% variance
+    int damage = (MAX(40, attackPower - defensePower) * (34 + crutchLevel) + MIN(attackPower, attackPower * attackPower / defensePower) * (36 - crutchLevel)) / 70;
+    ret.first = damage * (rand() % 40 + 80) / 100; // 20% variance
     ret.second = 1;
 
     if (shouldCrit && rand() % 20 == 0) {
-        damage *= 2; // critical hit
+        ret.first *= 2; // critical hit
         ret.second = 2;
     }
-
-    ret.first = std::max(std::min(damage, damage * damage / defensePower / 4), std::min(damage * damage / defensePower / 2, damage - defensePower));
 
     return ret;
 }
