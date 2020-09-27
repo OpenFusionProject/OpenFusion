@@ -5,7 +5,7 @@
 
 struct Item {
     bool tradeable, sellable;
-    int buyPrice, sellPrice, stackSize, level, rarity; // TODO: implement more as needed
+    int buyPrice, sellPrice, stackSize, level, rarity, pointDamage, groupDamage, defense; // TODO: implement more as needed
 };
 struct VendorListing {
     int sort, type, iID;
@@ -49,4 +49,5 @@ namespace ItemManager {
     int findFreeSlot(Player *plr);
     Item* getItemData(int32_t id, int32_t type);
     void checkItemExpire(CNSocket* sock, Player* player);
+    void setItemStats(Player* plr);
 }

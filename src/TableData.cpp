@@ -117,8 +117,7 @@ void TableData::init() {
                 auto item = _item.value();
                 int typeOverride = getItemType(i); // used for special cases where iEquipLoc doesn't indicate item type
                 ItemManager::ItemData[std::pair<int32_t, int32_t>(item["m_iItemNumber"], typeOverride != -1 ? typeOverride : (int)item["m_iEquipLoc"])]
-                = { item["m_iTradeAble"] == 1, item["m_iSellAble"] == 1, item["m_iItemPrice"], item["m_iItemSellPrice"], item["m_iStackNumber"], i > 9 ? 0 : (int)item["m_iMinReqLev"],
-                i > 9 ? 1 : (int)item["m_iRarity"] };
+                = { item["m_iTradeAble"] == 1, item["m_iSellAble"] == 1, item["m_iItemPrice"], item["m_iItemSellPrice"], item["m_iStackNumber"], i > 9 ? 0 : (int)item["m_iMinReqLev"], i > 9 ? 1 : (int)item["m_iRarity"], i > 9 ? 0 : (int)item["m_iPointRat"], i > 9 ? 0 : (int)item["m_iGroupRat"], i > 9 ? 0 : (int)item["m_iDefenseRat"] };
             }
         }
 

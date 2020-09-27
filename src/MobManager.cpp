@@ -61,12 +61,19 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         }
         Mob *mob = Mobs[pktdata[i]];
 
-        int damage = hitMob(sock, mob, 150);
+        std::pair<int,int> damage;
+
+        if (pkt->iNPCCnt > 1)
+            damage = getDamage(plr->groupDamage, (int)mob->data["m_iProtection"], true);
+        else
+            damage = getDamage(plr->pointDamage, (int)mob->data["m_iProtection"], true);
+
+        damage.first = hitMob(sock, mob, damage.first);
 
         respdata[i].iID = mob->appearanceData.iNPC_ID;
-        respdata[i].iDamage = damage;
+        respdata[i].iDamage = damage.first;
         respdata[i].iHP = mob->appearanceData.iHP;
-        respdata[i].iHitFlag = 2; // hitscan, not a rocket or a grenade
+        respdata[i].iHitFlag = damage.second; // hitscan, not a rocket or a grenade
     }
 
     sock->sendPacket((void*)respbuf, P_FE2CL_PC_ATTACK_NPCs_SUCC, resplen);
@@ -93,15 +100,16 @@ void MobManager::npcAttackPc(Mob *mob) {
     sP_FE2CL_NPC_ATTACK_PCs *pkt = (sP_FE2CL_NPC_ATTACK_PCs*)respbuf;
     sAttackResult *atk = (sAttackResult*)(respbuf + sizeof(sP_FE2CL_NPC_ATTACK_PCs));
 
-    plr->HP += (int)mob->data["m_iPower"]; // already negative
+    auto damage = getDamage(440 + (int)mob->data["m_iPower"], plr->defense, false);
+    plr->HP -= damage.first;
 
     pkt->iNPC_ID = mob->appearanceData.iNPC_ID;
     pkt->iPCCnt = 1;
 
     atk->iID = plr->iID;
-    atk->iDamage = -(int)mob->data["m_iPower"];
+    atk->iDamage = damage.first;
     atk->iHP = plr->HP;
-    atk->iHitFlag = 2;
+    atk->iHitFlag = damage.second;
 
     mob->target->sendPacket((void*)respbuf, P_FE2CL_NPC_ATTACK_PCs, resplen);
     PlayerManager::sendToViewable(mob->target, (void*)respbuf, P_FE2CL_NPC_ATTACK_PCs, resplen);
@@ -563,4 +571,21 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
             sock->sendPacket((void*)&pkt, P_FE2CL_REP_PC_TICK, sizeof(sP_FE2CL_REP_PC_TICK));
         }
     }
+}
+
+std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool shouldCrit) {
+
+    std::pair<int,int> ret = {};
+
+    int damage = attackPower * (rand() % 40 + 80) / 100; // 20% variance
+    ret.second = 1;
+
+    if (shouldCrit && rand() % 20 == 0) {
+        damage *= 2; // critical hit
+        ret.second = 2;
+    }
+
+    ret.first = std::max(std::min(damage, damage * damage / defensePower / 4), std::min(damage * damage / defensePower / 2, damage - defensePower));
+
+    return ret;
 }
