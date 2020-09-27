@@ -123,6 +123,9 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 
         // send equip event to other players
         PlayerManager::sendToViewable(sock, (void*)&equipChange, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
+        
+        // set equipment stats serverside
+        setItemStats(plr.plr);
     }
 
     // send response
@@ -859,3 +862,19 @@ void ItemManager::checkItemExpire(CNSocket* sock, Player* player) {
     player->toRemoveVehicle.eIL = 0;
     player->toRemoveVehicle.iSlotNum = 0;
 }
+
+void ItemManager::setItemStats(Player* plr) {
+
+    plr->pointDamage = 8 + plr->level * 2;
+    plr->groupDamage = 8 + plr->level * 2;
+    plr->defense = 16 + plr->level * 4;
+
+    Item* itemStatsDat;
+
+    for (int i = 0; i < 4; i++) {
+        itemStatsDat = ItemManager::getItemData(plr->Equip[i].iID, plr->Equip[i].iType);
+        plr->pointDamage += itemStatsDat->pointDamage;
+        plr->groupDamage += itemStatsDat->groupDamage;
+        plr->defense += itemStatsDat->defense;
+    }
+} 

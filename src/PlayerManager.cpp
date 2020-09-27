@@ -322,6 +322,9 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     addPlayer(sock, plr);
     //check if there is an expiring vehicle
     ItemManager::checkItemExpire(sock, getPlayer(sock));
+    
+    //set player equip stats
+    ItemManager::setItemStats(getPlayer(sock));
 }
 
 void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size) {
