@@ -506,7 +506,6 @@ void MobManager::dealGooDamage(CNSocket *sock, int amount) {
 }
 
 void MobManager::playerTick(CNServer *serv, time_t currTime) {
-    static time_t lastHealTime = 0;
     for (auto& pair : PlayerManager::players) {
         CNSocket *sock = pair.first;
         Player *plr = pair.second.plr;
@@ -517,9 +516,10 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
             dealGooDamage(sock, 150);
 
         // a somewhat hacky way tick goo damage faster than heal, but eh
-        if (currTime - lastHealTime < 4000)
+        if (currTime - plr->lastHealTime < 4000)
             continue;
-        lastHealTime = currTime;
+        
+        plr->lastHealTime = currTime;
 
         // heal
         if (!plr->inCombat && plr->HP < PC_MAXHEALTH(plr->level)) {

@@ -46,6 +46,7 @@ struct Player {
 
     bool inCombat;
     bool dotDamage;
+    time_t lastHealTime;
 
     int64_t aQuestFlag[16];
     int tasks[ACTIVE_MISSION_COUNT];
