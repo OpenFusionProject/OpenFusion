@@ -560,6 +560,8 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
     resp.iX = Warps[warpId].x;
     resp.iY = Warps[warpId].y;
     resp.iZ = Warps[warpId].z;
+    resp.iCandy = plrv.plr->money;
+    resp.eIL = 4; // do not take away any items
 
     // force player & NPC reload
     PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);

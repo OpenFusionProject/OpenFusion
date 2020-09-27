@@ -329,7 +329,10 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
         for (Chunk *chunk : mob->currentChunks) {
             for (CNSocket *s : chunk->players) {
                 Player *plr = s->plr;
-                int distance = hypot(mob->appearanceData.iX - plr->x, mob->appearanceData.iY - plr->y);
+
+                // height is relevant for aggro distance because of platforming
+                int xyDistance = hypot(mob->appearanceData.iX - plr->x, mob->appearanceData.iY - plr->y);
+                int distance = hypot(xyDistance, mob->appearanceData.iZ - plr->z);
                 if (distance > mob->data["m_iSightRange"])
                     continue;
 
@@ -509,6 +512,8 @@ void MobManager::dealGooDamage(CNSocket *sock, int amount) {
 }
 
 void MobManager::playerTick(CNServer *serv, time_t currTime) {
+    static time_t lastHealTime = 0;
+
     for (auto& pair : PlayerManager::players) {
         CNSocket *sock = pair.first;
         Player *plr = pair.second.plr;
@@ -519,10 +524,8 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
             dealGooDamage(sock, 150);
 
         // a somewhat hacky way tick goo damage faster than heal, but eh
-        if (currTime - plr->lastHealTime < 4000)
+        if (currTime - lastHealTime < 4000)
             continue;
-        
-        plr->lastHealTime = currTime;
 
         // heal
         if (!plr->inCombat && plr->HP < PC_MAXHEALTH(plr->level)) {
@@ -554,8 +557,6 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
         if (transmit) {
             INITSTRUCT(sP_FE2CL_REP_PC_TICK, pkt);
 
-            std::cout << "sending sP_FE2CL_REP_PC_TICK" << std::endl;
-
             pkt.iHP = plr->HP;
             pkt.iBatteryN = plr->batteryN;
 
@@ -566,4 +567,8 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
             sock->sendPacket((void*)&pkt, P_FE2CL_REP_PC_TICK, sizeof(sP_FE2CL_REP_PC_TICK));
         }
     }
+
+    // if this was a heal tick, update the counter outside of the loop
+    if (currTime - lastHealTime < 4000)
+        lastHealTime = currTime;
 }
