@@ -674,10 +674,10 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
         plr->HP = setData->iSetValue;
         break;
     case 2:
-        // TODO: batteryW
+        plr->batteryW = setData->iSetValue;
         break;
     case 3:
-        // TODO: batteryN nanopotion
+        plr->batteryN = setData->iSetValue;
         break;
     case 4:
         plr->fusionmatter = setData->iSetValue;

@@ -670,11 +670,11 @@ void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
                 return;
             }
 
-            target->HP -= 100;
+            target->HP -= 700;
 
             respdata[i].eCT = pktdata[i*2+1];
             respdata[i].iID = target->iID;
-            respdata[i].iDamage = 100;
+            respdata[i].iDamage = 700;
             respdata[i].iHP = target->HP;
             respdata[i].iHitFlag = 2; // hitscan, not a rocket or a grenade
         } else { // eCT == 4; attack mob
