@@ -495,6 +495,9 @@ std::pair<int,int> MobManager::lerp(int x1, int y1, int x2, int y2, int speed) {
     int distance = hypot(x1 - x2, y1 - y2);
 
     if (distance > speed) {
+        if (speed == 0)
+            speed = 1;
+        
         int lerps = distance / speed;
 
         // interpolate only the first point
