@@ -32,6 +32,9 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_REQ_PC_ATTACK_NPCs* pkt = (sP_CL2FE_REQ_PC_ATTACK_NPCs*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr)
+        return;
+
     // sanity check
     if (!validInVarPacket(sizeof(sP_CL2FE_REQ_PC_ATTACK_NPCs), pkt->iNPCCnt, sizeof(int32_t), data->size)) {
         std::cout << "[WARN] bad sP_CL2FE_REQ_PC_ATTACK_NPCs packet size\n";
@@ -98,8 +101,10 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 }
 
 void MobManager::npcAttackPc(Mob *mob) {
-    // player pointer has already been validated
     Player *plr = PlayerManager::getPlayer(mob->target);
+
+    if (plr == nullptr)
+        return;
 
     const size_t resplen = sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC) + sizeof(sAttackResult);
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
@@ -131,6 +136,9 @@ void MobManager::npcAttackPc(Mob *mob) {
 
 void MobManager::giveReward(CNSocket *sock) {
     Player *plr = PlayerManager::getPlayer(sock);
+
+    if (plr == nullptr)
+        return;
 
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
@@ -267,6 +275,9 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
         return;
     }
     Player *plr = PlayerManager::getPlayer(mob->target);
+
+    if (plr == nullptr)
+        return;
 
     // did something else kill the player in the mean time?
     if (plr->HP <= 0) {
@@ -501,19 +512,24 @@ std::pair<int,int> MobManager::lerp(int x1, int y1, int x2, int y2, int speed) {
 
 void MobManager::combatBegin(CNSocket *sock, CNPacketData *data) {
     Player *plr = PlayerManager::getPlayer(sock);
-    plr->inCombat = true;
+
+    if (plr != nullptr)
+        plr->inCombat = true;
 }
 
 void MobManager::combatEnd(CNSocket *sock, CNPacketData *data) {
     Player *plr = PlayerManager::getPlayer(sock);
-    plr->inCombat = false;
+
+    if (plr != nullptr)
+        plr->inCombat = false;
 }
 
 void MobManager::dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_DOT_DAMAGE_ONOFF *pkt = (sP_CL2FE_DOT_DAMAGE_ONOFF*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
-    plr->dotDamage = (bool)pkt->iFlag;
+    if (plr != nullptr)
+        plr->dotDamage = (bool)pkt->iFlag;
 }
 
 void MobManager::dealGooDamage(CNSocket *sock, int amount) {
@@ -526,6 +542,9 @@ void MobManager::dealGooDamage(CNSocket *sock, int amount) {
     sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK *pkt = (sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK*)respbuf;
     sSkillResult_DotDamage *dmg = (sSkillResult_DotDamage*)(respbuf + sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
     Player *plr = PlayerManager::getPlayer(sock);
+
+    if (plr == nullptr)
+        return;
 
     // update player
     plr->HP -= amount;
@@ -628,6 +647,9 @@ std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool
 void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_REQ_PC_ATTACK_CHARs* pkt = (sP_CL2FE_REQ_PC_ATTACK_CHARs*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
+
+    if (plr == nullptr)
+        return;
 
     // Unlike the attack mob packet, attacking players packet has an 8-byte trail (Instead of 4 bytes).
     if (!validInVarPacket(sizeof(sP_CL2FE_REQ_PC_ATTACK_CHARs), pkt->iTargetCnt, sizeof(int32_t) * 2, data->size)) {

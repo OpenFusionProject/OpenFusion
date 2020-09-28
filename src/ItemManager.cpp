@@ -198,6 +198,9 @@ void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_ITEM_USE* request = (sP_CL2FE_REQ_ITEM_USE*)data->buf;
     Player* player = PlayerManager::getPlayer(sock);
 
+    if (player == nullptr)
+        return;
+
     //gumball can only be used from inventory, so we ignore eIL
     sItemBase gumball = player->Inven[request->iSlotNum];
     sNano nano = player->Nanos[player->equippedNanos[request->iNanoSlot]];
@@ -768,6 +771,9 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
 
     sP_CL2FE_REQ_ITEM_CHEST_OPEN *pkt = (sP_CL2FE_REQ_ITEM_CHEST_OPEN *)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
+
+    if (plr == nullptr)
+        return;
 
     // item giving packet
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);

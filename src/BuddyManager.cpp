@@ -29,6 +29,9 @@ void BuddyManager::requestBuddy(CNSocket* sock, CNPacketData* data) {
 
 	Player* plrReq = PlayerManager::getPlayer(sock);
 
+	if (plrReq == nullptr)
+		return;
+
 	sP_CL2FE_REQ_REQUEST_MAKE_BUDDY* pkt = (sP_CL2FE_REQ_REQUEST_MAKE_BUDDY*)data->buf;
 
 	INITSTRUCT(sP_FE2CL_REP_REQUEST_MAKE_BUDDY_SUCC, resp);
@@ -62,6 +65,9 @@ void BuddyManager::reqBuddyByName(CNSocket* sock, CNPacketData* data) {
 	sP_CL2FE_REQ_PC_FIND_NAME_MAKE_BUDDY* pkt = (sP_CL2FE_REQ_PC_FIND_NAME_MAKE_BUDDY*)data->buf;
 	Player* plrReq = PlayerManager::getPlayer(sock);
 
+	if (plrReq == nullptr)
+		return;
+
 	INITSTRUCT(sP_FE2CL_REP_PC_FIND_NAME_MAKE_BUDDY_SUCC, resp);
 
 	CNSocket* otherSock = sock;
@@ -94,6 +100,9 @@ void BuddyManager::reqAcceptBuddy(CNSocket* sock, CNPacketData* data) {
 
 	sP_CL2FE_REQ_ACCEPT_MAKE_BUDDY* pkt = (sP_CL2FE_REQ_ACCEPT_MAKE_BUDDY*)data->buf;
 	Player* plrReq = PlayerManager::getPlayer(sock);
+
+	if (plrReq == nullptr)
+		return;
 
 	INITSTRUCT(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, resp);
 
@@ -156,6 +165,9 @@ void BuddyManager::reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
 
 	sP_CL2FE_REQ_PC_FIND_NAME_ACCEPT_BUDDY* pkt = (sP_CL2FE_REQ_PC_FIND_NAME_ACCEPT_BUDDY*)data->buf;
 	Player* plrReq = PlayerManager::getPlayer(sock);
+
+	if (plrReq == nullptr)
+		return;
 
 	INITSTRUCT(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, resp);
 
@@ -227,6 +239,9 @@ void BuddyManager::reqBuddyFreechat(CNSocket* sock, CNPacketData* data) {
 	sP_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE* pkt = (sP_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE*)data->buf;
 	Player* plr = PlayerManager::getPlayer(sock);
 
+	if (plr == nullptr)
+		return;
+
 	INITSTRUCT(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, resp);
 
 	CNSocket* otherSock = sock;
@@ -254,6 +269,9 @@ void BuddyManager::reqBuddyMenuchat(CNSocket* sock, CNPacketData* data) {
 
 	sP_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE* pkt = (sP_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE*)data->buf;
 	Player* plr = PlayerManager::getPlayer(sock);
+
+	if (plr == nullptr)
+		return;
 
 	INITSTRUCT(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, resp);
 

@@ -659,6 +659,9 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_GM_REQ_PC_SET_VALUE* setData = (sP_CL2FE_GM_REQ_PC_SET_VALUE*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr)
+        return;
+
     INITSTRUCT(sP_FE2CL_GM_REP_PC_SET_VALUE, response);
 
     DEBUGLOG(
@@ -718,6 +721,10 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
         return;
 
     Player *plr = PlayerManager::getPlayer(sock);
+
+    if (plr == nullptr)
+        return;
+
     WarpLocation target = PlayerManager::getRespawnPoint(plr);
 
     sP_CL2FE_REQ_PC_REGEN* reviveData = (sP_CL2FE_REQ_PC_REGEN*)data->buf;
@@ -857,8 +864,10 @@ void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
 
 #pragma region Helper methods
 Player *PlayerManager::getPlayer(CNSocket* key) {
-    assert(key->plr != nullptr);
-    return key->plr;
+    if (players.find(key) != players.end())
+        return players[key].plr;
+    
+    return nullptr;
 }
 
 WarpLocation PlayerManager::getRespawnPoint(Player *plr) {

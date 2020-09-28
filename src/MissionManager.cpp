@@ -67,6 +67,9 @@ void MissionManager::taskStart(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_SUCC, response);
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr)
+        return;
+
     if (!startTask(plr, missionData->iTaskNum, false)) {
         // TODO: TASK_FAIL?
         response.iTaskNum = missionData->iTaskNum;
@@ -108,6 +111,9 @@ void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
 
 bool MissionManager::endTask(CNSocket *sock, int32_t taskNum) {
     Player *plr = PlayerManager::getPlayer(sock);
+
+    if (plr == nullptr)
+        return false;
 
     if (Tasks.find(taskNum) == Tasks.end())
         return false;
@@ -178,13 +184,17 @@ void MissionManager::setMission(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID))
         return; // malformed packet
 
+    Player* plr = PlayerManager::getPlayer(sock);
+    
+    if (plr == nullptr)
+        return;
+
     sP_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID* missionData = (sP_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, response);
-    
     response.iCurrentMissionID = missionData->iCurrentMissionID;
-    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, sizeof(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID));
-    Player* plr = PlayerManager::getPlayer(sock);
     plr->CurrentMissionID = missionData->iCurrentMissionID;
+
+    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, sizeof(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID));
 }
 
 void MissionManager::quitMission(CNSocket* sock, CNPacketData* data) {
@@ -198,6 +208,9 @@ void MissionManager::quitMission(CNSocket* sock, CNPacketData* data) {
 void MissionManager::quitTask(CNSocket* sock, int32_t taskNum) {
     INITSTRUCT(sP_FE2CL_REP_PC_TASK_STOP_SUCC, response);
     Player* plr = PlayerManager::getPlayer(sock);
+
+    if (plr == nullptr)
+        return;
 
     // update player
     int i;
@@ -257,11 +270,15 @@ void MissionManager::dropQuestItem(CNSocket *sock, int task, int count, int id, 
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
     assert(resplen < CN_PACKET_BUFFER_SIZE);
     // we know it's only one trailing struct, so we can skip full validation
+    
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    if (plr == nullptr)
+        return;
 
     uint8_t respbuf[resplen]; // not a variable length array, don't worry
     sP_FE2CL_REP_REWARD_ITEM *reward = (sP_FE2CL_REP_REWARD_ITEM *)respbuf;
     sItemReward *item = (sItemReward *)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
-    Player *plr = PlayerManager::getPlayer(sock);
 
     // don't forget to zero the buffer!
     memset(respbuf, 0, resplen);
@@ -307,6 +324,9 @@ void MissionManager::dropQuestItem(CNSocket *sock, int task, int count, int id, 
 int MissionManager::giveMissionReward(CNSocket *sock, int task) {
     Reward *reward = Rewards[task];
     Player *plr = PlayerManager::getPlayer(sock);
+
+    if (plr == nullptr)
+        return -1;
 
     int nrewards = 0;
     for (int i = 0; i < 4; i++) {
@@ -367,6 +387,9 @@ int MissionManager::giveMissionReward(CNSocket *sock, int task) {
 void MissionManager::updateFusionMatter(CNSocket* sock, int fusion) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr)
+        return;
+
     plr->fusionmatter += fusion;
 
     // there's a much lower FM cap in the Future
@@ -400,6 +423,10 @@ void MissionManager::updateFusionMatter(CNSocket* sock, int fusion) {
 
 void MissionManager::mobKilled(CNSocket *sock, int mobid) {
     Player *plr = PlayerManager::getPlayer(sock);
+
+    if (plr == nullptr)
+        return;
+    
     bool missionmob = false;
 
     for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
@@ -465,6 +492,10 @@ void MissionManager::saveMission(Player* player, int missionId) {
 
 bool MissionManager::isQuestItemFull(CNSocket* sock, int itemId, int itemCount) {
     Player* plr = PlayerManager::getPlayer(sock);
+
+    if (plr == nullptr)
+        return true;
+
     int slot = findQSlot(plr, itemId);
     if (slot == -1) {
         // this should never happen

@@ -61,7 +61,12 @@ void CNShardServer::killConnection(CNSocket* cns) {
     if (PlayerManager::players.find(cns) == PlayerManager::players.end())
         return;
 
-    int64_t key = PlayerManager::getPlayer(cns)->SerialKey;
+    Player* plr = PlayerManager::getPlayer(cns);
+
+    if (plr == nullptr)
+        return;
+        
+    int64_t key = plr->SerialKey;
     
     // save player to DB
     Database::updatePlayer(PlayerManager::players[cns].plr);
