@@ -107,4 +107,5 @@ namespace MobManager {
     std::pair<int,int> getDamage(int, int, bool, int);
 
     void pcAttackChars(CNSocket *sock, CNPacketData *data);
+    void resendMobHP(Mob *mob);
 }
