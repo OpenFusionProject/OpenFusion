@@ -10,7 +10,15 @@
 #include "contrib/sqlite/sqlite_orm.h"
 #include "MissionManager.hpp"
 
+#if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
+    #include "mingw/mingw.mutex.h"
+#else
+    #include <mutex>
+#endif
+
 using namespace sqlite_orm;
+
+std::mutex dbCrit;
 
 # pragma region DatabaseScheme
 auto db = make_storage("database.db",
@@ -123,6 +131,8 @@ int Database::getPlayersCount() {
 
 int Database::addAccount(std::string login, std::string password)
 {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
     password = BCrypt::generateHash(password);
     Account account = {};
     account.Login = login;
@@ -134,6 +144,8 @@ int Database::addAccount(std::string login, std::string password)
 
 void Database::updateSelected(int accountId, int slot)
 {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
     Account acc = db.get<Account>(accountId);
     acc.Selected = slot;
     //timestamp
@@ -143,6 +155,8 @@ void Database::updateSelected(int accountId, int slot)
 
 std::unique_ptr<Database::Account> Database::findAccount(std::string login)
 {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
     // this is awful, I've tried everything to improve it
     auto find = db.get_all<Account>(
         where(c(&Account::Login) == login), limit(1));
@@ -154,6 +168,8 @@ std::unique_ptr<Database::Account> Database::findAccount(std::string login)
 
 bool Database::isNameFree(sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck)
 {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
     std::string First = U16toU8(nameCheck->szFirstName);
     std::string Last = U16toU8(nameCheck->szLastName);
     return
@@ -165,6 +181,8 @@ bool Database::isNameFree(sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck)
 
 int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
 {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
     // fail if the player already has 4 or more characters
     if (db.count<DbPlayer>(where(c(&DbPlayer::AccountID) == AccountID)) >= 4)
         return -1;
@@ -216,6 +234,8 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
 
 void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character)
 {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
     DbPlayer finish = getDbPlayerById(character->PCStyle.iPC_UID);
     finish.AppearanceFlag = 1;
     finish.Body = character->PCStyle.iBody;
@@ -256,6 +276,8 @@ void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character)
 
 void Database::finishTutorial(int PlayerID)
 {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
     Player finish = getPlayer(PlayerID);
     // set flag
     finish.PCStyle2.iTutorialFlag= 1;
@@ -284,6 +306,8 @@ void Database::finishTutorial(int PlayerID)
 
 int Database::deleteCharacter(int characterID, int userID)
 {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
     auto find =
         db.get_all<DbPlayer>(where(c(&DbPlayer::PlayerID) == characterID and c(&DbPlayer::AccountID)==userID));
     int slot = find.front().slot;
@@ -296,6 +320,8 @@ int Database::deleteCharacter(int characterID, int userID)
 
 std::vector <Player> Database::getCharacters(int UserID)
 {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
     std::vector<DbPlayer>characters =
         db.get_all<DbPlayer>(where
         (c(&DbPlayer::AccountID) == UserID));
@@ -312,12 +338,16 @@ std::vector <Player> Database::getCharacters(int UserID)
 
 // XXX: This is never called?
 void Database::evaluateCustomName(int characterID, CustomName decision) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
     DbPlayer player = getDbPlayerById(characterID);
     player.NameCheck = (int)decision;
     db.update(player);
 }
 
 void Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
     DbPlayer Player = getDbPlayerById(save->iPCUID);
     Player.FirstName = U16toU8(save->szFirstName);
     Player.LastName = U16toU8(save->szLastName);
@@ -381,7 +411,7 @@ Database::DbPlayer Database::playerToDb(Player *player)
     }
     //timestamp
     result.LastLogin = getTimestamp();
-    result.Created = getDbPlayerById(player->iID).Created;
+    result.Created = player->creationTime;
 
     return result;
 }
@@ -391,6 +421,7 @@ Player Database::DbToPlayer(DbPlayer player) {
 
     result.iID = player.PlayerID;
     result.accountId = player.AccountID;
+    result.creationTime = player.Created;
     result.PCStyle2.iAppearanceFlag = player.AppearanceFlag;
     result.PCStyle.iBody = player.Body;
     result.PCStyle.iClass = player.Class;
@@ -468,6 +499,8 @@ Player Database::getPlayer(int id) {
 #pragma region ShardServer
 
 void Database::updatePlayer(Player *player) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
     DbPlayer toUpdate = playerToDb(player);
     db.update(toUpdate);
     updateInventory(player);

@@ -16,6 +16,7 @@ struct Player {
     int64_t SerialKey;
     int32_t iID;
     uint64_t FEKey;
+    time_t creationTime;
 
     int level;
     int HP;
