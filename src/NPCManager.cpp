@@ -193,7 +193,7 @@ void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    int itemCost = item->sellPrice * (item->stackSize > 1 ? req->Item.iOpt : 1);
+    int itemCost = item->buyPrice * (item->stackSize > 1 ? req->Item.iOpt : 1);
     int slot = ItemManager::findFreeSlot(plr);
     if (itemCost > plr->money || slot == -1) {
         // NOTE: VENDOR_ITEM_BUY_FAIL is not actually handled client-side.

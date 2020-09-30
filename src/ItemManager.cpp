@@ -98,10 +98,38 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     resp.ToSlotItem = *toItem;
     resp.FromSlotItem = *fromItem;
 
-    // swap items in session
-    sItemBase temp = *toItem;
-    *toItem = *fromItem;
-    *fromItem = temp;
+    // swap/stack items in session
+    Item* itemDat = getItemData(toItem->iID, toItem->iType);
+    if (itemDat->stackSize > 1 && itemDat == getItemData(fromItem->iID, fromItem->iType) && fromItem->iOpt < itemDat->stackSize && toItem->iOpt < itemDat->stackSize) {
+        // items are stackable, identical, and not maxed, so run stacking logic
+
+        toItem->iOpt += fromItem->iOpt; // sum counts
+        fromItem->iOpt = 0; // deplete from item
+        if (toItem->iOpt > itemDat->stackSize) {
+            // handle overflow
+            fromItem->iOpt += (toItem->iOpt - itemDat->stackSize); // add overflow to fromItem
+            toItem->iOpt = itemDat->stackSize; // set toItem count to max
+        }
+
+        if (fromItem->iOpt == 0) { // from item count depleted
+            // delete item
+            fromItem->iID = 0;
+            fromItem->iType = 0;
+            fromItem->iTimeLimit = 0;
+        }
+
+        resp.iFromSlotNum = itemmove->iFromSlotNum;
+        resp.iToSlotNum = itemmove->iToSlotNum;
+        resp.FromSlotItem = *fromItem;
+        resp.ToSlotItem = *toItem;
+    } else {
+        // items not stackable; just swap them
+        sItemBase temp = *toItem;
+        *toItem = *fromItem;
+        *fromItem = temp;
+        resp.iFromSlotNum = itemmove->iToSlotNum;
+        resp.iToSlotNum = itemmove->iFromSlotNum;
+    }
 
     // send equip change to viewable players
     if (itemmove->eFrom == (int)SlotType::EQUIP || itemmove->eTo == (int)SlotType::EQUIP) {
@@ -130,9 +158,8 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 
     // send response
     resp.eTo = itemmove->eFrom;
-    resp.iToSlotNum = itemmove->iFromSlotNum;
     resp.eFrom = itemmove->eTo;
-    resp.iFromSlotNum = itemmove->iToSlotNum;
+    
 
     sock->sendPacket((void*)&resp, P_FE2CL_PC_ITEM_MOVE_SUCC, sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC));
 }
