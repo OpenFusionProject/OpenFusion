@@ -100,8 +100,8 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 
     // swap/stack items in session
     Item* itemDat = getItemData(toItem->iID, toItem->iType);
-    if (itemDat->stackSize > 1 && itemDat == getItemData(fromItem->iID, fromItem->iType)) {
-        // items are stackable and identical, so run stacking logic
+    if (itemDat->stackSize > 1 && itemDat == getItemData(fromItem->iID, fromItem->iType) && fromItem->iOpt < itemDat->stackSize && toItem->iOpt < itemDat->stackSize) {
+        // items are stackable, identical, and not maxed, so run stacking logic
 
         toItem->iOpt += fromItem->iOpt; // sum counts
         fromItem->iOpt = 0; // deplete from item
