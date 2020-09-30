@@ -230,8 +230,10 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot, bool spe
      * Note the use of the not-yet-incremented plr->level as opposed to level.
      * Doing it the other way always leaves the FM at 0. Jade totally called it.
      */
+    plr->level = level;
+     
     if (spendfm)
-        MissionManager::updateFusionMatter(sock, -(int)MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"]);
+        MissionManager::updateFusionMatter(sock, -(int)MissionManager::AvatarGrowth[plr->level-1]["m_iReqBlob_NanoCreate"]);
 
     // Send to client
     INITSTRUCT(sP_FE2CL_REP_PC_NANO_CREATE_SUCC, resp);
@@ -241,10 +243,11 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot, bool spe
     resp.iPC_Level = level;
     resp.iPC_FusionMatter = plr->fusionmatter;
 
+    if (plr->activeNano > 0 && plr->activeNano == nanoId)
+        summonNano(sock, -1); // just unsummon the nano to prevent infinite buffs
+    
     // Update player
     plr->Nanos[nanoId] = resp.Nano;
-    plr->level = level;
-    plr->iConditionBitFlag = 0;
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_NANO_CREATE_SUCC, sizeof(sP_FE2CL_REP_PC_NANO_CREATE_SUCC));
 
@@ -281,8 +284,10 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
     
     if (plr->activeNano > 0)
         for (auto& pwr : PassivePowers)
-            if (pwr.powers.count(plr->Nanos[plr->activeNano].iSkillID)) // std::set's contains method is C++20 only...
+            if (pwr.powers.count(plr->Nanos[plr->activeNano].iSkillID)) { // std::set's contains method is C++20 only...
                 nanoUnbuff(sock, pwr.iCBFlag, pwr.eCharStatusTimeBuffID, pwr.iValue);
+                plr->passiveNanoOut = false;
+            }
     
     sNano nano = plr->Nanos[nanoId];
     skillId = nano.iSkillID;
@@ -294,6 +299,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
             if (pwr.powers.count(skillId)) { // std::set's contains method is C++20 only...
                 resp.eCSTB___Add = 1;
                 nanoBuff(sock, nanoId, skillId, pwr.eSkillType, pwr.iCBFlag, pwr.eCharStatusTimeBuffID, pwr.iValue);
+                plr->passiveNanoOut = true;
             }
     } else
         plr->activeNano = 0;
@@ -324,6 +330,9 @@ void NanoManager::setNanoSkill(CNSocket* sock, int16_t nanoId, int16_t skillId) 
 
     if (plr == nullptr)
         return;
+    
+    if (plr->activeNano > 0 && plr->activeNano == nanoId)
+        summonNano(sock, -1); // just unsummon the nano to prevent infinite buffs
     
     sNano nano = plr->Nanos[nanoId];
 
@@ -417,16 +426,18 @@ bool doHeal(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *respdata, in
     // player not found
     if (plr == nullptr)
         return false;
-
-    if (plr->HP + amount > PC_MAXHEALTH(plr->level))
+    
+    int healedAmount = PC_MAXHEALTH(plr->level) * amount / 100;
+    
+    plr->HP += healedAmount;
+    
+    if (plr->HP > PC_MAXHEALTH(plr->level))
         plr->HP = PC_MAXHEALTH(plr->level);
-    else
-        plr->HP += amount;
 
     respdata[i].eCT = 1;
     respdata[i].iID = plr->iID;
     respdata[i].iHP = plr->HP;
-    respdata[i].iHealHP = amount;
+    respdata[i].iHealHP = healedAmount;
     
     std::cout << (int)plr->iID << " was healed" << std::endl;
 
@@ -441,7 +452,12 @@ bool doDamage(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage *respdata, i
     }
     Mob* mob = MobManager::Mobs[pktdata[i]];
     
-    int damage = MobManager::hitMob(sock, mob, amount);
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    if (plr == nullptr)
+        return false;
+    
+    int damage = MobManager::hitMob(sock, mob, PC_MAXHEALTH(plr->level) * amount / 100);
 
     respdata[i].eCT = 4;
     respdata[i].iDamage = damage;
@@ -474,15 +490,17 @@ bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, i
     if (plr == nullptr)
         return false;
 
-    if (plr->HP + amount > PC_MAXHEALTH(plr->level))
+    int healedAmount = PC_MAXHEALTH(plr->level) * amount / 100;
+    
+    plr->HP += healedAmount;
+    
+    if (plr->HP > PC_MAXHEALTH(plr->level))
         plr->HP = PC_MAXHEALTH(plr->level);
-    else
-        plr->HP += amount;
 
     healdata->eCT = 1;
     healdata->iID = plr->iID;
     healdata->iHP = plr->HP;
-    healdata->iHealHP = amount;
+    healdata->iHealHP = healedAmount;
 
     if (MobManager::Mobs.find(pktdata[i]) == MobManager::Mobs.end()) {
         // not sure how to best handle this
@@ -491,7 +509,7 @@ bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, i
     }
     Mob* mob = MobManager::Mobs[pktdata[i]];
     
-    int damage = MobManager::hitMob(sock, mob, amount);
+    int damage = MobManager::hitMob(sock, mob, PC_MAXHEALTH(plr->level) * amount / 100);
     
     damagedata->eCT = 4;
     damagedata->iDamage = damage;
@@ -567,13 +585,13 @@ void activePower(CNSocket *sock, CNPacketData *data,
 // active nano power dispatch table
 std::vector<ActivePower> ActivePowers = {
     ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  doDebuff>,         EST_STUN, CSB_BIT_STUN,                 0),
-    ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          doHeal>,           EST_HEAL_HP, CSB_BIT_NONE,            333),
+    ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          doHeal>,           EST_HEAL_HP, CSB_BIT_NONE,             25),
     // TODO: Recall
     ActivePower(DrainPowers, activePower<sSkillResult_Buff,            doBuff>,           EST_BOUNDINGBALL, CSB_BIT_BOUNDINGBALL, 0),
     ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SNARE, CSB_BIT_DN_MOVE_SPEED,       0),
-    ActivePower(DamagePowers, activePower<sSkillResult_Damage,         doDamage>,         EST_DAMAGE, CSB_BIT_NONE,             133),
+    ActivePower(DamagePowers, activePower<sSkillResult_Damage,         doDamage>,         EST_DAMAGE, CSB_BIT_NONE,              12),
     // TODO: GroupRevive
-    ActivePower(LeechPowers, activePower<sSkillResult_Heal_HP,         doLeech, true>,    EST_BLOODSUCKING, CSB_BIT_NONE,       133),
+    ActivePower(LeechPowers, activePower<sSkillResult_Heal_HP,         doLeech, true>,    EST_BLOODSUCKING, CSB_BIT_NONE,        18),
     ActivePower(SleepPowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SLEEP, CSB_BIT_MEZ,                 0),
 };
 
@@ -610,7 +628,8 @@ void NanoManager::nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t 
     // this looks stupid but in the future there will be more counts (for group powers)
     for (int i = 0; i < 1; i++) {
         
-        plr->iConditionBitFlag += iCBFlag;
+        if (!(plr->iConditionBitFlag & iCBFlag))
+            plr->iConditionBitFlag ^= iCBFlag;
         
         respdata[i].eCT = 1;
         respdata[i].iID = plr->iID;
@@ -641,10 +660,8 @@ void NanoManager::nanoUnbuff(CNSocket* sock, int32_t iCBFlag, int16_t eCharStatu
     if (plr == nullptr)
         return;
 
-    if (iCBFlag < plr->iConditionBitFlag) // prevents integer underflow
-        plr->iConditionBitFlag -= iCBFlag;
-    else
-        plr->iConditionBitFlag = 0;
+    if (plr->iConditionBitFlag & iCBFlag)
+        plr->iConditionBitFlag ^= iCBFlag;
     
     resp1.eCSTB = eCharStatusTimeBuffID; //eCharStatusTimeBuffID
     resp1.eTBU = 2; //eTimeBuffUpdate

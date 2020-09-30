@@ -167,11 +167,8 @@ bool MissionManager::endTask(CNSocket *sock, int32_t taskNum) {
         saveMission(plr, (int)(task["m_iHMissionID"])-1);
 
         // if it's a nano mission, reward the nano.
-        if (task["m_iSTNanoID"] != 0) {
+        if (task["m_iSTNanoID"] != 0)
             NanoManager::addNano(sock, task["m_iSTNanoID"], 0, true);
-            // check if the player already has enough fm for the next mission
-            updateFusionMatter(sock, 0);
-        }
 
         // remove current mission
         plr->CurrentMissionID = 0;

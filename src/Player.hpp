@@ -48,6 +48,7 @@ struct Player {
 
     bool inCombat;
     bool dotDamage;
+    bool passiveNanoOut;
     
     int pointDamage;
     int groupDamage;
