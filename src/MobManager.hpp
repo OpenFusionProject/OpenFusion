@@ -8,6 +8,7 @@
 #include "contrib/JSON.hpp"
 
 #include <map>
+#include <queue>
 
 enum class MobState {
     INACTIVE,
@@ -83,6 +84,7 @@ struct Mob : public BaseNPC {
 
 namespace MobManager {
     extern std::map<int32_t, Mob*> Mobs;
+    extern std::queue<int32_t> RemovalQueue;
 
     void init();
     void step(CNServer*, time_t);
