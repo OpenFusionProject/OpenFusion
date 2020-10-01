@@ -15,6 +15,7 @@
 #endif
 
 std::map<int32_t, Mob*> MobManager::Mobs;
+std::queue<int32_t> MobManager::RemovalQueue;
 
 void MobManager::init() {
     REGISTER_SHARD_TIMER(step, 200);
@@ -241,10 +242,10 @@ void MobManager::deadStep(Mob *mob, time_t currTime) {
 
         NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
 
-        // if it was summoned, remove it permanently
+        // if it was summoned, mark it for removal
         if (mob->summoned) {
-            std::cout << "[INFO] Deallocating killed summoned mob" << std::endl;
-            NPCManager::destroyNPC(mob->appearanceData.iNPC_ID);
+            std::cout << "[INFO] Queueing killed summoned mob for removal" << std::endl;
+            RemovalQueue.push(mob->appearanceData.iNPC_ID);
             return;
         }
     }
@@ -452,6 +453,7 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
 }
 
 void MobManager::step(CNServer *serv, time_t currTime) {
+
     for (auto& pair : Mobs) {
         int x = pair.second->appearanceData.iX;
         int y = pair.second->appearanceData.iY;
@@ -486,6 +488,12 @@ void MobManager::step(CNServer *serv, time_t currTime) {
             deadStep(pair.second, currTime);
             break;
         }
+    }
+
+    // deallocate all NPCs queued for removal
+    while (RemovalQueue.size() > 0) {
+        NPCManager::destroyNPC(RemovalQueue.front());
+        RemovalQueue.pop();
     }
 }
 
