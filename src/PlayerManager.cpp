@@ -885,6 +885,7 @@ WarpLocation PlayerManager::getRespawnPoint(Player *plr) {
 
     return best;
 }
+
 bool PlayerManager::isAccountInUse(int accountId) {
     std::map<CNSocket*, PlayerView>::iterator it;
     for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++)
@@ -897,15 +898,18 @@ bool PlayerManager::isAccountInUse(int accountId) {
 
 void PlayerManager::exitDuplicate(int accountId) {
     std::map<CNSocket*, PlayerView>::iterator it;
-    for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++)
-    {
-        if (it->second.plr->accountId == accountId)
-        {
+
+    // disconnect any duplicate players
+    for (it = players.begin(); it != players.end(); it++) {
+        if (it->second.plr->accountId == accountId) {
             CNSocket* sock = it->first;
+
             INITSTRUCT(sP_FE2CL_REP_PC_EXIT_DUPLICATE, resp);
             resp.iErrorCode = 0;
             sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_EXIT_DUPLICATE, sizeof(sP_FE2CL_REP_PC_EXIT_DUPLICATE));
+
             sock->kill();
+            CNShardServer::_killConnection(sock);
         }
     }
 }

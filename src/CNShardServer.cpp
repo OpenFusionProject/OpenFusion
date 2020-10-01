@@ -56,7 +56,8 @@ void CNShardServer::newConnection(CNSocket* cns) {
     cns->setActiveKey(SOCKETKEY_E); // by default they accept keys encrypted with the default key
 }
 
-void CNShardServer::killConnection(CNSocket* cns) {
+// must be static to be called from PlayerManager::exitDuplicate()
+void CNShardServer::_killConnection(CNSocket* cns) {
     // check if the player ever sent a REQ_PC_ENTER
     if (PlayerManager::players.find(cns) == PlayerManager::players.end())
         return;
@@ -74,6 +75,10 @@ void CNShardServer::killConnection(CNSocket* cns) {
 
     // remove from CNSharedData
     CNSharedData::erasePlayer(key);
+}
+
+void CNShardServer::killConnection(CNSocket *cns) {
+    _killConnection(cns);
 }
 
 void CNShardServer::onStep() {
