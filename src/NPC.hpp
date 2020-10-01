@@ -7,11 +7,12 @@ class BaseNPC {
 public:
     sNPCAppearanceData appearanceData;
     NPCClass npcClass;
-    std::pair<int, int> chunkPos;
+    int instanceID;
+    std::tuple<int, int, int> chunkPos;
     std::vector<Chunk*> currentChunks;
 
     BaseNPC() {};
-    BaseNPC(int x, int y, int z, int type, int id) {
+    BaseNPC(int x, int y, int z, int iID, int type, int id) {
         appearanceData.iX = x;
         appearanceData.iY = y;
         appearanceData.iZ = z;
@@ -22,9 +23,11 @@ public:
         appearanceData.iBarkerType = 0;
         appearanceData.iNPC_ID = id;
 
-        chunkPos = std::pair<int, int>(0, 0);
+        instanceID = iID;
+
+        chunkPos = std::make_tuple(0, 0, instanceID);
     };
-    BaseNPC(int x, int y, int z, int type, int id, NPCClass classType) : BaseNPC(x, y, z, type, id) {
+    BaseNPC(int x, int y, int z, int iID, int type, int id, NPCClass classType) : BaseNPC(x, y, z, iID, type, id) {
         npcClass = classType;
     }
 };

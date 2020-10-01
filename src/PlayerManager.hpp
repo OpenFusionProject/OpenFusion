@@ -13,7 +13,7 @@
 struct WarpLocation;
 
 struct PlayerView {
-    std::pair<int, int> chunkPos;
+    std::tuple<int, int, int> chunkPos;
     std::vector<Chunk*> currentChunks;
     Player *plr;
     time_t lastHeartbeat;

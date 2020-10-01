@@ -6,6 +6,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <tuple>
 
 class Chunk {
 public:
@@ -13,19 +14,25 @@ public:
     std::set<int32_t> NPCs;
 };
 
+enum {
+    INSTANCE_OVERWORLD, // default instance every player starts in
+    INSTANCE_IZ, // all infected zones share an instance
+    INSTANCE_UNIQUE // fusion lairs are generated as requested (+ uid)
+};
+
 namespace ChunkManager {
     void init();
     void cleanup();
 
-    extern std::map<std::pair<int, int>, Chunk*> chunks;
+    extern std::map<std::tuple<int, int, int>, Chunk*> chunks;
 
-    void addNPC(int posX, int posY, int32_t id);
-    void addPlayer(int posX, int posY, CNSocket* sock);
-    void removePlayer(std::pair<int, int> chunkPos, CNSocket* sock);
-    void removeNPC(std::pair<int, int> chunkPos, int32_t id);
-    bool checkChunk(std::pair<int, int> chunk);
-    std::pair<int, int> grabChunk(int posX, int posY);
-    std::vector<Chunk*> grabChunks(std::pair<int, int> chunkPos);
+    void addNPC(int posX, int posY, int instanceID, int32_t id);
+    void addPlayer(int posX, int posY, int instanceID, CNSocket* sock);
+    void removePlayer(std::tuple<int, int, int> chunkPos, CNSocket* sock);
+    void removeNPC(std::tuple<int, int, int> chunkPos, int32_t id);
+    bool checkChunk(std::tuple<int, int, int> chunk);
+    std::tuple<int, int, int> grabChunk(int posX, int posY, int instanceID);
+    std::vector<Chunk*> grabChunks(std::tuple<int, int, int> chunkPos);
     std::vector<Chunk*> getDeltaChunks(std::vector<Chunk*> from, std::vector<Chunk*> to);
-    bool inPopulatedChunks(int posX, int posY);
+    bool inPopulatedChunks(int posX, int posY, int instanceID);
 }

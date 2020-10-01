@@ -25,7 +25,7 @@ void TableData::init() {
 
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
-            BaseNPC *tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], npc["id"], nextId);
+            BaseNPC *tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], INSTANCE_OVERWORLD, npc["id"], nextId);
 
             NPCManager::NPCs[nextId] = tmp;
             NPCManager::updateNPCPosition(nextId, npc["x"], npc["y"], npc["z"]);
@@ -179,7 +179,7 @@ void TableData::init() {
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
             auto td = NPCManager::NPCData[(int)npc["iNPCType"]];
-            Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iNPCType"], npc["iHP"], npc["iAngle"], td, nextId);
+            Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], INSTANCE_OVERWORLD, npc["iNPCType"], npc["iHP"], npc["iAngle"], td, nextId);
 
             NPCManager::NPCs[nextId] = tmp;
             MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];

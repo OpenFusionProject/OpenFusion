@@ -149,7 +149,7 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
          */
         PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
         plrv.currentChunks.clear();
-        plrv.chunkPos = std::make_pair<int, int>(0, 0);
+        plrv.chunkPos = std::make_tuple(0, 0, plrv.plr->instanceID);
         break;
     case 2: // Monkey Skyway
         if (SkywayPaths.find(route.mssRouteNum) != SkywayPaths.end()) { // check if route exists
@@ -268,7 +268,7 @@ void TransportManager::stepNPCPathing() {
         NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, point.x, point.y, point.z);
 
         // get chunks in view
-        auto chunk = ChunkManager::grabChunk(npc->appearanceData.iX, npc->appearanceData.iY);
+        auto chunk = ChunkManager::grabChunk(npc->appearanceData.iX, npc->appearanceData.iY, npc->instanceID);
         auto chunks = ChunkManager::grabChunks(chunk);
 
         switch (npc->npcClass) {

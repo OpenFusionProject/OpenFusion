@@ -140,7 +140,7 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
     npc->appearanceData.iX = X;
     npc->appearanceData.iY = Y;
     npc->appearanceData.iZ = Z;
-    std::pair<int, int> newPos = ChunkManager::grabChunk(X, Y);
+    std::tuple<int, int, int> newPos = ChunkManager::grabChunk(X, Y, npc->instanceID);
 
     // nothing to be done (but we should also update currentChunks to add/remove stale chunks)
     if (newPos == npc->chunkPos) {
@@ -158,7 +158,7 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
 
     // update chunks
     ChunkManager::removeNPC(npc->chunkPos, id);
-    ChunkManager::addNPC(X, Y, id);
+    ChunkManager::addNPC(X, Y, npc->instanceID, id);
 
     npc->chunkPos = newPos;
     npc->currentChunks = allChunks;
@@ -544,10 +544,10 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     resp.NPCAppearanceData.iZ = plr->z;
 
     if (team == 2) {
-        NPCs[resp.NPCAppearanceData.iNPC_ID] = new Mob(plr->x, plr->y, plr->z, req->iNPCType, NPCData[req->iNPCType], resp.NPCAppearanceData.iNPC_ID);
+        NPCs[resp.NPCAppearanceData.iNPC_ID] = new Mob(plr->x, plr->y, plr->z, plr->instanceID, req->iNPCType, NPCData[req->iNPCType], resp.NPCAppearanceData.iNPC_ID);
         MobManager::Mobs[resp.NPCAppearanceData.iNPC_ID] = (Mob*)NPCs[resp.NPCAppearanceData.iNPC_ID];
     } else
-        NPCs[resp.NPCAppearanceData.iNPC_ID] = new BaseNPC(plr->x, plr->y, plr->z, req->iNPCType, resp.NPCAppearanceData.iNPC_ID);
+        NPCs[resp.NPCAppearanceData.iNPC_ID] = new BaseNPC(plr->x, plr->y, plr->z, plr->instanceID, req->iNPCType, resp.NPCAppearanceData.iNPC_ID);
 
     updateNPCPosition(resp.NPCAppearanceData.iNPC_ID, plr->x, plr->y, plr->z);
 }
@@ -585,7 +585,7 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
     // force player & NPC reload
     PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
     plrv.currentChunks.clear();
-    plrv.chunkPos = std::make_pair<int, int>(0, 0);
+    plrv.chunkPos = std::make_tuple(0, 0, plrv.plr->instanceID);
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
 }
