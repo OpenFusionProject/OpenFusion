@@ -1,5 +1,6 @@
 #include "MobManager.hpp"
 #include "PlayerManager.hpp"
+#include "NanoManager.hpp"
 #include "NPCManager.hpp"
 #include "ItemManager.hpp"
 #include "MissionManager.hpp"
@@ -605,7 +606,7 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
                    plr->Nanos[plr->activeNano].iStamina -= 1; 
 
                 if (plr->Nanos[plr->activeNano].iStamina < 0)
-                    plr->activeNano = 0;
+                    NanoManager::summonNano(PlayerManager::getSockFromID(plr->iID), -1);
 
                 transmit = true;
             } else if (plr->Nanos[plr->equippedNanos[i]].iStamina < 150) { // regain stamina
