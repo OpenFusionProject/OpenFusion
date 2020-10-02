@@ -66,4 +66,6 @@ namespace PlayerManager {
     bool isAccountInUse(int accountId);
     void exitDuplicate(int accountId);
     void setSpecialState(CNSocket* sock, CNPacketData* data);
+    Player *getPlayerFromID(int32_t iID);
+    CNSocket *getSockFromID(int32_t iID);
 }

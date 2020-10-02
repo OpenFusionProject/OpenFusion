@@ -221,6 +221,9 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     // TODO: check if serialkey exists, if it doesn't send sP_FE2CL_REP_PC_ENTER_FAIL
     Player plr = CNSharedData::getPlayer(enter->iEnterSerialKey);
+    
+    plr.groupCnt = 1;
+    plr.iIDGroup = plr.groupIDs[0] = plr.iID;
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_ENTER:" << std::endl;
@@ -928,5 +931,21 @@ void PlayerManager::setSpecialState(CNSocket* sock, CNPacketData* data) {
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC, sizeof(sP_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC));
     sendToViewable(sock, (void*)&response, P_FE2CL_PC_SPECIAL_STATE_CHANGE, sizeof(sP_FE2CL_PC_SPECIAL_STATE_CHANGE));
+}
+
+Player *PlayerManager::getPlayerFromID(int32_t iID) {
+    for (auto& pair : PlayerManager::players)
+        if (pair.second.plr->iID == iID)
+            return pair.second.plr;
+
+    return nullptr;
+}
+
+CNSocket *PlayerManager::getSockFromID(int32_t iID) {
+    for (auto& pair : PlayerManager::players)
+        if (pair.second.plr->iID == iID)
+            return pair.first;
+
+    return nullptr;
 }
 #pragma endregion

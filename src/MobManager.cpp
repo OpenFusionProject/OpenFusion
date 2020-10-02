@@ -3,6 +3,7 @@
 #include "NPCManager.hpp"
 #include "ItemManager.hpp"
 #include "MissionManager.hpp"
+#include "GroupManager.hpp"
 
 #include <cmath>
 #include <assert.h>
@@ -587,6 +588,10 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
         CNSocket *sock = pair.first;
         Player *plr = pair.second.plr;
         bool transmit = false;
+        
+        // group ticks
+        if (plr->groupCnt > 1)
+            GroupManager::groupTickInfo(plr);
 
         // do not tick dead players
         if (plr->HP <= 0)
