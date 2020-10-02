@@ -47,9 +47,13 @@ void CNShardServer::keepAliveTimer(CNServer* serv, time_t currTime) {
 }
 
 void CNShardServer::periodicSaveTimer(CNServer* serv, time_t currTime) {
+    std::cout << "[INFO] Saving players to DB..." << std::endl;
+
     for (auto& pair : PlayerManager::players) {
         Database::updatePlayer(pair.second.plr);
     }
+
+    std::cout << "[INFO] Done." << std::endl;
 }
 
 void CNShardServer::newConnection(CNSocket* cns) {
@@ -83,6 +87,12 @@ void CNShardServer::_killConnection(CNSocket* cns) {
 
 void CNShardServer::killConnection(CNSocket *cns) {
     _killConnection(cns);
+}
+
+// flush the DB when terminating the server
+void CNShardServer::kill() {
+    periodicSaveTimer(nullptr, 0);
+    CNServer::kill();
 }
 
 void CNShardServer::onStep() {

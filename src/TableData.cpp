@@ -244,7 +244,6 @@ void TableData::loadPaths(int* nextId) {
             auto sliderPoint = _sliderPoint.value();
             if (sliderPoint["stop"] && sliders % 2 == 0) { // check if this point in the circuit is a stop
                 // spawn a slider
-                std::cout << "bus ID was " << *nextId << std::endl;
                 BaseNPC* slider = new BaseNPC(sliderPoint["iX"], sliderPoint["iY"], sliderPoint["iZ"], 1, (*nextId)++, NPC_BUS);
                 NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
                 NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->appearanceData.iX, slider->appearanceData.iY, slider->appearanceData.iZ);

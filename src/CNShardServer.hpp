@@ -25,5 +25,6 @@ public:
 
     void newConnection(CNSocket* cns);
     void killConnection(CNSocket* cns);
+    void kill();
     void onStep();
 };
