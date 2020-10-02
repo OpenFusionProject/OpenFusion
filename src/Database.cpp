@@ -225,9 +225,11 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     create.y_coordinates = settings::SPAWN_Y;
     create.z_coordinates = settings::SPAWN_Z;
     create.angle = settings::SPAWN_ANGLE;
-    create.QuestFlag = std::vector<char>();
     //set mentor to computress
     create.Mentor = 5;
+
+    // initialize the quest blob to 128 0-bytes
+    create.QuestFlag = std::vector<char>(128, 0);
 
     return db.insert(create);
 }
@@ -402,16 +404,12 @@ Database::DbPlayer Database::playerToDb(Player *player)
     result.SkywayLocationFlag2 = player->aSkywayLocationFlag[1];
     result.CurrentMissionID = player->CurrentMissionID;
 
-    // finished quests: parsing to blob
-    result.QuestFlag = std::vector<char>();
-    for (int i=0; i<16; i++)
-    {
-        int64_t flag = player->aQuestFlag[i];
-        appendBlob(&result.QuestFlag, flag);
-    }
-    //timestamp
+    // timestamp
     result.LastLogin = getTimestamp();
     result.Created = player->creationTime;
+
+    // save completed quests
+    result.QuestFlag = std::vector<char>((char*)player->aQuestFlag, (char*)player->aQuestFlag + 128);
 
     return result;
 }
@@ -470,22 +468,14 @@ Player Database::DbToPlayer(DbPlayer player) {
     Database::getNanos(&result);
     Database::getQuests(&result);   
 
-    std::vector<char>::iterator it = player.QuestFlag.begin();
-    for (int i = 0; i < 16; i++)
-    {
-        if (it == player.QuestFlag.end())
-            break;
-        result.aQuestFlag[i] = blobToInt64(it);
-        //move iterator to the next flag
-        it += 8;
-    }
+    // load completed quests
+    memcpy(&result.aQuestFlag, player.QuestFlag.data(), std::min(sizeof(result.aQuestFlag), player.QuestFlag.size()));
 
     return result;
 }
 
 Database::DbPlayer Database::getDbPlayerById(int id) {
-        return db.get_all<DbPlayer>(where(c(&DbPlayer::PlayerID) == id))
-            .front();
+    return db.get_all<DbPlayer>(where(c(&DbPlayer::PlayerID) == id)).front();
 }
 
 Player Database::getPlayer(int id) {
@@ -709,24 +699,3 @@ void Database::getQuests(Player* player) {
 }
 
 #pragma endregion ShardServer
-
-#pragma region parsingBlobs
-
-void Database::appendBlob(std::vector<char> *blob, int64_t input) {
-    for (int i = 0; i < 8; i++) {
-        char toadd = (input >> (8 * (7 - i)));
-        blob->push_back(toadd);
-    }
-}
-
-int64_t Database::blobToInt64(std::vector<char>::iterator it) {
-    int64_t result = 0;
-    for (int i = 0; i < 8; i++) {
-        int64_t toAdd = ((int64_t)*it << (8 * (7 - i)));
-        result += toAdd;
-        it++;
-    }
-    return result;
-}
-
-#pragma endregion parsingBlobs
