@@ -255,7 +255,7 @@ void TransportManager::stepSkywaySystem() {
             bmstk.iToZ = point.z;
             it->first->sendPacket((void*)&bmstk, P_FE2CL_PC_BROOMSTICK_MOVE, sizeof(sP_FE2CL_PC_BROOMSTICK_MOVE));
             // set player location to point to update viewables
-            PlayerManager::updatePlayerChunk(it->first, point.x, point.y);
+            PlayerManager::updatePlayerChunk(it->first, point.x, point.y, plr->instanceID);
             // send packet to players in view
             PlayerManager::sendToViewable(it->first, (void*)&bmstk, P_FE2CL_PC_BROOMSTICK_MOVE, sizeof(sP_FE2CL_PC_BROOMSTICK_MOVE));
 

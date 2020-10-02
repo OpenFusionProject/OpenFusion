@@ -50,7 +50,7 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
     memcpy(p, &plr, sizeof(Player));
 
     players[key] = PlayerView();
-    players[key].chunkPos = std::make_tuple(0, 0, p->instanceID);
+    players[key].chunkPos = std::make_tuple(0, 0, 0);
     players[key].currentChunks = std::vector<Chunk*>();
     players[key].plr = p;
     players[key].lastHeartbeat = 0;
@@ -191,10 +191,10 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
     view.plr->x = X;
     view.plr->y = Y;
     view.plr->z = Z;
-    updatePlayerChunk(sock, X, Y);
+    updatePlayerChunk(sock, X, Y, view.plr->instanceID);
 }
 
-void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y) {
+void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y,int mapNum) {
     PlayerView& view = players[sock];
     std::tuple<int, int, int> newPos = ChunkManager::grabChunk(X, Y, view.plr->instanceID);
 
@@ -223,8 +223,27 @@ void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y) {
 }
 
 void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, int I) {
-    getPlayer(sock)->instanceID = I;
-    sendPlayerTo(sock, X, Y, Z);
+    PlayerView& plrv = PlayerManager::players[sock];
+    Player* plr = plrv.plr;
+    plr->instanceID = I;
+    if (I != INSTANCE_OVERWORLD) {
+        INITSTRUCT(sP_FE2CL_INSTANCE_MAP_INFO, pkt);
+        pkt.iInstanceMapNum = I;
+        sock->sendPacket((void*)&pkt, P_FE2CL_INSTANCE_MAP_INFO, sizeof(sP_FE2CL_INSTANCE_MAP_INFO));
+        sendPlayerTo(sock, X, Y, Z);
+    } else {
+        // annoying but necessary to set the flag back
+        INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC, resp);
+        resp.iX = X;
+        resp.iY = Y;
+        resp.iZ = Z;
+        resp.iCandy = plrv.plr->money;
+        resp.eIL = 4; // do not take away any items
+        PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
+        plrv.currentChunks.clear();
+        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
+    }
+    
 }
 
 void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z) {

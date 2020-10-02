@@ -177,6 +177,12 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
     npc->currentChunks = allChunks;
 }
 
+void NPCManager::updateNPCInstance(int32_t npcID, int instanceID) {
+    BaseNPC* npc = NPCs[npcID];
+    npc->instanceID = instanceID;
+    updateNPCPosition(npcID, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ);
+}
+
 void NPCManager::sendToViewable(BaseNPC *npc, void *buf, uint32_t type, size_t size) {
     for (Chunk *chunk : npc->currentChunks) {
         for (CNSocket *s : chunk->players) {
@@ -577,26 +583,29 @@ void NPCManager::npcWarpTimeMachine(CNSocket* sock, CNPacketData* data) {
 }
 
 void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
+    PlayerView& plrv = PlayerManager::players[sock];
     // sanity check
     if (Warps.find(warpId) == Warps.end())
         return;
 
-    PlayerView& plrv = PlayerManager::players[sock];
-
-    // send to client
-    INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC, resp);
-    resp.iX = Warps[warpId].x;
-    resp.iY = Warps[warpId].y;
-    resp.iZ = Warps[warpId].z;
-    resp.iCandy = plrv.plr->money;
-    resp.eIL = 4; // do not take away any items
-
-    // force player & NPC reload
-    PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
-    plrv.currentChunks.clear();
-    plrv.chunkPos = std::make_tuple(0, 0, plrv.plr->instanceID);
-
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
+    // std::cerr << "Warped to Map Num:" << Warps[warpId].instanceID << " NPC ID " << Warps[warpId].npcID << std::endl;
+    if (Warps[warpId].isInstance)
+    {
+        PlayerManager::sendPlayerTo(sock, Warps[warpId].x, Warps[warpId].y, Warps[warpId].z, Warps[warpId].instanceID);
+    }
+    else
+    {
+        INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC, resp); //Can only be used for exiting instances because it sets the instance flag to false
+        resp.iX = Warps[warpId].x;
+        resp.iY = Warps[warpId].y;
+        resp.iZ = Warps[warpId].z;
+        resp.iCandy = plrv.plr->money;
+        resp.eIL = 4; // do not take away any items
+        PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
+        plrv.currentChunks.clear();
+        plrv.plr->instanceID = 0;
+        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
+    }
 }
 
 /*

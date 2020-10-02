@@ -23,11 +23,19 @@ void TableData::init() {
     try {
         std::ifstream inFile(settings::NPCJSON);
         nlohmann::json npcData;
+        nlohmann::json nullExample;
 
         // read file into json
         inFile >> npcData;
-
+        int null = 0;
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
+            if (npcData[_npc.key()]["mapNum"] == nullExample)
+            {
+                npcData[_npc.key()]["mapNum"] = 0;
+                _npc.value()["mapNum"] = 0;
+                null = 1;
+                //return;
+            }
             auto npc = _npc.value();
             BaseNPC *tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], npc["angle"], INSTANCE_OVERWORLD, npc["id"], nextId);
 
@@ -38,7 +46,13 @@ void TableData::init() {
             if (npc["id"] == 641 || npc["id"] == 642)
                 NPCManager::RespawnPoints.push_back({ npc["x"], npc["y"], ((int)npc["z"]) + RESURRECT_HEIGHT });
         }
-
+        if (null == 1)
+        {
+            std::cout << "Updated Json to include Map Num" << std::endl;
+            std::ofstream outFile(settings::NPCJSON);
+            outFile << npcData << std::endl;
+            outFile.close();
+        }
     }
     catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed NPCs.json file! Reason:" << err.what() << std::endl;
@@ -61,7 +75,7 @@ void TableData::init() {
 
         for (nlohmann::json::iterator _warp = warpData.begin(); _warp != warpData.end(); _warp++) {
             auto warp = _warp.value();
-            WarpLocation warpLoc = { warp["m_iToX"], warp["m_iToY"], warp["m_iToZ"] };
+            WarpLocation warpLoc = { warp["m_iToX"], warp["m_iToY"], warp["m_iToZ"],warp["m_iToMapNum"],warp["m_iIsInstance"],warp["m_iLimit_TaskID"],warp["m_iNpcNumber"] };
             int warpID = warp["m_iWarpNumber"];
             NPCManager::Warps[warpID] = warpLoc;
         }

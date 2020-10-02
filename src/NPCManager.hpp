@@ -13,7 +13,7 @@
 
 // this should really be called vec3 or something...
 struct WarpLocation {
-    int x, y, z;
+    int x, y, z, instanceID, isInstance, limitTaskID, npcID;
 };
 
 namespace NPCManager {
@@ -29,6 +29,7 @@ namespace NPCManager {
     void destroyNPC(int32_t);
     void updateNPCPosition(int32_t, int X, int Y, int Z, int angle);
     void updateNPCPosition(int32_t, int X, int Y, int Z);
+    void updateNPCInstance(int32_t, int instanceID);
 
     void sendToViewable(BaseNPC* npc, void* buf, uint32_t type, size_t size);
 
