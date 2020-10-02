@@ -1,3 +1,6 @@
+// work around VS nonsense
+#define NOMINMAX
+
 #include "Database.hpp"
 #include "contrib/bcrypt/BCrypt.hpp"
 #include "CNProtocol.hpp"
@@ -10,9 +13,6 @@
 #include "contrib/sqlite/sqlite_orm.h"
 #include "MissionManager.hpp"
 #include <algorithm>
-
-// work around VS nonsense
-#define NOMINMAX
 
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
     #include "mingw/mingw.mutex.h"
