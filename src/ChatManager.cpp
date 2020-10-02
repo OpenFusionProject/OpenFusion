@@ -18,10 +18,12 @@ std::vector<std::string> parseArgs(std::string full) {
 bool runCmd(std::string full, std::vector<std::string> args, CNSocket* sock) {
     std::string cmd = args[0].substr(1, args[0].size() - 1);
     
+    // check if the command exists
     if (ChatManager::commands.find(cmd) != ChatManager::commands.end()) {
         Player* plr = PlayerManager::getPlayer(sock);
         ChatCommand command = ChatManager::commands[cmd];
         
+        // sanity check + does the player have the required account level to use the command?
         if (plr != nullptr && plr->accountLevel <= command.requiredAccLevel) {
             command.handlr(full, args, sock);
             return true;
@@ -36,7 +38,11 @@ bool runCmd(std::string full, std::vector<std::string> args, CNSocket* sock) {
 }
 
 void testCommand(std::string full, std::vector<std::string> args, CNSocket* sock) {
-    ChatManager::sendServerMessage(sock, "Test command is working!");
+    ChatManager::sendServerMessage(sock, "Test command is working! Here are your passed args:");
+
+    for (std::string arg : args) {
+        ChatManager::sendServerMessage(sock, arg);
+    }
 }
 
 void accessCommand(std::string full, std::vector<std::string> args, CNSocket* sock) {
