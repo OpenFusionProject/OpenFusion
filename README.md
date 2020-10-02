@@ -3,7 +3,7 @@
 [![AppVeyor](https://ci.appveyor.com/api/projects/status/github/OpenFusionProject/OpenFusion?svg=true)](https://ci.appveyor.com/project/OpenFusionProject/openfusion)
 [![Discord](https://img.shields.io/badge/chat-on%20discord-7289da.svg?logo=discord)](https://discord.gg/DYavckB)
 
-OpenFusion is a landwalker server for FusionFall. It currently supports versions `beta-20100104` and `beta-20100728` of the original game.
+OpenFusion is a reverse-engineered server for FusionFall. It currently primarily targets version `beta-20100104` and has some support for version `beta-20100728` of the original game.
 
 Further documentation pending.
 
@@ -91,14 +91,14 @@ A detailed guide is available [in the wiki](https://github.com/OpenFusionProject
 
 If you'd like to contribute to this project, please read [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## "Gameplay"
+## Gameplay
 
-Notice the quotes. This is not a full-fledged game that can be played.
-It's what's called a landwalker; enough of the server has been implemented to allow players to run around in the game world, and not much else.
+The goal of the project is to faithfully recreate the game as it was at the time of the targeted build.
+The server is not yet complete, however, and some functionality is still missing.
+
+Because the server is still in development, ordinary players are allowed access to a few admin commands:
 
 ![](res/sane_upsell.png)
-
-To make your landwalking experience more pleasant, you can make use of a few admin commands to get around easier:
 
 ### Movement commands
 * A `/speed` of around 2400 or 3000 is nice.
