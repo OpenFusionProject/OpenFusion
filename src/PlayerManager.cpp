@@ -933,4 +933,12 @@ void PlayerManager::setSpecialState(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC, sizeof(sP_FE2CL_REP_PC_SPECIAL_STATE_SWITCH_SUCC));
     sendToViewable(sock, (void*)&response, P_FE2CL_PC_SPECIAL_STATE_CHANGE, sizeof(sP_FE2CL_PC_SPECIAL_STATE_CHANGE));
 }
+
+CNSocket* PlayerManager::getSockFromID(int32_t iID) {
+    for (auto& pair : PlayerManager::players)
+        if (pair.second.plr->iID == iID)
+            return pair.first;
+
+    return nullptr;
+}
 #pragma endregion
