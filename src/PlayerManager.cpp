@@ -5,6 +5,7 @@
 #include "CNShared.hpp"
 #include "MissionManager.hpp"
 #include "ItemManager.hpp"
+#include "ChatManager.hpp"
 
 #include "settings.hpp"
 
@@ -217,7 +218,6 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_ENTER* enter = (sP_CL2FE_REQ_PC_ENTER*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_ENTER_SUCC, response);
-    INITSTRUCT(sP_FE2CL_PC_MOTD_LOGIN, motd);
 
     // TODO: check if serialkey exists, if it doesn't send sP_FE2CL_REP_PC_ENTER_FAIL
     Player plr = CNSharedData::getPlayer(enter->iEnterSerialKey);
@@ -311,9 +311,6 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     plr.SerialKey = enter->iEnterSerialKey;
     plr.instanceID = INSTANCE_OVERWORLD; // TODO: load this from the database (as long as it's not a unique instance)
 
-    motd.iType = 1;
-    U8toU16(settings::MOTDSTRING, (char16_t*)motd.szSystemMsg);
-
     sock->setEKey(CNSocketEncryption::createNewKey(response.uiSvrTime, response.iID + 1, response.PCLoadData2CL.iFusionMatter + 1));
     sock->setFEKey(plr.FEKey);
     sock->setActiveKey(SOCKETKEY_FE); // send all packets using the FE key from now on
@@ -321,7 +318,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_ENTER_SUCC, sizeof(sP_FE2CL_REP_PC_ENTER_SUCC));
 
     // transmit MOTD after entering the game, so the client hopefully changes modes on time
-    sock->sendPacket((void*)&motd, P_FE2CL_PC_MOTD_LOGIN, sizeof(sP_FE2CL_PC_MOTD_LOGIN));
+    ChatManager::sendServerMessage(sock, settings::MOTDSTRING);
 
     addPlayer(sock, plr);
     //check if there is an expiring vehicle
