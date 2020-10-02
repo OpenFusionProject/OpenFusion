@@ -13,7 +13,7 @@
 struct WarpLocation;
 
 struct PlayerView {
-    std::pair<int, int> chunkPos;
+    std::tuple<int, int, int> chunkPos;
     std::vector<Chunk*> currentChunks;
     Player *plr;
     time_t lastHeartbeat;
@@ -32,7 +32,7 @@ namespace PlayerManager {
 
     void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z);
     void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, int angle);
-    void updatePlayerChunk(CNSocket* sock, int X, int Y);
+    void updatePlayerChunk(CNSocket* sock, int X, int Y, int mapNum);
 
     void sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size);
 

@@ -47,7 +47,7 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
     memcpy(p, &plr, sizeof(Player));
 
     players[key] = PlayerView();
-    players[key].chunkPos = std::make_pair<int, int>(0, 0);
+    players[key].chunkPos = std::make_tuple(0, 0, 0);
     players[key].currentChunks = std::vector<Chunk*>();
     players[key].plr = p;
     players[key].lastHeartbeat = 0;
@@ -186,12 +186,12 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
     view.plr->x = X;
     view.plr->y = Y;
     view.plr->z = Z;
-    updatePlayerChunk(sock, X, Y);
+    updatePlayerChunk(sock, X, Y, view.plr->mapNum);
 }
 
-void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y) {
+void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y,int mapNum) {
     PlayerView& view = players[sock];
-    std::pair<int, int> newPos = ChunkManager::grabChunk(X, Y);
+    std::tuple<int, int,int> newPos = ChunkManager::grabChunk(X, Y,mapNum);
 
     // nothing to be done
     if (newPos == view.chunkPos)
@@ -206,7 +206,7 @@ void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y) {
     // now, add all the new npcs & players!
     addPlayerToChunks(ChunkManager::getDeltaChunks(allChunks, view.currentChunks), sock);
 
-    ChunkManager::addPlayer(X, Y, sock); // takes care of adding the player to the chunk if it exists or not
+    ChunkManager::addPlayer(X, Y,mapNum, sock); // takes care of adding the player to the chunk if it exists or not
     view.chunkPos = newPos;
     view.currentChunks = allChunks;
 }
@@ -647,7 +647,7 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
     // force player & NPC reload
     PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
     plrv.currentChunks.clear();
-    plrv.chunkPos = std::make_pair<int, int>(0, 0);
+    plrv.chunkPos = std::make_tuple(0, 0, 0);
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
 }

@@ -452,7 +452,7 @@ void MobManager::step(CNServer *serv, time_t currTime) {
         int y = pair.second->appearanceData.iY;
 
         // skip chunks without players
-        if (!ChunkManager::inPopulatedChunks(x, y))
+        if (!ChunkManager::inPopulatedChunks(x, y,pair.second->mapNum))
             continue;
 
         // skip mob movement and combat if disabled

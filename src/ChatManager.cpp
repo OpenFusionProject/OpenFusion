@@ -2,6 +2,7 @@
 #include "CNStructs.hpp"
 #include "ChatManager.hpp"
 #include "PlayerManager.hpp"
+#include "NPCManager.hpp"
 
 void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
@@ -14,7 +15,74 @@ void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
     sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE*)data->buf;
     PlayerView& plr = PlayerManager::players[sock];
+    if (chat->szFreeChat[0] == '/')
+    {
+        std::string text = "";
+        std::string temp = "";
+        std::string mapNum = "";
+        int space = 0;
+        for (int x = 0; x < 16; x++)
+        {
 
+            if (chat->szFreeChat[x] == ' ')
+                space += 1;
+            if (space == 0)
+            {
+                temp = chat->szFreeChat[x];
+                text += temp;
+            }
+            if (space == 1 && chat->szFreeChat[x] != ' ')
+            {
+                temp = chat->szFreeChat[x];
+                mapNum += temp;
+            }
+
+        }
+        if (text == "/sendToMap" && std::stoi(mapNum) > -1)
+        {
+            if (plr.plr == nullptr)
+                return;
+            NPCManager::changeNPCMAP(sock, PlayerManager::players[sock], std::stoi(mapNum));
+            std::cout << text << std::endl;
+            std::cout << mapNum << std::endl;
+        }
+        else if (text == "/summonW" && std::stoi(mapNum) > -1)
+        {
+            if (plr.plr == nullptr)
+                return;
+
+            NPCManager::SummonWrite(sock, PlayerManager::players[sock], std::stoi(mapNum));
+            std::cout << text << std::endl;
+
+            std::cout << "Summoned" << mapNum << std::endl;
+        }
+        else if (text.find("/unSummonW") != std::string::npos)
+        {
+            if (plr.plr == nullptr)
+                return;
+            NPCManager::unSummonWrite(sock, PlayerManager::players[sock]);
+            std::cout << text << std::endl;
+            std::cout << "Unsummoned" << std::endl;
+        }
+        else if (text == "/tableWrite")
+        {
+            if (plr.plr == nullptr)
+                return;
+            NPCManager::tableWrite(sock, PlayerManager::players[sock], std::stoi(mapNum));
+            std::cout << text << std::endl;
+            std::cout << mapNum << std::endl;
+            std::cout << "Wrote to Json" << std::endl;
+        }
+        else if (text.find("/clearChanges") != std::string::npos)
+        {
+            if (plr.plr == nullptr)
+                return;
+            NPCManager::clearChanges(sock, PlayerManager::players[sock]);
+            std::cout << text << std::endl;
+            std::cout << "changesCleared" << std::endl;
+        }
+        return;
+    }
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC, resp);
     memcpy(resp.szFreeChat, chat->szFreeChat, sizeof(chat->szFreeChat));

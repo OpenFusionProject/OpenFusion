@@ -140,7 +140,7 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
     npc->appearanceData.iX = X;
     npc->appearanceData.iY = Y;
     npc->appearanceData.iZ = Z;
-    std::pair<int, int> newPos = ChunkManager::grabChunk(X, Y);
+    std::tuple<int, int, int> newPos = ChunkManager::grabChunk(X, Y,npc->imapNum);
 
     // nothing to be done (but we should also update currentChunks to add/remove stale chunks)
     if (newPos == npc->chunkPos) {
@@ -158,7 +158,7 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
 
     // update chunks
     ChunkManager::removeNPC(npc->chunkPos, id);
-    ChunkManager::addNPC(X, Y, id);
+    ChunkManager::addNPC(X, Y, npc->imapNum, id);
 
     npc->chunkPos = newPos;
     npc->currentChunks = allChunks;
@@ -544,10 +544,10 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     resp.NPCAppearanceData.iZ = plr->z;
 
     if (team == 2) {
-        NPCs[resp.NPCAppearanceData.iNPC_ID] = new Mob(plr->x, plr->y, plr->z, req->iNPCType, NPCData[req->iNPCType], resp.NPCAppearanceData.iNPC_ID);
+        NPCs[resp.NPCAppearanceData.iNPC_ID] = new Mob(plr->x, plr->y, plr->z, plr->mapNum, req->iNPCType, NPCData[req->iNPCType], resp.NPCAppearanceData.iNPC_ID);
         MobManager::Mobs[resp.NPCAppearanceData.iNPC_ID] = (Mob*)NPCs[resp.NPCAppearanceData.iNPC_ID];
     } else
-        NPCs[resp.NPCAppearanceData.iNPC_ID] = new BaseNPC(plr->x, plr->y, plr->z, req->iNPCType, resp.NPCAppearanceData.iNPC_ID);
+        NPCs[resp.NPCAppearanceData.iNPC_ID] = new BaseNPC(plr->x, plr->y, plr->z, req->iNPCType, resp.NPCAppearanceData.iNPC_ID, plr->mapNum);
 
     updateNPCPosition(resp.NPCAppearanceData.iNPC_ID, plr->x, plr->y, plr->z);
 }
@@ -568,24 +568,306 @@ void NPCManager::npcWarpTimeMachine(CNSocket* sock, CNPacketData* data) {
 }
 
 void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
+    PlayerView& plrv = PlayerManager::players[sock];
     // sanity check
     if (Warps.find(warpId) == Warps.end())
         return;
 
-    PlayerView& plrv = PlayerManager::players[sock];
-
     // send to client
-    INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC, resp);
-    resp.iX = Warps[warpId].x;
-    resp.iY = Warps[warpId].y;
-    resp.iZ = Warps[warpId].z;
-    resp.iCandy = plrv.plr->money;
-    resp.eIL = 4; // do not take away any items
+    INITSTRUCT(sP_FE2CL_INSTANCE_MAP_INFO, instanceInfo);
 
-    // force player & NPC reload
-    PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
-    plrv.currentChunks.clear();
-    plrv.chunkPos = std::make_pair<int, int>(0, 0);
+    std::cerr << "Warped to Map Num:" << Warps[warpId].mapNum << " NPC ID " << Warps[warpId].npcID << std::endl;
+    if (Warps[warpId].isInstance)
+    {
+        INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, response);
+        response.iX = Warps[warpId].x;
+        response.iY = Warps[warpId].y;
+        response.iZ = Warps[warpId].z;
+        instanceInfo.iInstanceMapNum = Warps[warpId].mapNum;
+        plrv.plr->mapNum = Warps[warpId].mapNum;
+        PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
+        plrv.currentChunks.clear();
+        sock->sendPacket((void*)&instanceInfo, P_FE2CL_INSTANCE_MAP_INFO, sizeof(sP_FE2CL_INSTANCE_MAP_INFO));
+        sock->sendPacket((void*)&response, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
+    }
+    else
+    {
+        INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC, resp); //Can only be used for exiting instances because it sets the instance flag to false
+        resp.iX = Warps[warpId].x;
+        resp.iY = Warps[warpId].y;
+        resp.iZ = Warps[warpId].z;
+        PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
+        plrv.currentChunks.clear();
+        plrv.plr->mapNum = 0;
+        plrv.plr->mapUID = 0;
+        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
+    }
+}
+void NPCManager::changeNPCMAP(CNSocket* sock, PlayerView& view, int mapNum) {
+    std::cout << "Change NPC Map" << std::endl;
+    std::ifstream inFile(settings::NPCJSON);
+    nlohmann::json npcData;
+    nlohmann::json editData;
+    std::ifstream editInFile(settings::NPCJSON.substr(0, settings::NPCJSON.find_last_of(".")) + std::to_string(view.plr->iID) + ".json");
+    if (editInFile.fail())
+    {
+        std::cout << "file does not exist" << std::endl;
+    }
+    else
+    {
+        editInFile >> editData;
+        editInFile.close();
+    }
+    std::map<int32_t, BaseNPC*> currentNpcs;
+    // read file into json
+    inFile >> npcData;
+    inFile.close();
+    currentNpcs = NPCs;
+    if (view.plr->mapUID != 0)
+    {
+        //currentNpcs = PrivateInstances[view.plr->mapUID].NPCs;
+    }
+    for (auto& pair : currentNpcs) {
+        if (view.plr->mapNum == pair.second->imapNum && pair.second->appearanceData.iNPCType == npcData[std::to_string(pair.second->jsonRef)]["id"])
+        {
+            //std::cout << "aaa"  << std::endl;
+            int diffX = abs(view.plr->x - pair.second->appearanceData.iX);
+            int diffY = abs(view.plr->y - pair.second->appearanceData.iY);
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
+            if (diffX < 100 && diffY < 100)
+            {
+                std::cout << "npcId" << pair.second->appearanceData.iNPCType << " ChangeNpcMap Map ID: " << mapNum << "NPCID: " << pair.second->jsonRef << "Name" << npcData[std::to_string(pair.second->jsonRef)]["name"] << std::endl;
+                npcData[std::to_string(pair.second->jsonRef)]["mapNum"] = (mapNum);
+                std::cout << npcData[std::to_string(pair.second->jsonRef)]["mapNum"] << std::endl;
+                std::cout << npcData[std::to_string(pair.second->jsonRef)] << std::endl;
+                //remove((settings::NPCJSON).data());
+                editData[std::to_string(pair.second->jsonRef)] = npcData[std::to_string(pair.second->jsonRef)];
+                std::ofstream outFile(settings::NPCJSON.substr(0, settings::NPCJSON.find_last_of(".")) + std::to_string(view.plr->iID) + ".json");
+                outFile << editData << std::endl;
+                outFile.close();
+                return;
+            }
+
+        }
+
+    }
+}
+void NPCManager::reloadNPCs()
+{
+    // load NPCs from NPCs.json into our NPC manager
+    //If someone knows how to reset all chunks please do that here
+    int i = 0;
+    NPCs.clear();
+    try {
+        std::ifstream inFile(settings::NPCJSON);
+        nlohmann::json npcData;
+
+        // read file into json
+        inFile >> npcData;
+
+        for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
+            auto npc = _npc.value();
+            BaseNPC* tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], npc["id"], npc["mapNum"], std::stoi(_npc.key()));
+
+            // Temporary fix, IDs will be pulled from json later
+            tmp->appearanceData.iNPC_ID = i;
+
+            NPCManager::NPCs[i] = tmp;
+            ChunkManager::addNPC(npc["x"], npc["y"], npc["mapNum"], i);
+
+            i++;
+
+            if (npc["id"] == 641 || npc["id"] == 642)
+                NPCManager::RespawnPoints.push_back({ npc["x"], npc["y"], ((int)npc["z"]) + RESURRECT_HEIGHT,(int)npc["mapNum"] });
+        }
+
+    }
+    catch (const std::exception& err) {
+        std::cerr << "[WARN] Malformed NPCs.json file! Reason:" << err.what() << std::endl;
+    }
+    // load everything else from xdttable
+    std::cout << "[INFO] Parsing xdt.json..." << std::endl;
+    std::ifstream infile(settings::XDTJSON);
+    nlohmann::json xdtData;
+
+    // read file into json
+    infile >> xdtData;
+    // load temporary mob dump
+    try {
+        std::ifstream inFile(settings::MOBJSON);
+        nlohmann::json npcData;
+
+        // read file into json
+        inFile >> npcData;
+
+        nlohmann::json npcTableData = xdtData["m_pNpcTable"]["m_pNpcData"];
+
+        for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
+            auto npc = _npc.value();
+            auto td = npcTableData[(int)npc["iNPCType"]];
+            Mob* tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iNPCType"], npc["iHP"], npc["iAngle"], td["m_iRegenTime"], npc["mapNum"], std::stoi(_npc.key()));
+
+            // Temporary fix, IDs will be pulled from json later
+            tmp->appearanceData.iNPC_ID = i;
+
+            NPCManager::NPCs[i] = tmp;
+            MobManager::Mobs[i] = (Mob*)NPCManager::NPCs[i];
+            ChunkManager::addNPC(npc["iX"], npc["iY"], npc["mapNum"], i);
+
+
+            i++;
+        }
+
+        std::cout << "[INFO] Populated " << NPCManager::NPCs.size() << " NPCs" << std::endl;
+    }
+    catch (const std::exception& err) {
+        std::cerr << "[WARN] Malformed mobs.json file! Reason:" << err.what() << std::endl;
+    }
+    ChunkManager::chunks.clear();
+
+}
+void NPCManager::SummonWrite(CNSocket* sock, PlayerView& view, int NPCID)
+{
+    //Unfinished Ignore
+    std::cout << "SummonWrite" << std::endl;
+
+    INITSTRUCT(sP_FE2CL_NPC_ENTER, resp);
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    //"554":{"id":1618,"mapNum":75,"name":"Location A292","x":130230.99365234375,"y":227686.9873046875,"z":-18806.99920654297}
+    resp.NPCAppearanceData.iNPC_ID = rand(); // cpunch-style
+    resp.NPCAppearanceData.iNPCType = NPCID;
+    resp.NPCAppearanceData.iHP = 1000; // TODO: placeholder
+    resp.NPCAppearanceData.iX = plr->x;
+    resp.NPCAppearanceData.iY = plr->y;
+    resp.NPCAppearanceData.iZ = plr->z;
+    resp.NPCAppearanceData.iAngle = plr->angle;
+    std::string newNpc;
+    //resp.NPCAppearanceData
+    std::ifstream inFile(settings::NPCJSON);
+    nlohmann::json npcData;
+    // read file into json
+    inFile >> npcData;
+    inFile.close();
+    nlohmann::json editData;
+    std::ifstream editInFile(settings::NPCJSON.substr(0, settings::NPCJSON.find_last_of(".")) + std::to_string(view.plr->iID) + ".json");
+    if (editInFile.fail())
+    {
+        std::cout << "file does not exist" << std::endl;
+    }
+    else
+    {
+        editInFile >> editData;
+        editInFile.close();
+    }
+    std::string validId;
+    int i = 0;
+    for (nlohmann::json::iterator npc = npcData.begin(); npc != npcData.end(); npc++, i++) {
+        if (npcData[std::to_string(i)]["name"] == "" && editData[std::to_string(i)]["name"] != "Temp")
+        {
+            validId = std::to_string(i);
+            npcData[validId]["id"] = NPCID;
+            npcData[validId]["mapNum"] = plr->mapNum;
+            npcData[validId]["name"] = "Temp";
+            npcData[validId]["x"] = resp.NPCAppearanceData.iX;
+            npcData[validId]["y"] = resp.NPCAppearanceData.iY;
+            npcData[validId]["z"] = resp.NPCAppearanceData.iZ;
+            std::cout << npcData[validId] << std::endl;
+
+            editData[validId] = npcData[validId];
+            std::ofstream outFile(settings::NPCJSON.substr(0, settings::NPCJSON.find_last_of(".")) + std::to_string(view.plr->iID) + ".json");
+            outFile << editData << std::endl;
+            outFile.close();
+            std::cout << "SendPacket" << std::endl;
+            return;
+        }
+    }
+
+}
+void NPCManager::unSummonWrite(CNSocket* sock, PlayerView& view) {
+    std::ifstream inFile(settings::NPCJSON);
+    nlohmann::json npcData;
+    // read file into json
+    inFile >> npcData;
+    inFile.close();
+    nlohmann::json editData;
+    std::ifstream editInFile(settings::NPCJSON.substr(0, settings::NPCJSON.find_last_of(".")) + std::to_string(view.plr->iID) + ".json");
+    if (editInFile.fail())
+    {
+        std::cout << "file does not exist" << std::endl;
+    }
+    else
+    {
+        editInFile >> editData;
+        editInFile.close();
+    }
+    for (auto& pair : NPCs) {
+        if (view.plr->mapNum == pair.second->imapNum && pair.second->appearanceData.iNPCType == npcData[std::to_string(pair.second->jsonRef)]["id"])
+        {
+            int diffX = abs(view.plr->x - pair.second->appearanceData.iX);
+            int diffY = abs(view.plr->y - pair.second->appearanceData.iY);
+
+            if (diffX < 100 && diffY < 100)
+            {
+                std::cout << std::to_string(pair.second->jsonRef) << npcData[std::to_string(pair.second->jsonRef)] << std::endl;
+                npcData[std::to_string(pair.second->jsonRef)]["id"] = 0;
+                npcData[std::to_string(pair.second->jsonRef)]["mapNum"] = 0;
+                npcData[std::to_string(pair.second->jsonRef)]["name"] = "";
+                npcData[std::to_string(pair.second->jsonRef)]["x"] = 0;
+                npcData[std::to_string(pair.second->jsonRef)]["y"] = 0;
+                npcData[std::to_string(pair.second->jsonRef)]["z"] = 0;
+                editData[std::to_string(pair.second->jsonRef)] = npcData[std::to_string(pair.second->jsonRef)];
+                std::ofstream outFile(settings::NPCJSON.substr(0, settings::NPCJSON.find_last_of(".")) + std::to_string(view.plr->iID) + ".json");
+                outFile << editData << std::endl;
+                outFile.close();
+                return;
+            }
+
+        }
+
+    }
+
+
+}
+void NPCManager::tableWrite(CNSocket* sock, PlayerView& view, int PCID)
+{
+    std::ifstream mainFile(settings::NPCJSON);
+    nlohmann::json npcData;
+
+    nlohmann::json editData;
+    mainFile >> editData;
+    std::ifstream inFile(settings::NPCJSON.substr(0, settings::NPCJSON.find_last_of(".")) + std::to_string((PCID)) + ".json");
+    if (inFile.fail())
+    {
+        std::cout << settings::NPCJSON.substr(0, settings::NPCJSON.find_last_of(".")) << std::to_string((PCID)) << ".json did not exist" << std::endl;
+        return;
+    }
+    inFile >> npcData;
+    for (nlohmann::json::iterator npc = npcData.begin(); npc != npcData.end(); npc++) {
+        editData[npc.key()] = npcData[npc.key()];
+    }
+    std::ofstream outFile(settings::NPCJSON);
+    outFile << editData << std::endl;
+    outFile.close();
+    clearChanges(sock, PlayerManager::players[sock], PCID);
+    reloadNPCs();
+    return;
+}
+void NPCManager::clearChanges(CNSocket* sock, PlayerView& view)
+{
+    nlohmann::json editData;
+    std::ofstream outFile(settings::NPCJSON.substr(0, settings::NPCJSON.find_last_of(".")) + std::to_string(view.plr->iID) + ".json");
+    outFile << editData << std::endl;
+    outFile.close();
+
+    return;
+}
+void NPCManager::clearChanges(CNSocket* sock, PlayerView& view, int playerUID)
+{
+    nlohmann::json editData;
+    std::ofstream outFile(settings::NPCJSON.substr(0, settings::NPCJSON.find_last_of(".")) + std::to_string(playerUID) + ".json");
+    outFile << editData << std::endl;
+    outFile.close();
+
+    return;
 }
