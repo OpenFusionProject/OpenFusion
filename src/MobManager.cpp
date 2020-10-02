@@ -7,13 +7,6 @@
 #include <cmath>
 #include <assert.h>
 
-#ifndef MIN
-# define MIN(A,B) ((A)<(B)?(A):(B))
-#endif
-#ifndef MAX
-# define MAX(A,B) ((A)>(B)?(A):(B))
-#endif
-
 std::map<int32_t, Mob*> MobManager::Mobs;
 std::queue<int32_t> MobManager::RemovalQueue;
 
@@ -649,7 +642,7 @@ std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool
 
     std::pair<int,int> ret = {};
 
-    int damage = (MAX(40, attackPower - defensePower) * (34 + crutchLevel) + MIN(attackPower, attackPower * attackPower / defensePower) * (36 - crutchLevel)) / 70;
+    int damage = (std::max(40, attackPower - defensePower) * (34 + crutchLevel) + std::min(attackPower, attackPower * attackPower / defensePower) * (36 - crutchLevel)) / 70;
     ret.first = damage * (rand() % 40 + 80) / 100; // 20% variance
     ret.second = 1;
 

@@ -7,6 +7,7 @@
 #include <stdint.h>
 #ifdef _WIN32
 // windows
+    #define NOMINMAX
     #define _WINSOCK_DEPRECATED_NO_WARNINGS
     #include <winsock2.h>
     #include <windows.h>

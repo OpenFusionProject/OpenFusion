@@ -47,7 +47,10 @@ void CNShardServer::keepAliveTimer(CNServer* serv, time_t currTime) {
 }
 
 void CNShardServer::periodicSaveTimer(CNServer* serv, time_t currTime) {
-    std::cout << "[INFO] Saving players to DB..." << std::endl;
+    if (PlayerManager::players.empty())
+        return;
+
+    std::cout << "[INFO] Saving " << PlayerManager::players.size() << " players to DB..." << std::endl;
 
     for (auto& pair : PlayerManager::players) {
         Database::updatePlayer(pair.second.plr);
