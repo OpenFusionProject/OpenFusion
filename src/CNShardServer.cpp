@@ -64,8 +64,12 @@ void CNShardServer::_killConnection(CNSocket* cns) {
 
     Player* plr = PlayerManager::getPlayer(cns);
 
-    if (plr == nullptr)
+    if (plr == nullptr) { // this shouldn't happen if everything works correctly...
+        PlayerManager::removePlayer(cns);
+
+        // also, hopefully the player's progress was already saved since the last db save interval, but rip those 2 mins of progress lol
         return;
+    }
         
     int64_t key = plr->SerialKey;
     
