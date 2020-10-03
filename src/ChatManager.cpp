@@ -2,6 +2,7 @@
 #include "CNStructs.hpp"
 #include "ChatManager.hpp"
 #include "PlayerManager.hpp"
+#include "TransportManager.hpp"
 #include "TableData.hpp"
 
 #include <sstream>
@@ -54,7 +55,7 @@ void accessCommand(std::string full, std::vector<std::string>& args, CNSocket* s
 void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     if (args.size() < 2) {
         ChatManager::sendServerMessage(sock, "[MSS] Too few arguments");
-        ChatManager::sendServerMessage(sock, "[MSS] Usage: /mss <route> <add/remove/goto/clear/reload/export> <<height>>");
+        ChatManager::sendServerMessage(sock, "[MSS] Usage: /mss <route> <add/remove/goto/clear/test/export> <<height>>");
         return;
     }
 
@@ -69,12 +70,12 @@ void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
 
     if (args.size() < 3) {
         ChatManager::sendServerMessage(sock, "[MSS] Too few arguments");
-        ChatManager::sendServerMessage(sock, "[MSS] Usage: /mss <route> <add/remove/goto/clear/reload/export> <<height>>");
+        ChatManager::sendServerMessage(sock, "[MSS] Usage: /mss <route> <add/remove/goto/clear/test/export> <<height>>");
         return;
     }
 
     // get the route (if it doesn't exist yet, this will also make it)
-    std::stack<WarpLocation>* route = &TableData::RunningSkywayRoutes[routeNum];
+    std::vector<WarpLocation>* route = &TableData::RunningSkywayRoutes[routeNum];
 
     // mss <route> add <height>
     if (args[2] == "add") {
@@ -93,7 +94,7 @@ void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
         }
 
         Player* plr = PlayerManager::getPlayer(sock);
-        route->push({ plr->x, plr->y, height }); // add point to stack
+        route->push_back({ plr->x, plr->y, height }); // add point
         ChatManager::sendServerMessage(sock, "[MSS] Added point (" + std::to_string(plr->x) + ", " + std::to_string(plr->y) + ", " + std::to_string(height) + ") to route " + std::to_string(routeNum));
         return;
     }
@@ -105,8 +106,8 @@ void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
             return;
         }
 
-        WarpLocation pulled = route->top();
-        route->pop(); // remove point at top of stack
+        WarpLocation pulled = route->back();
+        route->pop_back(); // remove point at top of stack
         ChatManager::sendServerMessage(sock, "[MSS] Removed point (" + std::to_string(pulled.x) + ", " + std::to_string(pulled.y) + ", " + std::to_string(pulled.z) + ") from route " + std::to_string(routeNum));
         return;
     }
@@ -118,32 +119,38 @@ void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
             return;
         }
 
-        WarpLocation pulled = route->top();
-        // simulate goto
-        INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, pkt);
-        Player* plr = PlayerManager::getPlayer(sock);
-        PlayerManager::updatePlayerPosition(sock, pulled.x, pulled.y, pulled.z);
-        pkt.iX = pulled.x;
-        pkt.iY = pulled.y;
-        pkt.iZ = pulled.z;
-        sock->sendPacket((void*)&pkt, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
+        WarpLocation pulled = route->back();
+        PlayerManager::sendPlayerTo(sock, pulled.x, pulled.y, pulled.z);
         return;
     }
 
     // mss <route> clear
     if (args[2] == "clear") {
-        // clear the stack
-        while (!route->empty()) {
-            route->pop();
-        }
+        route->clear();
         ChatManager::sendServerMessage(sock, "[MSS] Cleared route " + std::to_string(routeNum));
         return;
     }
 
     // mss <route> reload
-    if (args[2] == "reload") {
-        ChatManager::sendServerMessage(sock, "[MSS] reload on " + std::to_string(routeNum));
-        // TODO: inject route and reload
+    if (args[2] == "test") {
+        if (route->empty()) {
+            ChatManager::sendServerMessage(sock, "[MSS] Route " + std::to_string(routeNum) + " is empty");
+            return;
+        }
+
+        // IMPROMPTU LERP
+        int speed = 1500; // TODO: make this adjustable
+        std::queue<WarpLocation> path;
+        WarpLocation last = route->front(); // start pos
+        PlayerManager::sendPlayerTo(sock, last.x, last.y, last.z); // send the player to the start of the path
+        for (int i = 1; i < route->size(); i++) {
+            WarpLocation coords = route->at(i);
+            TransportManager::lerp(&path, last, coords, speed);
+            path.push(coords); // add keyframe to the queue
+            last = coords; // update start pos
+        }
+        
+        TransportManager::SkywayQueues[sock] = path;
         return;
     }
 

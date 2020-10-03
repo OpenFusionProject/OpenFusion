@@ -212,6 +212,27 @@ void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y) {
     view.currentChunks = allChunks;
 }
 
+void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, int I) {
+    getPlayer(sock)->instanceID = I;
+    sendPlayerTo(sock, X, Y, Z);
+}
+
+void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z) {
+    
+    PlayerManager::updatePlayerPosition(sock, X, Y, Z);
+    INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, pkt);
+    pkt.iX = X;
+    pkt.iY = Y;
+    pkt.iZ = Z;
+
+    // force player & NPC reload
+    PlayerView& plrv = players[sock];
+    PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
+    plrv.currentChunks.clear();
+    plrv.chunkPos = std::make_tuple(0, 0, plrv.plr->instanceID);
+    sock->sendPacket((void*)&pkt, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
+}
+
 void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_ENTER))
         return; // ignore the malformed packet
@@ -638,16 +659,7 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tZ: " << gotoData->iToZ << std::endl;
     )
 
-    response.iX = plrv.plr->x = gotoData->iToX;
-    response.iY = plrv.plr->y = gotoData->iToY;
-    response.iZ = plrv.plr->z = gotoData->iToZ;
-
-    // force player & NPC reload
-    PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
-    plrv.currentChunks.clear();
-    plrv.chunkPos = std::make_tuple(0, 0, plrv.plr->instanceID);
-
-    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
+    sendPlayerTo(sock, gotoData->iToX, gotoData->iToY, gotoData->iToZ);
 }
 
 void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {

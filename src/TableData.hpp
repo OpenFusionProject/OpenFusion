@@ -1,12 +1,11 @@
 #pragma once
 #include <map>
-#include <stack>
 
 #include "contrib/JSON.hpp"
 #include "NPCManager.hpp"
 
 namespace TableData {
-    extern std::map<int32_t, std::stack<WarpLocation>> RunningSkywayRoutes;
+    extern std::map<int32_t, std::vector<WarpLocation>> RunningSkywayRoutes;
 
     void init();
     void cleanup();
