@@ -102,7 +102,7 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     PlayerManager::sendToViewable(sock, (void*)respbuf, P_FE2CL_PC_ATTACK_NPCs, resplen);
 }
 
-void MobManager::npcAttackPc(Mob *mob) {
+void MobManager::npcAttackPc(Mob *mob, time_t currTime) {
     Player *plr = PlayerManager::getPlayer(mob->target);
 
     if (plr == nullptr)
@@ -132,7 +132,8 @@ void MobManager::npcAttackPc(Mob *mob) {
 
     if (plr->HP <= 0) {
         mob->target = nullptr;
-        mob->state = MobState::RETREAT;
+        if (!aggroCheck(mob, currTime))
+            mob->state = MobState::RETREAT;
     }
 }
 
@@ -273,7 +274,8 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     // sanity check: did the target player lose connection?
     if (PlayerManager::players.find(mob->target) == PlayerManager::players.end()) {
         mob->target = nullptr;
-        mob->state = MobState::RETREAT;
+        if (!aggroCheck(mob, currTime))
+            mob->state = MobState::RETREAT;
         return;
     }
     Player *plr = PlayerManager::getPlayer(mob->target);
@@ -283,7 +285,14 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
 
     // did something else kill the player in the mean time?
     if (plr->HP <= 0) {
-        mob->target = nullptr;
+        
+        if (!aggroCheck(mob, currTime)) {
+            // player will resurrect, keep the aggro
+            if (plr->iConditionBitFlag & CSB_BIT_PHOENIX)
+                return;
+        } else    
+            mob->target = nullptr;
+        
         mob->state = MobState::RETREAT;
         return;
     }
@@ -298,10 +307,10 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
         // attack logic
         if (mob->nextAttack == 0) {
             mob->nextAttack = currTime + (int)mob->data["m_iInitalTime"] * 100; // I *think* this is what this is
-            npcAttackPc(mob);
+            npcAttackPc(mob, currTime);
         } else if (mob->nextAttack != 0 && currTime >= mob->nextAttack) {
             mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
-            npcAttackPc(mob);
+            npcAttackPc(mob, currTime);
         }
     } else {
         // movement logic
@@ -352,30 +361,7 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
      */
     if (mob->nextAttack == 0 || currTime >= mob->nextAttack) {
         mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
-
-        /*
-         * Aggro on nearby players.
-         * Even if they're in range, we can't assume they're all in the same one chunk
-         * as the mob, since it might be near a chunk boundary.
-         */
-        for (Chunk *chunk : mob->currentChunks) {
-            for (CNSocket *s : chunk->players) {
-                Player *plr = s->plr;
-
-                // height is relevant for aggro distance because of platforming
-                int xyDistance = hypot(mob->appearanceData.iX - plr->x, mob->appearanceData.iY - plr->y);
-                int distance = hypot(xyDistance, mob->appearanceData.iZ - plr->z);
-                if (distance > mob->data["m_iSightRange"])
-                    continue;
-
-                // found player. engage.
-                mob->target = s;
-                mob->state = MobState::COMBAT;
-                mob->nextMovement = currTime;
-                mob->nextAttack = 0;
-                return;
-            }
-        }
+        aggroCheck(mob, currTime);
     }
 
     // some mobs don't move (and we mustn't divide/modulus by zero)
@@ -596,7 +582,7 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
         // do not tick dead players
         if (plr->HP <= 0)
             continue;
-
+        
         // fm patch/lake damage
         if (plr->dotDamage)
             dealGooDamage(sock, PC_MAXHEALTH(plr->level) * 3 / 20);
@@ -785,4 +771,32 @@ void MobManager::resendMobHP(Mob *mob) {
     heal->iHP = mob->appearanceData.iHP;
 
     NPCManager::sendToViewable(mob, (void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
+}
+
+/*
+ * Aggro on nearby players.
+ * Even if they're in range, we can't assume they're all in the same one chunk
+ * as the mob, since it might be near a chunk boundary.
+ */
+bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
+     
+    for (Chunk *chunk : mob->currentChunks) {
+        for (CNSocket *s : chunk->players) {
+            Player *plr = s->plr;
+
+            // height is relevant for aggro distance because of platforming
+            int xyDistance = hypot(mob->appearanceData.iX - plr->x, mob->appearanceData.iY - plr->y);
+            int distance = hypot(xyDistance, mob->appearanceData.iZ - plr->z);
+            if (distance > mob->data["m_iSightRange"])
+                continue;
+
+            // found player. engage.
+            mob->target = s;
+            mob->state = MobState::COMBAT;
+            mob->nextMovement = currTime;
+            mob->nextAttack = 0;
+            return true;
+        }
+    }
+    return false;
 }
