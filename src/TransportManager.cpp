@@ -1,6 +1,7 @@
 #include "CNShardServer.hpp"
 #include "CNStructs.hpp"
 #include "PlayerManager.hpp"
+#include "NanoManager.hpp"
 #include "TransportManager.hpp"
 
 #include <unordered_map>
@@ -153,6 +154,7 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
         break;
     case 2: // Monkey Skyway
         if (SkywayPaths.find(route.mssRouteNum) != SkywayPaths.end()) { // check if route exists
+            NanoManager::summonNano(sock, -1); // make sure that no nano is active during the ride
             SkywayQueues[sock] = SkywayPaths[route.mssRouteNum]; // set socket point queue to route
             break;
         }
