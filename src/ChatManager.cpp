@@ -15,7 +15,8 @@ std::vector<std::string> parseArgs(std::string full) {
     return std::vector<std::string>(begin, end);
 }
 
-bool runCmd(std::string full, std::vector<std::string> args, CNSocket* sock) {
+bool runCmd(std::string full, CNSocket* sock) {
+    std::vector<std::string> args = parseArgs(full);
     std::string cmd = args[0].substr(1, args[0].size() - 1);
     
     // check if the command exists
@@ -37,7 +38,7 @@ bool runCmd(std::string full, std::vector<std::string> args, CNSocket* sock) {
     return false;
 }
 
-void testCommand(std::string full, std::vector<std::string> args, CNSocket* sock) {
+void testCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     ChatManager::sendServerMessage(sock, "Test command is working! Here are your passed args:");
 
     for (std::string arg : args) {
@@ -45,7 +46,7 @@ void testCommand(std::string full, std::vector<std::string> args, CNSocket* sock
     }
 }
 
-void accessCommand(std::string full, std::vector<std::string> args, CNSocket* sock) {
+void accessCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     ChatManager::sendServerMessage(sock, "Your access level is " + std::to_string(PlayerManager::getPlayer(sock)->accountLevel));
 }
 
@@ -71,10 +72,9 @@ void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     std::string fullChat = U16toU8(chat->szFreeChat);
-    std::vector<std::string> args = parseArgs(fullChat);
 
-    if (args.size() > 0 && args[0][0] == CMD_PREFIX) { // PREFIX
-        runCmd(fullChat, args, sock);
+    if (fullChat.length() > 1 && fullChat[0] == CMD_PREFIX) { // PREFIX
+        runCmd(fullChat, sock);
         return;
     }
 

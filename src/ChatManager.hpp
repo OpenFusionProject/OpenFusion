@@ -4,7 +4,7 @@
 
 #define CMD_PREFIX '/'
 
-typedef void (*CommandHandler)(std::string fullString, std::vector<std::string> args, CNSocket* sock);
+typedef void (*CommandHandler)(std::string fullString, std::vector<std::string>& args, CNSocket* sock);
 
 struct ChatCommand {
     int requiredAccLevel;
