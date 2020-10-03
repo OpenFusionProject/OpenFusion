@@ -2,6 +2,7 @@
 #include "CNStructs.hpp"
 #include "ChatManager.hpp"
 #include "PlayerManager.hpp"
+#include "TableData.hpp"
 
 #include <sstream>
 #include <iterator>
@@ -50,6 +51,114 @@ void accessCommand(std::string full, std::vector<std::string>& args, CNSocket* s
     ChatManager::sendServerMessage(sock, "Your access level is " + std::to_string(PlayerManager::getPlayer(sock)->accountLevel));
 }
 
+void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    if (args.size() < 2) {
+        ChatManager::sendServerMessage(sock, "[MSS] Too few arguments");
+        ChatManager::sendServerMessage(sock, "[MSS] Usage: /mss <route> <add/remove/goto/clear/reload/export> <<height>>");
+        return;
+    }
+
+    // Validate route number
+    char* routeNumC;
+    int routeNum = std::strtol(args[1].c_str(), &routeNumC, 10);
+    if (*routeNumC) {
+        // not an integer
+        ChatManager::sendServerMessage(sock, "[MSS] Invalid route number '" + args[1] + "'");
+        return;
+    }
+
+    if (args.size() < 3) {
+        ChatManager::sendServerMessage(sock, "[MSS] Too few arguments");
+        ChatManager::sendServerMessage(sock, "[MSS] Usage: /mss <route> <add/remove/goto/clear/reload/export> <<height>>");
+        return;
+    }
+
+    // get the route (if it doesn't exist yet, this will also make it)
+    std::stack<WarpLocation>* route = &TableData::RunningSkywayRoutes[routeNum];
+
+    // mss <route> add <height>
+    if (args[2] == "add") {
+        // make sure height token exists
+        if (args.size() < 4) {
+            ChatManager::sendServerMessage(sock, "[MSS] Point height must be specified");
+            ChatManager::sendServerMessage(sock, "[MSS] Usage: /mss <route> add <height>");
+            return;
+        }
+        // validate height token
+        char* heightC;
+        int height = std::strtol(args[3].c_str(), &heightC, 10);
+        if (*heightC) {
+            ChatManager::sendServerMessage(sock, "[MSS] Invalid height " + args[3]);
+            return;
+        }
+
+        Player* plr = PlayerManager::getPlayer(sock);
+        route->push({ plr->x, plr->y, height }); // add point to stack
+        ChatManager::sendServerMessage(sock, "[MSS] Added point (" + std::to_string(plr->x) + ", " + std::to_string(plr->y) + ", " + std::to_string(height) + ") to route " + std::to_string(routeNum));
+        return;
+    }
+
+    // mss <route> remove
+    if (args[2] == "remove") {
+        if (route->empty()) {
+            ChatManager::sendServerMessage(sock, "[MSS] Route " + std::to_string(routeNum) + " is empty");
+            return;
+        }
+
+        WarpLocation pulled = route->top();
+        route->pop(); // remove point at top of stack
+        ChatManager::sendServerMessage(sock, "[MSS] Removed point (" + std::to_string(pulled.x) + ", " + std::to_string(pulled.y) + ", " + std::to_string(pulled.z) + ") from route " + std::to_string(routeNum));
+        return;
+    }
+
+    // mss <route> goto
+    if (args[2] == "goto") {
+        if (route->empty()) {
+            ChatManager::sendServerMessage(sock, "[MSS] Route " + std::to_string(routeNum) + " is empty");
+            return;
+        }
+
+        WarpLocation pulled = route->top();
+        // simulate goto
+        INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, pkt);
+        Player* plr = PlayerManager::getPlayer(sock);
+        PlayerManager::updatePlayerPosition(sock, pulled.x, pulled.y, pulled.z);
+        pkt.iX = pulled.x;
+        pkt.iY = pulled.y;
+        pkt.iZ = pulled.z;
+        sock->sendPacket((void*)&pkt, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
+        return;
+    }
+
+    // mss <route> clear
+    if (args[2] == "clear") {
+        // clear the stack
+        while (!route->empty()) {
+            route->pop();
+        }
+        ChatManager::sendServerMessage(sock, "[MSS] Cleared route " + std::to_string(routeNum));
+        return;
+    }
+
+    // mss <route> reload
+    if (args[2] == "reload") {
+        ChatManager::sendServerMessage(sock, "[MSS] reload on " + std::to_string(routeNum));
+        // TODO: inject route and reload
+        return;
+    }
+
+    // mss <route> export
+    if (args[2] == "export") {
+        ChatManager::sendServerMessage(sock, "[MSS] export on " + std::to_string(routeNum));
+        // TODO: dump route to tdata
+        return;
+    }
+
+    // mss ????
+    ChatManager::sendServerMessage(sock, "[MSS] Unknown command '" + args[2] + "'");
+
+}
+
 void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
@@ -58,6 +167,7 @@ void ChatManager::init() {
     registerCommand("test", 1, testCommand);
     registerCommand("access", 100, accessCommand);
     // TODO: add help command
+    registerCommand("mss", 100, mssCommand);
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr) {
