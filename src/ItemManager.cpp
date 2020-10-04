@@ -911,3 +911,16 @@ void ItemManager::setItemStats(Player* plr) {
         plr->defense += itemStatsDat->defense;
     }
 } 
+
+// HACK: work around the invisible weapon bug
+void ItemManager::updateEquips(CNSocket* sock, Player* plr) {
+    for (int i = 0; i < 4; i++) {
+        INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, resp);
+
+        resp.iPC_ID = plr->iID;
+        resp.iEquipSlotNum = i;
+        resp.EquipSlotItem = plr->Equip[i];
+        
+        PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
+    }
+} 

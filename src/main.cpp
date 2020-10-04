@@ -12,6 +12,7 @@
 #include "Database.hpp"
 #include "TableData.hpp"
 #include "ChunkManager.hpp"
+#include "GroupManager.hpp"
 
 #include "settings.hpp"
 
@@ -99,6 +100,7 @@ int main() {
     NPCManager::init();
     TransportManager::init();
     // BuddyManager::init(); // stubbed until we have database integration + lots of bug fixes
+    GroupManager::init();
 
     Database::open();
 
