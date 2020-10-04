@@ -135,7 +135,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 }
             } else {
                 INITSTRUCT(sP_LS2CL_REP_LOGIN_FAIL, resp);
-                U8toU16(userLogin, resp.szID);
+                U8toU16(userLogin, resp.szID, sizeof(resp.szID));
                 resp.iErrorCode = errorCode;
                 sock->sendPacket((void*)&resp, P_LS2CL_REP_LOGIN_FAIL, sizeof(sP_LS2CL_REP_LOGIN_FAIL));
             }

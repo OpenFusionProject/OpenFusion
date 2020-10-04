@@ -7,6 +7,7 @@
 #include "ItemManager.hpp"
 #include "NanoManager.hpp"
 #include "GroupManager.hpp"
+#include "ChatManager.hpp"
 
 #include "settings.hpp"
 
@@ -215,13 +216,33 @@ void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y) {
     view.currentChunks = allChunks;
 }
 
+void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, int I) {
+    getPlayer(sock)->instanceID = I;
+    sendPlayerTo(sock, X, Y, Z);
+}
+
+void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z) {
+    
+    PlayerManager::updatePlayerPosition(sock, X, Y, Z);
+    INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, pkt);
+    pkt.iX = X;
+    pkt.iY = Y;
+    pkt.iZ = Z;
+
+    // force player & NPC reload
+    PlayerView& plrv = players[sock];
+    PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
+    plrv.currentChunks.clear();
+    plrv.chunkPos = std::make_tuple(0, 0, plrv.plr->instanceID);
+    sock->sendPacket((void*)&pkt, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
+}
+
 void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_ENTER))
         return; // ignore the malformed packet
 
     sP_CL2FE_REQ_PC_ENTER* enter = (sP_CL2FE_REQ_PC_ENTER*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_ENTER_SUCC, response);
-    INITSTRUCT(sP_FE2CL_PC_MOTD_LOGIN, motd);
 
     // TODO: check if serialkey exists, if it doesn't send sP_FE2CL_REP_PC_ENTER_FAIL
     Player plr = CNSharedData::getPlayer(enter->iEnterSerialKey);
@@ -318,9 +339,6 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     plr.SerialKey = enter->iEnterSerialKey;
     plr.instanceID = INSTANCE_OVERWORLD; // TODO: load this from the database (as long as it's not a unique instance)
 
-    motd.iType = 1;
-    U8toU16(settings::MOTDSTRING, (char16_t*)motd.szSystemMsg);
-
     sock->setEKey(CNSocketEncryption::createNewKey(response.uiSvrTime, response.iID + 1, response.PCLoadData2CL.iFusionMatter + 1));
     sock->setFEKey(plr.FEKey);
     sock->setActiveKey(SOCKETKEY_FE); // send all packets using the FE key from now on
@@ -328,7 +346,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_ENTER_SUCC, sizeof(sP_FE2CL_REP_PC_ENTER_SUCC));
 
     // transmit MOTD after entering the game, so the client hopefully changes modes on time
-    sock->sendPacket((void*)&motd, P_FE2CL_PC_MOTD_LOGIN, sizeof(sP_FE2CL_PC_MOTD_LOGIN));
+    ChatManager::sendServerMessage(sock, settings::MOTDSTRING);
 
     addPlayer(sock, plr);
     //check if there is an expiring vehicle
@@ -648,16 +666,7 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tZ: " << gotoData->iToZ << std::endl;
     )
 
-    response.iX = plrv.plr->x = gotoData->iToX;
-    response.iY = plrv.plr->y = gotoData->iToY;
-    response.iZ = plrv.plr->z = gotoData->iToZ;
-
-    // force player & NPC reload
-    PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
-    plrv.currentChunks.clear();
-    plrv.chunkPos = std::make_tuple(0, 0, plrv.plr->instanceID);
-
-    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
+    sendPlayerTo(sock, gotoData->iToX, gotoData->iToY, gotoData->iToZ);
 }
 
 void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
@@ -915,6 +924,7 @@ WarpLocation PlayerManager::getRespawnPoint(Player *plr) {
 
     return best;
 }
+
 bool PlayerManager::isAccountInUse(int accountId) {
     std::map<CNSocket*, PlayerView>::iterator it;
     for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++)
@@ -927,15 +937,18 @@ bool PlayerManager::isAccountInUse(int accountId) {
 
 void PlayerManager::exitDuplicate(int accountId) {
     std::map<CNSocket*, PlayerView>::iterator it;
-    for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++)
-    {
-        if (it->second.plr->accountId == accountId)
-        {
+
+    // disconnect any duplicate players
+    for (it = players.begin(); it != players.end(); it++) {
+        if (it->second.plr->accountId == accountId) {
             CNSocket* sock = it->first;
+
             INITSTRUCT(sP_FE2CL_REP_PC_EXIT_DUPLICATE, resp);
             resp.iErrorCode = 0;
             sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_EXIT_DUPLICATE, sizeof(sP_FE2CL_REP_PC_EXIT_DUPLICATE));
+
             sock->kill();
+            CNShardServer::_killConnection(sock);
         }
     }
 }

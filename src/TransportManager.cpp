@@ -164,7 +164,7 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
         INITSTRUCT(sP_FE2CL_ANNOUNCE_MSG, alert);
         alert.iAnnounceType = 0; // don't think this lets us make a confirm dialog
         alert.iDuringTime = 3;
-        U8toU16("Skyway route " + std::to_string(route.mssRouteNum) + " isn't pathed yet. You will not be charged any taros.", (char16_t*)alert.szAnnounceMsg);
+        U8toU16("Skyway route " + std::to_string(route.mssRouteNum) + " isn't pathed yet. You will not be charged any taros.", (char16_t*)alert.szAnnounceMsg, sizeof(alert.szAnnounceMsg));
         sock->sendPacket((void*)&alert, P_FE2CL_ANNOUNCE_MSG, sizeof(sP_FE2CL_ANNOUNCE_MSG));
 
         std::cout << "[WARN] MSS route " << route.mssRouteNum << " not pathed" << std::endl;

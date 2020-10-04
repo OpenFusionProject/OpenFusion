@@ -47,24 +47,36 @@ void CNShardServer::keepAliveTimer(CNServer* serv, time_t currTime) {
 }
 
 void CNShardServer::periodicSaveTimer(CNServer* serv, time_t currTime) {
+    if (PlayerManager::players.empty())
+        return;
+
+    std::cout << "[INFO] Saving " << PlayerManager::players.size() << " players to DB..." << std::endl;
+
     for (auto& pair : PlayerManager::players) {
         Database::updatePlayer(pair.second.plr);
     }
+
+    std::cout << "[INFO] Done." << std::endl;
 }
 
 void CNShardServer::newConnection(CNSocket* cns) {
     cns->setActiveKey(SOCKETKEY_E); // by default they accept keys encrypted with the default key
 }
 
-void CNShardServer::killConnection(CNSocket* cns) {
+// must be static to be called from PlayerManager::exitDuplicate()
+void CNShardServer::_killConnection(CNSocket* cns) {
     // check if the player ever sent a REQ_PC_ENTER
     if (PlayerManager::players.find(cns) == PlayerManager::players.end())
         return;
 
     Player* plr = PlayerManager::getPlayer(cns);
 
-    if (plr == nullptr)
+    if (plr == nullptr) { // this shouldn't happen if everything works correctly...
+        PlayerManager::removePlayer(cns);
+
+        // also, hopefully the player's progress was already saved since the last db save interval, but rip those 2 mins of progress lol
         return;
+    }
         
     int64_t key = plr->SerialKey;
     
@@ -74,6 +86,16 @@ void CNShardServer::killConnection(CNSocket* cns) {
 
     // remove from CNSharedData
     CNSharedData::erasePlayer(key);
+}
+
+void CNShardServer::killConnection(CNSocket *cns) {
+    _killConnection(cns);
+}
+
+// flush the DB when terminating the server
+void CNShardServer::kill() {
+    periodicSaveTimer(nullptr, 0);
+    CNServer::kill();
 }
 
 void CNShardServer::onStep() {

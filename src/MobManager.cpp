@@ -1,5 +1,6 @@
 #include "MobManager.hpp"
 #include "PlayerManager.hpp"
+#include "NanoManager.hpp"
 #include "NPCManager.hpp"
 #include "ItemManager.hpp"
 #include "MissionManager.hpp"
@@ -7,13 +8,6 @@
 
 #include <cmath>
 #include <assert.h>
-
-#ifndef MIN
-# define MIN(A,B) ((A)<(B)?(A):(B))
-#endif
-#ifndef MAX
-# define MAX(A,B) ((A)>(B)?(A):(B))
-#endif
 
 std::map<int32_t, Mob*> MobManager::Mobs;
 std::queue<int32_t> MobManager::RemovalQueue;
@@ -625,6 +619,7 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
                 if (plr->Nanos[plr->activeNano].iStamina < 0) {
                     plr->Nanos[plr->activeNano].iStamina = 0;
                     plr->activeNano = 0;
+                    NanoManager::summonNano(PlayerManager::getSockFromID(plr->iID), -1);
                 }
 
                 transmit = true;
@@ -662,7 +657,7 @@ std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool
 
     std::pair<int,int> ret = {};
 
-    int damage = (MAX(40, attackPower - defensePower) * (34 + crutchLevel) + MIN(attackPower, attackPower * attackPower / defensePower) * (36 - crutchLevel)) / 70;
+    int damage = (std::max(40, attackPower - defensePower) * (34 + crutchLevel) + std::min(attackPower, attackPower * attackPower / defensePower) * (36 - crutchLevel)) / 70;
     ret.first = damage * (rand() % 40 + 80) / 100; // 20% variance
     ret.second = 1;
 

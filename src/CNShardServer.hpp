@@ -21,7 +21,10 @@ public:
 
     CNShardServer(uint16_t p);
 
+    static void _killConnection(CNSocket *cns);
+
     void newConnection(CNSocket* cns);
     void killConnection(CNSocket* cns);
+    void kill();
     void onStep();
 };
