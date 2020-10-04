@@ -34,7 +34,7 @@ std::set<int> JumpPowers = {16, 44, 88};
 std::set<int> GroupJumpPowers = {35, 60, 100};
 std::set<int> SelfRevivePowers = {22, 48, 83};
 std::set<int> SneakPowers = {29, 72, 80};
-std::set<int> GroupSneakPowers = {23, 65, 82};
+std::set<int> GroupSneakPowers = {23, 65, 84};
 std::set<int> TreasureFinderPowers = {26, 40, 74};
 
 /*

@@ -50,4 +50,5 @@ namespace ItemManager {
     Item* getItemData(int32_t id, int32_t type);
     void checkItemExpire(CNSocket* sock, Player* player);
     void setItemStats(Player* plr);
+    void updateEquips(CNSocket* sock, Player* plr);
 }

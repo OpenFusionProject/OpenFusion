@@ -132,8 +132,8 @@ void MobManager::npcAttackPc(Mob *mob, time_t currTime) {
 
     if (plr->HP <= 0) {
         mob->target = nullptr;
-        if (!aggroCheck(mob, currTime))
-            mob->state = MobState::RETREAT;
+        mob->state = MobState::RETREAT;
+        aggroCheck(mob, currTime);
     }
 }
 
@@ -274,8 +274,8 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     // sanity check: did the target player lose connection?
     if (PlayerManager::players.find(mob->target) == PlayerManager::players.end()) {
         mob->target = nullptr;
-        if (!aggroCheck(mob, currTime))
-            mob->state = MobState::RETREAT;
+        mob->state = MobState::RETREAT;
+        aggroCheck(mob, currTime);
         return;
     }
     
@@ -287,8 +287,8 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     // did something else kill the player in the mean time?
     if (plr->HP <= 0) {
         mob->target = nullptr;
-        if (!aggroCheck(mob, currTime))
-            mob->state = MobState::RETREAT;
+        mob->state = MobState::RETREAT;
+        aggroCheck(mob, currTime);
         return;
     }
 
@@ -356,8 +356,11 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
      */
     if (mob->nextAttack == 0 || currTime >= mob->nextAttack) {
         mob->nextAttack = currTime + 500;
-        if (aggroCheck(mob, currTime))
-            return;    
+        aggroCheck(mob, currTime);
+            
+        // for some reason we have to call this otherwise the mob will not aggro right.
+        if (mob->state == MobState::COMBAT)
+            return;
     }
 
     // some mobs don't move (and we mustn't divide/modulus by zero)
@@ -514,8 +517,18 @@ std::pair<int,int> MobManager::lerp(int x1, int y1, int x2, int y2, int speed) {
 void MobManager::combatBegin(CNSocket *sock, CNPacketData *data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (plr != nullptr)
+    if (plr != nullptr) {
         plr->inCombat = true;
+        
+        // make sure the player has the right weapon out for combat
+        INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, resp);
+
+        resp.iPC_ID = plr->iID;
+        resp.iEquipSlotNum = 0;
+        resp.EquipSlotItem = plr->Equip[0];
+        
+        PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
+    }
 }
 
 void MobManager::combatEnd(CNSocket *sock, CNPacketData *data) {
@@ -787,7 +800,7 @@ void MobManager::resendMobHP(Mob *mob) {
  * Even if they're in range, we can't assume they're all in the same one chunk
  * as the mob, since it might be near a chunk boundary.
  */
-bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
+void MobManager::aggroCheck(Mob *mob, time_t currTime) {
      
     for (Chunk *chunk : mob->currentChunks) {
         for (CNSocket *s : chunk->players) {
@@ -796,11 +809,19 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
             if (plr->HP <= 0)
                 continue;
 
+            int mobRange = mob->data["m_iSightRange"];
+            
+            if (plr->iConditionBitFlag & CSB_BIT_UP_STEALTH)
+                mobRange /= 3;
+            
+            if (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVISIBLE)
+                mobRange = -1;
+            
             // height is relevant for aggro distance because of platforming
             int xyDistance = hypot(mob->appearanceData.iX - plr->x, mob->appearanceData.iY - plr->y);
-            int distance = hypot(xyDistance, mob->appearanceData.iZ - plr->z) / 2; // a little more tolerance here
+            int distance = hypot(xyDistance, mob->appearanceData.iZ - plr->z);
             
-            if (xyDistance > mob->data["m_iSightRange"] && distance > mob->data["m_iSightRange"])
+            if (distance > mobRange)
                 continue;
 
             // found player. engage.
@@ -808,8 +829,7 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
             mob->state = MobState::COMBAT;
             mob->nextMovement = currTime;
             mob->nextAttack = 0;
-            return true;
+            return;
         }
     }
-    return false;
 }

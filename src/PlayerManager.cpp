@@ -945,8 +945,14 @@ void PlayerManager::setSpecialState(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     Player *plr = getPlayer(sock);
+    
+    if (plr == nullptr)
+		return;
 
     sP_CL2FE_GM_REQ_PC_SPECIAL_STATE_SWITCH* setData = (sP_CL2FE_GM_REQ_PC_SPECIAL_STATE_SWITCH*)data->buf;
+    
+    if (setData->iSpecialStateFlag == CN_SPECIAL_STATE_FLAG__FULL_UI)
+        ItemManager::updateEquips(sock, plr);
 
     INITSTRUCT(sP_FE2CL_PC_SPECIAL_STATE_CHANGE, response);
 
