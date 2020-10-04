@@ -245,7 +245,7 @@ void ChatManager::sendServerMessage(CNSocket* sock, std::string msg) {
     INITSTRUCT(sP_FE2CL_PC_MOTD_LOGIN, motd);
 
     motd.iType = 1;
-    // convert string to u16 and write it to the buffer (TODO: add sanity check to prevent buffer overflow)
+    // convert string to u16 and write it to the buffer
     U8toU16(msg, (char16_t*)motd.szSystemMsg, sizeof(motd.szSystemMsg));
 
     // send the packet :)
