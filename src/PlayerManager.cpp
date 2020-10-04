@@ -6,6 +6,7 @@
 #include "MissionManager.hpp"
 #include "ItemManager.hpp"
 #include "NanoManager.hpp"
+#include "GroupManager.hpp"
 
 #include "settings.hpp"
 
@@ -61,6 +62,8 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
 
 void PlayerManager::removePlayer(CNSocket* key) {
     PlayerView& view = players[key];
+    
+    GroupManager::groupKickPlayer(view.plr);
 
     INITSTRUCT(sP_FE2CL_PC_EXIT, exitPacket);
     exitPacket.iID = players[key].plr->iID;
@@ -738,14 +741,31 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     
     int activeSlot = -1;
     
-    if (plr->iConditionBitFlag & CSB_BIT_PHOENIX) {
-        target.x = plr->x;
-        target.y = plr->y;
-        target.z = plr->z;
+    if (reviveData->iRegenType == 3 && plr->iConditionBitFlag & CSB_BIT_PHOENIX) {
+        // nano revive
         plr->Nanos[plr->activeNano].iStamina = 0;
         NanoManager::nanoUnbuff(sock, CSB_BIT_PHOENIX, ECSB_PHOENIX, 0, false);
+        plr->HP = PC_MAXHEALTH(plr->level);
+    } else if (reviveData->iRegenType == 5) {
+        // warp away
+        plr->x = target.x;
+        plr->y = target.y;
+        plr->z = target.z;
+        
+        for (int n = 0; n < 3; n++) {
+            int nanoID = plr->equippedNanos[n];
+            if (plr->activeNano == nanoID) {
+                activeSlot = n;
+            }
+        }
+        
     } else {
-        // nano
+        // normal revive
+        plr->x = target.x;
+        plr->y = target.y;
+        plr->z = target.z;
+        plr->HP = PC_MAXHEALTH(plr->level);
+        
         for (int n = 0; n < 3; n++) {
             int nanoID = plr->equippedNanos[n];
             plr->Nanos[nanoID].iStamina = 75; // max is 150, so 75 is half
@@ -756,12 +776,6 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
         }
     }
 
-    // Update player
-    plr->x = target.x;
-    plr->y = target.y;
-    plr->z = target.z;
-    plr->HP = PC_MAXHEALTH(plr->level);
-
     // Response parameters
     response.PCRegenData.iActiveNanoSlotNum = activeSlot;
     response.PCRegenData.iX = plr->x;
@@ -769,8 +783,8 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     response.PCRegenData.iZ = plr->z;
     response.PCRegenData.iHP = plr->HP;
     response.iFusionMatter = plr->fusionmatter;
-    response.bMoveLocation = reviveData->eIL;
-    response.PCRegenData.iMapNum = reviveData->iIndex;
+    response.bMoveLocation = 0;
+    response.PCRegenData.iMapNum = 0;
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_REGEN_SUCC, sizeof(sP_FE2CL_REP_PC_REGEN_SUCC));
 
@@ -781,6 +795,9 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     resp2.PCRegenDataForOtherPC.iZ = plr->z;
     resp2.PCRegenDataForOtherPC.iHP = plr->HP;
     resp2.PCRegenDataForOtherPC.iAngle = plr->angle;
+    resp2.PCRegenDataForOtherPC.iConditionBitFlag = plr->iConditionBitFlag;
+    resp2.PCRegenDataForOtherPC.iPCState = plr->iPCState;
+    resp2.PCRegenDataForOtherPC.iSpecialState = plr->iSpecialState;
     resp2.PCRegenDataForOtherPC.Nano = plr->Nanos[plr->activeNano];
 
     sendToViewable(sock, (void*)&resp2, P_FE2CL_PC_REGEN, sizeof(sP_FE2CL_PC_REGEN));

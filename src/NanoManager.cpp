@@ -468,6 +468,43 @@ bool doHeal(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *respdata, in
     return true;
 }
 
+bool doGroupHeal(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *respdata, int i, int32_t iCBFlag, int32_t amount) {
+    Player *plr = nullptr;
+
+    for (auto& pair : PlayerManager::players) {
+        if (pair.second.plr->iID == pktdata[0]) {
+            plr = pair.second.plr;
+            break;
+        }
+    }
+
+    // player not found
+    if (plr == nullptr)
+        return false;
+    
+    Player *otherPlr = PlayerManager::getPlayer(sock);
+
+    // player not found
+    if (otherPlr == nullptr)
+        return false;
+    
+    int healedAmount = PC_MAXHEALTH(plr->level) * amount / 100;
+    
+    otherPlr->HP += healedAmount;
+    
+    if (otherPlr->HP > PC_MAXHEALTH(otherPlr->level))
+        otherPlr->HP = PC_MAXHEALTH(otherPlr->level);
+
+    respdata[i].eCT = 1;
+    respdata[i].iID = plr->iID;
+    respdata[i].iHP = plr->HP;
+    respdata[i].iHealHP = healedAmount;
+    
+    std::cout << (int)plr->iID << " was healed" << std::endl;
+
+    return true;
+}
+
 bool doDamage(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage *respdata, int i, int32_t iCBFlag, int32_t amount) {
     if (MobManager::Mobs.find(pktdata[i]) == MobManager::Mobs.end()) {
         // not sure how to best handle this
@@ -547,7 +584,7 @@ bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, i
 
 template<class sPAYLOAD,
     	 bool (*work)(CNSocket*,int32_t*,sPAYLOAD*,int,int32_t,int32_t),
-    	 bool isLeech=false>
+    	 int specialHandling=0>
 void activePower(CNSocket *sock, CNPacketData *data,
                  int16_t nanoId, int16_t skillId, int16_t eSkillType,
                  int32_t iCBFlag, int32_t amount) {
@@ -562,19 +599,34 @@ void activePower(CNSocket *sock, CNPacketData *data,
 
     int32_t *pktdata = (int32_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_NANO_SKILL_USE));
 
+    size_t resplen;
+    
+    Player *plr = PlayerManager::getPlayer(sock);
+    Player *otherPlr = plr;
+
+    if (plr == nullptr)
+        return;
+
+    // special case since leech is atypically encoded
+    if constexpr (specialHandling == 1)
+        resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) + sizeof(sSkillResult_Heal_HP) + sizeof(sSkillResult_Damage);
+    else if constexpr (specialHandling == 2) {
+        otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
+    
+        if (otherPlr == nullptr)
+            return;
+        
+        pkt->iTargetCnt = otherPlr->groupCnt;
+        
+        resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) + pkt->iTargetCnt * sizeof(sPAYLOAD);
+    } else
+        resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) + pkt->iTargetCnt * sizeof(sPAYLOAD);
+        
     // validate response packet
     if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC), pkt->iTargetCnt, sizeof(sPAYLOAD))) {
         std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size" << std::endl;
         return;
     }
-
-    size_t resplen;
-
-    // special case since leech is atypically encoded
-    if constexpr (isLeech)
-        resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) + sizeof(sSkillResult_Heal_HP) + sizeof(sSkillResult_Damage);
-    else
-        resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) + pkt->iTargetCnt * sizeof(sPAYLOAD);
 
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
 
@@ -582,13 +634,10 @@ void activePower(CNSocket *sock, CNPacketData *data,
 
     sP_FE2CL_NANO_SKILL_USE_SUCC *resp = (sP_FE2CL_NANO_SKILL_USE_SUCC*)respbuf;
     sPAYLOAD *respdata = (sPAYLOAD*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC));
-        
-    Player *plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
 
     plr->Nanos[plr->activeNano].iStamina -= 40;
+    if (plr->Nanos[plr->activeNano].iStamina < 0)
+        plr->Nanos[plr->activeNano].iStamina = 0;
         
     resp->iPC_ID = plr->iID;
     resp->iSkillID = skillId;
@@ -596,11 +645,18 @@ void activePower(CNSocket *sock, CNPacketData *data,
     resp->iNanoStamina = plr->Nanos[plr->activeNano].iStamina;
     resp->eST = eSkillType;
     resp->iTargetCnt = pkt->iTargetCnt;
-
-    for (int i = 0; i < pkt->iTargetCnt; i++) {
-        if (!work(sock, pktdata, respdata, i, iCBFlag, amount))
-            return;
-    }
+    
+    if constexpr (specialHandling == 2) {
+        for (int i = 0; i < pkt->iTargetCnt; i++) {
+            CNSocket* otherSock = PlayerManager::getSockFromID(otherPlr->groupIDs[i]);
+            if (!work(otherSock, pktdata, respdata, i, iCBFlag, amount))
+                return;
+        }
+    } else
+        for (int i = 0; i < pkt->iTargetCnt; i++) {
+            if (!work(sock, pktdata, respdata, i, iCBFlag, amount))
+                return;
+        }
 
     sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
     PlayerManager::sendToViewable(sock, (void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
@@ -610,13 +666,13 @@ void activePower(CNSocket *sock, CNPacketData *data,
 std::vector<ActivePower> ActivePowers = {
     ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  doDebuff>,         EST_STUN, CSB_BIT_STUN,                 0),
     ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          doHeal>,           EST_HEAL_HP, CSB_BIT_NONE,             25),
-    ActivePower(GroupHealPowers, activePower<sSkillResult_Heal_HP,     doHeal>,           EST_HEAL_HP, CSB_BIT_NONE,             25),
+    ActivePower(GroupHealPowers, activePower<sSkillResult_Heal_HP,     doGroupHeal, 2>,   EST_HEAL_HP, CSB_BIT_NONE,             25),
     // TODO: Recall
     ActivePower(DrainPowers, activePower<sSkillResult_Buff,            doBuff>,           EST_BOUNDINGBALL, CSB_BIT_BOUNDINGBALL, 0),
     ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SNARE, CSB_BIT_DN_MOVE_SPEED,       0),
     ActivePower(DamagePowers, activePower<sSkillResult_Damage,         doDamage>,         EST_DAMAGE, CSB_BIT_NONE,              12),
     // TODO: GroupRevive
-    ActivePower(LeechPowers, activePower<sSkillResult_Heal_HP,         doLeech, true>,    EST_BLOODSUCKING, CSB_BIT_NONE,        18),
+    ActivePower(LeechPowers, activePower<sSkillResult_Heal_HP,         doLeech, 1>,       EST_BLOODSUCKING, CSB_BIT_NONE,        18),
     ActivePower(SleepPowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SLEEP, CSB_BIT_MEZ,                 0),
 };
 

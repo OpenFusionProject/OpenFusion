@@ -19,4 +19,5 @@ namespace GroupManager {
     void menuChatGroup(CNSocket* sock, CNPacketData* data);
     void sendToGroup(Player* plr, void* buf, uint32_t type, size_t size);
     void groupTickInfo(Player* plr);
+    void groupKickPlayer(Player* plr);
 }

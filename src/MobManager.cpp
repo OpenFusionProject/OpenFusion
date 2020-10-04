@@ -278,6 +278,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
             mob->state = MobState::RETREAT;
         return;
     }
+    
     Player *plr = PlayerManager::getPlayer(mob->target);
 
     if (plr == nullptr)
@@ -285,15 +286,9 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
 
     // did something else kill the player in the mean time?
     if (plr->HP <= 0) {
-        
-        if (!aggroCheck(mob, currTime)) {
-            // player will resurrect, keep the aggro
-            if (plr->iConditionBitFlag & CSB_BIT_PHOENIX)
-                return;
-        } else    
-            mob->target = nullptr;
-        
-        mob->state = MobState::RETREAT;
+        mob->target = nullptr;
+        if (!aggroCheck(mob, currTime))
+            mob->state = MobState::RETREAT;
         return;
     }
 
@@ -360,8 +355,9 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
      * do so more often than if we waited for nextMovement (which is way too slow).
      */
     if (mob->nextAttack == 0 || currTime >= mob->nextAttack) {
-        mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
-        aggroCheck(mob, currTime);
+        mob->nextAttack = currTime + 500;
+        if (aggroCheck(mob, currTime))
+            return;    
     }
 
     // some mobs don't move (and we mustn't divide/modulus by zero)
@@ -533,23 +529,34 @@ void MobManager::dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_DOT_DAMAGE_ONOFF *pkt = (sP_CL2FE_DOT_DAMAGE_ONOFF*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (plr != nullptr)
-        plr->dotDamage = (bool)pkt->iFlag;
+    if (plr != nullptr) {
+        if ((plr->iConditionBitFlag & CSB_BIT_INFECTION) != (bool)pkt->iFlag)
+            plr->iConditionBitFlag ^= CSB_BIT_INFECTION;
+        
+        INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt1);
+    
+        pkt1.eCSTB = ECSB_INFECTION; //eCharStatusTimeBuffID
+        pkt1.eTBU = 1; //eTimeBuffUpdate
+        pkt1.eTBT = 0; //eTimeBuffType 1 means nano
+        pkt1.iConditionBitFlag = plr->iConditionBitFlag;
+    
+        sock->sendPacket((void*)&pkt1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+    }
 }
 
 void MobManager::dealGooDamage(CNSocket *sock, int amount) {
     size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_DotDamage);
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    Player *plr = PlayerManager::getPlayer(sock);
+    
+    if (plr == nullptr)
+        return;
 
     memset(respbuf, 0, resplen);
 
     sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK *pkt = (sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK*)respbuf;
     sSkillResult_DotDamage *dmg = (sSkillResult_DotDamage*)(respbuf + sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
-    Player *plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
 
     // update player
     plr->HP -= amount;
@@ -584,7 +591,7 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
             continue;
         
         // fm patch/lake damage
-        if (plr->dotDamage)
+        if ((plr->iConditionBitFlag & CSB_BIT_INFECTION) && !(plr->iConditionBitFlag & CSB_BIT_PROTECT_INFECTION))
             dealGooDamage(sock, PC_MAXHEALTH(plr->level) * 3 / 20);
 
         // heal
@@ -602,8 +609,10 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
                 if (plr->passiveNanoOut)
                    plr->Nanos[plr->activeNano].iStamina -= 1; 
 
-                if (plr->Nanos[plr->activeNano].iStamina < 0)
+                if (plr->Nanos[plr->activeNano].iStamina < 0) {
+                    plr->Nanos[plr->activeNano].iStamina = 0;
                     plr->activeNano = 0;
+                }
 
                 transmit = true;
             } else if (plr->Nanos[plr->equippedNanos[i]].iStamina < 150) { // regain stamina
@@ -783,11 +792,15 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
     for (Chunk *chunk : mob->currentChunks) {
         for (CNSocket *s : chunk->players) {
             Player *plr = s->plr;
+            
+            if (plr->HP <= 0)
+                continue;
 
             // height is relevant for aggro distance because of platforming
             int xyDistance = hypot(mob->appearanceData.iX - plr->x, mob->appearanceData.iY - plr->y);
-            int distance = hypot(xyDistance, mob->appearanceData.iZ - plr->z);
-            if (distance > mob->data["m_iSightRange"])
+            int distance = hypot(xyDistance, mob->appearanceData.iZ - plr->z) / 2; // a little more tolerance here
+            
+            if (xyDistance > mob->data["m_iSightRange"] && distance > mob->data["m_iSightRange"])
                 continue;
 
             // found player. engage.

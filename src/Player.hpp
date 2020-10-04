@@ -47,7 +47,6 @@ struct Player {
     bool isTradeConfirm;
 
     bool inCombat;
-    bool dotDamage;
     bool passiveNanoOut;
     
     int pointDamage;

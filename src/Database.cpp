@@ -1,4 +1,5 @@
 #include "Database.hpp"
+#include "Database.hpp"
 #include "contrib/bcrypt/BCrypt.hpp"
 #include "CNProtocol.hpp"
 #include <string>
@@ -458,7 +459,6 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.equippedNanos[1] = player.Nano2;
     result.equippedNanos[2] = player.Nano3;
 
-    result.dotDamage = false;
     result.inCombat = false;
 
     result.iWarpLocationFlag = player.WarpLocationFlag;
