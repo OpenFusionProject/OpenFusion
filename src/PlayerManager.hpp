@@ -34,6 +34,9 @@ namespace PlayerManager {
     void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, int angle);
     void updatePlayerChunk(CNSocket* sock, int X, int Y);
 
+    void sendPlayerTo(CNSocket* sock, int X, int Y, int Z, int I);
+    void sendPlayerTo(CNSocket* sock, int X, int Y, int Z);
+
     void sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size);
 
     void enterPlayer(CNSocket* sock, CNPacketData* data);

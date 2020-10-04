@@ -12,6 +12,8 @@
 
 #include <fstream>
 
+std::map<int32_t, std::vector<WarpLocation>> TableData::RunningSkywayRoutes;
+
 void TableData::init() {
     int32_t nextId = 0;
 
