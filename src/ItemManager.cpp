@@ -912,6 +912,7 @@ void ItemManager::setItemStats(Player* plr) {
     }
 } 
 
+// HACK: work around the invisible weapon bug
 void ItemManager::updateEquips(CNSocket* sock, Player* plr) {
     for (int i = 0; i < 4; i++) {
         INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, resp);

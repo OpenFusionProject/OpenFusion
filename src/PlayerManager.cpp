@@ -657,7 +657,6 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_GOTO* gotoData = (sP_CL2FE_REQ_PC_GOTO*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, response);
-    PlayerView& plrv = players[sock];
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_GOTO:" << std::endl;
@@ -755,33 +754,25 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
         plr->Nanos[plr->activeNano].iStamina = 0;
         NanoManager::nanoUnbuff(sock, CSB_BIT_PHOENIX, ECSB_PHOENIX, 0, false);
         plr->HP = PC_MAXHEALTH(plr->level);
-    } else if (reviveData->iRegenType == 5) {
-        // warp away
-        plr->x = target.x;
-        plr->y = target.y;
-        plr->z = target.z;
-        
-        for (int n = 0; n < 3; n++) {
-            int nanoID = plr->equippedNanos[n];
-            if (plr->activeNano == nanoID) {
-                activeSlot = n;
-            }
-        }
-        
     } else {
-        // normal revive
         plr->x = target.x;
         plr->y = target.y;
         plr->z = target.z;
-        plr->HP = PC_MAXHEALTH(plr->level);
+
+        if (reviveData->iRegenType != 5)
+            plr->HP = PC_MAXHEALTH(plr->level);
         
-        for (int n = 0; n < 3; n++) {
-            int nanoID = plr->equippedNanos[n];
-            plr->Nanos[nanoID].iStamina = 75; // max is 150, so 75 is half
-            response.PCRegenData.Nanos[n] = plr->Nanos[nanoID];
-            if (plr->activeNano == nanoID) {
-                activeSlot = n;
+        for (int i = 0; i < 3; i++) {
+            int nanoID = plr->equippedNanos[i];
+
+            // halve nano health if respawning
+            if (reviveData->iRegenType != 5) {
+                plr->Nanos[nanoID].iStamina = 75; // max is 150, so 75 is half
+                response.PCRegenData.Nanos[i] = plr->Nanos[nanoID];
             }
+
+            if (plr->activeNano == nanoID)
+                activeSlot = i;
         }
     }
 
@@ -958,12 +949,13 @@ void PlayerManager::setSpecialState(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     Player *plr = getPlayer(sock);
-    
+
     if (plr == nullptr)
-		return;
+        return;
 
     sP_CL2FE_GM_REQ_PC_SPECIAL_STATE_SWITCH* setData = (sP_CL2FE_GM_REQ_PC_SPECIAL_STATE_SWITCH*)data->buf;
-    
+
+    // HACK: work around the invisible weapon bug
     if (setData->iSpecialStateFlag == CN_SPECIAL_STATE_FLAG__FULL_UI)
         ItemManager::updateEquips(sock, plr);
 

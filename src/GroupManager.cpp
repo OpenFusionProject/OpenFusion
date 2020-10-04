@@ -10,7 +10,6 @@
 #include <thread>
 
 void GroupManager::init() {
-    
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_INVITE, requestGroup);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_INVITE_REFUSE, refuseGroup);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_JOIN, joinGroup);
@@ -36,6 +35,7 @@ void GroupManager::requestGroup(CNSocket* sock, CNPacketData* data) {
     if (otherPlr == nullptr)
 		return;
     
+    // fail if the group is full or the other player is already in a group
     if (plr->groupCnt >= 4 || otherPlr->groupCnt > 1) {
         INITSTRUCT(sP_FE2CL_PC_GROUP_INVITE_FAIL, resp);
         sock->sendPacket((void*)&resp, P_FE2CL_PC_GROUP_INVITE_FAIL, sizeof(sP_FE2CL_PC_GROUP_INVITE_FAIL));
@@ -93,6 +93,7 @@ void GroupManager::joinGroup(CNSocket* sock, CNPacketData* data) {
     if (otherPlr == nullptr)
 		return;
     
+    // fail if the group is full the other player is already in a group
     if (plr->groupCnt > 1 || plr->iIDGroup != plr->iID || otherPlr->groupCnt >= 4) {
         INITSTRUCT(sP_FE2CL_PC_GROUP_INVITE_FAIL, resp);
         sock->sendPacket((void*)&resp, P_FE2CL_PC_GROUP_JOIN_FAIL, sizeof(sP_FE2CL_PC_GROUP_JOIN_FAIL));
@@ -258,8 +259,7 @@ void GroupManager::groupTickInfo(Player* plr) {
 }
 
 void GroupManager::groupKickPlayer(Player* plr) {
-    
-    // if you are the group owner, destroying your own group and kicking everybody
+    // if you are the group leader, destroy your own group and kick everybody
     if (plr->iID == plr->iIDGroup) {
         INITSTRUCT(sP_FE2CL_PC_GROUP_LEAVE_SUCC, resp1);
         sendToGroup(plr, (void*)&resp1, P_FE2CL_PC_GROUP_LEAVE_SUCC, sizeof(sP_FE2CL_PC_GROUP_LEAVE_SUCC));
@@ -291,7 +291,6 @@ void GroupManager::groupKickPlayer(Player* plr) {
     int moveDown = 0;
         
     for (int i = 0; i < otherPlr->groupCnt; i++) {
-        
         Player* varPlr = PlayerManager::getPlayerFromID(otherPlr->groupIDs[i]);
         
         if (varPlr == nullptr)

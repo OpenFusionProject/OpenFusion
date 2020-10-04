@@ -110,5 +110,5 @@ namespace MobManager {
 
     void pcAttackChars(CNSocket *sock, CNPacketData *data);
     void resendMobHP(Mob *mob);
-    void aggroCheck(Mob *mob, time_t currTime);
+    bool aggroCheck(Mob *mob, time_t currTime);
 }

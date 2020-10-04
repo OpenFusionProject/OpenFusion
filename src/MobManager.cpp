@@ -350,10 +350,7 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
      */
     if (mob->nextAttack == 0 || currTime >= mob->nextAttack) {
         mob->nextAttack = currTime + 500;
-        aggroCheck(mob, currTime);
-            
-        // for some reason we have to call this otherwise the mob will not aggro right.
-        if (mob->state == MobState::COMBAT)
+        if (aggroCheck(mob, currTime))
             return;
     }
 
@@ -425,15 +422,11 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
         mob->nextAttack = 0;
         mob->appearanceData.iConditionBitFlag = 0;
         
-        //INITSTRUCT(sP_FE2CL_NPC_ENTER, enterData);
-        //enterData.NPCAppearanceData = mob->appearanceData;
-        //NPCManager::sendToViewable(mob, &enterData, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
         resendMobHP(mob);
     }
 }
 
 void MobManager::step(CNServer *serv, time_t currTime) {
-
     for (auto& pair : Mobs) {
         int x = pair.second->appearanceData.iX;
         int y = pair.second->appearanceData.iY;
@@ -511,18 +504,21 @@ std::pair<int,int> MobManager::lerp(int x1, int y1, int x2, int y2, int speed) {
 void MobManager::combatBegin(CNSocket *sock, CNPacketData *data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (plr != nullptr) {
-        plr->inCombat = true;
-        
-        // make sure the player has the right weapon out for combat
-        INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, resp);
-
-        resp.iPC_ID = plr->iID;
-        resp.iEquipSlotNum = 0;
-        resp.EquipSlotItem = plr->Equip[0];
-        
-        PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
+    if (plr == nullptr) {
+        std::cout << "[WARN] combatBegin: null player!" << std::endl;
+        return;
     }
+
+    plr->inCombat = true;
+    
+    // HACK: make sure the player has the right weapon out for combat
+    INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, resp);
+
+    resp.iPC_ID = plr->iID;
+    resp.iEquipSlotNum = 0;
+    resp.EquipSlotItem = plr->Equip[0];
+    
+    PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
 }
 
 void MobManager::combatEnd(CNSocket *sock, CNPacketData *data) {
@@ -536,19 +532,22 @@ void MobManager::dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_DOT_DAMAGE_ONOFF *pkt = (sP_CL2FE_DOT_DAMAGE_ONOFF*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (plr != nullptr) {
-        if ((plr->iConditionBitFlag & CSB_BIT_INFECTION) != (bool)pkt->iFlag)
-            plr->iConditionBitFlag ^= CSB_BIT_INFECTION;
-        
-        INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt1);
-    
-        pkt1.eCSTB = ECSB_INFECTION; //eCharStatusTimeBuffID
-        pkt1.eTBU = 1; //eTimeBuffUpdate
-        pkt1.eTBT = 0; //eTimeBuffType 1 means nano
-        pkt1.iConditionBitFlag = plr->iConditionBitFlag;
-    
-        sock->sendPacket((void*)&pkt1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+    if (plr == nullptr) {
+        std::cout << "[WARN] dotDamageOnOff: null player!" << std::endl;
+        return;
     }
+
+    if ((plr->iConditionBitFlag & CSB_BIT_INFECTION) != (bool)pkt->iFlag)
+        plr->iConditionBitFlag ^= CSB_BIT_INFECTION;
+    
+    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt1);
+
+    pkt1.eCSTB = ECSB_INFECTION; //eCharStatusTimeBuffID
+    pkt1.eTBU = 1; //eTimeBuffUpdate
+    pkt1.eTBT = 0; //eTimeBuffType 1 means nano
+    pkt1.iConditionBitFlag = plr->iConditionBitFlag;
+
+    sock->sendPacket((void*)&pkt1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
 }
 
 void MobManager::dealGooDamage(CNSocket *sock, int amount) {
@@ -565,8 +564,26 @@ void MobManager::dealGooDamage(CNSocket *sock, int amount) {
     sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK *pkt = (sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK*)respbuf;
     sSkillResult_DotDamage *dmg = (sSkillResult_DotDamage*)(respbuf + sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
 
-    // update player
-    plr->HP -= amount;
+    if (plr->iConditionBitFlag & CSB_BIT_PROTECT_INFECTION) {
+        amount = -2; // -2 is the magic number for "Protected" to appear as the damage number
+        dmg->bProtected = 1;
+
+        // it's hypothetically possible to have the protection bit without a nano
+        if (plr->activeNano != -1)
+            plr->Nanos[plr->activeNano].iStamina -= 3;
+    } else {
+        plr->HP -= amount;
+    }
+
+    if (plr->activeNano != -1) {
+        dmg->iStamina = plr->Nanos[plr->activeNano].iStamina;
+
+        if (plr->Nanos[plr->activeNano].iStamina <= 0) {
+            dmg->bNanoDeactive = 1;
+            plr->Nanos[plr->activeNano].iStamina = 0;
+            NanoManager::summonNano(PlayerManager::getSockFromID(plr->iID), -1);
+        }
+    }
 
     pkt->iID = plr->iID;
     pkt->eCT = 1; // player
@@ -576,6 +593,7 @@ void MobManager::dealGooDamage(CNSocket *sock, int amount) {
     dmg->iID = plr->iID;
     dmg->iDamage = amount;
     dmg->iHP = plr->HP;
+    dmg->iConditionBitFlag = plr->iConditionBitFlag;
 
     sock->sendPacket((void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
     PlayerManager::sendToViewable(sock, (void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
@@ -598,7 +616,7 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
             continue;
         
         // fm patch/lake damage
-        if ((plr->iConditionBitFlag & CSB_BIT_INFECTION) && !(plr->iConditionBitFlag & CSB_BIT_PROTECT_INFECTION))
+        if (plr->iConditionBitFlag & CSB_BIT_INFECTION)
             dealGooDamage(sock, PC_MAXHEALTH(plr->level) * 3 / 20);
 
         // heal
@@ -616,9 +634,8 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
                 if (plr->passiveNanoOut)
                    plr->Nanos[plr->activeNano].iStamina -= 1; 
 
-                if (plr->Nanos[plr->activeNano].iStamina < 0) {
+                if (plr->Nanos[plr->activeNano].iStamina <= 0) {
                     plr->Nanos[plr->activeNano].iStamina = 0;
-                    plr->activeNano = 0;
                     NanoManager::summonNano(PlayerManager::getSockFromID(plr->iID), -1);
                 }
 
@@ -768,6 +785,7 @@ void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
     PlayerManager::sendToViewable(sock, (void*)respbuf, P_FE2CL_PC_ATTACK_CHARs, resplen);
 }
 
+// HACK: we haven't found a better way to refresh a mob's client-side status
 void MobManager::resendMobHP(Mob *mob) {
     size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_Heal_HP);
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
@@ -795,8 +813,7 @@ void MobManager::resendMobHP(Mob *mob) {
  * Even if they're in range, we can't assume they're all in the same one chunk
  * as the mob, since it might be near a chunk boundary.
  */
-void MobManager::aggroCheck(Mob *mob, time_t currTime) {
-     
+bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
     for (Chunk *chunk : mob->currentChunks) {
         for (CNSocket *s : chunk->players) {
             Player *plr = s->plr;
@@ -824,7 +841,9 @@ void MobManager::aggroCheck(Mob *mob, time_t currTime) {
             mob->state = MobState::COMBAT;
             mob->nextMovement = currTime;
             mob->nextAttack = 0;
-            return;
+            return true;
         }
     }
+
+    return false;
 }
