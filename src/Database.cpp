@@ -425,14 +425,14 @@ Player Database::DbToPlayer(DbPlayer player) {
     result.PCStyle.iClass = player.Class;
     result.PCStyle.iEyeColor = player.EyeColor;
     result.PCStyle.iFaceStyle = player.FaceStyle;
-    U8toU16(player.FirstName, result.PCStyle.szFirstName);
+    U8toU16(player.FirstName, result.PCStyle.szFirstName, sizeof(result.PCStyle.szFirstName));
     result.PCStyle.iGender = player.Gender;
     result.PCStyle.iHairColor = player.HairColor;
     result.PCStyle.iHairStyle = player.HairStyle;
     result.PCStyle.iHeight = player.Height;
     result.HP = player.HP;
     result.accountLevel = player.AccountLevel;
-    U8toU16(player.LastName, result.PCStyle.szLastName);
+    U8toU16(player.LastName, result.PCStyle.szLastName, sizeof(result.PCStyle.szLastName));
     result.level = player.Level;
     result.PCStyle.iNameCheck = player.NameCheck;
     result.PCStyle2.iPayzoneFlag = player.PayZoneFlag;
