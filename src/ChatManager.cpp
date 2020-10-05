@@ -20,12 +20,12 @@ std::vector<std::string> parseArgs(std::string full) {
 bool runCmd(std::string full, CNSocket* sock) {
     std::vector<std::string> args = parseArgs(full);
     std::string cmd = args[0].substr(1, args[0].size() - 1);
-    
+
     // check if the command exists
     if (ChatManager::commands.find(cmd) != ChatManager::commands.end()) {
         Player* plr = PlayerManager::getPlayer(sock);
         ChatCommand command = ChatManager::commands[cmd];
-        
+
         // sanity check + does the player have the required account level to use the command?
         if (plr != nullptr && plr->accountLevel <= command.requiredAccLevel) {
             command.handlr(full, args, sock);
@@ -149,7 +149,7 @@ void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
             path.push(coords); // add keyframe to the queue
             last = coords; // update start pos
         }
-        
+
         TransportManager::SkywayQueues[sock] = path;
         return;
     }
@@ -184,7 +184,7 @@ void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHan
 void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE))
         return; // malformed packet
-    
+
     sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 

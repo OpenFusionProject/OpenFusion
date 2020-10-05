@@ -152,7 +152,7 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
 
     int16_t nanoId = plr->activeNano;
     int16_t skillId = plr->Nanos[nanoId].iSkillID;
-    
+
     DEBUGLOG(
         std::cout << U16toU8(plr->PCStyle.szFirstName) << U16toU8(plr->PCStyle.szLastName) << " requested to summon nano skill " << std::endl;
     )
@@ -160,22 +160,22 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
     for (auto& pwr : ActivePowers)
         if (pwr.powers.count(skillId)) // std::set's contains method is C++20 only...
             pwr.handle(sock, data, nanoId, skillId);
-            
+
     // Group Revive is handled separately (XXX: move into table?)
     if (GroupRevivePowers.find(skillId) == GroupRevivePowers.end())
         return;
 
     Player *leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
-    
+
     if (leader == nullptr)
         return;
-    
+
     for (int i = 0; i < leader->groupCnt; i++) {
         Player* varPlr = PlayerManager::getPlayerFromID(leader->groupIDs[i]);
-    
+
         if (varPlr == nullptr)
             return;
-        
+
         if (varPlr->HP <= 0)
             revivePlayer(varPlr);
     }
@@ -200,7 +200,7 @@ void NanoManager::nanoSkillSetGMHandler(CNSocket* sock, CNPacketData* data) {
 void NanoManager::nanoRecallHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_WARP_USE_RECALL))
         return;
-    
+
     INITSTRUCT(sP_FE2CL_REP_WARP_USE_RECALL_FAIL, resp);
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_WARP_USE_RECALL_FAIL, sizeof(sP_FE2CL_REP_WARP_USE_RECALL_FAIL));
@@ -210,9 +210,9 @@ void NanoManager::nanoRecallHandler(CNSocket* sock, CNPacketData* data) {
 void NanoManager::nanoPotionHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_CHARGE_NANO_STAMINA))
         return;
-    
+
     Player* player = PlayerManager::getPlayer(sock);
-    
+
     // sanity checks
     if (player == nullptr || player->activeNano == -1 || player->batteryN == 0)
         return;
@@ -255,7 +255,7 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot, bool spe
      * Doing it the other way always leaves the FM at 0. Jade totally called it.
      */
     plr->level = level;
-     
+
     if (spendfm)
         MissionManager::updateFusionMatter(sock, -(int)MissionManager::AvatarGrowth[plr->level-1]["m_iReqBlob_NanoCreate"]);
 
@@ -269,7 +269,7 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoId, int16_t slot, bool spe
 
     if (plr->activeNano > 0 && plr->activeNano == nanoId)
         summonNano(sock, -1); // just unsummon the nano to prevent infinite buffs
-    
+
     // Update player
     plr->Nanos[nanoId] = resp.Nano;
 
@@ -303,22 +303,22 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
 
     if (nanoId > 36 || nanoId < -1)
         return; // sanity check
-    
+
     int16_t skillId = 0;
-    
+
     if (plr->activeNano > 0)
         for (auto& pwr : PassivePowers)
             if (pwr.powers.count(plr->Nanos[plr->activeNano].iSkillID)) { // std::set's contains method is C++20 only...
                 nanoUnbuff(sock, pwr.iCBFlag, pwr.eCharStatusTimeBuffID, pwr.iValue, pwr.groupPower);
                 plr->passiveNanoOut = false;
             }
-    
+
     sNano nano = plr->Nanos[nanoId];
     skillId = nano.iSkillID;
-    
+
     if (slot > -1) {
         plr->activeNano = nanoId;
-        
+
         for (auto& pwr : PassivePowers)
             if (pwr.powers.count(skillId)) { // std::set's contains method is C++20 only...
                 resp.eCSTB___Add = 1;
@@ -327,14 +327,14 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
             }
     } else
         plr->activeNano = 0;
-    
+
     sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_ACTIVE_SUCC, sizeof(sP_FE2CL_REP_NANO_ACTIVE_SUCC));
-    
+
     // Send to other players
     INITSTRUCT(sP_FE2CL_NANO_ACTIVE, pkt1);
 
     pkt1.iPC_ID = plr->iID;
-    
+
     if (nanoId == -1)
         memset(&pkt1.Nano, 0, sizeof(pkt1.Nano));
     else
@@ -354,10 +354,10 @@ void NanoManager::setNanoSkill(CNSocket* sock, int16_t nanoId, int16_t skillId) 
 
     if (plr == nullptr)
         return;
-    
+
     if (plr->activeNano > 0 && plr->activeNano == nanoId)
         summonNano(sock, -1); // just unsummon the nano to prevent infinite buffs
-    
+
     sNano nano = plr->Nanos[nanoId];
 
     nano.iSkillID = skillId;
@@ -385,7 +385,7 @@ void NanoManager::resetNanoSkill(CNSocket* sock, int16_t nanoId) {
 
     if (plr == nullptr)
         return;
-    
+
     sNano nano = plr->Nanos[nanoId];
 
     // 0 is reset
@@ -405,9 +405,9 @@ bool doDebuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage_N_Debuff *re
     }
 
     Mob* mob = MobManager::Mobs[pktdata[i]];
-    
+
     int damage = MobManager::hitMob(sock, mob, amount);
-    
+
     respdata[i].eCT = 4;
     respdata[i].iDamage = damage;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
@@ -427,7 +427,7 @@ bool doBuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Buff *respdata, int i
     }
 
     Mob* mob = MobManager::Mobs[pktdata[i]];
-    
+
     respdata[i].eCT = 4;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
     respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag |= iCBFlag;
@@ -450,11 +450,11 @@ bool doHeal(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *respdata, in
     // player not found
     if (plr == nullptr)
         return false;
-    
+
     int healedAmount = PC_MAXHEALTH(plr->level) * amount / 100;
-    
+
     plr->HP += healedAmount;
-    
+
     if (plr->HP > PC_MAXHEALTH(plr->level))
         plr->HP = PC_MAXHEALTH(plr->level);
 
@@ -462,7 +462,7 @@ bool doHeal(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *respdata, in
     respdata[i].iID = plr->iID;
     respdata[i].iHP = plr->HP;
     respdata[i].iHealHP = healedAmount;
-    
+
     std::cout << (int)plr->iID << " was healed" << std::endl;
 
     return true;
@@ -481,17 +481,17 @@ bool doGroupHeal(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *respdat
     // player not found
     if (plr == nullptr)
         return false;
-    
+
     Player *leader = PlayerManager::getPlayer(sock);
 
     // player not found
     if (leader == nullptr)
         return false;
-    
+
     int healedAmount = PC_MAXHEALTH(plr->level) * amount / 100;
-    
+
     leader->HP += healedAmount;
-    
+
     if (leader->HP > PC_MAXHEALTH(leader->level))
         leader->HP = PC_MAXHEALTH(leader->level);
 
@@ -499,7 +499,7 @@ bool doGroupHeal(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *respdat
     respdata[i].iID = plr->iID;
     respdata[i].iHP = plr->HP;
     respdata[i].iHealHP = healedAmount;
-    
+
     std::cout << (int)plr->iID << " was healed" << std::endl;
 
     return true;
@@ -512,12 +512,12 @@ bool doDamage(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage *respdata, i
         return false;
     }
     Mob* mob = MobManager::Mobs[pktdata[i]];
-    
+
     Player *plr = PlayerManager::getPlayer(sock);
 
     if (plr == nullptr)
         return false;
-    
+
     int damage = MobManager::hitMob(sock, mob, PC_MAXHEALTH(plr->level) * amount / 100);
 
     respdata[i].eCT = 4;
@@ -552,9 +552,9 @@ bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, i
         return false;
 
     int healedAmount = PC_MAXHEALTH(plr->level) * amount / 100;
-    
+
     plr->HP += healedAmount;
-    
+
     if (plr->HP > PC_MAXHEALTH(plr->level))
         plr->HP = PC_MAXHEALTH(plr->level);
 
@@ -569,9 +569,9 @@ bool doLeech(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *healdata, i
         return false;
     }
     Mob* mob = MobManager::Mobs[pktdata[i]];
-    
+
     int damage = MobManager::hitMob(sock, mob, PC_MAXHEALTH(plr->level) * amount / 100);
-    
+
     damagedata->eCT = 4;
     damagedata->iDamage = damage;
     damagedata->iID = mob->appearanceData.iNPC_ID;
@@ -607,7 +607,7 @@ void activePower(CNSocket *sock, CNPacketData *data,
     int32_t *pktdata = (int32_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_NANO_SKILL_USE));
 
     size_t resplen;
-    
+
     Player *plr = PlayerManager::getPlayer(sock);
     Player *otherPlr = plr;
 
@@ -619,15 +619,15 @@ void activePower(CNSocket *sock, CNPacketData *data,
         resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) + sizeof(sSkillResult_Heal_HP) + sizeof(sSkillResult_Damage);
     else if constexpr (specialCase == GHEAL) {
         otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
-    
+
         if (otherPlr == nullptr)
             return;
-        
+
         pkt->iTargetCnt = otherPlr->groupCnt;
     }
 
     resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) + pkt->iTargetCnt * sizeof(sPAYLOAD);
-        
+
     // validate response packet
     if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC), pkt->iTargetCnt, sizeof(sPAYLOAD))) {
         std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size" << std::endl;
@@ -644,7 +644,7 @@ void activePower(CNSocket *sock, CNPacketData *data,
     plr->Nanos[plr->activeNano].iStamina -= 40;
     if (plr->Nanos[plr->activeNano].iStamina < 0)
         plr->Nanos[plr->activeNano].iStamina = 0;
-        
+
     resp->iPC_ID = plr->iID;
     resp->iSkillID = skillId;
     resp->iNanoID = nanoId;
@@ -653,7 +653,7 @@ void activePower(CNSocket *sock, CNPacketData *data,
     resp->iTargetCnt = pkt->iTargetCnt;
 
     CNSocket *workSock = sock;
-    
+
     for (int i = 0; i < pkt->iTargetCnt; i++) {
         if constexpr (specialCase == GHEAL)
             workSock = PlayerManager::getSockFromID(otherPlr->groupIDs[i]);
@@ -689,44 +689,44 @@ void NanoManager::nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t 
 
     if (plr == nullptr)
         return;
-    
+
     if (plr->iID == plr->iIDGroup)
         leader = plr;
     else
         leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
-    
+
     if (leader == nullptr)
         return;
-    
+
     int pktCnt = 1;
-    
+
     if (groupPower)
-        pktCnt = leader->groupCnt; 
+        pktCnt = leader->groupCnt;
 
     if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE), pktCnt, sizeof(sSkillResult_Buff))) {
         std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size\n";
         return;
     }
-    
+
     size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE) + pktCnt * sizeof(sSkillResult_Buff);
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-        
+
     memset(respbuf, 0, resplen);
-        
+
     sP_FE2CL_NANO_SKILL_USE *resp = (sP_FE2CL_NANO_SKILL_USE*)respbuf;
     sSkillResult_Buff *respdata = (sSkillResult_Buff*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE));
-        
+
     resp->iPC_ID = plr->iID;
     resp->iSkillID = skillId;
     resp->iNanoID = nanoId;
     resp->iNanoStamina = plr->Nanos[plr->activeNano].iStamina;
     resp->eST = eSkillType;
     resp->iTargetCnt = pktCnt;
-        
+
     for (int i = 0; i < pktCnt; i++) {
         Player* varPlr;
         CNSocket* sockTo;
-        
+
         if (plr->iID == leader->groupIDs[i]) {
             varPlr = plr;
             sockTo = sock;
@@ -734,27 +734,27 @@ void NanoManager::nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t 
             varPlr = PlayerManager::getPlayerFromID(leader->groupIDs[i]);
             sockTo = PlayerManager::getSockFromID(leader->groupIDs[i]);
         }
-        
+
         if (varPlr == nullptr || sockTo == nullptr)
             return;
-        
+
         if (!(varPlr->iConditionBitFlag & iCBFlag))
             varPlr->iConditionBitFlag ^= iCBFlag;
-        
+
         respdata[i].eCT = 1;
         respdata[i].iID = varPlr->iID;
         respdata[i].iConditionBitFlag = iCBFlag;
-        
+
         INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt1);
-    
+
         pkt1.eCSTB = eCharStatusTimeBuffID; //eCharStatusTimeBuffID
         pkt1.eTBU = 1; //eTimeBuffUpdate
         pkt1.eTBT = 1; //eTimeBuffType 1 means nano
         pkt1.iConditionBitFlag = varPlr->iConditionBitFlag;
-        
+
         if (iValue > 0)
             pkt1.TimeBuff.iValue = iValue;
-    
+
         sockTo->sendPacket((void*)&pkt1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
     }
 
@@ -764,30 +764,30 @@ void NanoManager::nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t 
 
 void NanoManager::nanoUnbuff(CNSocket* sock, int32_t iCBFlag, int16_t eCharStatusTimeBuffID, int16_t iValue, bool groupPower) {
     INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, resp1);
-    
+
     Player *plr = PlayerManager::getPlayer(sock);
     Player *leader;
 
     if (plr == nullptr)
         return;
-    
+
     if (plr->iID == plr->iIDGroup)
         leader = plr;
     else
         leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
-    
+
     if (leader == nullptr)
         return;
-    
+
     int pktCnt = 1;
-    
+
     if (groupPower)
-        pktCnt = leader->groupCnt; 
-    
+        pktCnt = leader->groupCnt;
+
     for (int i = 0; i < pktCnt; i++) {
         Player* varPlr;
         CNSocket* sockTo;
-        
+
         if (plr->iID == leader->groupIDs[i]) {
             varPlr = plr;
             sockTo = sock;
@@ -795,18 +795,18 @@ void NanoManager::nanoUnbuff(CNSocket* sock, int32_t iCBFlag, int16_t eCharStatu
             varPlr = PlayerManager::getPlayerFromID(leader->groupIDs[i]);
             sockTo = PlayerManager::getSockFromID(leader->groupIDs[i]);
         }
-        
+
         if (varPlr->iConditionBitFlag & iCBFlag)
             varPlr->iConditionBitFlag ^= iCBFlag;
-        
+
         resp1.eCSTB = eCharStatusTimeBuffID; //eCharStatusTimeBuffID
         resp1.eTBU = 2; //eTimeBuffUpdate
         resp1.eTBT = 1; //eTimeBuffType 1 means nano
         resp1.iConditionBitFlag = varPlr->iConditionBitFlag;
-        
+
         if (iValue > 0)
             resp1.TimeBuff.iValue = iValue;
-        
+
         sockTo->sendPacket((void*)&resp1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
     }
 }
@@ -847,7 +847,7 @@ void NanoManager::revivePlayer(Player* plr) {
     INITSTRUCT(sP_FE2CL_PC_REGEN, resp2);
 
     plr->HP = PC_MAXHEALTH(plr->level);
-    
+
     // Nanos
     int activeSlot = -1;
     for (int n = 0; n < 3; n++) {

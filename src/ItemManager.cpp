@@ -151,7 +151,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 
         // send equip event to other players
         PlayerManager::sendToViewable(sock, (void*)&equipChange, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
-        
+
         // set equipment stats serverside
         setItemStats(plr.plr);
     }
@@ -159,7 +159,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     // send response
     resp.eTo = itemmove->eFrom;
     resp.eFrom = itemmove->eTo;
-    
+
 
     sock->sendPacket((void*)&resp, P_FE2CL_PC_ITEM_MOVE_SUCC, sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC));
 }
@@ -876,7 +876,7 @@ void ItemManager::checkItemExpire(CNSocket* sock, Player* player) {
     const size_t resplen = sizeof(sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM) + sizeof(sTimeLimitItemDeleteInfo2CL);
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
     // we know it's only one trailing struct, so we can skip full validation
-    uint8_t respbuf[resplen]; // not a variable length array, don't worry   
+    uint8_t respbuf[resplen]; // not a variable length array, don't worry
     sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM* packet = (sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM*)respbuf;
     sTimeLimitItemDeleteInfo2CL* itemData = (sTimeLimitItemDeleteInfo2CL*)(respbuf + sizeof(sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM));
     memset(respbuf, 0, resplen);
@@ -885,7 +885,7 @@ void ItemManager::checkItemExpire(CNSocket* sock, Player* player) {
     itemData->eIL = player->toRemoveVehicle.eIL;
     itemData->iSlotNum = player->toRemoveVehicle.iSlotNum;
     sock->sendPacket((void*)&respbuf, P_FE2CL_PC_DELETE_TIME_LIMIT_ITEM, resplen);
-    
+
     // delete serverside
     if (player->toRemoveVehicle.eIL == 0)
         memset(&player->Equip[8], 0, sizeof(sItemBase));
@@ -910,7 +910,7 @@ void ItemManager::setItemStats(Player* plr) {
         plr->groupDamage += itemStatsDat->groupDamage;
         plr->defense += itemStatsDat->defense;
     }
-} 
+}
 
 // HACK: work around the invisible weapon bug
 void ItemManager::updateEquips(CNSocket* sock, Player* plr) {
@@ -920,7 +920,7 @@ void ItemManager::updateEquips(CNSocket* sock, Player* plr) {
         resp.iPC_ID = plr->iID;
         resp.iEquipSlotNum = i;
         resp.EquipSlotItem = plr->Equip[i];
-        
+
         PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
     }
-} 
+}

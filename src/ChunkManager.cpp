@@ -40,7 +40,7 @@ void ChunkManager::addPlayer(int posX, int posY, int instanceID, CNSocket* sock)
 void ChunkManager::removePlayer(std::tuple<int, int, int> chunkPos, CNSocket* sock) {
     if (!checkChunk(chunkPos))
         return; // do nothing if chunk doesn't even exist
-    
+
     Chunk* chunk = chunks[chunkPos];
 
     chunk->players.erase(sock); // gone
@@ -78,7 +78,7 @@ std::vector<Chunk*> ChunkManager::grabChunks(std::tuple<int, int, int> chunk) {
     for (int i = -1; i < 2; i++) {
         for (int z = -1; z < 2; z++) {
             std::tuple<int, int, int> pos = std::make_tuple(x+i, y+z, inst);
-            
+
             // if chunk exists, add it to the vector
             if (checkChunk(pos))
                 chnks.push_back(chunks[pos]);

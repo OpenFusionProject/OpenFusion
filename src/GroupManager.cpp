@@ -21,32 +21,32 @@ void GroupManager::init() {
 void GroupManager::requestGroup(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_GROUP_INVITE))
         return; // malformed packet
-    
+
     sP_CL2FE_REQ_PC_GROUP_INVITE* recv = (sP_CL2FE_REQ_PC_GROUP_INVITE*)data->buf;
-	
-    Player* plr = PlayerManager::getPlayer(sock);  
+
+    Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(recv->iID_To);
-    
+
     if (plr == nullptr || otherPlr == nullptr)
 		return;
-	
+
     otherPlr = PlayerManager::getPlayerFromID(otherPlr->iIDGroup);
-    
+
     if (otherPlr == nullptr)
 		return;
-    
+
     // fail if the group is full or the other player is already in a group
     if (plr->groupCnt >= 4 || otherPlr->groupCnt > 1) {
         INITSTRUCT(sP_FE2CL_PC_GROUP_INVITE_FAIL, resp);
         sock->sendPacket((void*)&resp, P_FE2CL_PC_GROUP_INVITE_FAIL, sizeof(sP_FE2CL_PC_GROUP_INVITE_FAIL));
         return;
     }
-    
-    CNSocket* otherSock = PlayerManager::getSockFromID(recv->iID_To);   
-    
+
+    CNSocket* otherSock = PlayerManager::getSockFromID(recv->iID_To);
+
     if (otherSock == nullptr)
         return;
-    
+
     INITSTRUCT(sP_FE2CL_PC_GROUP_INVITE, resp);
 
 	resp.iHostID = plr->iIDGroup;
@@ -57,21 +57,21 @@ void GroupManager::requestGroup(CNSocket* sock, CNPacketData* data) {
 void GroupManager::refuseGroup(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_GROUP_INVITE_REFUSE))
         return; // malformed packet
-    
+
     sP_CL2FE_REQ_PC_GROUP_INVITE_REFUSE* recv = (sP_CL2FE_REQ_PC_GROUP_INVITE_REFUSE*)data->buf;
 
-	CNSocket* otherSock = PlayerManager::getSockFromID(recv->iID_From);   
-    
+	CNSocket* otherSock = PlayerManager::getSockFromID(recv->iID_From);
+
     if (otherSock == nullptr)
         return;
-	
+
     Player* plr = PlayerManager::getPlayer(sock);
-    
+
     if (plr == nullptr)
 		return;
-    
+
     INITSTRUCT(sP_FE2CL_PC_GROUP_INVITE_REFUSE, resp);
-    
+
     resp.iID_To = plr->iID;
 
 	otherSock->sendPacket((void*)&resp, P_FE2CL_PC_GROUP_INVITE_REFUSE, sizeof(sP_FE2CL_PC_GROUP_INVITE_REFUSE));
@@ -80,52 +80,52 @@ void GroupManager::refuseGroup(CNSocket* sock, CNPacketData* data) {
 void GroupManager::joinGroup(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_GROUP_JOIN))
         return; // malformed packet
-    
+
     sP_CL2FE_REQ_PC_GROUP_JOIN* recv = (sP_CL2FE_REQ_PC_GROUP_JOIN*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(recv->iID_From);
-    
+
     if (plr == nullptr || otherPlr == nullptr)
 		return;
-	
+
     otherPlr = PlayerManager::getPlayerFromID(otherPlr->iIDGroup);
-    
+
     if (otherPlr == nullptr)
 		return;
-    
+
     // fail if the group is full the other player is already in a group
     if (plr->groupCnt > 1 || plr->iIDGroup != plr->iID || otherPlr->groupCnt >= 4) {
         INITSTRUCT(sP_FE2CL_PC_GROUP_INVITE_FAIL, resp);
         sock->sendPacket((void*)&resp, P_FE2CL_PC_GROUP_JOIN_FAIL, sizeof(sP_FE2CL_PC_GROUP_JOIN_FAIL));
         return;
     }
-    
+
     if (!validOutVarPacket(sizeof(sP_FE2CL_PC_GROUP_JOIN), otherPlr->groupCnt + 1, sizeof(sPCGroupMemberInfo))) {
         std::cout << "[WARN] bad sP_FE2CL_PC_GROUP_JOIN packet size\n";
         return;
     }
-    
+
     plr->iIDGroup = otherPlr->iID;
     otherPlr->groupCnt += 1;
     otherPlr->groupIDs[otherPlr->groupCnt-1] = plr->iID;
-    
+
     size_t resplen = sizeof(sP_FE2CL_PC_GROUP_JOIN) + otherPlr->groupCnt * sizeof(sPCGroupMemberInfo);
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-    
+
     memset(respbuf, 0, resplen);
-    
+
     sP_FE2CL_PC_GROUP_JOIN *resp = (sP_FE2CL_PC_GROUP_JOIN*)respbuf;
     sPCGroupMemberInfo *respdata = (sPCGroupMemberInfo*)(respbuf+sizeof(sP_FE2CL_PC_GROUP_JOIN));
-        
+
     resp->iID_NewMember = plr->iID;
     resp->iMemberPCCnt = otherPlr->groupCnt;
-    
+
     for (int i = 0; i < otherPlr->groupCnt; i++) {
         Player* varPlr = PlayerManager::getPlayerFromID(otherPlr->groupIDs[i]);
-        
+
         if (varPlr == nullptr)
             continue;
-        
+
         respdata[i].iPC_ID = varPlr->iID;
         respdata[i].iPCUID = varPlr->PCStyle.iPC_UID;
         respdata[i].iNameCheck = varPlr->PCStyle.iNameCheck;
@@ -142,33 +142,33 @@ void GroupManager::joinGroup(CNSocket* sock, CNPacketData* data) {
         respdata[i].iZ = varPlr->z;
         // client doesnt read nano data here
     }
-    
+
     sendToGroup(otherPlr, (void*)&respbuf, P_FE2CL_PC_GROUP_JOIN, resplen);
 }
 
 void GroupManager::leaveGroup(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(P_CL2FE_REQ_PC_GROUP_LEAVE))
         return; // malformed packet
-    
+
     Player* plr = PlayerManager::getPlayer(sock);
-    
+
     if (plr == nullptr)
         return;
-    
+
     groupKickPlayer(plr);
 }
 
 void GroupManager::chatGroup(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SEND_ALL_GROUP_FREECHAT_MESSAGE))
         return; // malformed packet
-    
+
     sP_CL2FE_REQ_SEND_ALL_GROUP_FREECHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_ALL_GROUP_FREECHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
-    
+
     if (plr == nullptr || otherPlr == nullptr)
 		return;
-    
+
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC, resp);
     memcpy(resp.szFreeChat, chat->szFreeChat, sizeof(chat->szFreeChat));
@@ -176,18 +176,18 @@ void GroupManager::chatGroup(CNSocket* sock, CNPacketData* data) {
     resp.iEmoteCode = chat->iEmoteCode;
     sendToGroup(otherPlr, (void*)&resp, P_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC));
 }
-    
+
 void GroupManager::menuChatGroup(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE))
 		return; // malformed packet
-    
+
     sP_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
-    
+
     if (plr == nullptr || otherPlr == nullptr)
 		return;
-    
+
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC, resp);
     memcpy(resp.szFreeChat, chat->szFreeChat, sizeof(chat->szFreeChat));
@@ -198,16 +198,16 @@ void GroupManager::menuChatGroup(CNSocket* sock, CNPacketData* data) {
 
 void GroupManager::sendToGroup(Player* plr, void* buf, uint32_t type, size_t size) {
     for (int i = 0; i < plr->groupCnt; i++) {
-        CNSocket* sock = PlayerManager::getSockFromID(plr->groupIDs[i]); 
-        
+        CNSocket* sock = PlayerManager::getSockFromID(plr->groupIDs[i]);
+
         if (sock == nullptr)
             continue;
-        
+
         if (type == P_FE2CL_PC_GROUP_LEAVE_SUCC) {
-            Player* leavingPlr = PlayerManager::getPlayer(sock); 
+            Player* leavingPlr = PlayerManager::getPlayer(sock);
             leavingPlr->iIDGroup = leavingPlr->iID;
         }
-        
+
         sock->sendPacket(buf, type, size);
     }
 }
@@ -217,24 +217,24 @@ void GroupManager::groupTickInfo(Player* plr) {
         std::cout << "[WARN] bad sP_FE2CL_PC_GROUP_JOIN packet size\n";
         return;
     }
-    
+
     size_t resplen = sizeof(sP_FE2CL_PC_GROUP_MEMBER_INFO) + plr->groupCnt * sizeof(sPCGroupMemberInfo);
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-    
+
     memset(respbuf, 0, resplen);
-    
+
     sP_FE2CL_PC_GROUP_MEMBER_INFO *resp = (sP_FE2CL_PC_GROUP_MEMBER_INFO*)respbuf;
     sPCGroupMemberInfo *respdata = (sPCGroupMemberInfo*)(respbuf+sizeof(sP_FE2CL_PC_GROUP_MEMBER_INFO));
-        
+
     resp->iID = plr->iID;
     resp->iMemberPCCnt = plr->groupCnt;
-    
+
     for (int i = 0; i < plr->groupCnt; i++) {
         Player* varPlr = PlayerManager::getPlayerFromID(plr->groupIDs[i]);
-        
+
         if (varPlr == nullptr)
             continue;
-        
+
         respdata[i].iPC_ID = varPlr->iID;
         respdata[i].iPCUID = varPlr->PCStyle.iPC_UID;
         respdata[i].iNameCheck = varPlr->PCStyle.iNameCheck;
@@ -254,7 +254,7 @@ void GroupManager::groupTickInfo(Player* plr) {
             respdata[i].Nano = varPlr->Nanos[varPlr->activeNano];
         }
     }
-    
+
     sendToGroup(plr, (void*)&respbuf, P_FE2CL_PC_GROUP_MEMBER_INFO, resplen);
 }
 
@@ -263,42 +263,42 @@ void GroupManager::groupKickPlayer(Player* plr) {
     if (plr->iID == plr->iIDGroup) {
         INITSTRUCT(sP_FE2CL_PC_GROUP_LEAVE_SUCC, resp1);
         sendToGroup(plr, (void*)&resp1, P_FE2CL_PC_GROUP_LEAVE_SUCC, sizeof(sP_FE2CL_PC_GROUP_LEAVE_SUCC));
-        plr->groupCnt = 1; 
+        plr->groupCnt = 1;
         return;
     }
-    
+
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
-    
+
     if (otherPlr == nullptr)
 		return;
-    
+
     if (!validOutVarPacket(sizeof(sP_FE2CL_PC_GROUP_LEAVE), otherPlr->groupCnt - 1, sizeof(sPCGroupMemberInfo))) {
         std::cout << "[WARN] bad sP_FE2CL_PC_GROUP_LEAVE packet size\n";
         return;
     }
-    
+
     size_t resplen = sizeof(sP_FE2CL_PC_GROUP_LEAVE) + (otherPlr->groupCnt - 1) * sizeof(sPCGroupMemberInfo);
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-    
+
     memset(respbuf, 0, resplen);
-    
+
     sP_FE2CL_PC_GROUP_LEAVE *resp = (sP_FE2CL_PC_GROUP_LEAVE*)respbuf;
     sPCGroupMemberInfo *respdata = (sPCGroupMemberInfo*)(respbuf+sizeof(sP_FE2CL_PC_GROUP_LEAVE));
-        
+
     resp->iID_LeaveMember = plr->iID;
     resp->iMemberPCCnt = otherPlr->groupCnt - 1;
-    
+
     int moveDown = 0;
-        
+
     for (int i = 0; i < otherPlr->groupCnt; i++) {
         Player* varPlr = PlayerManager::getPlayerFromID(otherPlr->groupIDs[i]);
-        
+
         if (varPlr == nullptr)
             continue;
-        
+
         if (moveDown == 1)
             otherPlr->groupIDs[i-1] = otherPlr->groupIDs[i];
-        
+
         respdata[i-moveDown].iPC_ID = varPlr->iID;
         respdata[i-moveDown].iPCUID = varPlr->PCStyle.iPC_UID;
         respdata[i-moveDown].iNameCheck = varPlr->PCStyle.iNameCheck;
@@ -314,23 +314,23 @@ void GroupManager::groupKickPlayer(Player* plr) {
         respdata[i-moveDown].iY = varPlr->y;
         respdata[i-moveDown].iZ = varPlr->z;
         // client doesnt read nano data here
-        
+
         if (varPlr == plr) {
             moveDown = 1;
             otherPlr->groupIDs[i] = 0;
         }
     }
-    
+
     plr->iIDGroup = plr->iID;
     otherPlr->groupCnt -= 1;
-    
+
     sendToGroup(otherPlr, (void*)&respbuf, P_FE2CL_PC_GROUP_LEAVE, resplen);
-    
+
     CNSocket* sock = PlayerManager::getSockFromID(plr->iID);
-    
+
     if (sock == nullptr)
 		return;
-    
+
     INITSTRUCT(sP_FE2CL_PC_GROUP_LEAVE_SUCC, resp1);
     sock->sendPacket((void*)&resp1, P_FE2CL_PC_GROUP_LEAVE_SUCC, sizeof(sP_FE2CL_PC_GROUP_LEAVE_SUCC));
 }

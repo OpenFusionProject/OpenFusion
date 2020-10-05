@@ -189,7 +189,7 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
         return -1;
 
     DbPlayer create = {};
-    
+
     //set timestamp
     create.Created = getTimestamp();
     // save packet data
@@ -466,7 +466,7 @@ Player Database::DbToPlayer(DbPlayer player) {
     Database::getInventory(&result);
     Database::removeExpiredVehicles(&result);
     Database::getNanos(&result);
-    Database::getQuests(&result);   
+    Database::getQuests(&result);
 
     // load completed quests
     memcpy(&result.aQuestFlag, player.QuestFlag.data(), std::min(sizeof(result.aQuestFlag), player.QuestFlag.size()));

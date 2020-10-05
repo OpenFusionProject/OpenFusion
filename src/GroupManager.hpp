@@ -10,7 +10,7 @@
 
 namespace GroupManager {
 	void init();
-	
+
     void requestGroup(CNSocket* sock, CNPacketData* data);
     void refuseGroup(CNSocket* sock, CNPacketData* data);
     void joinGroup(CNSocket* sock, CNPacketData* data);

@@ -23,7 +23,7 @@ bool startTask(Player* plr, int TaskID, bool NanoMission) {
         std::cout << "[WARN] Player submitted unknown task!?" << std::endl;
         return false;
     }
-    
+
     // client freaks out if nano mission isn't sent first after reloging, so it's easiest to set it here
     if (NanoMission && plr->tasks[0] != 0) {
             // lets move task0 to different spot
@@ -76,7 +76,7 @@ void MissionManager::taskStart(CNSocket* sock, CNPacketData* data) {
         sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
         return;
     }
-    
+
     response.iTaskNum = missionData->iTaskNum;
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
 
@@ -182,7 +182,7 @@ void MissionManager::setMission(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     Player* plr = PlayerManager::getPlayer(sock);
-    
+
     if (plr == nullptr)
         return;
 
@@ -267,7 +267,7 @@ void MissionManager::dropQuestItem(CNSocket *sock, int task, int count, int id, 
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
     assert(resplen < CN_PACKET_BUFFER_SIZE);
     // we know it's only one trailing struct, so we can skip full validation
-    
+
     Player *plr = PlayerManager::getPlayer(sock);
 
     if (plr == nullptr)
@@ -423,7 +423,7 @@ void MissionManager::mobKilled(CNSocket *sock, int mobid) {
 
     if (plr == nullptr)
         return;
-    
+
     bool missionmob = false;
 
     for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {

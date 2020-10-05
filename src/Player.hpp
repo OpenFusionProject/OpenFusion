@@ -48,7 +48,7 @@ struct Player {
 
     bool inCombat;
     bool passiveNanoOut;
-    
+
     int pointDamage;
     int groupDamage;
     int defense;
@@ -60,7 +60,7 @@ struct Player {
     int32_t CurrentMissionID;
 
     sTimeLimitItemDeleteInfo2CL toRemoveVehicle;
-    
+
     int32_t iIDGroup;
     int groupCnt;
     int32_t groupIDs[4];

@@ -10,22 +10,22 @@
 
 namespace BuddyManager {
 	void init();
-	
+
 	//Buddy requests
 	void requestBuddy(CNSocket* sock, CNPacketData* data);
 	void reqBuddyByName(CNSocket* sock, CNPacketData* data);
-	
+
 	//Buddy accepting
 	void reqAcceptBuddy(CNSocket* sock, CNPacketData* data);
 	void reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data);
-	
+
 	//Buddy Messaging
 	void reqBuddyFreechat(CNSocket* sock, CNPacketData* data);
 	void reqBuddyMenuchat(CNSocket* sock, CNPacketData* data);
-	
+
 	//Getting buddy state
 	void reqPktGetBuddyState(CNSocket* sock, CNPacketData* data);
-	
+
 	//Blocking/removing buddies
 	void reqBuddyBlock(CNSocket* sock, CNPacketData* data);
 	void reqBuddyDelete(CNSocket* sock, CNPacketData* data);

@@ -119,14 +119,14 @@ void NPCManager::destroyNPC(int32_t id) {
     // remove NPC from the chunk
     Chunk* chunk = ChunkManager::chunks[entity->chunkPos];
     chunk->NPCs.erase(id);
-    
+
     // remove from viewable chunks
     removeNPC(entity->currentChunks, id);
 
     // remove from mob manager
     if (MobManager::Mobs.find(id) != MobManager::Mobs.end())
             MobManager::Mobs.erase(id);
-    
+
     // finally, remove it from the map and free it
     NPCs.erase(id);
     delete entity;
@@ -257,7 +257,7 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
     memcpy(&original, item, sizeof(sItemBase));
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC, resp);
-    
+
     int sellValue = itemData->sellPrice * req->iItemCnt;
 
     // increment taros
@@ -338,7 +338,7 @@ void NPCManager::npcVendorTable(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE* req = (sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE*)data->buf;
-    
+
     if (req->iVendorID != req->iNPC_ID || ItemManager::VendorTables.find(req->iNPC_ID) == ItemManager::VendorTables.end())
         return;
 
@@ -423,7 +423,7 @@ void NPCManager::npcCombineItems(CNSocket* sock, CNPacketData* data) {
 
     if (plr == nullptr)
         return;
-    
+
     if (req->iCostumeItemSlot < 0 || req->iCostumeItemSlot >= AINVEN_COUNT || req->iStatItemSlot < 0 || req->iStatItemSlot >= AINVEN_COUNT) { // sanity check 1
         INITSTRUCT(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, failResp);
         failResp.iCostumeItemSlot = req->iCostumeItemSlot;
@@ -502,7 +502,7 @@ void NPCManager::npcCombineItems(CNSocket* sock, CNPacketData* data) {
     resp.iNewItemSlot = req->iCostumeItemSlot;
     resp.iStatItemSlot = req->iStatItemSlot;
     resp.sNewItem = *itemLooks;
-    
+
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_ITEM_COMBINATION_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_COMBINATION_SUCC));
 }
 
@@ -516,7 +516,7 @@ void NPCManager::npcUnsummonHandler(CNSocket* sock, CNPacketData* data) {
 
     if (plr == nullptr || plr->accountLevel > 30)
         return;
-    
+
     sP_CL2FE_REQ_NPC_UNSUMMON* req = (sP_CL2FE_REQ_NPC_UNSUMMON*)data->buf;
     NPCManager::destroyNPC(req->iNPC_ID);
 }

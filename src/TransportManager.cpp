@@ -194,15 +194,15 @@ void TransportManager::tickTransportationSystem(CNServer* serv, time_t currTime)
  * If the player has disconnected or finished the route, clean up and remove them from the queue.
  */
 void TransportManager::stepSkywaySystem() {
-    
+
     // using an unordered map so we can remove finished players in one iteration
     std::unordered_map<CNSocket*, std::queue<WarpLocation>>::iterator it = SkywayQueues.begin();
     while (it != SkywayQueues.end()) {
 
         std::queue<WarpLocation>* queue = &it->second;
-        
+
         Player* plr = PlayerManager::getPlayer(it->first);
-        
+
         if (plr == nullptr) {
             // pluck out dead socket + update iterator
             it = SkywayQueues.erase(it);
