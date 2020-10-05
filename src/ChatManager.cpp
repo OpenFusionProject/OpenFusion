@@ -52,6 +52,35 @@ void accessCommand(std::string full, std::vector<std::string>& args, CNSocket* s
     ChatManager::sendServerMessage(sock, "Your access level is " + std::to_string(PlayerManager::getPlayer(sock)->accountLevel));
 }
 
+void populationCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    ChatManager::sendServerMessage(sock, std::to_string(PlayerManager::players.size()) + " players online");
+}
+
+void levelCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player *plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr)
+        return;
+
+    char *tmp;
+    int level = std::strtol(args[1].c_str(), &tmp, 10);
+    if (*tmp)
+        return;
+
+    if ((level < 1 || level > 36) && plr->accountLevel > 30)
+        return;
+
+    if (!(level < 1 || level > 36))
+        plr->level = level;
+
+    INITSTRUCT(sP_FE2CL_REP_PC_CHANGE_LEVEL, resp);
+
+    resp.iPC_ID = plr->iID;
+    resp.iPC_Level = level;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+    PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+}
+
 void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     if (args.size() < 2) {
         ChatManager::sendServerMessage(sock, "[MSS] Too few arguments");
@@ -174,7 +203,9 @@ void ChatManager::init() {
     registerCommand("test", 1, testCommand);
     registerCommand("access", 100, accessCommand);
     // TODO: add help command
-    registerCommand("mss", 100, mssCommand);
+    registerCommand("mss", 30, mssCommand);
+    registerCommand("level", 50, levelCommand);
+    registerCommand("population", 100, populationCommand);
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr) {
