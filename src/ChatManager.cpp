@@ -223,6 +223,11 @@ void npcRotateCommand(std::string full, std::vector<std::string>& args, CNSocket
     ChatManager::sendServerMessage(sock, "[NPCR] Successfully set angle to " + std::to_string(angle) + " for NPC " + args[1]);
 }
 
+void refreshCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player* plr = PlayerManager::getPlayer(sock);
+    PlayerManager::sendPlayerTo(sock, plr->x, plr->y, plr->z);
+}
+
 void flushCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     ChatManager::sendServerMessage(sock, "Wrote gruntwork to " + settings::GRUNTWORKJSON);
     TableData::flush();
@@ -241,6 +246,7 @@ void ChatManager::init() {
     registerCommand("flush", 30, flushCommand);
     registerCommand("level", 50, levelCommand);
     registerCommand("population", 100, populationCommand);
+    registerCommand("refresh", 100, refreshCommand);
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr) {
