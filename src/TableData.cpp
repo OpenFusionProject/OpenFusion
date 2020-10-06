@@ -13,6 +13,7 @@
 #include <fstream>
 
 std::map<int32_t, std::vector<WarpLocation>> TableData::RunningSkywayRoutes;
+std::map<int32_t, int> TableData::RunningNPCRotations;
 
 void TableData::init() {
     int32_t nextId = 0;
@@ -364,6 +365,17 @@ void TableData::loadGruntwork() {
             RunningSkywayRoutes[(int)route["iRouteID"]] = points;
         }
 
+        // npc rotations
+        auto npcRot = gruntwork["rotations"];
+        for (auto _rot = npcRot.begin(); _rot != npcRot.end(); _rot++) {
+            int32_t npcID = _rot.value()["iNPCID"];
+            int angle = _rot.value()["iAngle"];
+            if (NPCManager::NPCs.find(npcID) == NPCManager::NPCs.end())
+                continue; // NPC not found
+            BaseNPC* npc = NPCManager::NPCs[npcID];
+            npc->appearanceData.iAngle = angle;
+        }
+
         std::cout << "[INFO] Loaded gruntwork.json" << std::endl;
     }
     catch (const std::exception& err) {
@@ -394,6 +406,15 @@ void TableData::flush() {
         }
 
         gruntwork["skyway"].push_back(route);
+    }
+
+    for (auto& pair : RunningNPCRotations) {
+        nlohmann::json rotation;
+
+        rotation["iNPCID"] = (int)pair.first;
+        rotation["iAngle"] = pair.second;
+
+        gruntwork["rotations"].push_back(rotation);
     }
 
     file << gruntwork << std::endl;
