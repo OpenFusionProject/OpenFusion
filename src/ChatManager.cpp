@@ -4,9 +4,11 @@
 #include "PlayerManager.hpp"
 #include "TransportManager.hpp"
 #include "TableData.hpp"
+#include "limits.h"
 
 #include <sstream>
 #include <iterator>
+#include <cmath>
 
 std::map<std::string, ChatCommand> ChatManager::commands;
 
@@ -186,41 +188,40 @@ void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
 }
 
 void npcRotateCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+
+    PlayerView& plrv = PlayerManager::players[sock];
+    Player* plr = plrv.plr;
     
-    if (args.size() < 2) {
-        ChatManager::sendServerMessage(sock, "[NPCR] Too few arguments");
-        ChatManager::sendServerMessage(sock, "[NPCR] Usage: /npcr <NPC ID>");
+    BaseNPC* npc = nullptr;
+    int lastDist = INT_MAX;
+    for (auto c = plrv.currentChunks.begin(); c != plrv.currentChunks.end(); c++) { // haha get it
+        Chunk* chunk = *c;
+        for (auto _npc = chunk->NPCs.begin(); _npc != chunk->NPCs.end(); _npc++) {
+            BaseNPC* npcTemp = NPCManager::NPCs[*_npc];
+            int distXY = std::hypot(plr->x - npcTemp->appearanceData.iX, plr->y - npcTemp->appearanceData.iY);
+            int dist = std::hypot(distXY, plr->z - npcTemp->appearanceData.iZ);
+            if (dist < lastDist) {
+                npc = npcTemp;
+                lastDist = dist;
+            }
+        }
+    }
+
+    if (npc == nullptr) {
+        ChatManager::sendServerMessage(sock, "[NPCR] No NPCs found nearby");
         return;
     }
 
-    // Validate NPC ID number
-    char* npcIDC;
-    int npcID = std::strtol(args[1].c_str(), &npcIDC, 10);
-    if (*npcIDC) {
-        // not an integer
-        ChatManager::sendServerMessage(sock, "[NPCR] Invalid NPC ID '" + args[1] + "'");
-        return;
-    }
+    int angle = (plr->angle + 180) % 360;
+    NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ, angle);
+    TableData::RunningNPCRotations[npc->appearanceData.iNPC_ID] = angle;
+    
+    // update rotation clientside
+    INITSTRUCT(sP_FE2CL_NPC_ENTER, pkt);
+    pkt.NPCAppearanceData = npc->appearanceData;
+    sock->sendPacket((void*)&pkt, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
 
-    // Ensure NPC exists
-    if (NPCManager::NPCs.find(npcID) == NPCManager::NPCs.end()) {
-        // doesn't exist
-        ChatManager::sendServerMessage(sock, "[NPCR] Can't find NPC with ID " + args[1]);
-        return;
-    }
-
-    Player* plr = PlayerManager::getPlayer(sock);
-    BaseNPC* npc = NPCManager::NPCs[npcID];
-    int angle = plr->angle + 180;
-    // normalize angle
-    while (angle >= 360)
-        angle -= 360;
-    while (angle < 0)
-        angle += 360;
-    NPCManager::updateNPCPosition(npcID, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ, angle);
-    TableData::RunningNPCRotations[npcID] = angle;
-    PlayerManager::sendPlayerTo(sock, plr->x, plr->y, plr->z);
-    ChatManager::sendServerMessage(sock, "[NPCR] Successfully set angle to " + std::to_string(angle) + " for NPC " + args[1]);
+    ChatManager::sendServerMessage(sock, "[NPCR] Successfully set angle to " + std::to_string(angle) + " for NPC " + std::to_string(npc->appearanceData.iNPC_ID));
 }
 
 void refreshCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
