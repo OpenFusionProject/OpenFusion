@@ -196,6 +196,8 @@ void TableData::init() {
         std::cerr << "[WARN] Malformed mobs.json file! Reason:" << err.what() << std::endl;
     }
 
+    loadGruntwork();
+
     NPCManager::nextId = nextId;
 }
 
@@ -290,7 +292,6 @@ void TableData::constructPathSkyway(nlohmann::json::iterator _pathData) {
 }
 
 void TableData::constructPathSlider(nlohmann::json points, int rotations, int sliderID) {
-
     std::queue<WarpLocation> route;
     std::rotate(points.begin(), points.begin() + rotations, points.end()); // rotate points
     nlohmann::json::iterator _point = points.begin(); // iterator
@@ -335,4 +336,65 @@ void TableData::constructPathNPC(nlohmann::json::iterator _pathData) {
         stopTime = point["stop"];
     }
     TransportManager::NPCQueues[pathData["iNPCID"]] = points;
+}
+
+// load gruntwork output; if it exists
+void TableData::loadGruntwork() {
+    try {
+        std::ifstream inFile(settings::GRUNTWORKJSON);
+        nlohmann::json gruntwork;
+
+        // skip if there's no gruntwork to load
+        if (inFile.fail())
+            return;
+
+        inFile >> gruntwork;
+
+        // skyway paths
+        auto skyway = gruntwork["skyway"];
+        for (auto _route = skyway.begin(); _route != skyway.end(); _route++) {
+            auto route = _route.value();
+            std::vector<WarpLocation> points;
+
+            for (auto _point = route["points"].begin(); _point != route["points"].end(); _point++) {
+                auto point = _point.value();
+                points.push_back(WarpLocation{point["x"], point["y"], point["z"]});
+            }
+
+            RunningSkywayRoutes[(int)route["iRouteID"]] = points;
+        }
+
+        std::cout << "[INFO] Loaded gruntwork.json" << std::endl;
+    }
+    catch (const std::exception& err) {
+        std::cerr << "[WARN] Malformed gruntwork.json file! Reason:" << err.what() << std::endl;
+    }
+}
+
+// write gruntwork output to file
+void TableData::flush() {
+    std::ofstream file(settings::GRUNTWORKJSON);
+    nlohmann::json gruntwork;
+
+    for (auto& pair : RunningSkywayRoutes) {
+        nlohmann::json route;
+
+        route["iRouteID"] = (int)pair.first;
+        route["iMonkeySpeed"] = 1500; // TODO
+
+        std::cout << "serializing mss route " << (int)pair.first << std::endl;
+        for (WarpLocation& point : pair.second) {
+            nlohmann::json tmp;
+
+            tmp["x"] = point.x;
+            tmp["y"] = point.y;
+            tmp["z"] = point.z;
+
+            route["points"].push_back(tmp);
+        }
+
+        gruntwork["skyway"].push_back(route);
+    }
+
+    file << gruntwork << std::endl;
 }

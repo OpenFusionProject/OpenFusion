@@ -6,6 +6,7 @@
 #include "CNShared.hpp"
 #include "settings.hpp"
 #include "Database.hpp"
+#include "TableData.hpp" // for flush()
 
 #include <iostream>
 #include <sstream>
@@ -56,6 +57,7 @@ void CNShardServer::periodicSaveTimer(CNServer* serv, time_t currTime) {
         Database::updatePlayer(pair.second.plr);
     }
 
+    TableData::flush();
     std::cout << "[INFO] Done." << std::endl;
 }
 

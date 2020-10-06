@@ -99,7 +99,7 @@ void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
 
     if (args.size() < 3) {
         ChatManager::sendServerMessage(sock, "[MSS] Too few arguments");
-        ChatManager::sendServerMessage(sock, "[MSS] Usage: /mss <route> <add/remove/goto/clear/test/export> <<height>>");
+        ChatManager::sendServerMessage(sock, "[MSS] Usage: /mss <route> <add/remove/goto/clear/test> <<height>>");
         return;
     }
 
@@ -167,32 +167,27 @@ void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
             return;
         }
 
-        // IMPROMPTU LERP
-        int speed = 1500; // TODO: make this adjustable
-        std::queue<WarpLocation> path;
-        WarpLocation last = route->front(); // start pos
-        PlayerManager::sendPlayerTo(sock, last.x, last.y, last.z); // send the player to the start of the path
-        for (int i = 1; i < route->size(); i++) {
-            WarpLocation coords = route->at(i);
-            TransportManager::lerp(&path, last, coords, speed);
-            path.push(coords); // add keyframe to the queue
-            last = coords; // update start pos
-        }
-
-        TransportManager::SkywayQueues[sock] = path;
+        WarpLocation pulled = route->front();
+        PlayerManager::sendPlayerTo(sock, pulled.x, pulled.y, pulled.z);
+        TransportManager::testMssRoute(sock, route);
         return;
     }
 
-    // mss <route> export
+    // for compatibility: mss <route> export
     if (args[2] == "export") {
         ChatManager::sendServerMessage(sock, "[MSS] export on " + std::to_string(routeNum));
-        // TODO: dump route to tdata
+        TableData::flush();
         return;
     }
 
     // mss ????
     ChatManager::sendServerMessage(sock, "[MSS] Unknown command '" + args[2] + "'");
 
+}
+
+void flushCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    ChatManager::sendServerMessage(sock, "Wrote gruntwork to " + settings::GRUNTWORKJSON);
+    TableData::flush();
 }
 
 void ChatManager::init() {
@@ -204,6 +199,7 @@ void ChatManager::init() {
     registerCommand("access", 100, accessCommand);
     // TODO: add help command
     registerCommand("mss", 30, mssCommand);
+    registerCommand("flush", 30, flushCommand);
     registerCommand("level", 50, levelCommand);
     registerCommand("population", 100, populationCommand);
 }

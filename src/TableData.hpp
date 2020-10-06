@@ -9,6 +9,8 @@ namespace TableData {
 
     void init();
     void cleanup();
+    void loadGruntwork();
+    void flush();
 
     int getItemType(int);
     void loadPaths(int*);

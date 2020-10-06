@@ -3,6 +3,7 @@
 #include "PlayerManager.hpp"
 #include "NanoManager.hpp"
 #include "TransportManager.hpp"
+#include "TableData.hpp"
 
 #include <unordered_map>
 #include <cmath>
@@ -157,6 +158,12 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
             NanoManager::summonNano(sock, -1); // make sure that no nano is active during the ride
             SkywayQueues[sock] = SkywayPaths[route.mssRouteNum]; // set socket point queue to route
             break;
+        } else if (TableData::RunningSkywayRoutes.find(route.mssRouteNum) != TableData::RunningSkywayRoutes.end()) {
+            std::vector<WarpLocation>* _route = &TableData::RunningSkywayRoutes[route.mssRouteNum];
+
+            NanoManager::summonNano(sock, -1);
+            testMssRoute(sock, _route);
+            break;
         }
 
         // refund and send alert packet
@@ -182,6 +189,21 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
     resp.iY = plr->y;
     resp.iZ = plr->z;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC));
+}
+
+void TransportManager::testMssRoute(CNSocket *sock, std::vector<WarpLocation>* route) {
+    int speed = 1500; // TODO: make this adjustable
+    std::queue<WarpLocation> path;
+    WarpLocation last = route->front(); // start pos
+
+    for (int i = 1; i < route->size(); i++) {
+        WarpLocation coords = route->at(i);
+        TransportManager::lerp(&path, last, coords, speed);
+        path.push(coords); // add keyframe to the queue
+        last = coords; // update start pos
+    }
+
+    SkywayQueues[sock] = path;
 }
 
 void TransportManager::tickTransportationSystem(CNServer* serv, time_t currTime) {
