@@ -160,7 +160,7 @@ void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
         return;
     }
 
-    // mss <route> reload
+    // mss <route> test
     if (args[2] == "test") {
         if (route->empty()) {
             ChatManager::sendServerMessage(sock, "[MSS] Route " + std::to_string(routeNum) + " is empty");
@@ -175,7 +175,7 @@ void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
 
     // for compatibility: mss <route> export
     if (args[2] == "export") {
-        ChatManager::sendServerMessage(sock, "[MSS] export on " + std::to_string(routeNum));
+        ChatManager::sendServerMessage(sock, "Wrote gruntwork to " + settings::GRUNTWORKJSON);
         TableData::flush();
         return;
     }
@@ -183,6 +183,44 @@ void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
     // mss ????
     ChatManager::sendServerMessage(sock, "[MSS] Unknown command '" + args[2] + "'");
 
+}
+
+void npcRotateCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    
+    if (args.size() < 2) {
+        ChatManager::sendServerMessage(sock, "[NPCR] Too few arguments");
+        ChatManager::sendServerMessage(sock, "[NPCR] Usage: /npcr <NPC ID>");
+        return;
+    }
+
+    // Validate NPC ID number
+    char* npcIDC;
+    int npcID = std::strtol(args[1].c_str(), &npcIDC, 10);
+    if (*npcIDC) {
+        // not an integer
+        ChatManager::sendServerMessage(sock, "[NPCR] Invalid NPC ID '" + args[1] + "'");
+        return;
+    }
+
+    // Ensure NPC exists
+    if (NPCManager::NPCs.find(npcID) == NPCManager::NPCs.end()) {
+        // doesn't exist
+        ChatManager::sendServerMessage(sock, "[NPCR] Can't find NPC with ID " + args[1]);
+        return;
+    }
+
+    Player* plr = PlayerManager::getPlayer(sock);
+    BaseNPC* npc = NPCManager::NPCs[npcID];
+    int angle = plr->angle + 180;
+    // normalize angle
+    while (angle >= 360)
+        angle -= 360;
+    while (angle < 0)
+        angle += 360;
+    NPCManager::updateNPCPosition(npcID, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ, angle);
+    TableData::RunningNPCRotations[npcID] = angle;
+    PlayerManager::sendPlayerTo(sock, plr->x, plr->y, plr->z);
+    ChatManager::sendServerMessage(sock, "[NPCR] Successfully set angle to " + std::to_string(angle) + " for NPC " + args[1]);
 }
 
 void flushCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
@@ -199,6 +237,7 @@ void ChatManager::init() {
     registerCommand("access", 100, accessCommand);
     // TODO: add help command
     registerCommand("mss", 30, mssCommand);
+    registerCommand("npcr", 30, npcRotateCommand);
     registerCommand("flush", 30, flushCommand);
     registerCommand("level", 50, levelCommand);
     registerCommand("population", 100, populationCommand);
