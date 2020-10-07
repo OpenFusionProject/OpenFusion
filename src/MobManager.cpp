@@ -419,7 +419,8 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
     }
 
     // if we got there
-    if (distance <= mob->data["m_iIdleRange"]) {
+    //if (distance <= mob->data["m_iIdleRange"]) {
+    if (distance <= 10) { // retreat back to the spawn point
         mob->state = MobState::ROAMING;
         mob->appearanceData.iHP = mob->maxHealth;
         mob->killedTime = 0;

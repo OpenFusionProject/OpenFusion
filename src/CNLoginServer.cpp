@@ -55,6 +55,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                         loginSessions[sock] = CNLoginData();
                         loginSessions[sock].userID = Database::addAccount(userLogin, userPassword);
                         loginSessions[sock].slot = 1;
+                        loginSessions[sock].lastHeartbeat = getTime();
                         success = true;
                 }
                 // if user exists, check if password is correct
@@ -72,6 +73,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                         loginSessions[sock] = CNLoginData();
                         loginSessions[sock].userID = findUser->AccountID;
                         loginSessions[sock].slot = findUser->Selected;
+                        loginSessions[sock].lastHeartbeat = getTime();
                         success = true;
                     }
                 }
@@ -143,7 +145,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             break;
         }
         case P_CL2LS_REP_LIVE_CHECK: {
-            // stubbed, the client really doesn't care LOL
+            loginSessions[sock].lastHeartbeat = getTime();
             break;
         }
         case P_CL2LS_REQ_CHECK_CHAR_NAME: {
@@ -162,6 +164,8 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 success = false;
                 errorcode = 1;
             }
+
+            loginSessions[sock].lastHeartbeat = getTime();
 
             if (success) {
                 INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC, resp);
@@ -200,6 +204,8 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             resp.iPC_UID = Database::createCharacter(save, loginSessions[sock].userID);
             memcpy(resp.szFirstName, save->szFirstName, sizeof(char16_t) * 9);
             memcpy(resp.szLastName, save->szLastName, sizeof(char16_t) * 17);
+
+            loginSessions[sock].lastHeartbeat = getTime();
 
             sock->sendPacket((void*)&resp, P_LS2CL_REP_SAVE_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC));
 
@@ -245,6 +251,8 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             loginSessions[sock].characters[UID] = Player(player);
             loginSessions[sock].characters[UID].FEKey = sock->getFEKey();
 
+            loginSessions[sock].lastHeartbeat = getTime();
+
             sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_CREATE_SUCC, sizeof(sP_LS2CL_REP_CHAR_CREATE_SUCC));
             Database::updateSelected(loginSessions[sock].userID, player.slot);
             break;
@@ -259,7 +267,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             INITSTRUCT(sP_LS2CL_REP_CHAR_DELETE_SUCC, resp);
             resp.iSlotNum = operationResult;
             sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_DELETE_SUCC, sizeof(sP_LS2CL_REP_CHAR_DELETE_SUCC));
-
+            loginSessions[sock].lastHeartbeat = getTime();
             break;
         }
         case P_CL2LS_REQ_CHAR_SELECT: {
@@ -274,6 +282,9 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                 std::cout << "P_CL2LS_REQ_CHAR_SELECT:" << std::endl;
                 std::cout << "\tPC_UID: " << chararacter->iPC_UID << std::endl;
             )
+
+            loginSessions[sock].lastHeartbeat = getTime();
+
             loginSessions[sock].selectedChar = chararacter->iPC_UID;
             Database::updateSelected(loginSessions[sock].userID, loginSessions[sock].characters[chararacter->iPC_UID].slot);
             sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_SELECT_SUCC, sizeof(sP_LS2CL_REP_CHAR_SELECT_SUCC));
@@ -315,6 +326,8 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             auto key = loginSessions[sock].characters[save->iPC_UID].FEKey;
             loginSessions[sock].characters[save->iPC_UID] = Player(Database::getPlayer(save->iPC_UID));
             loginSessions[sock].characters[save->iPC_UID].FEKey = key;
+
+            loginSessions[sock].lastHeartbeat = getTime();
             // no response here
             break;
         }
@@ -330,6 +343,8 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             memcpy(resp.szFirstName, save->szFirstName, sizeof(char16_t)*9);
             memcpy(resp.szLastName, save->szLastName, sizeof(char16_t) * 17);
             resp.iSlotNum = save->iSlotNum;
+
+            loginSessions[sock].lastHeartbeat = getTime();
 
             sock->sendPacket((void*)&resp, P_LS2CL_REP_CHANGE_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHANGE_CHAR_NAME_SUCC));
             break;
@@ -368,6 +383,25 @@ void CNLoginServer::newConnection(CNSocket* cns) {
 
 void CNLoginServer::killConnection(CNSocket* cns) {
     loginSessions.erase(cns);
+}
+
+void CNLoginServer::onStep() {
+    time_t currTime = getTime();
+    static time_t lastCheck = 0;
+
+    if (currTime - lastCheck < 16000)
+        return;
+    lastCheck = currTime;
+
+    for (auto& pair : loginSessions) {
+        if (pair.second.lastHeartbeat != 0 && currTime - pair.second.lastHeartbeat > 32000) {
+            pair.first->kill();
+            continue;
+        }
+
+        INITSTRUCT(sP_LS2CL_REQ_LIVE_CHECK, pkt);
+        pair.first->sendPacket((void*)&pkt, P_LS2CL_REQ_LIVE_CHECK, sizeof(sP_LS2CL_REQ_LIVE_CHECK));
+    }
 }
 
 #pragma region helperMethods

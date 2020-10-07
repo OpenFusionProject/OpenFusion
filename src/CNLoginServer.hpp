@@ -10,6 +10,7 @@ struct CNLoginData {
     std::map<int64_t, Player> characters;
     int64_t selectedChar;
     int userID; int slot;
+    time_t lastHeartbeat;
 };
 
 enum class LoginError {
@@ -41,4 +42,5 @@ public:
 
     void newConnection(CNSocket* cns);
     void killConnection(CNSocket* cns);
+    void onStep();
 };
