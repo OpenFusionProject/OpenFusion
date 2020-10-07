@@ -375,6 +375,8 @@ void TableData::loadGruntwork(int32_t *nextId) {
                 continue; // NPC not found
             BaseNPC* npc = NPCManager::NPCs[npcID];
             npc->appearanceData.iAngle = angle;
+
+            RunningNPCRotations[npcID] = angle;
         }
 
         // mobs
