@@ -147,9 +147,6 @@ void GroupManager::joinGroup(CNSocket* sock, CNPacketData* data) {
 }
 
 void GroupManager::leaveGroup(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(P_CL2FE_REQ_PC_GROUP_LEAVE))
-        return; // malformed packet
-
     Player* plr = PlayerManager::getPlayer(sock);
 
     if (plr == nullptr)

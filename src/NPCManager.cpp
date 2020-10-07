@@ -351,7 +351,7 @@ void NPCManager::npcVendorTable(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, resp);
 
-    for (int i = 0; i < listings.size() && i < 20; i++) { // 20 is the max
+    for (int i = 0; i < (int)listings.size() && i < 20; i++) { // 20 is the max
         sItemBase base;
         base.iID = listings[i].iID;
         base.iOpt = 0;
@@ -393,7 +393,7 @@ void NPCManager::npcVendorBuyBattery(CNSocket* sock, CNPacketData* data) {
     if (plr == nullptr)
         return;
 
-    int cost = req->Item.iOpt * 100;
+    int cost = req->Item.iOpt * 10;
     if ((req->Item.iID == 3 ? (plr->batteryW >= 9999) : (plr->batteryN >= 9999)) || plr->money < cost) { // sanity check
         INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL, failResp);
         failResp.iErrorCode = 0;

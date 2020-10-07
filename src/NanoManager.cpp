@@ -702,6 +702,8 @@ void NanoManager::nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t 
 
     if (groupPower)
         pktCnt = leader->groupCnt;
+    else
+        leader = plr;
 
     if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE), pktCnt, sizeof(sSkillResult_Buff))) {
         std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size\n";
@@ -783,6 +785,8 @@ void NanoManager::nanoUnbuff(CNSocket* sock, int32_t iCBFlag, int16_t eCharStatu
 
     if (groupPower)
         pktCnt = leader->groupCnt;
+    else
+        leader = plr;
 
     for (int i = 0; i < pktCnt; i++) {
         Player* varPlr;
@@ -813,7 +817,7 @@ void NanoManager::nanoUnbuff(CNSocket* sock, int32_t iCBFlag, int16_t eCharStatu
 
 // 0=A 1=B 2=C -1=Not found
 int NanoManager::nanoStyle(int nanoId) {
-    if (nanoId < 0 || nanoId >= NanoTable.size())
+    if (nanoId < 0 || nanoId >= (int)NanoTable.size())
         return -1;
     return NanoTable[nanoId].style;
 }
