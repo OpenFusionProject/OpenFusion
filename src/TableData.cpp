@@ -14,6 +14,7 @@
 
 std::map<int32_t, std::vector<WarpLocation>> TableData::RunningSkywayRoutes;
 std::map<int32_t, int> TableData::RunningNPCRotations;
+std::map<int32_t, BaseNPC*> TableData::RunningMobs;
 
 void TableData::init() {
     int32_t nextId = 0;
@@ -197,7 +198,7 @@ void TableData::init() {
         std::cerr << "[WARN] Malformed mobs.json file! Reason:" << err.what() << std::endl;
     }
 
-    loadGruntwork();
+    loadGruntwork(&nextId);
 
     NPCManager::nextId = nextId;
 }
@@ -340,7 +341,7 @@ void TableData::constructPathNPC(nlohmann::json::iterator _pathData) {
 }
 
 // load gruntwork output; if it exists
-void TableData::loadGruntwork() {
+void TableData::loadGruntwork(int32_t *nextId) {
     try {
         std::ifstream inFile(settings::GRUNTWORKJSON);
         nlohmann::json gruntwork;
@@ -374,6 +375,23 @@ void TableData::loadGruntwork() {
                 continue; // NPC not found
             BaseNPC* npc = NPCManager::NPCs[npcID];
             npc->appearanceData.iAngle = angle;
+        }
+
+        // mobs
+        auto mobs = gruntwork["mobs"];
+        for (auto _mob = mobs.begin(); _mob != mobs.end(); _mob++) {
+            auto mob = _mob.value();
+
+            Mob *npc = new Mob(mob["iX"], mob["iY"], mob["iZ"], INSTANCE_OVERWORLD, mob["iNPCType"],
+                NPCManager::NPCData[(int)mob["iNPCType"]], (*nextId)++);
+
+            NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
+            MobManager::Mobs[npc->appearanceData.iNPC_ID] = npc;
+            TableData::RunningMobs[npc->appearanceData.iNPC_ID] = npc;
+            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, mob["iX"], mob["iY"], mob["iZ"]);
+
+            // re-enable respawning
+            npc->summoned = false;
         }
 
         std::cout << "[INFO] Loaded gruntwork.json" << std::endl;
@@ -415,6 +433,25 @@ void TableData::flush() {
         rotation["iAngle"] = pair.second;
 
         gruntwork["rotations"].push_back(rotation);
+    }
+
+    for (auto& pair : RunningMobs) {
+        nlohmann::json mob;
+        Mob *m = (Mob*)pair.second; // we need spawnX, etc
+
+        if (NPCManager::NPCs.find(pair.first) == NPCManager::NPCs.end())
+            continue;
+
+        // NOTE: this format deviates slightly from the one in mobs.json
+        mob["iNPCType"] = (int)m->appearanceData.iNPCType;
+        mob["iHP"] = (int)m->maxHealth;
+        mob["iX"] = m->spawnX;
+        mob["iY"] = m->spawnY;
+        mob["iZ"] = m->spawnZ;
+        // this is a bit imperfect, since this is a live angle, not a spawn angle so it'll change often, but eh
+        mob["iAngle"] = m->appearanceData.iAngle;
+
+        gruntwork["mobs"].push_back(mob);
     }
 
     file << gruntwork << std::endl;

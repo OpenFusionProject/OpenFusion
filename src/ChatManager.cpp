@@ -4,11 +4,13 @@
 #include "PlayerManager.hpp"
 #include "TransportManager.hpp"
 #include "TableData.hpp"
-#include "limits.h"
+#include "NPCManager.hpp"
+#include "MobManager.hpp"
 
 #include <sstream>
 #include <iterator>
 #include <cmath>
+#include <limits.h>
 
 std::map<std::string, ChatCommand> ChatManager::commands;
 
@@ -184,11 +186,87 @@ void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
 
     // mss ????
     ChatManager::sendServerMessage(sock, "[MSS] Unknown command '" + args[2] + "'");
+}
 
+void summonWCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    char *rest;
+    int type = std::strtol(args[1].c_str(), &rest, 10);
+    if (*rest) {
+        ChatManager::sendServerMessage(sock, "Invalid NPC number: " + args[1]);
+        return;
+    }
+
+    // permission & sanity check
+    if (plr == nullptr || type >= 3314)
+        return;
+
+    int team = NPCManager::NPCData[type]["m_iTeam"];
+
+    assert(NPCManager::nextId < INT32_MAX);
+
+    BaseNPC *npc = nullptr;
+    if (team == 2) {
+        npc = new Mob(plr->x, plr->y, plr->z, plr->instanceID, type, NPCManager::NPCData[type], NPCManager::nextId++);
+        npc->appearanceData.iAngle = (plr->angle + 180) % 360;
+
+        NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
+        MobManager::Mobs[npc->appearanceData.iNPC_ID] = (Mob*)npc;
+
+        // re-enable respawning
+        ((Mob*)npc)->summoned = false;
+    } else {
+        ChatManager::sendServerMessage(sock, "Error: /summonW only supports Mobs at this time.");
+        return;
+    }
+
+    NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z);
+
+    ChatManager::sendServerMessage(sock, "/summonW: placed mob with type: " + std::to_string(type) +
+        ", id: " + std::to_string(npc->appearanceData.iNPC_ID));
+    TableData::RunningMobs[npc->appearanceData.iNPC_ID] = npc;
+}
+
+void unsummonWCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    PlayerView& plrv = PlayerManager::players[sock];
+    Player* plr = plrv.plr;
+
+    // shamelessly stolen from npcRotateCommand()
+    BaseNPC* npc = nullptr;
+    int lastDist = INT_MAX;
+    for (auto c = plrv.currentChunks.begin(); c != plrv.currentChunks.end(); c++) {
+        Chunk* chunk = *c;
+        for (auto _npc = chunk->NPCs.begin(); _npc != chunk->NPCs.end(); _npc++) {
+            BaseNPC* npcTemp = NPCManager::NPCs[*_npc];
+            int distXY = std::hypot(plr->x - npcTemp->appearanceData.iX, plr->y - npcTemp->appearanceData.iY);
+            int dist = std::hypot(distXY, plr->z - npcTemp->appearanceData.iZ);
+            if (dist < lastDist) {
+                npc = npcTemp;
+                lastDist = dist;
+            }
+        }
+    }
+
+    if (npc == nullptr) {
+        ChatManager::sendServerMessage(sock, "/unsummonW: No NPCs found nearby");
+        return;
+    }
+
+    if (TableData::RunningMobs.find(npc->appearanceData.iNPC_ID) == TableData::RunningMobs.end()) {
+        ChatManager::sendServerMessage(sock, "/unsummonW: Closest NPC is not a gruntwork mob.");
+        return;
+    }
+
+    ChatManager::sendServerMessage(sock, "/unsummonW: removed mob with type: " + std::to_string(npc->appearanceData.iNPCType) +
+        ", id: " + std::to_string(npc->appearanceData.iNPC_ID));
+
+    TableData::RunningMobs.erase(npc->appearanceData.iNPC_ID);
+
+    NPCManager::destroyNPC(npc->appearanceData.iNPC_ID);
 }
 
 void npcRotateCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
-
     PlayerView& plrv = PlayerManager::players[sock];
     Player* plr = plrv.plr;
     
@@ -230,8 +308,8 @@ void refreshCommand(std::string full, std::vector<std::string>& args, CNSocket* 
 }
 
 void flushCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
-    ChatManager::sendServerMessage(sock, "Wrote gruntwork to " + settings::GRUNTWORKJSON);
     TableData::flush();
+    ChatManager::sendServerMessage(sock, "Wrote gruntwork to " + settings::GRUNTWORKJSON);
 }
 
 void ChatManager::init() {
@@ -244,6 +322,8 @@ void ChatManager::init() {
     // TODO: add help command
     registerCommand("mss", 30, mssCommand);
     registerCommand("npcr", 30, npcRotateCommand);
+    registerCommand("summonW", 30, summonWCommand);
+    registerCommand("unsummonW", 30, unsummonWCommand);
     registerCommand("flush", 30, flushCommand);
     registerCommand("level", 50, levelCommand);
     registerCommand("population", 100, populationCommand);

@@ -306,6 +306,8 @@ void MissionManager::dropQuestItem(CNSocket *sock, int task, int count, int id, 
     reward->m_iFusionMatter = plr->fusionmatter;
     reward->iFatigue = 100; // prevents warning message
     reward->iFatigue_Level = 1;
+    reward->m_iBatteryN = plr->batteryN;
+    reward->m_iBatteryW = plr->batteryW;
 
     reward->iItemCnt = 1; // remember to update resplen if you change this
     reward->iTaskID = task;
@@ -365,6 +367,8 @@ int MissionManager::giveMissionReward(CNSocket *sock, int task) {
     resp->iFatigue = 100; // prevents warning message
     resp->iFatigue_Level = 1;
     resp->iItemCnt = nrewards;
+    resp->m_iBatteryN = plr->batteryN;
+    resp->m_iBatteryW = plr->batteryW;
 
     for (int i = 0; i < nrewards; i++) {
         item[i].sItem.iType = reward->itemTypes[i];

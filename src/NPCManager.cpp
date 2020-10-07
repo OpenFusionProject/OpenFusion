@@ -531,7 +531,6 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_NPC_SUMMON* req = (sP_CL2FE_REQ_NPC_SUMMON*)data->buf;
-    INITSTRUCT(sP_FE2CL_NPC_ENTER, resp);
     Player* plr = PlayerManager::getPlayer(sock);
 
     // permission & sanity check
@@ -541,20 +540,15 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     int team = NPCData[req->iNPCType]["m_iTeam"];
 
     assert(nextId < INT32_MAX);
-    resp.NPCAppearanceData.iNPC_ID = nextId++;
-    resp.NPCAppearanceData.iNPCType = req->iNPCType;
-    resp.NPCAppearanceData.iHP = 1000;
-    resp.NPCAppearanceData.iX = plr->x;
-    resp.NPCAppearanceData.iY = plr->y;
-    resp.NPCAppearanceData.iZ = plr->z;
+    int id = nextId++;
 
     if (team == 2) {
-        NPCs[resp.NPCAppearanceData.iNPC_ID] = new Mob(plr->x, plr->y, plr->z, plr->instanceID, req->iNPCType, NPCData[req->iNPCType], resp.NPCAppearanceData.iNPC_ID);
-        MobManager::Mobs[resp.NPCAppearanceData.iNPC_ID] = (Mob*)NPCs[resp.NPCAppearanceData.iNPC_ID];
+        NPCs[id] = new Mob(plr->x, plr->y, plr->z, plr->instanceID, req->iNPCType, NPCData[req->iNPCType], id);
+        MobManager::Mobs[id] = (Mob*)NPCs[id];
     } else
-        NPCs[resp.NPCAppearanceData.iNPC_ID] = new BaseNPC(plr->x, plr->y, plr->z, plr->instanceID, req->iNPCType, resp.NPCAppearanceData.iNPC_ID);
+        NPCs[id] = new BaseNPC(plr->x, plr->y, plr->z, plr->instanceID, req->iNPCType, id);
 
-    updateNPCPosition(resp.NPCAppearanceData.iNPC_ID, plr->x, plr->y, plr->z);
+    updateNPCPosition(id, plr->x, plr->y, plr->z);
 }
 
 void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {

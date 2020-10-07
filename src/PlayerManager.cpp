@@ -222,7 +222,6 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, int I) {
 }
 
 void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z) {
-
     PlayerManager::updatePlayerPosition(sock, X, Y, Z);
     INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, pkt);
     pkt.iX = X;

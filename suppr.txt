@@ -3,4 +3,6 @@ leak:ChunkManager::addPlayer
 leak:ChunkManager::addNPC
 leak:NPCManager::updateNPCPosition
 leak:NPCManager::npcSummonHandler
+leak:summonWCommand
+leak:TableData::loadGruntwork
 leak:nlohmann::basic_json
