@@ -12,6 +12,8 @@
 std::map<int32_t, Mob*> MobManager::Mobs;
 std::queue<int32_t> MobManager::RemovalQueue;
 
+bool MobManager::simulateMobs;
+
 void MobManager::init() {
     REGISTER_SHARD_TIMER(step, 200);
     REGISTER_SHARD_TIMER(playerTick, 2000);
@@ -22,6 +24,8 @@ void MobManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_COMBAT_END, combatEnd);
     REGISTER_SHARD_PACKET(P_CL2FE_DOT_DAMAGE_ONOFF, dotDamageOnOff);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ATTACK_CHARs, pcAttackChars);
+
+    simulateMobs = settings::SIMULATEMOBS;
 }
 
 void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
@@ -436,7 +440,8 @@ void MobManager::step(CNServer *serv, time_t currTime) {
             continue;
 
         // skip mob movement and combat if disabled
-        if (!settings::SIMULATEMOBS && pair.second->state != MobState::DEAD)
+        if (!simulateMobs && pair.second->state != MobState::DEAD
+        && pair.second->state != MobState::RETREAT)
             continue;
 
         // skip attack/move if stunned or asleep

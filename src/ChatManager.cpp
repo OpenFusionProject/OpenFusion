@@ -266,6 +266,19 @@ void unsummonWCommand(std::string full, std::vector<std::string>& args, CNSocket
     NPCManager::destroyNPC(npc->appearanceData.iNPC_ID);
 }
 
+void toggleAiCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    MobManager::simulateMobs = !MobManager::simulateMobs;
+
+    if (MobManager::simulateMobs)
+        return;
+
+    // return all mobs to their spawn points
+    for (auto& pair : MobManager::Mobs) {
+        pair.second->state = MobState::RETREAT;
+        pair.second->target = nullptr;
+    }
+}
+
 void npcRotateCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     PlayerView& plrv = PlayerManager::players[sock];
     Player* plr = plrv.plr;
@@ -324,6 +337,7 @@ void ChatManager::init() {
     registerCommand("npcr", 30, npcRotateCommand);
     registerCommand("summonW", 30, summonWCommand);
     registerCommand("unsummonW", 30, unsummonWCommand);
+    registerCommand("toggleai", 30, toggleAiCommand);
     registerCommand("flush", 30, flushCommand);
     registerCommand("level", 50, levelCommand);
     registerCommand("population", 100, populationCommand);
