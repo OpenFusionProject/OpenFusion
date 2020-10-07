@@ -134,6 +134,11 @@ void NPCManager::destroyNPC(int32_t id) {
     std::cout << "npc removed!" << std::endl;
 }
 
+void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z, int angle) {
+    NPCs[id]->appearanceData.iAngle = angle;
+    updateNPCPosition(id, X, Y, Z);
+}
+
 void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
     BaseNPC* npc = NPCs[id];
 

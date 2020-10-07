@@ -6,6 +6,7 @@
 
 namespace TableData {
     extern std::map<int32_t, std::vector<WarpLocation>> RunningSkywayRoutes;
+    extern std::map<int32_t, int> RunningNPCRotations;
 
     void init();
     void cleanup();

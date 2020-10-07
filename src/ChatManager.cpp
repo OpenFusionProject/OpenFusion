@@ -4,9 +4,11 @@
 #include "PlayerManager.hpp"
 #include "TransportManager.hpp"
 #include "TableData.hpp"
+#include "limits.h"
 
 #include <sstream>
 #include <iterator>
+#include <cmath>
 
 std::map<std::string, ChatCommand> ChatManager::commands;
 
@@ -160,7 +162,7 @@ void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
         return;
     }
 
-    // mss <route> reload
+    // mss <route> test
     if (args[2] == "test") {
         if (route->empty()) {
             ChatManager::sendServerMessage(sock, "[MSS] Route " + std::to_string(routeNum) + " is empty");
@@ -175,7 +177,7 @@ void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
 
     // for compatibility: mss <route> export
     if (args[2] == "export") {
-        ChatManager::sendServerMessage(sock, "[MSS] export on " + std::to_string(routeNum));
+        ChatManager::sendServerMessage(sock, "Wrote gruntwork to " + settings::GRUNTWORKJSON);
         TableData::flush();
         return;
     }
@@ -183,6 +185,48 @@ void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
     // mss ????
     ChatManager::sendServerMessage(sock, "[MSS] Unknown command '" + args[2] + "'");
 
+}
+
+void npcRotateCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+
+    PlayerView& plrv = PlayerManager::players[sock];
+    Player* plr = plrv.plr;
+    
+    BaseNPC* npc = nullptr;
+    int lastDist = INT_MAX;
+    for (auto c = plrv.currentChunks.begin(); c != plrv.currentChunks.end(); c++) { // haha get it
+        Chunk* chunk = *c;
+        for (auto _npc = chunk->NPCs.begin(); _npc != chunk->NPCs.end(); _npc++) {
+            BaseNPC* npcTemp = NPCManager::NPCs[*_npc];
+            int distXY = std::hypot(plr->x - npcTemp->appearanceData.iX, plr->y - npcTemp->appearanceData.iY);
+            int dist = std::hypot(distXY, plr->z - npcTemp->appearanceData.iZ);
+            if (dist < lastDist) {
+                npc = npcTemp;
+                lastDist = dist;
+            }
+        }
+    }
+
+    if (npc == nullptr) {
+        ChatManager::sendServerMessage(sock, "[NPCR] No NPCs found nearby");
+        return;
+    }
+
+    int angle = (plr->angle + 180) % 360;
+    NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ, angle);
+    TableData::RunningNPCRotations[npc->appearanceData.iNPC_ID] = angle;
+    
+    // update rotation clientside
+    INITSTRUCT(sP_FE2CL_NPC_ENTER, pkt);
+    pkt.NPCAppearanceData = npc->appearanceData;
+    sock->sendPacket((void*)&pkt, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
+
+    ChatManager::sendServerMessage(sock, "[NPCR] Successfully set angle to " + std::to_string(angle) + " for NPC " + std::to_string(npc->appearanceData.iNPC_ID));
+}
+
+void refreshCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player* plr = PlayerManager::getPlayer(sock);
+    PlayerManager::sendPlayerTo(sock, plr->x, plr->y, plr->z);
 }
 
 void flushCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
@@ -199,9 +243,11 @@ void ChatManager::init() {
     registerCommand("access", 100, accessCommand);
     // TODO: add help command
     registerCommand("mss", 30, mssCommand);
+    registerCommand("npcr", 30, npcRotateCommand);
     registerCommand("flush", 30, flushCommand);
     registerCommand("level", 50, levelCommand);
     registerCommand("population", 100, populationCommand);
+    registerCommand("refresh", 100, refreshCommand);
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr) {
