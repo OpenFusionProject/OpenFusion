@@ -403,7 +403,8 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
 
     int distance = hypot(mob->appearanceData.iX - mob->spawnX, mob->appearanceData.iY - mob->spawnY);
 
-    if (distance > mob->data["m_iIdleRange"]) {
+    //if (distance > mob->data["m_iIdleRange"]) {
+    if (distance > 10) {
         INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
 
         auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, mob->spawnX, mob->spawnY, mob->data["m_iRunSpeed"]);

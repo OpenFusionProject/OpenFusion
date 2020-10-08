@@ -61,6 +61,11 @@ void populationCommand(std::string full, std::vector<std::string>& args, CNSocke
 }
 
 void levelCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    if (args.size() < 2) {
+        ChatManager::sendServerMessage(sock, "/level: no level specified");
+        return;
+    }
+
     Player *plr = PlayerManager::getPlayer(sock);
     if (plr == nullptr)
         return;
@@ -189,6 +194,10 @@ void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
 }
 
 void summonWCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    if (args.size() < 2) {
+        ChatManager::sendServerMessage(sock, "/level: no mob type specified");
+        return;
+    }
     Player* plr = PlayerManager::getPlayer(sock);
 
     char *rest;
