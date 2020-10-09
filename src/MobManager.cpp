@@ -75,9 +75,16 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         std::pair<int,int> damage;
 
         if (pkt->iNPCCnt > 1)
-            damage = getDamage(plr->groupDamage, (int)mob->data["m_iProtection"], true, (int)mob->data["m_iNpcLevel"]);
+            damage.first = plr->groupDamage;
         else
-            damage = getDamage(plr->pointDamage, (int)mob->data["m_iProtection"], true, (int)mob->data["m_iNpcLevel"]);
+            damage.first = plr->pointDamage;
+        
+        int difficulty = (int)mob->data["m_iNpcLevel"];
+        
+        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW >= 11 + difficulty), NanoManager::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
+        
+        if (plr->batteryW >= 11 + difficulty)
+            plr->batteryW -= 11 + difficulty;
 
         damage.first = hitMob(sock, mob, damage.first);
 
@@ -114,7 +121,7 @@ void MobManager::npcAttackPc(Mob *mob, time_t currTime) {
     sP_FE2CL_NPC_ATTACK_PCs *pkt = (sP_FE2CL_NPC_ATTACK_PCs*)respbuf;
     sAttackResult *atk = (sAttackResult*)(respbuf + sizeof(sP_FE2CL_NPC_ATTACK_PCs));
 
-    auto damage = getDamage(470 + (int)mob->data["m_iPower"], plr->defense, false, 1);
+    auto damage = getDamage(475 + (int)mob->data["m_iPower"], plr->defense, false, false, -1, -1, 1);
     plr->HP -= damage.first;
 
     pkt->iNPC_ID = mob->appearanceData.iNPC_ID;
@@ -224,8 +231,26 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
 
     // check for the edge case where hitting the mob did not aggro it
     if (sock != nullptr) {
-        giveReward(sock);
-        MissionManager::mobKilled(sock, mob->appearanceData.iNPCType);
+        Player* plr = PlayerManager::getPlayer(sock);
+        
+        if (plr == nullptr)
+            return;
+        
+        if (plr->groupCnt == 1 && plr->iIDGroup == plr->iID) { 
+            giveReward(sock);
+            MissionManager::mobKilled(sock, mob->appearanceData.iNPCType);
+        } else {
+            plr = PlayerManager::getPlayerFromID(plr->iIDGroup);
+
+            if (plr == nullptr)
+                return;
+            
+            for (int i = 0; i < plr->groupCnt; i++) {
+                CNSocket* sockTo = PlayerManager::getSockFromID(plr->groupIDs[i]);
+                giveReward(sockTo);
+                MissionManager::mobKilled(sockTo, mob->appearanceData.iNPCType);
+            }
+        }
     }
 
     mob->despawned = false;
@@ -676,12 +701,26 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
         lastHealTime = currTime;
 }
 
-std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool shouldCrit, int crutchLevel) {
+std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool shouldCrit, bool batteryBoost, int attackerStyle, int defenderStyle, int difficulty) {
+    std::pair<int,int> ret = {0, 1};
+    if (attackPower + defensePower * 2 == 0)
+        return ret;
 
-    std::pair<int,int> ret = {};
-
-    int damage = (std::max(40, attackPower - defensePower) * (34 + crutchLevel) + std::min(attackPower, attackPower * attackPower / defensePower) * (36 - crutchLevel)) / 70;
-    ret.first = damage * (rand() % 40 + 80) / 100; // 20% variance
+    int damage = attackPower * attackPower / (attackPower + defensePower);
+    damage = std::max(std::max(29, attackPower / 7), damage - defensePower * (12 + difficulty) / 65);
+    damage = damage * (rand() % 40 + 80) / 100;
+    
+    if (attackerStyle != -1 && defenderStyle != -1 && attackerStyle != defenderStyle) {
+        if (attackerStyle < defenderStyle || attackerStyle - defenderStyle == 2) 
+            damage = damage * 5 / 4;
+        else
+            damage = damage * 4 / 5;
+    }
+    
+    if (batteryBoost)
+        damage = damage * 5 / 4;
+    
+    ret.first = damage;
     ret.second = 1;
 
     if (shouldCrit && rand() % 20 == 0) {
@@ -743,9 +782,14 @@ void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
             std::pair<int,int> damage;
 
             if (pkt->iTargetCnt > 1)
-                damage = getDamage(plr->groupDamage, target->defense, true, 1);
+                damage.first = plr->groupDamage;
             else
-                damage = getDamage(plr->pointDamage, target->defense, true, 1);
+                damage.first = plr->pointDamage;
+        
+            damage = getDamage(damage.first, target->defense, true, (plr->batteryW >= 12), -1, -1, 1);
+        
+            if (plr->batteryW >= 12)
+                plr->batteryW -= 12;
 
             target->HP -= damage.first;
 
@@ -765,9 +809,16 @@ void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
             std::pair<int,int> damage;
 
             if (pkt->iTargetCnt > 1)
-                damage = getDamage(plr->groupDamage, (int)mob->data["m_iProtection"], true, (int)mob->data["m_iNpcLevel"]);
+                damage.first = plr->groupDamage;
             else
-                damage = getDamage(plr->pointDamage, (int)mob->data["m_iProtection"], true, (int)mob->data["m_iNpcLevel"]);
+                damage.first = plr->pointDamage;
+            
+            int difficulty = (int)mob->data["m_iNpcLevel"];
+            
+            damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW >= 11 + difficulty), NanoManager::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
+            
+            if (plr->batteryW >= 11 + difficulty)
+                plr->batteryW -= 11 + difficulty;
 
             damage.first = hitMob(sock, mob, damage.first);
 
@@ -782,7 +833,7 @@ void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
     sock->sendPacket((void*)respbuf, P_FE2CL_PC_ATTACK_CHARs_SUCC, resplen);
 
     // a bit of a hack: these are the same size, so we can reuse the response packet
-    assert(sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC) == sizeof(sP_FE2CL_PC_ATTACK_CHARs));
+    assert(sizeof(sP_FE2CL_PC_ATTACK_CHARs_SUCC) == sizeof(sP_FE2CL_PC_ATTACK_CHARs));
     sP_FE2CL_PC_ATTACK_CHARs *resp1 = (sP_FE2CL_PC_ATTACK_CHARs*)respbuf;
 
     resp1->iPC_ID = plr->iID;
