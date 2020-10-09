@@ -95,7 +95,7 @@ void GroupManager::joinGroup(CNSocket* sock, CNPacketData* data) {
 
     // fail if the group is full the other player is already in a group
     if (plr->groupCnt > 1 || plr->iIDGroup != plr->iID || otherPlr->groupCnt >= 4) {
-        INITSTRUCT(sP_FE2CL_PC_GROUP_INVITE_FAIL, resp);
+        INITSTRUCT(sP_FE2CL_PC_GROUP_JOIN_FAIL, resp);
         sock->sendPacket((void*)&resp, P_FE2CL_PC_GROUP_JOIN_FAIL, sizeof(sP_FE2CL_PC_GROUP_JOIN_FAIL));
         return;
     }
