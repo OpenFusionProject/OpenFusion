@@ -82,9 +82,24 @@ struct Mob : public BaseNPC {
     }
 };
 
+struct MobDropChance {
+    int dropChance;
+    std::vector<int> cratesRatio;
+};
+
+struct MobDrop {
+    std::vector<int> crateIDs;
+    int dropChanceType;
+    int taros;
+    int fm;
+    int boosts;
+};
+
 namespace MobManager {
     extern std::map<int32_t, Mob*> Mobs;
     extern std::queue<int32_t> RemovalQueue;
+    extern std::map<int32_t, MobDropChance> MobDropChances;
+    extern std::map<int32_t, MobDrop> MobDrops;
     extern bool simulateMobs;
 
     void init();

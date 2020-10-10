@@ -10,6 +10,8 @@
 #include <assert.h>
 
 std::map<int32_t, Mob*> MobManager::Mobs;
+std::map<int32_t, MobDropChance> MobManager::MobDropChances;
+std::map<int32_t, MobDrop> MobManager::MobDrops;
 std::queue<int32_t> MobManager::RemovalQueue;
 
 bool MobManager::simulateMobs;

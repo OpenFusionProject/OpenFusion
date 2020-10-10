@@ -45,6 +45,7 @@ void TableData::init() {
     }
 
     loadPaths(&nextId); // load paths
+    loadDrops();
 
     // load everything else from xdttable
     std::cout << "[INFO] Parsing xdt.json..." << std::endl;
@@ -269,6 +270,67 @@ void TableData::loadPaths(int* nextId) {
     catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed paths.json file! Reason:" << err.what() << std::endl;
     }
+}
+
+/*
+ * Load drops data from JSON.
+ */
+void TableData::loadDrops() {
+    try {
+        std::ifstream inFile(settings::DROPSJSON);
+        nlohmann::json dropData;
+
+        // read file into json
+        inFile >> dropData;
+
+        // MobDropChances
+        nlohmann::json mobDropChances = dropData["MobDropChances"];
+        for (nlohmann::json::iterator _dropChance = mobDropChances.begin(); _dropChance != mobDropChances.end(); _dropChance++) {
+            auto dropChance = _dropChance.value();
+            MobDropChance toAdd = {};
+            toAdd.dropChance = dropChance["DropChance"];
+            for (nlohmann::json::iterator _cratesRatio = dropChance["CratesRatio"].begin(); _cratesRatio != dropChance["CratesRatio"].end(); _cratesRatio++) {
+                toAdd.cratesRatio.push_back(_cratesRatio.value());
+            }
+            MobManager::MobDropChances[dropChance["Type"]] = toAdd;
+        }
+
+        // MobDrops
+        nlohmann::json mobDrops = dropData["MobDrops"];
+        for (nlohmann::json::iterator _drop = mobDrops.begin(); _drop != mobDrops.end(); _drop++) {
+            auto drop = _drop.value();
+            MobDrop toAdd = {};
+            for (nlohmann::json::iterator _crates = drop["CrateIDs"].begin(); _crates != drop["CrateIDs"].end(); _crates++) {
+                toAdd.crateIDs.push_back(_crates.value());
+            }
+            
+            toAdd.dropChanceType = drop["DropChance"];
+            // Check if DropChance exists
+            if (MobManager::MobDropChances.find(toAdd.dropChanceType) == MobManager::MobDropChances.end())
+            {
+                std::string errorMessage = " MobDropChance not found: " + std::to_string((toAdd.dropChanceType));
+                throw (std::exception((errorMessage).c_str()));
+            }
+            // Check if number of crates is correct
+            if (!(MobManager::MobDropChances[drop["DropChance"]].cratesRatio.size() == toAdd.crateIDs.size()))
+            {
+                std::string errorMessage = " DropType " + std::to_string((int)drop["DropType"]) + " contains invalid number of crates";
+                throw (std::exception((errorMessage).c_str()));
+            }
+
+            toAdd.taros = drop["Taros"];
+            toAdd.fm = drop["FM"];
+            toAdd.boosts = drop["Boosts"];
+            MobManager::MobDrops[drop["DropType"]] = toAdd;
+        }
+
+        std::cout << "[INFO] Loaded mob drops" << std::endl;
+    }
+    catch (const std::exception& err) {
+        std::cerr << "[WARN] Malformed drops.json file! Reason:" << err.what() << std::endl;
+
+    }
+
 }
 
 /*
