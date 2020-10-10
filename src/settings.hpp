@@ -20,7 +20,10 @@ namespace settings {
     extern std::string XDTJSON;
     extern std::string MOBJSON;
     extern std::string PATHJSON;
+    extern std::string DROPSJSON;
     extern std::string GRUNTWORKJSON;
+    extern int EVENTMODE;
+    extern int EVENTCRATECHANCE;
 
     void init();
 }

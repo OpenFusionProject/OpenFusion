@@ -24,9 +24,14 @@ std::string settings::NPCJSON = "tdata/NPCs.json";
 std::string settings::XDTJSON = "tdata/xdt.json";
 std::string settings::MOBJSON = "tdata/mobs.json";
 std::string settings::PATHJSON = "tdata/paths.json";
+std::string settings::DROPSJSON = "tdata/drops.json";
 std::string settings::GRUNTWORKJSON = "tdata/gruntwork.json";
 std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
 int settings::ACCLEVEL = 1;
+
+// event mode settings
+int settings::EVENTMODE = 0;
+int settings::EVENTCRATECHANCE = 10;
 
 void settings::init() {
     INIReader reader("config.ini");
@@ -56,8 +61,11 @@ void settings::init() {
     NPCJSON = reader.Get("shard", "npcdata", NPCJSON);
     XDTJSON = reader.Get("shard", "xdtdata", XDTJSON);
     MOBJSON = reader.Get("shard", "mobdata", MOBJSON);
+    DROPSJSON = reader.Get("shard", "dropdata", DROPSJSON);
     PATHJSON = reader.Get("shard", "pathdata", PATHJSON);
     GRUNTWORKJSON = reader.Get("shard", "gruntwork", GRUNTWORKJSON);
     MOTDSTRING = reader.Get("shard", "motd", MOTDSTRING);
     ACCLEVEL = reader.GetInteger("shard", "accountlevel", ACCLEVEL);
+    EVENTMODE = reader.GetInteger("shard", "eventmode", EVENTMODE);
+    EVENTCRATECHANCE = reader.GetInteger("shard", "eventcratechance", EVENTCRATECHANCE);
 }

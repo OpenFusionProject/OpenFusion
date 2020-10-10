@@ -17,6 +17,7 @@ namespace TableData {
 
     int getItemType(int);
     void loadPaths(int*);
+    void loadDrops();
     void constructPathSkyway(nlohmann::json::iterator);
     void constructPathSlider(nlohmann::json, int, int);
     void constructPathNPC(nlohmann::json::iterator, int id=0);

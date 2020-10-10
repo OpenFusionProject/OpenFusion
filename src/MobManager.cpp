@@ -11,6 +11,8 @@
 #include <assert.h>
 
 std::map<int32_t, Mob*> MobManager::Mobs;
+std::map<int32_t, MobDropChance> MobManager::MobDropChances;
+std::map<int32_t, MobDrop> MobManager::MobDrops;
 std::queue<int32_t> MobManager::RemovalQueue;
 
 bool MobManager::simulateMobs;
@@ -143,7 +145,7 @@ void MobManager::npcAttackPc(Mob *mob, time_t currTime) {
     }
 }
 
-void MobManager::giveReward(CNSocket *sock) {
+void MobManager::giveReward(CNSocket *sock, Mob* mob) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     if (plr == nullptr)
@@ -160,9 +162,31 @@ void MobManager::giveReward(CNSocket *sock) {
     // don't forget to zero the buffer!
     memset(respbuf, 0, resplen);
 
-    // NOTE: these will need to be scaled according to the player/mob level difference
-    plr->money += (int)MissionManager::AvatarGrowth[plr->level]["m_iMobFM"]; // this one's innacurate, but close enough for now
-    MissionManager::updateFusionMatter(sock, MissionManager::AvatarGrowth[plr->level]["m_iMobFM"]);
+    // sanity check
+    if (MobDrops.find(mob->dropType) == MobDrops.end()) {
+        std::cout << "[WARN] Drop Type " << mob->dropType << " was not found" << std::endl;
+        return;
+    }
+    // find correct mob drop
+    MobDrop drop = MobDrops[mob->dropType];
+
+    plr->money += drop.taros;
+    // formula for scaling FM with player/mob level difference
+    // TODO: adjust this better
+    int levelDifference = plr->level - mob->level;
+    int fm = drop.fm;
+    if (levelDifference > 0)
+        fm = levelDifference < 10 ? fm - (levelDifference * fm / 10) : 0;
+
+    MissionManager::updateFusionMatter(sock, fm);
+
+    // give boosts 1 in 3 times
+    if (drop.boosts > 0) {
+        if (rand() % 3 == 0)
+            plr->batteryN += drop.boosts;
+        if (rand() % 3 == 0)
+            plr->batteryW += drop.boosts;
+    }
 
     // simple rewards
     reward->m_iCandy = plr->money;
@@ -173,20 +197,29 @@ void MobManager::giveReward(CNSocket *sock) {
     reward->iFatigue_Level = 1;
     reward->iItemCnt = 1; // remember to update resplen if you change this
 
-#if 0
+
     int slot = ItemManager::findFreeSlot(plr);
-    if (slot == -1) {
-#else
-    int slot = -1;
-    if (true) {
-#endif
+    
+    bool awardDrop = false;
+    MobDropChance chance;
+    // sanity check
+    if (MobDropChances.find(drop.dropChanceType) == MobDropChances.end())
+        std::cout << "[WARN] Unknown Drop Chance Type: " << drop.dropChanceType << std::endl;
+    else {
+        chance = MobDropChances[drop.dropChanceType];
+        awardDrop = (rand() % 1000 < chance.dropChance);
+    }
+
+
+    // no drop
+    if (slot == -1 || !awardDrop) {
+
         // no room for an item, but you still get FM and taros
         reward->iItemCnt = 0;
         sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, sizeof(sP_FE2CL_REP_REWARD_ITEM));
     } else {
         // item reward
-        item->sItem.iType = 9;
-        item->sItem.iID = 1;
+        item->sItem = getReward(&drop, &chance);
         item->iSlotNum = slot;
         item->eIL = 1; // Inventory Location. 1 means player inventory.
 
@@ -194,8 +227,91 @@ void MobManager::giveReward(CNSocket *sock) {
         plr->Inven[slot] = item->sItem;
 
         sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
+
     }
 
+    // event crates
+    if (settings::EVENTMODE != 0)
+        giveEventReward(sock, plr);
+}
+
+sItemBase MobManager::getReward(MobDrop* drop, MobDropChance* chance) {
+    sItemBase reward = {};
+    reward.iType = 9;
+    reward.iOpt = 1;
+
+    int total = 0;
+    for (int ratio : chance->cratesRatio)
+        total += ratio;
+
+    // randomizing a crate
+    int randomNum = rand() % total;
+    int i = 0;
+    int sum = 0;
+    do {
+        reward.iID = drop->crateIDs[i];        
+        sum += chance->cratesRatio[i];
+        i++;
+    }
+    while (sum<=randomNum);
+    return reward;
+}
+
+void MobManager::giveEventReward(CNSocket* sock, Player* player) {
+
+    // random drop chance
+    if (rand() % 100 > settings::EVENTCRATECHANCE)
+        return;
+    // no slot = no award
+    int slot = ItemManager::findFreeSlot(player);
+    if (slot == -1)
+        return;
+
+    const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+    // we know it's only one trailing struct, so we can skip full validation
+
+    uint8_t respbuf[resplen]; // not a variable length array, don't worry
+    sP_FE2CL_REP_REWARD_ITEM* reward = (sP_FE2CL_REP_REWARD_ITEM*)respbuf;
+    sItemReward* item = (sItemReward*)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
+
+    // don't forget to zero the buffer!
+    memset(respbuf, 0, resplen);
+
+    // leave everything here as it is
+    reward->m_iCandy = player->money;
+    reward->m_iFusionMatter = player->fusionmatter;
+    reward->m_iBatteryN = player->batteryN;
+    reward->m_iBatteryW = player->batteryW;
+    reward->iFatigue = 100; // prevents warning message
+    reward->iFatigue_Level = 1;
+    reward->iItemCnt = 1; // remember to update resplen if you change this
+
+    // which crate to drop
+    int crateId;
+    switch (settings::EVENTMODE) 
+    {
+        // knishmas
+        case 1: crateId = 1187; break; 
+        // halloween
+        case 2: crateId = 1181; break;
+        // spring
+        case 3: crateId = 1126; break;
+        // what
+        default: 
+            std::cout << "[WARN] Unknown event Id " << settings::EVENTMODE << std::endl;
+            return;
+    }
+ 
+    item->sItem.iType = 9;
+    item->sItem.iID = crateId;
+    item->sItem.iOpt = 1;
+    item->iSlotNum = slot;
+    item->eIL = 1; // Inventory Location. 1 means player inventory.
+
+    // update player
+    player->Inven[slot] = item->sItem;
+    sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
 }
 
 int MobManager::hitMob(CNSocket *sock, Mob *mob, int damage) {
@@ -233,7 +349,7 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
     mob->target = nullptr;
     mob->appearanceData.iConditionBitFlag = 0;
     mob->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
-
+    
     // check for the edge case where hitting the mob did not aggro it
     if (sock != nullptr) {
         Player* plr = PlayerManager::getPlayer(sock);
@@ -242,7 +358,7 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
             return;
         
         if (plr->groupCnt == 1 && plr->iIDGroup == plr->iID) { 
-            giveReward(sock);
+            giveReward(sock, mob);
             MissionManager::mobKilled(sock, mob->appearanceData.iNPCType);
         } else {
             plr = PlayerManager::getPlayerFromID(plr->iIDGroup);
@@ -252,7 +368,7 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
             
             for (int i = 0; i < plr->groupCnt; i++) {
                 CNSocket* sockTo = PlayerManager::getSockFromID(plr->groupIDs[i]);
-                giveReward(sockTo);
+                giveReward(sockTo, mob);
                 MissionManager::mobKilled(sockTo, mob->appearanceData.iNPCType);
             }
         }

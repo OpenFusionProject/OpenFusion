@@ -5,7 +5,7 @@
 
 struct Item {
     bool tradeable, sellable;
-    int buyPrice, sellPrice, stackSize, level, rarity, pointDamage, groupDamage, defense; // TODO: implement more as needed
+    int buyPrice, sellPrice, stackSize, level, rarity, pointDamage, groupDamage, defense, gender; // TODO: implement more as needed
 };
 struct VendorListing {
     int sort, type, iID;
@@ -13,6 +13,10 @@ struct VendorListing {
 struct CrocPotEntry {
     int multStats, multLooks;
     float base, rd0, rd1, rd2, rd3;
+};
+struct Crate {
+    int rarityRatioId;
+    std::vector<int> itemSets;
 };
 
 namespace ItemManager {
@@ -25,6 +29,11 @@ namespace ItemManager {
     extern std::map<std::pair<int32_t, int32_t>, Item> ItemData; // <id, type> -> data
     extern std::map<int32_t, std::vector<VendorListing>> VendorTables;
     extern std::map<int32_t, CrocPotEntry> CrocPotTable; // level gap -> entry
+    extern std::map<int32_t, std::vector<int>> RarityRatios; 
+    extern std::map<int32_t, Crate> Crates;
+    // pair <Itemset, Rarity> -> vector of pointers (map iterators) to records in ItemData (it looks a lot scarier than it is)
+    extern std::map<std::pair<int32_t, int32_t>, 
+        std::vector<std::map<std::pair<int32_t, int32_t>, Item>::iterator>> CrateItems; 
 
     void init();
 
@@ -45,6 +54,14 @@ namespace ItemManager {
     void itemTradeRegisterCashHandler(CNSocket* sock, CNPacketData* data);
     void itemTradeChatHandler(CNSocket* sock, CNPacketData* data);
     void chestOpenHandler(CNSocket* sock, CNPacketData* data);
+
+    // crate opening logic with all helper functions
+    sItemBase openCrate(int crateId, int playerGender);
+    Crate getCrate(int crateId);
+    int getItemSetId(Crate crate, int crateId);
+    int getRarity(Crate crate, int itemSetId);
+    sItemBase getCrateItem(int itemSetId, int rarity, int playerGender);
+    void throwError(int ignore);
 
     int findFreeSlot(Player *plr);
     Item* getItemData(int32_t id, int32_t type);
