@@ -137,7 +137,7 @@ void MobManager::npcAttackPc(Mob *mob, time_t currTime) {
     }
 }
 
-void MobManager::giveReward(CNSocket *sock) {
+void MobManager::giveReward(CNSocket *sock, int dropType) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     if (plr == nullptr)
@@ -154,9 +154,20 @@ void MobManager::giveReward(CNSocket *sock) {
     // don't forget to zero the buffer!
     memset(respbuf, 0, resplen);
 
+    // find correct mob drop
+    MobDrop drop = MobDrops[dropType];
+
     // NOTE: these will need to be scaled according to the player/mob level difference
-    plr->money += (int)MissionManager::AvatarGrowth[plr->level]["m_iMobFM"]; // this one's innacurate, but close enough for now
-    MissionManager::updateFusionMatter(sock, MissionManager::AvatarGrowth[plr->level]["m_iMobFM"]);
+    plr->money += drop.taros;
+    MissionManager::updateFusionMatter(sock, drop.fm);
+
+    // give boosts 1 in 3 times
+    if (drop.boosts > 0) {
+        if (rand() % 3 == 0)
+            plr->batteryN += drop.boosts;
+        if (rand() % 3 == 0)
+            plr->batteryW += drop.boosts;
+    }
 
     // simple rewards
     reward->m_iCandy = plr->money;
@@ -167,20 +178,21 @@ void MobManager::giveReward(CNSocket *sock) {
     reward->iFatigue_Level = 1;
     reward->iItemCnt = 1; // remember to update resplen if you change this
 
-#if 0
+
     int slot = ItemManager::findFreeSlot(plr);
-    if (slot == -1) {
-#else
-    int slot = -1;
-    if (true) {
-#endif
+    
+    MobDropChance chance = MobDropChances[drop.dropChanceType];
+    bool awardDrop = (rand() % 1000 < chance.dropChance);
+
+    // no drop
+    if (slot == -1 || !awardDrop) {
+
         // no room for an item, but you still get FM and taros
         reward->iItemCnt = 0;
         sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, sizeof(sP_FE2CL_REP_REWARD_ITEM));
     } else {
         // item reward
-        item->sItem.iType = 9;
-        item->sItem.iID = 1;
+        item->sItem = getReward(&drop, &chance);
         item->iSlotNum = slot;
         item->eIL = 1; // Inventory Location. 1 means player inventory.
 
@@ -190,6 +202,28 @@ void MobManager::giveReward(CNSocket *sock) {
         sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
     }
 
+}
+
+sItemBase MobManager::getReward(MobDrop* drop, MobDropChance* chance) {
+    sItemBase reward = {};
+    reward.iType = 9;
+    reward.iOpt = 1;
+
+    int total = 0;
+    for (int ratio : chance->cratesRatio)
+        total += ratio;
+
+    // randomizing a crate
+    int randomNum = rand() % total;
+    int i = 0;
+    int sum = 0;
+    do {
+        reward.iID = drop->crateIDs[i];        
+        sum += chance->cratesRatio[i];
+        i++;
+    }
+    while (sum<randomNum);
+    return reward;
 }
 
 int MobManager::hitMob(CNSocket *sock, Mob *mob, int damage) {
@@ -226,7 +260,7 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
 
     // check for the edge case where hitting the mob did not aggro it
     if (sock != nullptr) {
-        giveReward(sock);
+        giveReward(sock, mob->dropType);
         MissionManager::mobKilled(sock, mob->appearanceData.iNPCType);
     }
 
