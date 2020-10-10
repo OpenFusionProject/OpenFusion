@@ -40,6 +40,9 @@ struct Mob : public BaseNPC {
     CNSocket *target = nullptr;
     time_t nextAttack = 0;
 
+    //drop
+    int dropType;
+
     // temporary; until we're sure what's what
     nlohmann::json data;
 
@@ -51,6 +54,7 @@ struct Mob : public BaseNPC {
 
         regenTime = data["m_iRegenTime"];
         idleRange = data["m_iIdleRange"];
+        dropType = data["m_iDropType"];
 
         // XXX: temporarily force respawns for Fusions until we implement instancing
         if (regenTime >= 300000000)
