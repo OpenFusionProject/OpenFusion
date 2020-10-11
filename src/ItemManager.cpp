@@ -13,6 +13,7 @@ std::map<int32_t, std::vector<VendorListing>> ItemManager::VendorTables;
 std::map<int32_t, CrocPotEntry> ItemManager::CrocPotTable;
 std::map<int32_t, std::vector<int>> ItemManager::RarityRatios;
 std::map<int32_t, Crate> ItemManager::Crates;
+/// Itemset, Rarity  -> vector of crate items
 std::map < std::pair<int32_t, int32_t>, std::vector<CrateItem>> ItemManager::CrateItems;
 
 void ItemManager::init() {
@@ -799,12 +800,12 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     if (data->size != sizeof(sP_CL2FE_REQ_ITEM_CHEST_OPEN))
         return; // ignore the malformed packet
 
-    sP_CL2FE_REQ_ITEM_CHEST_OPEN *pkt = (sP_CL2FE_REQ_ITEM_CHEST_OPEN *)data->buf;
-    Player *plr = PlayerManager::getPlayer(sock);
+    sP_CL2FE_REQ_ITEM_CHEST_OPEN *chest = (sP_CL2FE_REQ_ITEM_CHEST_OPEN *)data->buf;
+    Player *player = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr)
+    if (player == nullptr)
         return;
-
+    
     // item giving packet
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
@@ -818,21 +819,23 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     memset(respbuf, 0, resplen);
 
     // maintain stats
-    reward->m_iCandy = plr->money;
-    reward->m_iFusionMatter = plr->fusionmatter;
+    reward->m_iCandy = player->money;
+    reward->m_iFusionMatter = player->fusionmatter;
     reward->iFatigue = 100; // prevents warning message
     reward->iFatigue_Level = 1;
     reward->iItemCnt = 1; // remember to update resplen if you change this
 
     // item reward
-    item->sItem.iType = 0;
-    item->sItem.iID = 96;
-    item->sItem.iOpt = 1;
-    item->iSlotNum = pkt->iSlotNum;
-    item->eIL = pkt->eIL;
+    if (chest->ChestItem.iType != 9)
+        std::cout << "[WARN] Player tried to open a crate with incorrect iType ?!" << std::endl;
+    else 
+        item->sItem = openCrate(chest->ChestItem.iID);
+
+    item->iSlotNum = chest->iSlotNum;
+    item->eIL = chest->eIL;
 
     // update player
-    plr->Inven[pkt->iSlotNum] = item->sItem;
+    player->Inven[chest->iSlotNum] = item->sItem;
 
     // transmit item
     sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
@@ -840,11 +843,102 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     // chest opening acknowledgement packet
     INITSTRUCT(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, resp);
 
-    resp.iSlotNum = pkt->iSlotNum;
+    resp.iSlotNum = chest->iSlotNum;
 
     std::cout << "opening chest..." << std::endl;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, sizeof(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC));
 }
+
+sItemBase ItemManager::openCrate(int crateId) {
+    sItemBase reward = {};
+    if (Crates.find(crateId) == Crates.end())
+    {
+        std::cout << "[WARN] Crate with ID " << crateId << " was not found!" << std::endl;
+        return reward;
+    }
+    Crate crate = Crates[crateId];
+    int itemSetsCount = crate.itemSets.size();
+    if (itemSetsCount == 0)
+    {
+        std::cout << "[WARN] Crate with ID " << crateId << " has no item sets assigned?!" << std::endl;
+        return reward;
+    }
+    int itemSetIndex = 0;
+    // if crate points to multiple itemSets, choose a random one
+    if (itemSetsCount > 1)
+        itemSetIndex = rand() % itemSetsCount;
+    int itemSetId = crate.itemSets[itemSetIndex];
+
+    // find rarity ratio
+    if (RarityRatios.find(crate.rarityRatio) == RarityRatios.end()) 
+    {
+        std::cout << "[WARN] Rarity Ratio " << crate.rarityRatio << " not found ?!" << std::endl;
+        return reward;
+    }
+    std::vector<int> rarities = RarityRatios[crate.rarityRatio];
+
+    // get random rarity from helper function
+    int rarity = getRarity(rarities, itemSetId);
+    if (rarity == -1)
+    {
+        std::cout << "[WARN] Crate with ID " << crateId << " has no items assigned?!" << std::endl;
+        return reward;
+    }
+
+    std::pair key = std::make_pair(itemSetId, rarity);
+
+    if (CrateItems.find(key) == CrateItems.end())
+    {
+        std::cout << "[WARN] Item Set " << itemSetId << " rarity " << rarity << "not found" << std::endl;
+        return reward;
+    }
+    std::vector<CrateItem> items = CrateItems[key];
+    if (items.size() == 0)
+    {
+        std::cout << "[WARN] Item Set " << itemSetId << " rarity " << rarity << "is empty ?!" << std::endl;
+        return reward;
+    }
+
+    CrateItem findItem = items[rand() % items.size()];
+    reward.iID = findItem.Id;
+    reward.iType = findItem.Type;
+    reward.iOpt = 1;
+    return reward;
+}
+
+int ItemManager::getRarity(std::vector<int> rarityRatio, int itemSetId) {
+    /*
+     * First we have to check if specified item set contains items with all specified rarities,
+     * and if not eliminate them from the draw
+     * it is simpler to do here than to fix in the file
+     */
+
+    // remember that rarities start from 1 !
+    for (int i = 1; i < rarityRatio.size() + 1; i++){
+        if (CrateItems.find(std::make_pair(itemSetId, i)) == CrateItems.end())
+            rarityRatio[i-1] = 0;
+    }
+
+    int total = 0;
+    for (int value : rarityRatio)
+        total += value;
+
+    // if we didn't find any items, return -1
+    if (total == 0)
+        return -1;
+
+    // now return a random rarity number
+    int randomNum = rand() % total;
+    int rarity = 0;
+    int sum = 0;
+    do {
+        sum += rarityRatio[rarity];
+        rarity++;        
+    } while (sum < randomNum);
+    
+    return rarity;
+}
+
 
 // TODO: use this in cleaned up ItemManager
 int ItemManager::findFreeSlot(Player *plr) {

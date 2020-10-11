@@ -193,7 +193,7 @@ void MobManager::giveReward(CNSocket *sock, int dropType) {
         std::cout << "[WARN] Unknown Drop Chance Type: " << drop.dropChanceType << std::endl;
     else {
         chance = MobDropChances[drop.dropChanceType];
-        bool awardDrop = (rand() % 1000 < chance.dropChance);
+        awardDrop = (rand() % 1000 < chance.dropChance);
     }
 
 

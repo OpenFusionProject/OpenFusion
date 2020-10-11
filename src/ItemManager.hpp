@@ -35,7 +35,7 @@ namespace ItemManager {
     extern std::map<int32_t, CrocPotEntry> CrocPotTable; // level gap -> entry
     extern std::map<int32_t, std::vector<int>> RarityRatios; 
     extern std::map<int32_t, Crate> Crates;
-    extern std::map<std::pair<int32_t, int32_t>, std::vector<CrateItem>> CrateItems; // <Itemset, Rarity> -> vector of items
+    extern std::map<std::pair<int32_t, int32_t>, std::vector<CrateItem>> CrateItems; // <Itemset, Rarity> -> vector of crate items
 
     void init();
 
@@ -56,6 +56,9 @@ namespace ItemManager {
     void itemTradeRegisterCashHandler(CNSocket* sock, CNPacketData* data);
     void itemTradeChatHandler(CNSocket* sock, CNPacketData* data);
     void chestOpenHandler(CNSocket* sock, CNPacketData* data);
+    sItemBase openCrate(int crateId);
+    int getRarity(std::vector<int> rarityRatio, int itemSetId);
+
 
     int findFreeSlot(Player *plr);
     Item* getItemData(int32_t id, int32_t type);

@@ -371,7 +371,7 @@ void TableData::loadDrops() {
         
     }
     catch (const std::exception& err) {
-        std::cerr << "[WARN] Malformed drops.json file! Reason:" << err.what() << std::endl
+        std::cerr << "[WARN] Malformed drops.json file! Reason:" << err.what() << std::endl;
     }
 }
 
