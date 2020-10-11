@@ -5,7 +5,7 @@
 
 struct Item {
     bool tradeable, sellable;
-    int buyPrice, sellPrice, stackSize, level, rarity, pointDamage, groupDamage, defense; // TODO: implement more as needed
+    int buyPrice, sellPrice, stackSize, level, rarity, pointDamage, groupDamage, defense, gender; // TODO: implement more as needed
 };
 struct VendorListing {
     int sort, type, iID;

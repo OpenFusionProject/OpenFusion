@@ -899,6 +899,9 @@ sItemBase ItemManager::openCrate(int crateId) {
         return reward;
     }
 
+
+
+
     CrateItem findItem = items[rand() % items.size()];
     reward.iID = findItem.Id;
     reward.iType = findItem.Type;
@@ -914,9 +917,9 @@ int ItemManager::getRarity(std::vector<int> rarityRatio, int itemSetId) {
      */
 
     // remember that rarities start from 1 !
-    for (int i = 1; i < rarityRatio.size() + 1; i++){
-        if (CrateItems.find(std::make_pair(itemSetId, i)) == CrateItems.end())
-            rarityRatio[i-1] = 0;
+    for (int i = 0; i < rarityRatio.size(); i++){
+        if (CrateItems.find(std::make_pair(itemSetId, i+1)) == CrateItems.end())
+            rarityRatio[i] = 0;
     }
 
     int total = 0;
