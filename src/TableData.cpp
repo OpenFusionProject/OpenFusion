@@ -45,8 +45,7 @@ void TableData::init() {
     }
 
     loadPaths(&nextId); // load paths
-    loadDrops();
-
+    
     // load everything else from xdttable
     std::cout << "[INFO] Parsing xdt.json..." << std::endl;
     std::ifstream infile(settings::XDTJSON);
@@ -199,6 +198,7 @@ void TableData::init() {
         std::cerr << "[WARN] Malformed mobs.json file! Reason:" << err.what() << std::endl;
     }
 
+    loadDrops();
     loadGruntwork(&nextId);
 
     NPCManager::nextId = nextId;
@@ -274,6 +274,7 @@ void TableData::loadPaths(int* nextId) {
 
 /*
  * Load drops data from JSON.
+ * This has to be called after reading xdt because it reffers to ItemData!!!
  */
 void TableData::loadDrops() {
     try {
@@ -339,7 +340,7 @@ void TableData::loadDrops() {
         for (nlohmann::json::iterator _crate = crates.begin(); _crate != crates.end(); _crate++) {
             auto crate = _crate.value();
             Crate toAdd;
-            toAdd.rarityRatio = crate["RarityRatio"];
+            toAdd.rarityRatioId = crate["RarityRatio"];
             for (nlohmann::json::iterator _itemSet = crate["ItemSets"].begin(); _itemSet != crate["ItemSets"].end(); _itemSet++) {
                 toAdd.itemSets.push_back(_itemSet.value());
             }
@@ -350,19 +351,24 @@ void TableData::loadDrops() {
         int itemCount = 0;
         for (nlohmann::json::iterator _item = items.begin(); _item != items.end(); _item++) {
             auto item = _item.value();
-            std::pair<int32_t, int32_t> key = std::make_pair(item["ItemSet"], item["Rarity"]);
-            CrateItem toAdd;
-            toAdd.Id = item["Id"];
-            toAdd.Type = item["Type"];
-            // if item collection doesn't exist, add a new one
-            if (ItemManager::CrateItems.find(key) == ItemManager::CrateItems.end()) {
-                std::vector<CrateItem> vector;
+            std::pair<int32_t, int32_t> itemSetkey = std::make_pair(item["ItemSet"], item["Rarity"]);
+            std::pair<int32_t, int32_t> itemDataKey = std::make_pair(item["Id"], item["Type"]);
+            if (ItemManager::ItemData.find(itemDataKey) == ItemManager::ItemData.end())
+            {
+                char buff[255];
+                sprintf(buff, "Unknown item with Id %d and Type %d", item["Id"], item["Type"]);
+                throw (std::exception(buff));
+            }
+            std::map<std::pair<int32_t, int32_t>, Item>::iterator toAdd = ItemManager::ItemData.find(itemDataKey);
+            // if item collection doesn't exist, start a new one
+            if (ItemManager::CrateItems.find(itemSetkey) == ItemManager::CrateItems.end()) {
+                std::vector<std::map<std::pair<int32_t, int32_t>, Item>::iterator> vector;
                 vector.push_back(toAdd);
-                ItemManager::CrateItems[key] = vector;
+                ItemManager::CrateItems[itemSetkey] = vector;
             }
             // else add a new element to existing collection
             else
-                ItemManager::CrateItems[key].push_back(toAdd);
+                ItemManager::CrateItems[itemSetkey].push_back(toAdd);
             itemCount++;
         }
 

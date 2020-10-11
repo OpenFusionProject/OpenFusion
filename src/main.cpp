@@ -101,6 +101,7 @@ int main() {
     TransportManager::init();
     // BuddyManager::init(); // stubbed until we have database integration + lots of bug fixes
     GroupManager::init();
+    sItemBase debug = ItemManager::openCrate(-999, 0);
     Database::open();
 
     std::cout << "[INFO] Starting Server Threads..." << std::endl;

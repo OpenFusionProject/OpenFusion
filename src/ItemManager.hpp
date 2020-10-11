@@ -15,12 +15,8 @@ struct CrocPotEntry {
     float base, rd0, rd1, rd2, rd3;
 };
 struct Crate {
-    int rarityRatio;
+    int rarityRatioId;
     std::vector<int> itemSets;
-};
-struct CrateItem {
-    int Type;
-    int Id;
 };
 
 namespace ItemManager {
@@ -35,7 +31,9 @@ namespace ItemManager {
     extern std::map<int32_t, CrocPotEntry> CrocPotTable; // level gap -> entry
     extern std::map<int32_t, std::vector<int>> RarityRatios; 
     extern std::map<int32_t, Crate> Crates;
-    extern std::map<std::pair<int32_t, int32_t>, std::vector<CrateItem>> CrateItems; // <Itemset, Rarity> -> vector of crate items
+    // pair <Itemset, Rarity> -> vector of pointers (map iterators) to records in ItemData (it looks a lot scarier than it is)
+    extern std::map<std::pair<int32_t, int32_t>, 
+        std::vector<std::map<std::pair<int32_t, int32_t>, Item>::iterator>> CrateItems; 
 
     void init();
 
@@ -62,7 +60,7 @@ namespace ItemManager {
     Crate getCrate(int crateId);
     int getItemSetId(Crate crate, int crateId);
     int getRarity(Crate crate, int itemSetId);
-    CrateItem getCrateItem(int itemSetId, int rarity, int playerGender);
+    sItemBase getCrateItem(int itemSetId, int rarity, int playerGender);
     void throwError(int ignore);
 
     int findFreeSlot(Player *plr);
