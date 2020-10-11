@@ -289,11 +289,11 @@ void TableData::loadDrops() {
         for (nlohmann::json::iterator _dropChance = mobDropChances.begin(); _dropChance != mobDropChances.end(); _dropChance++) {
             auto dropChance = _dropChance.value();
             MobDropChance toAdd = {};
-            toAdd.dropChance = dropChance["DropChance"];
+            toAdd.dropChance = (int)dropChance["DropChance"];
             for (nlohmann::json::iterator _cratesRatio = dropChance["CratesRatio"].begin(); _cratesRatio != dropChance["CratesRatio"].end(); _cratesRatio++) {
-                toAdd.cratesRatio.push_back(_cratesRatio.value());
+                toAdd.cratesRatio.push_back((int)_cratesRatio.value());
             }
-            MobManager::MobDropChances[dropChance["Type"]] = toAdd;
+            MobManager::MobDropChances[(int)dropChance["Type"]] = toAdd;
         }
 
         // MobDrops
@@ -302,10 +302,10 @@ void TableData::loadDrops() {
             auto drop = _drop.value();
             MobDrop toAdd = {};
             for (nlohmann::json::iterator _crates = drop["CrateIDs"].begin(); _crates != drop["CrateIDs"].end(); _crates++) {
-                toAdd.crateIDs.push_back(_crates.value());
+                toAdd.crateIDs.push_back((int)_crates.value());
             }
             
-            toAdd.dropChanceType = drop["DropChance"];
+            toAdd.dropChanceType = (int)drop["DropChance"];
             // Check if DropChance exists
             if (MobManager::MobDropChances.find(toAdd.dropChanceType) == MobManager::MobDropChances.end())
             {
@@ -313,16 +313,16 @@ void TableData::loadDrops() {
                 throw (std::exception((errorMessage).c_str()));
             }
             // Check if number of crates is correct
-            if (!(MobManager::MobDropChances[drop["DropChance"]].cratesRatio.size() == toAdd.crateIDs.size()))
+            if (!(MobManager::MobDropChances[(int)drop["DropChance"]].cratesRatio.size() == toAdd.crateIDs.size()))
             {
                 std::string errorMessage = " DropType " + std::to_string((int)drop["DropType"]) + " contains invalid number of crates";
                 throw (std::exception((errorMessage).c_str()));
             }
 
-            toAdd.taros = drop["Taros"];
-            toAdd.fm = drop["FM"];
-            toAdd.boosts = drop["Boosts"];
-            MobManager::MobDrops[drop["DropType"]] = toAdd;
+            toAdd.taros = (int)drop["Taros"];
+            toAdd.fm = (int)drop["FM"];
+            toAdd.boosts = (int)drop["Boosts"];
+            MobManager::MobDrops[(int)drop["DropType"]] = toAdd;
         }
         std::cout << "[INFO] Loaded " << MobManager::MobDrops.size() << " Mob Drop Types"<<  std::endl;
         // Rarity Ratios
@@ -331,32 +331,32 @@ void TableData::loadDrops() {
             auto rarity = _rarity.value();
             std::vector<int> toAdd;
             for (nlohmann::json::iterator _ratio = rarity["Ratio"].begin(); _ratio != rarity["Ratio"].end(); _ratio++){
-                toAdd.push_back(_ratio.value());
+                toAdd.push_back((int)_ratio.value());
             }
-            ItemManager::RarityRatios[rarity["Type"]] = toAdd;
+            ItemManager::RarityRatios[(int)rarity["Type"]] = toAdd;
         }
         // Crates
         nlohmann::json crates = dropData["Crates"];
         for (nlohmann::json::iterator _crate = crates.begin(); _crate != crates.end(); _crate++) {
             auto crate = _crate.value();
             Crate toAdd;
-            toAdd.rarityRatioId = crate["RarityRatio"];
+            toAdd.rarityRatioId = (int)crate["RarityRatio"];
             for (nlohmann::json::iterator _itemSet = crate["ItemSets"].begin(); _itemSet != crate["ItemSets"].end(); _itemSet++) {
-                toAdd.itemSets.push_back(_itemSet.value());
+                toAdd.itemSets.push_back((int)_itemSet.value());
             }
-            ItemManager::Crates[crate["Id"]] = toAdd;
+            ItemManager::Crates[(int)crate["Id"]] = toAdd;
         }
         // Crate Items
         nlohmann::json items = dropData["Items"];
         int itemCount = 0;
         for (nlohmann::json::iterator _item = items.begin(); _item != items.end(); _item++) {
             auto item = _item.value();
-            std::pair<int32_t, int32_t> itemSetkey = std::make_pair(item["ItemSet"], item["Rarity"]);
-            std::pair<int32_t, int32_t> itemDataKey = std::make_pair(item["Id"], item["Type"]);
+            std::pair<int32_t, int32_t> itemSetkey = std::make_pair((int)item["ItemSet"], (int)item["Rarity"]);
+            std::pair<int32_t, int32_t> itemDataKey = std::make_pair((int)item["Id"], (int)item["Type"]);
             if (ItemManager::ItemData.find(itemDataKey) == ItemManager::ItemData.end())
             {
                 char buff[255];
-                sprintf(buff, "Unknown item with Id %d and Type %d", item["Id"], item["Type"]);
+                sprintf(buff, "Unknown item with Id %d and Type %d", (int)item["Id"], (int)item["Type"]);
                 throw (std::exception(buff));
             }
             std::map<std::pair<int32_t, int32_t>, Item>::iterator toAdd = ItemManager::ItemData.find(itemDataKey);
