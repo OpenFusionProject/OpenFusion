@@ -154,6 +154,11 @@ void MobManager::giveReward(CNSocket *sock, int dropType) {
     // don't forget to zero the buffer!
     memset(respbuf, 0, resplen);
 
+    // sanity check
+    if (MobDrops.find(dropType) == MobDrops.end()) {
+        std::cout << "[WARN] Drop Type " << dropType << " was not found" << std::endl;
+        return;
+    }
     // find correct mob drop
     MobDrop drop = MobDrops[dropType];
 
