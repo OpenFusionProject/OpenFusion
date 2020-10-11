@@ -157,7 +157,7 @@ void MobManager::giveReward(CNSocket *sock, int dropType) {
     // find correct mob drop
     MobDrop drop = MobDrops[dropType];
 
-    // NOTE: these will need to be scaled according to the player/mob level difference
+    // TODO: these will need to be scaled according to the player/mob level difference
     plr->money += drop.taros;
     MissionManager::updateFusionMatter(sock, drop.fm);
 
@@ -181,8 +181,16 @@ void MobManager::giveReward(CNSocket *sock, int dropType) {
 
     int slot = ItemManager::findFreeSlot(plr);
     
-    MobDropChance chance = MobDropChances[drop.dropChanceType];
-    bool awardDrop = (rand() % 1000 < chance.dropChance);
+    bool awardDrop = false;
+    MobDropChance chance;
+    // sanity check
+    if (MobDropChances.find(drop.dropChanceType) == MobDropChances.end())
+        std::cout << "[WARN] Unknown Drop Chance Type: " << drop.dropChanceType << std::endl;
+    else {
+        chance = MobDropChances[drop.dropChanceType];
+        bool awardDrop = (rand() % 1000 < chance.dropChance);
+    }
+
 
     // no drop
     if (slot == -1 || !awardDrop) {
