@@ -25,6 +25,7 @@ struct Mob : public BaseNPC {
     int spawnX;
     int spawnY;
     int spawnZ;
+    int level;
 
     // dead
     time_t killedTime = 0;
@@ -55,6 +56,7 @@ struct Mob : public BaseNPC {
         regenTime = data["m_iRegenTime"];
         idleRange = data["m_iIdleRange"];
         dropType = data["m_iDropType"];
+        level = data["m_iNpcLevel"];
 
         // XXX: temporarily force respawns for Fusions until we implement instancing
         if (regenTime >= 300000000)

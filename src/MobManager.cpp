@@ -270,7 +270,7 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
     mob->target = nullptr;
     mob->appearanceData.iConditionBitFlag = 0;
     mob->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
-
+    
     // check for the edge case where hitting the mob did not aggro it
     if (sock != nullptr) {
         giveReward(sock, mob->dropType);
