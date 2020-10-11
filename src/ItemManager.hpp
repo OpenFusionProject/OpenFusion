@@ -14,6 +14,10 @@ struct CrocPotEntry {
     int multStats, multLooks;
     float base, rd0, rd1, rd2, rd3;
 };
+struct Crate {
+    int rarityRatio;
+    std::vector<int> itemSets;
+};
 
 namespace ItemManager {
     enum class SlotType {
@@ -26,6 +30,7 @@ namespace ItemManager {
     extern std::map<int32_t, std::vector<VendorListing>> VendorTables;
     extern std::map<int32_t, CrocPotEntry> CrocPotTable; // level gap -> entry
     extern std::map<int32_t, std::vector<int>> RarityRatios; 
+    extern std::map<int32_t, Crate> Crates;
 
     void init();
 

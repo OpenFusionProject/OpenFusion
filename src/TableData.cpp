@@ -333,6 +333,19 @@ void TableData::loadDrops() {
             }
             ItemManager::RarityRatios[rarity["Type"]] = toAdd;
         }
+        // Crates
+        nlohmann::json crates = dropData["Crates"];
+        for (nlohmann::json::iterator _crate = crates.begin(); _crate != crates.end(); _crate++) {
+            auto crate = _crate.value();
+            Crate toAdd;
+            toAdd.rarityRatio = crate["RarityRatio"];
+            for (nlohmann::json::iterator _itemSet = crate["ItemSets"].begin(); _itemSet != crate["ItemSets"].end(); _itemSet++) {
+                toAdd.itemSets.push_back(_itemSet.value());
+            }
+            ItemManager::Crates[crate["Id"]] = toAdd;
+        }
+
+
         std::cout << "[INFO] Loaded mob drops" << std::endl;
     }
     catch (const std::exception& err) {

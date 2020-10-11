@@ -12,6 +12,7 @@ std::map<std::pair<int32_t, int32_t>, Item> ItemManager::ItemData;
 std::map<int32_t, std::vector<VendorListing>> ItemManager::VendorTables;
 std::map<int32_t, CrocPotEntry> ItemManager::CrocPotTable;
 std::map<int32_t, std::vector<int>> ItemManager::RarityRatios;
+std::map<int32_t, Crate> ItemManager::Crates;
 
 void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
