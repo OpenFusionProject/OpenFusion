@@ -241,7 +241,7 @@ sItemBase MobManager::getReward(MobDrop* drop, MobDropChance* chance) {
         sum += chance->cratesRatio[i];
         i++;
     }
-    while (sum<randomNum);
+    while (sum<=randomNum);
     return reward;
 }
 

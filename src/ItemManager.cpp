@@ -921,7 +921,7 @@ int ItemManager::getRarity(Crate crate , int itemSetId) {
     do {
         sum += rarityRatio[rarity];
         rarity++;        
-    } while (sum < randomNum);
+    } while (sum <= randomNum);
     
     return rarity;
 }
