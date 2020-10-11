@@ -9,6 +9,7 @@
 #include <fstream>
 #include <vector>
 #include <assert.h>
+#include <limits.h>
 
 #include "contrib/JSON.hpp"
 
@@ -587,4 +588,25 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
     plrv.chunkPos = std::make_tuple(0, 0, plrv.plr->instanceID);
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
+}
+
+/*
+ * Helper function to get NPC closest to coordinates in specified chunks
+ */
+BaseNPC* NPCManager::getNearestNPC(std::vector<Chunk*> chunks, int X, int Y, int Z) {
+    BaseNPC* npc = nullptr;
+    int lastDist = INT_MAX;
+    for (auto c = chunks.begin(); c != chunks.end(); c++) { // haha get it
+        Chunk* chunk = *c;
+        for (auto _npc = chunk->NPCs.begin(); _npc != chunk->NPCs.end(); _npc++) {
+            BaseNPC* npcTemp = NPCs[*_npc];
+            int distXY = std::hypot(X - npcTemp->appearanceData.iX, Y - npcTemp->appearanceData.iY);
+            int dist = std::hypot(distXY, Z - npcTemp->appearanceData.iZ);
+            if (dist < lastDist) {
+                npc = npcTemp;
+                lastDist = dist;
+            }
+        }
+    }
+    return npc;
 }

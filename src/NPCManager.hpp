@@ -47,4 +47,6 @@ namespace NPCManager {
     void npcCombineItems(CNSocket* sock, CNPacketData* data);
 
     void handleWarp(CNSocket* sock, int32_t warpId);
+
+    BaseNPC* getNearestNPC(std::vector<Chunk*> chunks, int X, int Y, int Z);
 }

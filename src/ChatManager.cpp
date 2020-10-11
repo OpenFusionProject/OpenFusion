@@ -9,8 +9,6 @@
 
 #include <sstream>
 #include <iterator>
-#include <cmath>
-#include <limits.h>
 
 std::map<std::string, ChatCommand> ChatManager::commands;
 
@@ -241,21 +239,7 @@ void unsummonWCommand(std::string full, std::vector<std::string>& args, CNSocket
     PlayerView& plrv = PlayerManager::players[sock];
     Player* plr = plrv.plr;
 
-    // shamelessly stolen from npcRotateCommand()
-    BaseNPC* npc = nullptr;
-    int lastDist = INT_MAX;
-    for (auto c = plrv.currentChunks.begin(); c != plrv.currentChunks.end(); c++) {
-        Chunk* chunk = *c;
-        for (auto _npc = chunk->NPCs.begin(); _npc != chunk->NPCs.end(); _npc++) {
-            BaseNPC* npcTemp = NPCManager::NPCs[*_npc];
-            int distXY = std::hypot(plr->x - npcTemp->appearanceData.iX, plr->y - npcTemp->appearanceData.iY);
-            int dist = std::hypot(distXY, plr->z - npcTemp->appearanceData.iZ);
-            if (dist < lastDist) {
-                npc = npcTemp;
-                lastDist = dist;
-            }
-        }
-    }
+    BaseNPC* npc = NPCManager::getNearestNPC(plrv.currentChunks, plr->x, plr->y, plr->z);
 
     if (npc == nullptr) {
         ChatManager::sendServerMessage(sock, "/unsummonW: No NPCs found nearby");
@@ -292,20 +276,7 @@ void npcRotateCommand(std::string full, std::vector<std::string>& args, CNSocket
     PlayerView& plrv = PlayerManager::players[sock];
     Player* plr = plrv.plr;
     
-    BaseNPC* npc = nullptr;
-    int lastDist = INT_MAX;
-    for (auto c = plrv.currentChunks.begin(); c != plrv.currentChunks.end(); c++) { // haha get it
-        Chunk* chunk = *c;
-        for (auto _npc = chunk->NPCs.begin(); _npc != chunk->NPCs.end(); _npc++) {
-            BaseNPC* npcTemp = NPCManager::NPCs[*_npc];
-            int distXY = std::hypot(plr->x - npcTemp->appearanceData.iX, plr->y - npcTemp->appearanceData.iY);
-            int dist = std::hypot(distXY, plr->z - npcTemp->appearanceData.iZ);
-            if (dist < lastDist) {
-                npc = npcTemp;
-                lastDist = dist;
-            }
-        }
-    }
+    BaseNPC* npc = NPCManager::getNearestNPC(plrv.currentChunks, plr->x, plr->y, plr->z);
 
     if (npc == nullptr) {
         ChatManager::sendServerMessage(sock, "[NPCR] No NPCs found nearby");
