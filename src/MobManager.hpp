@@ -126,7 +126,7 @@ namespace MobManager {
     void npcAttackPc(Mob *mob, time_t currTime);
     int hitMob(CNSocket *sock, Mob *mob, int damage);
     void killMob(CNSocket *sock, Mob *mob);
-    void giveReward(CNSocket *sock, int dropType);
+    void giveReward(CNSocket *sock, Mob *mob);
     sItemBase getReward(MobDrop *drop, MobDropChance *chance);
 
     std::pair<int,int> lerp(int, int, int, int, int);

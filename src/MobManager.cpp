@@ -137,7 +137,7 @@ void MobManager::npcAttackPc(Mob *mob, time_t currTime) {
     }
 }
 
-void MobManager::giveReward(CNSocket *sock, int dropType) {
+void MobManager::giveReward(CNSocket *sock, Mob* mob) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     if (plr == nullptr)
@@ -155,16 +155,22 @@ void MobManager::giveReward(CNSocket *sock, int dropType) {
     memset(respbuf, 0, resplen);
 
     // sanity check
-    if (MobDrops.find(dropType) == MobDrops.end()) {
-        std::cout << "[WARN] Drop Type " << dropType << " was not found" << std::endl;
+    if (MobDrops.find(mob->dropType) == MobDrops.end()) {
+        std::cout << "[WARN] Drop Type " << mob->dropType << " was not found" << std::endl;
         return;
     }
     // find correct mob drop
-    MobDrop drop = MobDrops[dropType];
+    MobDrop drop = MobDrops[mob->dropType];
 
-    // TODO: these will need to be scaled according to the player/mob level difference
     plr->money += drop.taros;
-    MissionManager::updateFusionMatter(sock, drop.fm);
+    // formula for scaling FM with player/mob level difference
+    // TODO: adjust this better
+    int levelDifference = plr->level - mob->level;
+    int fm = drop.fm;
+    if (levelDifference > 0)
+        fm = levelDifference < 10 ? fm - (levelDifference * fm / 10) : 0;
+
+    MissionManager::updateFusionMatter(sock, fm);
 
     // give boosts 1 in 3 times
     if (drop.boosts > 0) {
@@ -273,7 +279,7 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
     
     // check for the edge case where hitting the mob did not aggro it
     if (sock != nullptr) {
-        giveReward(sock, mob->dropType);
+        giveReward(sock, mob);
         MissionManager::mobKilled(sock, mob->appearanceData.iNPCType);
     }
 
