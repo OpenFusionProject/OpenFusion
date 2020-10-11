@@ -18,6 +18,10 @@ struct Crate {
     int rarityRatio;
     std::vector<int> itemSets;
 };
+struct CrateItem {
+    int Type;
+    int Id;
+};
 
 namespace ItemManager {
     enum class SlotType {
@@ -31,6 +35,7 @@ namespace ItemManager {
     extern std::map<int32_t, CrocPotEntry> CrocPotTable; // level gap -> entry
     extern std::map<int32_t, std::vector<int>> RarityRatios; 
     extern std::map<int32_t, Crate> Crates;
+    extern std::map<std::pair<int32_t, int32_t>, std::vector<CrateItem>> CrateItems; // <Itemset, Rarity> -> vector of items
 
     void init();
 

@@ -323,6 +323,7 @@ void TableData::loadDrops() {
             toAdd.boosts = drop["Boosts"];
             MobManager::MobDrops[drop["DropType"]] = toAdd;
         }
+        std::cout << "[INFO] Loaded " << MobManager::MobDrops.size() << " Mob Drop Types"<<  std::endl;
         // Rarity Ratios
         nlohmann::json rarities = dropData["RarityRatios"];
         for (nlohmann::json::iterator _rarity = rarities.begin(); _rarity != rarities.end(); _rarity++) {
@@ -344,15 +345,34 @@ void TableData::loadDrops() {
             }
             ItemManager::Crates[crate["Id"]] = toAdd;
         }
+        // Crate Items
+        nlohmann::json items = dropData["Items"];
+        int itemCount = 0;
+        for (nlohmann::json::iterator _item = items.begin(); _item != items.end(); _item++) {
+            auto item = _item.value();
+            std::pair<int32_t, int32_t> key = std::make_pair(item["ItemSet"], item["Rarity"]);
+            CrateItem toAdd;
+            toAdd.Id = item["Id"];
+            toAdd.Type = item["Type"];
+            // if item collection doesn't exist, add a new one
+            if (ItemManager::CrateItems.find(key) == ItemManager::CrateItems.end()) {
+                std::vector<CrateItem> vector;
+                vector.push_back(toAdd);
+                ItemManager::CrateItems[key] = vector;
+            }
+            // else add a new element to existing collection
+            else
+                ItemManager::CrateItems[key].push_back(toAdd);
+            itemCount++;
+        }
 
-
-        std::cout << "[INFO] Loaded mob drops" << std::endl;
+        std::cout << "[INFO] Loaded " << ItemManager::Crates.size() << " Crates containing " 
+            <<itemCount<<" items" << std::endl;
+        
     }
     catch (const std::exception& err) {
-        std::cerr << "[WARN] Malformed drops.json file! Reason:" << err.what() << std::endl;
-
+        std::cerr << "[WARN] Malformed drops.json file! Reason:" << err.what() << std::endl
     }
-
 }
 
 /*
