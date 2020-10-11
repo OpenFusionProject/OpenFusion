@@ -8,7 +8,6 @@
 #include <string.h> // for memset() and memcmp()
 #include <assert.h>
 
-
 std::map<std::pair<int32_t, int32_t>, Item> ItemManager::ItemData;
 std::map<int32_t, std::vector<VendorListing>> ItemManager::VendorTables;
 std::map<int32_t, CrocPotEntry> ItemManager::CrocPotTable;

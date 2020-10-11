@@ -45,7 +45,7 @@ void TableData::init() {
     }
 
     loadPaths(&nextId); // load paths
-    
+
     // load everything else from xdttable
     std::cout << "[INFO] Parsing xdt.json..." << std::endl;
     std::ifstream infile(settings::XDTJSON);
