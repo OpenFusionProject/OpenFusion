@@ -323,7 +323,16 @@ void TableData::loadDrops() {
             toAdd.boosts = drop["Boosts"];
             MobManager::MobDrops[drop["DropType"]] = toAdd;
         }
-
+        // Rarity Ratios
+        nlohmann::json rarities = dropData["RarityRatios"];
+        for (nlohmann::json::iterator _rarity = rarities.begin(); _rarity != rarities.end(); _rarity++) {
+            auto rarity = _rarity.value();
+            std::vector<int> toAdd;
+            for (nlohmann::json::iterator _ratio = rarity["Ratio"].begin(); _ratio != rarity["Ratio"].end(); _ratio++){
+                toAdd.push_back(_ratio.value());
+            }
+            ItemManager::RarityRatios[rarity["Type"]] = toAdd;
+        }
         std::cout << "[INFO] Loaded mob drops" << std::endl;
     }
     catch (const std::exception& err) {

@@ -25,6 +25,7 @@ namespace ItemManager {
     extern std::map<std::pair<int32_t, int32_t>, Item> ItemData; // <id, type> -> data
     extern std::map<int32_t, std::vector<VendorListing>> VendorTables;
     extern std::map<int32_t, CrocPotEntry> CrocPotTable; // level gap -> entry
+    extern std::map<int32_t, std::vector<int>> RarityRatios; 
 
     void init();
 
