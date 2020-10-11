@@ -829,7 +829,7 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     if (chest->ChestItem.iType != 9)
         std::cout << "[WARN] Player tried to open a crate with incorrect iType ?!" << std::endl;
     else 
-        item->sItem = openCrate(chest->ChestItem.iID);
+        item->sItem = openCrate(chest->ChestItem.iID, player->PCStyle.iGender);
 
     item->iSlotNum = chest->iSlotNum;
     item->eIL = chest->eIL;
@@ -849,7 +849,7 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, sizeof(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC));
 }
 
-sItemBase ItemManager::openCrate(int crateId) {
+sItemBase ItemManager::openCrate(int crateId, int playerGender) {
     sItemBase reward = {};
     if (Crates.find(crateId) == Crates.end())
     {
@@ -892,14 +892,29 @@ sItemBase ItemManager::openCrate(int crateId) {
         std::cout << "[WARN] Item Set " << itemSetId << " rarity " << rarity << "not found" << std::endl;
         return reward;
     }
-    std::vector<CrateItem> items = CrateItems[key];
+
+    // only take into account items that exist in ItemData, and have correct gender
+    std::vector<CrateItem> items;
+    for (CrateItem crateitem : CrateItems[key])
+    { 
+        std::pair<int32_t, int32_t> key = std::make_pair(crateitem.Id, crateitem.Type);
+        if (ItemData.find(key) == ItemData.end())
+        {
+            std::cout << "[WARN] Item with ID " << crateitem.Id << " and Type " << crateitem.Type << " was not found?!" << std::endl;
+            continue;
+        }
+        Item findItem = ItemData[key];
+        if (findItem.gender != 0 && findItem.gender != playerGender)
+            continue;
+        items.push_back(crateitem);
+    }
+    
     if (items.size() == 0)
     {
-        std::cout << "[WARN] Item Set " << itemSetId << " rarity " << rarity << "is empty ?!" << std::endl;
+        std::cout << "[WARN] Item Set " << itemSetId << " rarity " << rarity << "contains no valid items ?!" << std::endl;
         return reward;
     }
-
-
+    // remove items which can't be found in ItemData or have the wrong gender
 
 
     CrateItem findItem = items[rand() % items.size()];

@@ -56,7 +56,7 @@ namespace ItemManager {
     void itemTradeRegisterCashHandler(CNSocket* sock, CNPacketData* data);
     void itemTradeChatHandler(CNSocket* sock, CNPacketData* data);
     void chestOpenHandler(CNSocket* sock, CNPacketData* data);
-    sItemBase openCrate(int crateId);
+    sItemBase openCrate(int crateId, int playerGender);
     int getRarity(std::vector<int> rarityRatio, int itemSetId);
 
 
