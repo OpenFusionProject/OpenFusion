@@ -64,4 +64,5 @@ struct Player {
     int32_t iIDGroup;
     int groupCnt;
     int32_t groupIDs[4];
+    int32_t iGroupConditionBitFlag;
 };

@@ -107,7 +107,7 @@ namespace MobManager {
     void killMob(CNSocket *sock, Mob *mob);
     void giveReward(CNSocket *sock);
     std::pair<int,int> lerp(int, int, int, int, int);
-    std::pair<int,int> getDamage(int, int, bool, int);
+    std::pair<int,int> getDamage(int, int, bool, bool, int, int, int);
 
     void pcAttackChars(CNSocket *sock, CNPacketData *data);
     void resendMobHP(Mob *mob);

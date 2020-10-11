@@ -5,6 +5,7 @@
 #include "NPCManager.hpp"
 #include "MobManager.hpp"
 #include "MissionManager.hpp"
+#include "GroupManager.hpp"
 
 namespace NanoManager {
 
@@ -685,26 +686,29 @@ std::vector<ActivePower> ActivePowers = {
 #pragma region Passive Powers
 void NanoManager::nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t eSkillType, int32_t iCBFlag, int16_t eCharStatusTimeBuffID, int16_t iValue, bool groupPower) {
     Player *plr = PlayerManager::getPlayer(sock);
-    Player *leader;
 
     if (plr == nullptr)
         return;
-
-    if (plr->iID == plr->iIDGroup)
-        leader = plr;
-    else
-        leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
+    
+    int pktCnt = 1;
+    Player *leader = plr;
+    plr->iConditionBitFlag |= iCBFlag;
+    
+    if (groupPower) {
+        plr->iGroupConditionBitFlag |= iCBFlag;
+        
+        if (plr->iID != plr->iIDGroup)
+            leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
+        
+        if (leader == nullptr)
+            return;
+        
+        pktCnt = leader->groupCnt;
+    }
 
     if (leader == nullptr)
         return;
-
-    int pktCnt = 1;
-
-    if (groupPower)
-        pktCnt = leader->groupCnt;
-    else
-        leader = plr;
-
+    
     if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE), pktCnt, sizeof(sSkillResult_Buff))) {
         std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size\n";
         return;
@@ -724,6 +728,8 @@ void NanoManager::nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t 
     resp->iNanoStamina = plr->Nanos[plr->activeNano].iStamina;
     resp->eST = eSkillType;
     resp->iTargetCnt = pktCnt;
+    
+    int bitFlag = GroupManager::getGroupFlags(leader);
 
     for (int i = 0; i < pktCnt; i++) {
         Player* varPlr;
@@ -738,21 +744,17 @@ void NanoManager::nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t 
         }
 
         if (varPlr == nullptr || sockTo == nullptr)
-            return;
-
-        if (!(varPlr->iConditionBitFlag & iCBFlag))
-            varPlr->iConditionBitFlag ^= iCBFlag;
-
+            continue;
+        
         respdata[i].eCT = 1;
         respdata[i].iID = varPlr->iID;
         respdata[i].iConditionBitFlag = iCBFlag;
 
         INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt1);
-
         pkt1.eCSTB = eCharStatusTimeBuffID; //eCharStatusTimeBuffID
         pkt1.eTBU = 1; //eTimeBuffUpdate
         pkt1.eTBT = 1; //eTimeBuffType 1 means nano
-        pkt1.iConditionBitFlag = varPlr->iConditionBitFlag;
+        pkt1.iConditionBitFlag = bitFlag | varPlr->iConditionBitFlag;
 
         if (iValue > 0)
             pkt1.TimeBuff.iValue = iValue;
@@ -765,28 +767,28 @@ void NanoManager::nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t 
 }
 
 void NanoManager::nanoUnbuff(CNSocket* sock, int32_t iCBFlag, int16_t eCharStatusTimeBuffID, int16_t iValue, bool groupPower) {
-    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, resp1);
-
     Player *plr = PlayerManager::getPlayer(sock);
-    Player *leader;
 
     if (plr == nullptr)
         return;
-
-    if (plr->iID == plr->iIDGroup)
-        leader = plr;
-    else
-        leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
-
-    if (leader == nullptr)
-        return;
-
+    
     int pktCnt = 1;
-
-    if (groupPower)
+    Player *leader = plr;
+    plr->iConditionBitFlag &= ~iCBFlag;
+    
+    if (groupPower) {
+        plr->iGroupConditionBitFlag &= ~iCBFlag;
+        
+        if (plr->iID != plr->iIDGroup)
+            leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
+        
+        if (leader == nullptr)
+            return;
+        
         pktCnt = leader->groupCnt;
-    else
-        leader = plr;
+    }
+    
+    int bitFlag = GroupManager::getGroupFlags(leader);
 
     for (int i = 0; i < pktCnt; i++) {
         Player* varPlr;
@@ -799,14 +801,12 @@ void NanoManager::nanoUnbuff(CNSocket* sock, int32_t iCBFlag, int16_t eCharStatu
             varPlr = PlayerManager::getPlayerFromID(leader->groupIDs[i]);
             sockTo = PlayerManager::getSockFromID(leader->groupIDs[i]);
         }
-
-        if (varPlr->iConditionBitFlag & iCBFlag)
-            varPlr->iConditionBitFlag ^= iCBFlag;
-
+        
+        INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, resp1);
         resp1.eCSTB = eCharStatusTimeBuffID; //eCharStatusTimeBuffID
         resp1.eTBU = 2; //eTimeBuffUpdate
         resp1.eTBT = 1; //eTimeBuffType 1 means nano
-        resp1.iConditionBitFlag = varPlr->iConditionBitFlag;
+        resp1.iConditionBitFlag = bitFlag | varPlr->iConditionBitFlag;
 
         if (iValue > 0)
             resp1.TimeBuff.iValue = iValue;
@@ -817,7 +817,7 @@ void NanoManager::nanoUnbuff(CNSocket* sock, int32_t iCBFlag, int16_t eCharStatu
 
 // 0=A 1=B 2=C -1=Not found
 int NanoManager::nanoStyle(int nanoId) {
-    if (nanoId < 0 || nanoId >= (int)NanoTable.size())
+    if (nanoId < 1 || nanoId >= (int)NanoTable.size())
         return -1;
     return NanoTable[nanoId].style;
 }
@@ -854,11 +854,12 @@ void NanoManager::revivePlayer(Player* plr) {
 
     // Nanos
     int activeSlot = -1;
-    for (int n = 0; n < 3; n++) {
-        int nanoID = plr->equippedNanos[n];
+    for (int i = 0; i < 3; i++) {
+        int nanoID = plr->equippedNanos[i];
         if (plr->activeNano == nanoID) {
-            activeSlot = n;
+            activeSlot = i;
         }
+        response.PCRegenData.Nanos[i] = plr->Nanos[nanoID];
     }
 
     // Response parameters
@@ -883,5 +884,44 @@ void NanoManager::revivePlayer(Player* plr) {
     resp2.PCRegenDataForOtherPC.Nano = plr->Nanos[plr->activeNano];
 
     PlayerManager::sendToViewable(sock, (void*)&resp2, P_FE2CL_PC_REGEN, sizeof(sP_FE2CL_PC_REGEN));
+}
+
+void NanoManager::nanoChangeBuff(CNSocket* sock, Player* plr, int32_t cbFrom, int32_t cbTo) {
+    bool sentPacket = false;
+    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, resp);
+    resp.eTBU = 3;
+    resp.eTBT = 1;
+    resp.iConditionBitFlag = cbTo;
+    
+    if (!(cbFrom & CSB_BIT_UP_MOVE_SPEED) && (cbTo & CSB_BIT_UP_MOVE_SPEED)) {   
+        resp.eCSTB = ECSB_UP_MOVE_SPEED;
+        resp.eTBU = 1;
+        resp.TimeBuff.iValue = 200;
+        sock->sendPacket((void*)&resp, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+        sentPacket = true;
+    } else if ((cbFrom & CSB_BIT_UP_MOVE_SPEED) && !(cbTo & CSB_BIT_UP_MOVE_SPEED)) {
+        resp.eCSTB = ECSB_UP_MOVE_SPEED;
+        resp.eTBU = 2;
+        resp.TimeBuff.iValue = 200;
+        sock->sendPacket((void*)&resp, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+        sentPacket = true;
+    }
+    
+    if (!(cbFrom & CSB_BIT_UP_JUMP_HEIGHT) && (cbTo & CSB_BIT_UP_JUMP_HEIGHT)) {
+        resp.eCSTB = ECSB_UP_JUMP_HEIGHT;
+        resp.eTBU = 1;
+        resp.TimeBuff.iValue = 400;
+        sock->sendPacket((void*)&resp, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+        sentPacket = true;
+    } else if ((cbFrom & CSB_BIT_UP_JUMP_HEIGHT) && !(cbTo & CSB_BIT_UP_JUMP_HEIGHT)) {
+        resp.eCSTB = ECSB_UP_JUMP_HEIGHT;
+        resp.eTBU = 2;
+        resp.TimeBuff.iValue = 400;
+        sock->sendPacket((void*)&resp, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+        sentPacket = true;
+    }
+    
+    if (!sentPacket)
+        sock->sendPacket((void*)&resp, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
 }
 #pragma endregion

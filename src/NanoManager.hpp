@@ -66,4 +66,5 @@ namespace NanoManager {
 
     int nanoStyle(int nanoId);
     void revivePlayer(Player* plr);
+    void nanoChangeBuff(CNSocket* sock, Player* plr, int32_t cbFrom, int32_t cbTo);
 }

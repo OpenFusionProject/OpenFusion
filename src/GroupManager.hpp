@@ -20,4 +20,6 @@ namespace GroupManager {
     void sendToGroup(Player* plr, void* buf, uint32_t type, size_t size);
     void groupTickInfo(Player* plr);
     void groupKickPlayer(Player* plr);
+    void groupUnbuff(Player* plr);
+    int getGroupFlags(Player* plr);
 }
