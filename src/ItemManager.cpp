@@ -8,6 +8,7 @@
 #include <string.h> // for memset() and memcmp()
 #include <assert.h>
 
+
 std::map<std::pair<int32_t, int32_t>, Item> ItemManager::ItemData;
 std::map<int32_t, std::vector<VendorListing>> ItemManager::VendorTables;
 std::map<int32_t, CrocPotEntry> ItemManager::CrocPotTable;
@@ -15,6 +16,9 @@ std::map<int32_t, std::vector<int>> ItemManager::RarityRatios;
 std::map<int32_t, Crate> ItemManager::Crates;
 /// Itemset, Rarity  -> vector of crate items
 std::map < std::pair<int32_t, int32_t>, std::vector<CrateItem>> ItemManager::CrateItems;
+
+// buffer for error messages
+char buffer[255];
 
 void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
@@ -825,7 +829,7 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     reward->iFatigue_Level = 1;
     reward->iItemCnt = 1; // remember to update resplen if you change this
 
-    // item reward
+    // item reward  
     if (chest->ChestItem.iType != 9)
         std::cout << "[WARN] Player tried to open a crate with incorrect iType ?!" << std::endl;
     else 
@@ -849,86 +853,51 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, sizeof(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC));
 }
 
+/// if anything goes wrong, it returns an empty itembase
 sItemBase ItemManager::openCrate(int crateId, int playerGender) {
-    sItemBase reward = {};
-    if (Crates.find(crateId) == Crates.end())
-    {
-        std::cout << "[WARN] Crate with ID " << crateId << " was not found!" << std::endl;
-        return reward;
+    sItemBase reward = {};   
+    try {
+        Crate crate = getCrate(crateId);
+        int itemSetId = getItemSetId(crate, crateId);
+        int rarity = getRarity(crate, itemSetId);           
+        CrateItem getItem = getCrateItem(itemSetId, rarity, playerGender);
+        reward.iID = getItem.Id;
+        reward.iType = getItem.Type;
+        reward.iOpt = 1;
     }
-    Crate crate = Crates[crateId];
-    int itemSetsCount = crate.itemSets.size();
-    if (itemSetsCount == 0)
-    {
-        std::cout << "[WARN] Crate with ID " << crateId << " has no item sets assigned?!" << std::endl;
-        return reward;
+    catch (const std::exception& err) {
+        std::cerr << "[WARN] An error has occured while trying to open a crate. Error description: " << err.what() << std::endl;
     }
-    int itemSetIndex = 0;
-    // if crate points to multiple itemSets, choose a random one
-    if (itemSetsCount > 1)
-        itemSetIndex = rand() % itemSetsCount;
-    int itemSetId = crate.itemSets[itemSetIndex];
-
-    // find rarity ratio
-    if (RarityRatios.find(crate.rarityRatio) == RarityRatios.end()) 
-    {
-        std::cout << "[WARN] Rarity Ratio " << crate.rarityRatio << " not found ?!" << std::endl;
-        return reward;
-    }
-    std::vector<int> rarities = RarityRatios[crate.rarityRatio];
-
-    // get random rarity from helper function
-    int rarity = getRarity(rarities, itemSetId);
-    if (rarity == -1)
-    {
-        std::cout << "[WARN] Crate with ID " << crateId << " has no items assigned?!" << std::endl;
-        return reward;
-    }
-
-    std::pair key = std::make_pair(itemSetId, rarity);
-
-    if (CrateItems.find(key) == CrateItems.end())
-    {
-        std::cout << "[WARN] Item Set " << itemSetId << " rarity " << rarity << "not found" << std::endl;
-        return reward;
-    }
-
-    // only take into account items that exist in ItemData, and have correct gender
-    std::vector<CrateItem> items;
-    for (CrateItem crateitem : CrateItems[key])
-    { 
-        std::pair<int32_t, int32_t> key = std::make_pair(crateitem.Id, crateitem.Type);
-        if (ItemData.find(key) == ItemData.end())
-        {
-            std::cout << "[WARN] Item with ID " << crateitem.Id << " and Type " << crateitem.Type << " was not found?!" << std::endl;
-            continue;
-        }
-        Item findItem = ItemData[key];
-        if (findItem.gender != 0 && findItem.gender != playerGender)
-            continue;
-        items.push_back(crateitem);
-    }
-    
-    if (items.size() == 0)
-    {
-        std::cout << "[WARN] Item Set " << itemSetId << " rarity " << rarity << "contains no valid items ?!" << std::endl;
-        return reward;
-    }
-    // remove items which can't be found in ItemData or have the wrong gender
-
-
-    CrateItem findItem = items[rand() % items.size()];
-    reward.iID = findItem.Id;
-    reward.iType = findItem.Type;
-    reward.iOpt = 1;
     return reward;
 }
 
-int ItemManager::getRarity(std::vector<int> rarityRatio, int itemSetId) {
+Crate ItemManager::getCrate(int crateId) {
+    if (Crates.find(crateId) == Crates.end())
+        throwError(sprintf(buffer, "Crate %d was not found!", crateId));
+    return Crates[crateId];
+}
+
+int ItemManager::getItemSetId(Crate crate, int crateId) {
+    int itemSetsCount = crate.itemSets.size();
+    if (itemSetsCount == 0)
+        throwError(sprintf(buffer, "Crate %d has no item sets assigned?!", crateId));
+
+    // if crate points to multiple itemSets, choose a random one
+        int itemSetIndex = rand() % itemSetsCount;
+    return crate.itemSets[itemSetIndex];
+}
+
+int ItemManager::getRarity(Crate crate , int itemSetId) {
+    // find rarity ratio
+    if (RarityRatios.find(crate.rarityRatio) == RarityRatios.end())
+        throwError(sprintf(buffer, "Rarity Ratio %d not found!", crate.rarityRatio));
+
+    std::vector<int> rarityRatio = RarityRatios[crate.rarityRatio];
+
     /*
      * First we have to check if specified item set contains items with all specified rarities,
      * and if not eliminate them from the draw
-     * it is simpler to do here than to fix in the file
+     * it is simpler to do here than to fix individually in the file
      */
 
     // remember that rarities start from 1 !
@@ -941,9 +910,9 @@ int ItemManager::getRarity(std::vector<int> rarityRatio, int itemSetId) {
     for (int value : rarityRatio)
         total += value;
 
-    // if we didn't find any items, return -1
+    // if we didn't find any items, throw exception
     if (total == 0)
-        return -1;
+        throwError(sprintf(buffer, "Item Set %d has no items assigned?!", itemSetId));
 
     // now return a random rarity number
     int randomNum = rand() % total;
@@ -957,6 +926,40 @@ int ItemManager::getRarity(std::vector<int> rarityRatio, int itemSetId) {
     return rarity;
 }
 
+CrateItem ItemManager::getCrateItem(int itemSetId, int rarity, int playerGender) {
+    std::pair key = std::make_pair(itemSetId, rarity);
+
+    if (CrateItems.find(key) == CrateItems.end())
+        throwError(sprintf(buffer, "Item Set ID %d Rarity %d items have not been found", itemSetId, rarity));
+
+    // only take into account items that exist in ItemData, and have correct gender
+    std::vector<CrateItem> items;
+    for (CrateItem crateitem : CrateItems[key])
+    {
+        std::pair<int32_t, int32_t> key = std::make_pair(crateitem.Id, crateitem.Type);
+        if (ItemData.find(key) == ItemData.end())
+        {
+            // unknown item - just exclude it and throw a warning, don't throw exception
+            std::cout << "[WARN] Item with ID " << crateitem.Id << " and Type " << crateitem.Type << " not found?!" << std::endl;
+            continue;
+        }
+        Item findItem = ItemData[key];
+        // if gender is incorrect, exclude item
+        if (findItem.gender != 0 && findItem.gender != playerGender)
+            continue;
+        items.push_back(crateitem);
+    }
+
+    if (items.size() == 0)
+        throwError(sprintf(buffer, "Item Set ID %d Rarity %d contains no valid items?!", itemSetId, rarity));
+
+    return items[rand() % items.size()];
+}
+
+// argument is here only so we can call sprintf in brackets
+void ItemManager::throwError(int ignore) {
+    throw (std::exception(buffer));
+}
 
 // TODO: use this in cleaned up ItemManager
 int ItemManager::findFreeSlot(Player *plr) {

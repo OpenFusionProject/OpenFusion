@@ -56,9 +56,14 @@ namespace ItemManager {
     void itemTradeRegisterCashHandler(CNSocket* sock, CNPacketData* data);
     void itemTradeChatHandler(CNSocket* sock, CNPacketData* data);
     void chestOpenHandler(CNSocket* sock, CNPacketData* data);
-    sItemBase openCrate(int crateId, int playerGender);
-    int getRarity(std::vector<int> rarityRatio, int itemSetId);
 
+    // crate opening logic with all helper functions
+    sItemBase openCrate(int crateId, int playerGender);
+    Crate getCrate(int crateId);
+    int getItemSetId(Crate crate, int crateId);
+    int getRarity(Crate crate, int itemSetId);
+    CrateItem getCrateItem(int itemSetId, int rarity, int playerGender);
+    void throwError(int ignore);
 
     int findFreeSlot(Player *plr);
     Item* getItemData(int32_t id, int32_t type);
