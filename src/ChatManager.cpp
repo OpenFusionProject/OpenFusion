@@ -42,6 +42,17 @@ bool runCmd(std::string full, CNSocket* sock) {
     return false;
 }
 
+void helpCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    ChatManager::sendServerMessage(sock, "Commands available to you");
+    Player *plr = PlayerManager::getPlayer(sock);
+    int i = 1;
+
+    for (auto& cmd : ChatManager::commands) {
+        if (cmd.second.requiredAccLevel >= plr->accountId)
+            ChatManager::sendServerMessage(sock, "/" + cmd.first + (cmd.second.help.length() > 0 ? " - " + cmd.second.help : ""));
+    }
+}
+
 void testCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     ChatManager::sendServerMessage(sock, "Test command is working! Here are your passed args:");
 
@@ -310,9 +321,9 @@ void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_MENUCHAT_MESSAGE, menuChatHandler);
 
+    registerCommand("help", 100, helpCommand, "lists all unlocked commands");
     registerCommand("test", 1, testCommand);
     registerCommand("access", 100, accessCommand);
-    // TODO: add help command
     registerCommand("mss", 30, mssCommand);
     registerCommand("npcr", 30, npcRotateCommand);
     registerCommand("summonW", 30, summonWCommand);
@@ -324,8 +335,8 @@ void ChatManager::init() {
     registerCommand("refresh", 100, refreshCommand);
 }
 
-void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr) {
-    commands[cmd] = ChatCommand(requiredLevel, handlr);
+void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {
+    commands[cmd] = ChatCommand(requiredLevel, handlr, help);
 }
 
 void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {

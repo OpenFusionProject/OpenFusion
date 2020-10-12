@@ -8,9 +8,11 @@ typedef void (*CommandHandler)(std::string fullString, std::vector<std::string>&
 
 struct ChatCommand {
     int requiredAccLevel;
+    std::string help;
     CommandHandler handlr;
 
     ChatCommand(int r, CommandHandler h): requiredAccLevel(r), handlr(h) {}
+    ChatCommand(int r, CommandHandler h, std::string str): requiredAccLevel(r), help(str), handlr(h) {}
     ChatCommand(): ChatCommand(0, nullptr) {}
 };
 
@@ -18,7 +20,7 @@ namespace ChatManager {
     extern std::map<std::string, ChatCommand> commands;
     void init();
 
-    void registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr);
+    void registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help = "");
 
     void chatHandler(CNSocket* sock, CNPacketData* data);
     void emoteHandler(CNSocket* sock, CNPacketData* data);
