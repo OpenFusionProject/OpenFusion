@@ -5,6 +5,7 @@
 #include "ItemManager.hpp"
 #include "MissionManager.hpp"
 #include "GroupManager.hpp"
+#include "TransportManager.hpp"
 
 #include <cmath>
 #include <assert.h>
@@ -366,12 +367,14 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     }
 }
 
-/*
- * TODO: precalculate a path, lerp through it, repeat.
- * The way it works right now, mobs only move around a little bit. This will result
- * in more natural movement, and will mesh well with pre-calculated paths (for Don Doom,
- * Bad Max, etc.) once those have been made.
- */
+inline void MobManager::incNextMovement(Mob *mob, time_t currTime) {
+    if (currTime == 0)
+        currTime = getTime();
+
+    int delay = (int)mob->data["m_iDelayTime"] * 1000;
+    mob->nextMovement = currTime + delay/2 + rand() % (delay/2);
+}
+
 void MobManager::roamingStep(Mob *mob, time_t currTime) {
     /*
      * We reuse nextAttack to avoid scanning for players all the time, but to still
@@ -389,34 +392,44 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
 
     if (mob->nextMovement != 0 && currTime < mob->nextMovement)
         return;
+    incNextMovement(mob, currTime);
 
-    int delay = (int)mob->data["m_iDelayTime"] * 1000;
-    mob->nextMovement = currTime + delay/2 + rand() % (delay/2);
+    // only calculate a new route if we're not already on one
+    auto it = TransportManager::NPCQueues.find(mob->appearanceData.iNPC_ID);
+    if (it != TransportManager::NPCQueues.end() && it->second.empty())
+        return;
 
-    INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
+    std::cout << "charting new path for Mob " << (int)mob->appearanceData.iNPC_ID << std::endl;
+
     int xStart = mob->spawnX - mob->idleRange/2;
     int yStart = mob->spawnY - mob->idleRange/2;
-
-    int farX = xStart + rand() % mob->idleRange;
-    int farY = yStart + rand() % mob->idleRange;
     int speed = mob->data["m_iWalkSpeed"];
+
+    int farX, farY;
+    int distance; // for short walk detection
+
+    /*
+     * We don't want the mob to just take one step and stop, so we make sure
+     * it has walked a half-decent distance.
+     */
+    do {
+        farX = xStart + rand() % mob->idleRange;
+        farY = yStart + rand() % mob->idleRange;
+
+        distance = std::hypot(mob->appearanceData.iX - farX, mob->appearanceData.iY - farY);
+    } while (distance < 500);
 
     // halve movement speed if snared
     if (mob->appearanceData.iConditionBitFlag & CSB_BIT_DN_MOVE_SPEED)
         speed /= 2;
 
-    auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, farX, farY, speed);
+    std::queue<WarpLocation> queue;
+    WarpLocation from = { mob->appearanceData.iX, mob->appearanceData.iY, mob->appearanceData.iZ };
+    WarpLocation to = { farX, farY, mob->appearanceData.iZ };
 
-    NPCManager::updateNPCPosition(mob->appearanceData.iNPC_ID, targ.first, targ.second, mob->appearanceData.iZ);
-
-    pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
-    pkt.iSpeed = speed;
-    pkt.iToX = mob->appearanceData.iX = targ.first;
-    pkt.iToY = mob->appearanceData.iY = targ.second;
-    pkt.iToZ = mob->appearanceData.iZ;
-
-    // notify all nearby players
-    NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
+    // add a route to the queue; to be processed in TransportManager::stepNPCPathing()
+    TransportManager::lerp(&queue, from, to, speed);
+    TransportManager::NPCQueues[mob->appearanceData.iNPC_ID] = queue;
 }
 
 void MobManager::retreatStep(Mob *mob, time_t currTime) {
@@ -432,10 +445,10 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
     if (distance > 10) {
         INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
 
-        auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, mob->spawnX, mob->spawnY, mob->data["m_iRunSpeed"]);
+        auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, mob->spawnX, mob->spawnY, (int)mob->data["m_iRunSpeed"] * 3);
 
         pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
-        pkt.iSpeed = mob->data["m_iRunSpeed"];
+        pkt.iSpeed = (int)mob->data["m_iRunSpeed"] * 3;
         pkt.iToX = mob->appearanceData.iX = targ.first;
         pkt.iToY = mob->appearanceData.iY = targ.second;
         pkt.iToZ = mob->appearanceData.iZ;
@@ -702,7 +715,9 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
         lastHealTime = currTime;
 }
 
-std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool shouldCrit, bool batteryBoost, int attackerStyle, int defenderStyle, int difficulty) {
+std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool shouldCrit,
+                                         bool batteryBoost, int attackerStyle,
+                                         int defenderStyle, int difficulty) {
     std::pair<int,int> ret = {0, 1};
     if (attackPower + defensePower * 2 == 0)
         return ret;
@@ -816,7 +831,8 @@ void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
             
             int difficulty = (int)mob->data["m_iNpcLevel"];
             
-            damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW >= 11 + difficulty), NanoManager::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
+            damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW >= 11 + difficulty),
+                NanoManager::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
             
             if (plr->batteryW >= 11 + difficulty)
                 plr->batteryW -= 11 + difficulty;

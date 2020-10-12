@@ -35,6 +35,7 @@ struct Mob : public BaseNPC {
     // roaming
     int idleRange;
     time_t nextMovement = 0;
+    bool staticPath = false;
 
     // combat
     CNSocket *target = nullptr;
@@ -50,7 +51,7 @@ struct Mob : public BaseNPC {
         data = d;
 
         regenTime = data["m_iRegenTime"];
-        idleRange = data["m_iIdleRange"];
+        idleRange = (int)data["m_iIdleRange"] * 2; // TODO: tuning?
 
         // XXX: temporarily force respawns for Fusions until we implement instancing
         if (regenTime >= 300000000)
@@ -111,5 +112,6 @@ namespace MobManager {
 
     void pcAttackChars(CNSocket *sock, CNPacketData *data);
     void resendMobHP(Mob *mob);
+    void incNextMovement(Mob *mob, time_t currTime=0);
     bool aggroCheck(Mob *mob, time_t currTime);
 }

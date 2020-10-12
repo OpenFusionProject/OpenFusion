@@ -4,6 +4,7 @@
 #include "NanoManager.hpp"
 #include "TransportManager.hpp"
 #include "TableData.hpp"
+#include "MobManager.hpp"
 
 #include <unordered_map>
 #include <cmath>
@@ -275,9 +276,15 @@ void TransportManager::stepNPCPathing() {
         if (NPCManager::NPCs.find(it->first) != NPCManager::NPCs.end())
             npc = NPCManager::NPCs[it->first];
 
-        if (npc == nullptr) {
+        if (npc == nullptr || queue->empty()) {
             // pluck out dead path + update iterator
             it = NPCQueues.erase(it);
+            continue;
+        }
+
+        // do not roam if not roaming
+        if (npc->npcClass == NPC_MOB && ((Mob*)npc)->state != MobState::ROAMING) {
+            it++;
             continue;
         }
 
@@ -291,10 +298,6 @@ void TransportManager::stepNPCPathing() {
         // update NPC location to update viewables
         NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, point.x, point.y, point.z);
 
-        // get chunks in view
-        auto chunk = ChunkManager::grabChunk(npc->appearanceData.iX, npc->appearanceData.iY, npc->instanceID);
-        auto chunks = ChunkManager::grabChunks(chunk);
-
         switch (npc->npcClass) {
         case NPC_BUS:
             INITSTRUCT(sP_FE2CL_TRANSPORTATION_MOVE, busMove);
@@ -306,13 +309,11 @@ void TransportManager::stepNPCPathing() {
             busMove.iToZ = point.z;
             busMove.iSpeed = distanceBetween; // set to distance to match how monkeys work
 
-            // send packet to players in view
-            for (Chunk* chunk : chunks) {
-                for (CNSocket* s : chunk->players) {
-                    s->sendPacket(&busMove, P_FE2CL_TRANSPORTATION_MOVE, sizeof(sP_FE2CL_TRANSPORTATION_MOVE));
-                }
-            }
+            NPCManager::sendToViewable(npc, &busMove, P_FE2CL_TRANSPORTATION_MOVE, sizeof(sP_FE2CL_TRANSPORTATION_MOVE));
             break;
+        case NPC_MOB:
+            MobManager::incNextMovement((Mob*)npc);
+            /* fallthrough */
         default:
             INITSTRUCT(sP_FE2CL_NPC_MOVE, move);
             move.iNPC_ID = npc->appearanceData.iNPC_ID;
@@ -322,16 +323,17 @@ void TransportManager::stepNPCPathing() {
             move.iToZ = point.z;
             move.iSpeed = distanceBetween;
 
-            // send packet to players in view
-            for (Chunk* chunk : chunks) {
-                for (CNSocket* s : chunk->players) {
-                    s->sendPacket(&move, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
-                }
-            }
+            NPCManager::sendToViewable(npc, &move, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
             break;
         }
 
-        queue->push(point); // move processed point to the back to maintain cycle
+        /*
+         * Move processed point to the back to maintain cycle, unless this is a
+         * dynamically calculated mob route.
+         */
+        if (!(npc->npcClass == NPC_MOB && !((Mob*)npc)->staticPath))
+            queue->push(point);
+
         it++; // go to next entry in map
     }
 }
