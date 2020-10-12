@@ -211,6 +211,11 @@ void ItemManager::itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
 
         resp.eIL = itemreq->eIL;
         resp.iSlotNum = itemreq->iSlotNum;
+        if (itemreq->Item.iType == 10) {
+            // item is vehicle, set expiration date
+            // set time limit: current time + 7days
+            itemreq->Item.iTimeLimit = getTimestamp() + 604800;
+        }
         resp.Item = itemreq->Item;
 
         plr.plr->Inven[itemreq->iSlotNum] = itemreq->Item;
