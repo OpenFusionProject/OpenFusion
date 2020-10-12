@@ -329,6 +329,7 @@ void instanceCommand(std::string full, std::vector<std::string>& args, CNSocket*
     // no additional arguments: report current instance ID
     if (args.size() < 2) {
         ChatManager::sendServerMessage(sock, "[INST] Current instance ID: " + std::to_string(plr->instanceID));
+        ChatManager::sendServerMessage(sock, "[INST] (Map " + std::to_string(plr->instanceID & 0xffffffff) + ", instance " + std::to_string(plr->instanceID >> 32) + ")");
         return;
     }
 

@@ -194,9 +194,9 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
     updatePlayerChunk(sock, X, Y, view.plr->instanceID);
 }
 
-void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y,int mapNum) {
+void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y, uint64_t instanceID) {
     PlayerView& view = players[sock];
-    std::tuple<int, int, int> newPos = ChunkManager::grabChunk(X, Y, view.plr->instanceID);
+    std::tuple<int, int, uint64_t> newPos = ChunkManager::grabChunk(X, Y, view.plr->instanceID);
 
     // nothing to be done
     if (newPos == view.chunkPos)
@@ -222,13 +222,13 @@ void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y,int mapNum) {
     view.currentChunks = allChunks;
 }
 
-void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, int I) {
+void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I) {
     PlayerView& plrv = PlayerManager::players[sock];
     Player* plr = plrv.plr;
     plr->instanceID = I;
     if (I != INSTANCE_OVERWORLD) {
         INITSTRUCT(sP_FE2CL_INSTANCE_MAP_INFO, pkt);
-        pkt.iInstanceMapNum = I;
+        pkt.iInstanceMapNum = (int32_t)(I & 0xffffffff); // lower 32 bits are mapnum
         sock->sendPacket((void*)&pkt, P_FE2CL_INSTANCE_MAP_INFO, sizeof(sP_FE2CL_INSTANCE_MAP_INFO));
         sendPlayerTo(sock, X, Y, Z);
     } else {

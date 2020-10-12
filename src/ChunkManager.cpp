@@ -3,12 +3,12 @@
 #include "NPCManager.hpp"
 #include "settings.hpp"
 
-std::map<std::tuple<int, int, int>, Chunk*> ChunkManager::chunks;
+std::map<std::tuple<int, int, uint64_t>, Chunk*> ChunkManager::chunks;
 
 void ChunkManager::init() {} // stubbed
 
-void ChunkManager::addNPC(int posX, int posY, int instanceID, int32_t id) {
-    std::tuple<int, int, int> pos = grabChunk(posX, posY, instanceID);
+void ChunkManager::addNPC(int posX, int posY, uint64_t instanceID, int32_t id) {
+    std::tuple<int, int, uint64_t> pos = grabChunk(posX, posY, instanceID);
 
     // make chunk if it doesn't exist!
     if (chunks.find(pos) == chunks.end()) {
@@ -22,8 +22,8 @@ void ChunkManager::addNPC(int posX, int posY, int instanceID, int32_t id) {
     chunk->NPCs.insert(id);
 }
 
-void ChunkManager::addPlayer(int posX, int posY, int instanceID, CNSocket* sock) {
-    std::tuple<int, int, int> pos = grabChunk(posX, posY, instanceID);
+void ChunkManager::addPlayer(int posX, int posY, uint64_t instanceID, CNSocket* sock) {
+    std::tuple<int, int, uint64_t> pos = grabChunk(posX, posY, instanceID);
 
     // make chunk if it doesn't exist!
     if (chunks.find(pos) == chunks.end()) {
@@ -37,7 +37,7 @@ void ChunkManager::addPlayer(int posX, int posY, int instanceID, CNSocket* sock)
     chunk->players.insert(sock);
 }
 
-bool ChunkManager::removePlayer(std::tuple<int, int, int> chunkPos, CNSocket* sock) {
+bool ChunkManager::removePlayer(std::tuple<int, int, uint64_t> chunkPos, CNSocket* sock) {
     if (!checkChunk(chunkPos))
         return false; // do nothing if chunk doesn't even exist
 
@@ -57,7 +57,7 @@ bool ChunkManager::removePlayer(std::tuple<int, int, int> chunkPos, CNSocket* so
     return false;
 }
 
-bool ChunkManager::removeNPC(std::tuple<int, int, int> chunkPos, int32_t id) {
+bool ChunkManager::removeNPC(std::tuple<int, int, uint64_t> chunkPos, int32_t id) {
     if (!checkChunk(chunkPos))
         return false; // do nothing if chunk doesn't even exist
 
@@ -77,7 +77,7 @@ bool ChunkManager::removeNPC(std::tuple<int, int, int> chunkPos, int32_t id) {
     return false;
 }
 
-void ChunkManager::destroyChunk(std::tuple<int, int, int> chunkPos) {
+void ChunkManager::destroyChunk(std::tuple<int, int, uint64_t> chunkPos) {
     if (!checkChunk(chunkPos))
         return; // chunk doesn't exist, we don't need to do anything
 
@@ -118,25 +118,26 @@ void ChunkManager::destroyChunk(std::tuple<int, int, int> chunkPos) {
     delete chunk;
 }
 
-bool ChunkManager::checkChunk(std::tuple<int, int, int> chunk) {
+bool ChunkManager::checkChunk(std::tuple<int, int, uint64_t> chunk) {
     return chunks.find(chunk) != chunks.end();
 }
 
-std::tuple<int, int, int> ChunkManager::grabChunk(int posX, int posY, int instanceID) {
+std::tuple<int, int, uint64_t> ChunkManager::grabChunk(int posX, int posY, uint64_t instanceID) {
     return std::make_tuple(posX / (settings::VIEWDISTANCE / 3), posY / (settings::VIEWDISTANCE / 3), instanceID);
 }
 
-std::vector<Chunk*> ChunkManager::grabChunks(std::tuple<int, int, int> chunk) {
+std::vector<Chunk*> ChunkManager::grabChunks(std::tuple<int, int, uint64_t> chunk) {
     std::vector<Chunk*> chnks;
     chnks.reserve(9);
 
-    int x, y, inst;
+    int x, y;
+    uint64_t inst;
     std::tie(x, y, inst) = chunk;
 
     // grabs surrounding chunks if they exist
     for (int i = -1; i < 2; i++) {
         for (int z = -1; z < 2; z++) {
-            std::tuple<int, int, int> pos = std::make_tuple(x+i, y+z, inst);
+            std::tuple<int, int, uint64_t> pos = std::make_tuple(x+i, y+z, inst);
 
             // if chunk exists, add it to the vector
             if (checkChunk(pos))
@@ -170,7 +171,7 @@ std::vector<Chunk*> ChunkManager::getDeltaChunks(std::vector<Chunk*> from, std::
     return delta;
 }
 
-bool ChunkManager::inPopulatedChunks(int posX, int posY, int instanceID) {
+bool ChunkManager::inPopulatedChunks(int posX, int posY, uint64_t instanceID) {
     auto chunk = ChunkManager::grabChunk(posX, posY, instanceID);
     auto nearbyChunks = ChunkManager::grabChunks(chunk);
 

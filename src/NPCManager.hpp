@@ -29,7 +29,7 @@ namespace NPCManager {
     void destroyNPC(int32_t);
     void updateNPCPosition(int32_t, int X, int Y, int Z, int angle);
     void updateNPCPosition(int32_t, int X, int Y, int Z);
-    void updateNPCInstance(int32_t, int instanceID);
+    void updateNPCInstance(int32_t, uint64_t instanceID);
 
     void sendToViewable(BaseNPC* npc, void* buf, uint32_t type, size_t size);
 

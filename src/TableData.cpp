@@ -29,7 +29,7 @@ void TableData::init() {
         inFile >> npcData;
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
-            int instanceID = npc.find("mapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["mapNum"];
+            uint64_t instanceID = npc.find("mapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["mapNum"];
             BaseNPC *tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], npc["angle"], instanceID, npc["id"], nextId);
 
             NPCManager::NPCs[nextId] = tmp;
@@ -181,7 +181,7 @@ void TableData::init() {
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
             auto td = NPCManager::NPCData[(int)npc["iNPCType"]];
-            int instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
+            uint64_t instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
             Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], npc["iHP"], td, nextId);
 
             NPCManager::NPCs[nextId] = tmp;
@@ -409,7 +409,7 @@ void TableData::loadGruntwork(int32_t *nextId) {
         auto npcMap = gruntwork["instances"];
         for (auto _map = npcMap.begin(); _map != npcMap.end(); _map++) {
             int32_t npcID = _map.value()["iNPCID"];
-            int instanceID = _map.value()["iMapNum"];
+            uint64_t instanceID = _map.value()["iMapNum"];
             if (NPCManager::NPCs.find(npcID) == NPCManager::NPCs.end())
                 continue; // NPC not found
             BaseNPC* npc = NPCManager::NPCs[npcID];
@@ -423,7 +423,7 @@ void TableData::loadGruntwork(int32_t *nextId) {
         for (auto _mob = mobs.begin(); _mob != mobs.end(); _mob++) {
             auto mob = _mob.value();
 
-            int instanceID = mob.find("iMapNum") == mob.end() ? INSTANCE_OVERWORLD : (int)mob["iMapNum"];
+            uint64_t instanceID = mob.find("iMapNum") == mob.end() ? INSTANCE_OVERWORLD : (int)mob["iMapNum"];
             Mob *npc = new Mob(mob["iX"], mob["iY"], mob["iZ"], instanceID, mob["iNPCType"],
                 NPCManager::NPCData[(int)mob["iNPCType"]], (*nextId)++);
 

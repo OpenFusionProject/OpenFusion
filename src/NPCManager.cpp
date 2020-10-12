@@ -146,7 +146,7 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
     npc->appearanceData.iX = X;
     npc->appearanceData.iY = Y;
     npc->appearanceData.iZ = Z;
-    std::tuple<int, int, int> newPos = ChunkManager::grabChunk(X, Y, npc->instanceID);
+    std::tuple<int, int, uint64_t> newPos = ChunkManager::grabChunk(X, Y, npc->instanceID);
 
     // nothing to be done (but we should also update currentChunks to add/remove stale chunks)
     if (newPos == npc->chunkPos) {
@@ -177,7 +177,7 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
     npc->currentChunks = allChunks;
 }
 
-void NPCManager::updateNPCInstance(int32_t npcID, int instanceID) {
+void NPCManager::updateNPCInstance(int32_t npcID, uint64_t instanceID) {
     BaseNPC* npc = NPCs[npcID];
     npc->instanceID = instanceID;
     updateNPCPosition(npcID, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ);
@@ -591,7 +591,12 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
     // std::cerr << "Warped to Map Num:" << Warps[warpId].instanceID << " NPC ID " << Warps[warpId].npcID << std::endl;
     if (Warps[warpId].isInstance)
     {
-        PlayerManager::sendPlayerTo(sock, Warps[warpId].x, Warps[warpId].y, Warps[warpId].z, Warps[warpId].instanceID);
+        uint64_t instanceID = Warps[warpId].instanceID;
+        if (false) { // TODO check if instance is unique and make a copy
+            instanceID += ((uint64_t)plrv.plr->iIDGroup << 32); // upper 32 bits are leader ID
+        }
+        
+        PlayerManager::sendPlayerTo(sock, Warps[warpId].x, Warps[warpId].y, Warps[warpId].z, instanceID);
     }
     else
     {
@@ -603,7 +608,7 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
         resp.eIL = 4; // do not take away any items
         PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
         plrv.currentChunks.clear();
-        plrv.plr->instanceID = 0;
+        plrv.plr->instanceID = INSTANCE_OVERWORLD;
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
     }
 }
