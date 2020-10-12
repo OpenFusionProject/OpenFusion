@@ -367,7 +367,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     }
 }
 
-inline void MobManager::incNextMovement(Mob *mob, time_t currTime) {
+void MobManager::incNextMovement(Mob *mob, time_t currTime) {
     if (currTime == 0)
         currTime = getTime();
 
@@ -398,8 +398,6 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
     auto it = TransportManager::NPCQueues.find(mob->appearanceData.iNPC_ID);
     if (it != TransportManager::NPCQueues.end() && it->second.empty())
         return;
-
-    std::cout << "charting new path for Mob " << (int)mob->appearanceData.iNPC_ID << std::endl;
 
     int xStart = mob->spawnX - mob->idleRange/2;
     int yStart = mob->spawnY - mob->idleRange/2;
