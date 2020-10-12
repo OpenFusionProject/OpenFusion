@@ -14,6 +14,7 @@
 
 std::map<int32_t, std::vector<WarpLocation>> TableData::RunningSkywayRoutes;
 std::map<int32_t, int> TableData::RunningNPCRotations;
+std::map<int32_t, int> TableData::RunningNPCMapNumbers;
 std::map<int32_t, BaseNPC*> TableData::RunningMobs;
 
 void TableData::init() {
@@ -23,21 +24,13 @@ void TableData::init() {
     try {
         std::ifstream inFile(settings::NPCJSON);
         nlohmann::json npcData;
-        nlohmann::json nullExample;
 
         // read file into json
         inFile >> npcData;
-        int null = 0;
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
-            if (npcData[_npc.key()]["mapNum"] == nullExample)
-            {
-                npcData[_npc.key()]["mapNum"] = 0;
-                _npc.value()["mapNum"] = 0;
-                null = 1;
-                //return;
-            }
             auto npc = _npc.value();
-            BaseNPC *tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], npc["angle"], INSTANCE_OVERWORLD, npc["id"], nextId);
+            int instanceID = npc.find("mapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["mapNum"];
+            BaseNPC *tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], npc["angle"], instanceID, npc["id"], nextId);
 
             NPCManager::NPCs[nextId] = tmp;
             NPCManager::updateNPCPosition(nextId, npc["x"], npc["y"], npc["z"]);
@@ -45,13 +38,6 @@ void TableData::init() {
 
             if (npc["id"] == 641 || npc["id"] == 642)
                 NPCManager::RespawnPoints.push_back({ npc["x"], npc["y"], ((int)npc["z"]) + RESURRECT_HEIGHT });
-        }
-        if (null == 1)
-        {
-            std::cout << "Updated Json to include Map Num" << std::endl;
-            std::ofstream outFile(settings::NPCJSON);
-            outFile << npcData << std::endl;
-            outFile.close();
         }
     }
     catch (const std::exception& err) {
@@ -75,7 +61,7 @@ void TableData::init() {
 
         for (nlohmann::json::iterator _warp = warpData.begin(); _warp != warpData.end(); _warp++) {
             auto warp = _warp.value();
-            WarpLocation warpLoc = { warp["m_iToX"], warp["m_iToY"], warp["m_iToZ"],warp["m_iToMapNum"],warp["m_iIsInstance"],warp["m_iLimit_TaskID"],warp["m_iNpcNumber"] };
+            WarpLocation warpLoc = { warp["m_iToX"], warp["m_iToY"], warp["m_iToZ"], warp["m_iToMapNum"], warp["m_iIsInstance"], warp["m_iLimit_TaskID"], warp["m_iNpcNumber"] };
             int warpID = warp["m_iWarpNumber"];
             NPCManager::Warps[warpID] = warpLoc;
         }
@@ -195,7 +181,8 @@ void TableData::init() {
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
             auto td = NPCManager::NPCData[(int)npc["iNPCType"]];
-            Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], INSTANCE_OVERWORLD, npc["iNPCType"], npc["iHP"], td, nextId);
+            int instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
+            Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], npc["iHP"], td, nextId);
 
             NPCManager::NPCs[nextId] = tmp;
             MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
@@ -418,12 +405,26 @@ void TableData::loadGruntwork(int32_t *nextId) {
             RunningNPCRotations[npcID] = angle;
         }
 
+        // npc map numbers
+        auto npcMap = gruntwork["instances"];
+        for (auto _map = npcMap.begin(); _map != npcMap.end(); _map++) {
+            int32_t npcID = _map.value()["iNPCID"];
+            int instanceID = _map.value()["iMapNum"];
+            if (NPCManager::NPCs.find(npcID) == NPCManager::NPCs.end())
+                continue; // NPC not found
+            BaseNPC* npc = NPCManager::NPCs[npcID];
+            NPCManager::updateNPCInstance(npc->appearanceData.iNPC_ID, instanceID);
+
+            RunningNPCMapNumbers[npcID] = instanceID;
+        }
+
         // mobs
         auto mobs = gruntwork["mobs"];
         for (auto _mob = mobs.begin(); _mob != mobs.end(); _mob++) {
             auto mob = _mob.value();
 
-            Mob *npc = new Mob(mob["iX"], mob["iY"], mob["iZ"], INSTANCE_OVERWORLD, mob["iNPCType"],
+            int instanceID = mob.find("iMapNum") == mob.end() ? INSTANCE_OVERWORLD : (int)mob["iMapNum"];
+            Mob *npc = new Mob(mob["iX"], mob["iY"], mob["iZ"], instanceID, mob["iNPCType"],
                 NPCManager::NPCData[(int)mob["iNPCType"]], (*nextId)++);
 
             NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
@@ -451,7 +452,7 @@ void TableData::flush() {
         nlohmann::json route;
 
         route["iRouteID"] = (int)pair.first;
-        route["iMonkeySpeed"] = 1500; // TODO
+        route["iMonkeySpeed"] = 1500;
 
         std::cout << "serializing mss route " << (int)pair.first << std::endl;
         for (WarpLocation& point : pair.second) {
@@ -476,6 +477,15 @@ void TableData::flush() {
         gruntwork["rotations"].push_back(rotation);
     }
 
+    for (auto& pair : RunningNPCMapNumbers) {
+        nlohmann::json mapNumber;
+
+        mapNumber["iNPCID"] = (int)pair.first;
+        mapNumber["iMapNum"] = pair.second;
+
+        gruntwork["instances"].push_back(mapNumber);
+    }
+
     for (auto& pair : RunningMobs) {
         nlohmann::json mob;
         Mob *m = (Mob*)pair.second; // we need spawnX, etc
@@ -489,6 +499,7 @@ void TableData::flush() {
         mob["iX"] = m->spawnX;
         mob["iY"] = m->spawnY;
         mob["iZ"] = m->spawnZ;
+        mob["iMapNum"] = m->instanceID;
         // this is a bit imperfect, since this is a live angle, not a spawn angle so it'll change often, but eh
         mob["iAngle"] = m->appearanceData.iAngle;
 

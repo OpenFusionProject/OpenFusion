@@ -322,6 +322,59 @@ void refreshCommand(std::string full, std::vector<std::string>& args, CNSocket* 
     PlayerManager::sendPlayerTo(sock, plr->x, plr->y, plr->z);
 }
 
+void instanceCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    // no additional arguments: report current instance ID
+    if (args.size() < 2) {
+        ChatManager::sendServerMessage(sock, "[INST] Current instance ID: " + std::to_string(plr->instanceID));
+        return;
+    }
+
+    // move player to specified instance
+    // validate instance ID
+    char* instanceS;
+    int instance = std::strtol(args[1].c_str(), &instanceS, 10);
+    if (*instanceS) {
+        ChatManager::sendServerMessage(sock, "[INST] Invalid instance ID: " + args[1]);
+        return;
+    }
+
+    PlayerManager::sendPlayerTo(sock, plr->x, plr->y, plr->z, instance);
+    ChatManager::sendServerMessage(sock, "[INST] Switched to instance with ID " + std::to_string(instance));
+}
+
+void npcInstanceCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    PlayerView& plrv = PlayerManager::players[sock];
+    Player* plr = plrv.plr;
+
+    if (args.size() < 2) {
+        ChatManager::sendServerMessage(sock, "[NPCI] Instance ID must be specified");
+        ChatManager::sendServerMessage(sock, "[NPCI] Usage: /npci <instance ID>");
+        return;
+    }
+
+    BaseNPC* npc = NPCManager::getNearestNPC(plrv.currentChunks, plr->x, plr->y, plr->z);
+
+    if (npc == nullptr) {
+        ChatManager::sendServerMessage(sock, "[NPCI] No NPCs found nearby");
+        return;
+    }
+
+    // validate instance ID
+    char* instanceS;
+    int instance = std::strtol(args[1].c_str(), &instanceS, 10);
+    if (*instanceS) {
+        ChatManager::sendServerMessage(sock, "[NPCI] Invalid instance ID: " + args[1]);
+        return;
+    }
+
+    ChatManager::sendServerMessage(sock, "[NPCI] Moving NPC with ID " + std::to_string(npc->appearanceData.iNPC_ID) + " to instance " + std::to_string(instance));
+    TableData::RunningNPCMapNumbers[npc->appearanceData.iNPC_ID] = instance;
+    NPCManager::updateNPCInstance(npc->appearanceData.iNPC_ID, instance);
+}
+
 void flushCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     TableData::flush();
     ChatManager::sendServerMessage(sock, "Wrote gruntwork to " + settings::GRUNTWORKJSON);
@@ -335,8 +388,10 @@ void ChatManager::init() {
     registerCommand("help", 100, helpCommand, "lists all unlocked commands");
     registerCommand("test", 1, testCommand);
     registerCommand("access", 100, accessCommand);
+    registerCommand("instance", 30, instanceCommand);
     registerCommand("mss", 30, mssCommand);
     registerCommand("npcr", 30, npcRotateCommand);
+    registerCommand("npci", 30, npcInstanceCommand);
     registerCommand("summonW", 30, summonWCommand);
     registerCommand("unsummonW", 30, unsummonWCommand);
     registerCommand("toggleai", 30, toggleAiCommand);
