@@ -226,7 +226,7 @@ void summonWCommand(std::string full, std::vector<std::string>& args, CNSocket* 
 
     BaseNPC *npc = nullptr;
     if (team == 2) {
-        npc = new Mob(plr->x, plr->y, plr->z, plr->instanceID, type, NPCManager::NPCData[type], NPCManager::nextId++);
+        npc = new Mob(plr->x, plr->y, plr->z + 1000, plr->instanceID, type, NPCManager::NPCData[type], NPCManager::nextId++);
         npc->appearanceData.iAngle = (plr->angle + 180) % 360;
 
         NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
