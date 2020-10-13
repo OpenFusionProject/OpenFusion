@@ -40,6 +40,7 @@ struct Mob : public BaseNPC {
     // combat
     CNSocket *target = nullptr;
     time_t nextAttack = 0;
+    int roamX, roamY, roamZ;
 
     // temporary; until we're sure what's what
     nlohmann::json data;
@@ -57,9 +58,9 @@ struct Mob : public BaseNPC {
         if (regenTime >= 300000000)
             regenTime = 1500;
 
-        spawnX = appearanceData.iX;
-        spawnY = appearanceData.iY;
-        spawnZ = appearanceData.iZ;
+        roamX = spawnX = appearanceData.iX;
+        roamY = spawnY = appearanceData.iY;
+        roamZ = spawnZ = appearanceData.iZ;
 
         appearanceData.iConditionBitFlag = 0;
 

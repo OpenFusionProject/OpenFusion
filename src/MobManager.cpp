@@ -210,6 +210,10 @@ int MobManager::hitMob(CNSocket *sock, Mob *mob, int damage) {
             mob->state = MobState::COMBAT;
             mob->nextMovement = getTime();
             mob->nextAttack = 0;
+
+            mob->roamX = mob->appearanceData.iX;
+            mob->roamY = mob->appearanceData.iY;
+            mob->roamZ = mob->appearanceData.iZ;
         }
 
         mob->appearanceData.iHP -= damage;
@@ -254,7 +258,29 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
         }
     }
 
+    // delay the despawn animation
     mob->despawned = false;
+
+    auto it = TransportManager::NPCQueues.find(mob->appearanceData.iNPC_ID);
+    if (it == TransportManager::NPCQueues.end() || it->second.empty())
+        return;
+
+    // rewind or empty the movement queue
+    if (mob->staticPath) {
+        /*
+         * This is inelegant, but we wind forward in the path until we find the point that
+         * corresponds with the Mob's spawn point.
+         *
+         * IMPORTANT: The check in TableData::loadPaths() must pass or else this will loop forever.
+         */
+        auto& queue = it->second;
+        for (auto point = queue.front(); point.x != mob->spawnX || point.y != mob->spawnY; point = queue.front()) {
+            queue.pop();
+            queue.push(point);
+        }
+    } else {
+        TransportManager::NPCQueues.erase(mob->appearanceData.iNPC_ID);
+    }
 }
 
 void MobManager::deadStep(Mob *mob, time_t currTime) {
@@ -283,6 +309,11 @@ void MobManager::deadStep(Mob *mob, time_t currTime) {
 
     mob->appearanceData.iHP = mob->maxHealth;
     mob->state = MobState::ROAMING;
+
+    // reset position
+    mob->appearanceData.iX = mob->spawnX;
+    mob->appearanceData.iY = mob->spawnY;
+    mob->appearanceData.iZ = mob->spawnZ;
 
     INITSTRUCT(sP_FE2CL_NPC_NEW, pkt);
 
@@ -360,7 +391,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     }
 
     // retreat if the player leaves combat range
-    distance = hypot(plr->x - mob->spawnX, plr->y - mob->spawnY);
+    distance = hypot(plr->x - mob->roamX, plr->y - mob->roamY);
     if (distance >= mob->data["m_iCombatRange"]) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
@@ -390,14 +421,18 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
     if (mob->idleRange == 0)
         return;
 
+    // no random roaming if the mob already has a set path
+    if (mob->staticPath)
+        return;
+
     if (mob->nextMovement != 0 && currTime < mob->nextMovement)
         return;
     incNextMovement(mob, currTime);
-
-    // only calculate a new route if we're not already on one
-    auto it = TransportManager::NPCQueues.find(mob->appearanceData.iNPC_ID);
-    if (it != TransportManager::NPCQueues.end() && it->second.empty())
-        return;
+    /*
+     * mob->nextMovement is also updated whenever the path queue is traversed in
+     * TransportManager::stepNPCPathing() (which ticks at a higher frequency than nextMovement),
+     * so we don't have to check if there's already entries in the queue since we know there won't be.
+     */
 
     int xStart = mob->spawnX - mob->idleRange/2;
     int yStart = mob->spawnY - mob->idleRange/2;
@@ -437,13 +472,13 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
 
     mob->nextMovement = currTime + 500;
 
-    int distance = hypot(mob->appearanceData.iX - mob->spawnX, mob->appearanceData.iY - mob->spawnY);
+    int distance = hypot(mob->appearanceData.iX - mob->roamX, mob->appearanceData.iY - mob->roamY);
 
     //if (distance > mob->data["m_iIdleRange"]) {
     if (distance > 10) {
         INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
 
-        auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, mob->spawnX, mob->spawnY, (int)mob->data["m_iRunSpeed"] * 3);
+        auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, mob->roamX, mob->roamY, (int)mob->data["m_iRunSpeed"] * 3);
 
         pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
         pkt.iSpeed = (int)mob->data["m_iRunSpeed"] * 3;
@@ -720,10 +755,12 @@ std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool
     if (attackPower + defensePower * 2 == 0)
         return ret;
 
+    // base calculation
     int damage = attackPower * attackPower / (attackPower + defensePower);
     damage = std::max(std::max(29, attackPower / 7), damage - defensePower * (12 + difficulty) / 65);
     damage = damage * (rand() % 40 + 80) / 100;
     
+    // Adaptium/Blastons/Cosmix
     if (attackerStyle != -1 && defenderStyle != -1 && attackerStyle != defenderStyle) {
         if (attackerStyle < defenderStyle || attackerStyle - defenderStyle == 2) 
             damage = damage * 5 / 4;
@@ -731,6 +768,7 @@ std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool
             damage = damage * 4 / 5;
     }
     
+    // weapon boosts
     if (batteryBoost)
         damage = damage * 5 / 4;
     
@@ -913,6 +951,11 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
             mob->state = MobState::COMBAT;
             mob->nextMovement = currTime;
             mob->nextAttack = 0;
+
+            mob->roamX = mob->appearanceData.iX;
+            mob->roamY = mob->appearanceData.iY;
+            mob->roamZ = mob->appearanceData.iZ;
+
             return true;
         }
     }

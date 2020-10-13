@@ -45,7 +45,6 @@ bool runCmd(std::string full, CNSocket* sock) {
 void helpCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     ChatManager::sendServerMessage(sock, "Commands available to you");
     Player *plr = PlayerManager::getPlayer(sock);
-    int i = 1;
 
     for (auto& cmd : ChatManager::commands) {
         if (cmd.second.requiredAccLevel >= plr->accountId)
@@ -280,6 +279,10 @@ void toggleAiCommand(std::string full, std::vector<std::string>& args, CNSocket*
     for (auto& pair : MobManager::Mobs) {
         pair.second->state = MobState::RETREAT;
         pair.second->target = nullptr;
+
+        pair.second->roamX = pair.second->spawnX;
+        pair.second->roamY = pair.second->spawnY;
+        pair.second->roamZ = pair.second->spawnZ;
     }
 }
 

@@ -282,6 +282,12 @@ void TransportManager::stepNPCPathing() {
             continue;
         }
 
+        // skip if not simulating mobs
+        if (npc->npcClass == NPC_MOB && !MobManager::simulateMobs) {
+            it++;
+            continue;
+        }
+
         // do not roam if not roaming
         if (npc->npcClass == NPC_MOB && ((Mob*)npc)->state != MobState::ROAMING) {
             it++;

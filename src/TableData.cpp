@@ -44,8 +44,6 @@ void TableData::init() {
         std::cerr << "[WARN] Malformed NPCs.json file! Reason:" << err.what() << std::endl;
     }
 
-    loadPaths(&nextId); // load paths
-
     // load everything else from xdttable
     std::cout << "[INFO] Parsing xdt.json..." << std::endl;
     std::ifstream infile(settings::XDTJSON);
@@ -198,6 +196,8 @@ void TableData::init() {
         std::cerr << "[WARN] Malformed mobs.json file! Reason:" << err.what() << std::endl;
     }
 
+    loadPaths(&nextId); // load paths
+
     loadGruntwork(&nextId);
 
     NPCManager::nextId = nextId;
@@ -264,6 +264,27 @@ void TableData::loadPaths(int* nextId) {
         for (nlohmann::json::iterator npcPath = pathDataNPC.begin(); npcPath != pathDataNPC.end(); npcPath++) {
             constructPathNPC(npcPath);
         }
+
+        // mob paths
+        pathDataNPC = pathData["mob"];
+        for (nlohmann::json::iterator npcPath = pathDataNPC.begin(); npcPath != pathDataNPC.end(); npcPath++) {
+            for (auto& pair : MobManager::Mobs) {
+                if (pair.second->appearanceData.iNPCType == npcPath.value()["iNPCType"]) {
+                    std::cout << "[INFO] Using static path for mob " << pair.second->appearanceData.iNPCType << " with ID " << pair.first << std::endl;
+
+                    auto firstPoint = npcPath.value()["points"][0];
+                    if (firstPoint["iX"] != pair.second->spawnX || firstPoint["iY"] != pair.second->spawnY) {
+                        std::cout << "[FATAL] The first point of the route for mob " << pair.first <<
+                            " (type " << pair.second->appearanceData.iNPCType << ") does not correspond with its spawn point." << std::endl;
+                        terminate(0);
+                    }
+
+                    constructPathNPC(npcPath, pair.first);
+                    pair.second->staticPath = true;
+                    break; // only one NPC per path
+                }
+            }
+        }
         std::cout << "[INFO] Loaded " << TransportManager::NPCQueues.size() << " NPC paths" << std::endl;
     }
     catch (const std::exception& err) {
@@ -319,7 +340,7 @@ void TableData::constructPathSlider(nlohmann::json points, int rotations, int sl
     TransportManager::NPCQueues[sliderID] = route;
 }
 
-void TableData::constructPathNPC(nlohmann::json::iterator _pathData) {
+void TableData::constructPathNPC(nlohmann::json::iterator _pathData, int32_t id) {
     auto pathData = _pathData.value();
     // Interpolate
     nlohmann::json pathPoints = pathData["points"];
@@ -337,7 +358,11 @@ void TableData::constructPathNPC(nlohmann::json::iterator _pathData) {
         from = to; // update point A
         stopTime = point["stop"];
     }
-    TransportManager::NPCQueues[pathData["iNPCID"]] = points;
+
+    if (id == 0)
+        id = pathData["iNPCID"];
+
+    TransportManager::NPCQueues[id] = points;
 }
 
 // load gruntwork output; if it exists
