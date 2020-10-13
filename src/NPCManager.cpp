@@ -535,21 +535,23 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     // permission & sanity check
-    if (plr == nullptr || plr->accountLevel > 30 || req->iNPCType >= 3314)
+    if (plr == nullptr || plr->accountLevel > 30 || req->iNPCType >= 3314 || req->iNPCCnt > 100)
         return;
 
     int team = NPCData[req->iNPCType]["m_iTeam"];
 
-    assert(nextId < INT32_MAX);
-    int id = nextId++;
+    for (int i = 0; i < req->iNPCCnt; i++) {
+        assert(nextId < INT32_MAX);
+        int id = nextId++;
 
-    if (team == 2) {
-        NPCs[id] = new Mob(plr->x, plr->y, plr->z, plr->instanceID, req->iNPCType, NPCData[req->iNPCType], id);
-        MobManager::Mobs[id] = (Mob*)NPCs[id];
-    } else
-        NPCs[id] = new BaseNPC(plr->x, plr->y, plr->z, plr->instanceID, req->iNPCType, id);
+        if (team == 2) {
+            NPCs[id] = new Mob(plr->x, plr->y, plr->z, plr->instanceID, req->iNPCType, NPCData[req->iNPCType], id);
+            MobManager::Mobs[id] = (Mob*)NPCs[id];
+        } else
+            NPCs[id] = new BaseNPC(plr->x, plr->y, plr->z, plr->instanceID, req->iNPCType, id);
 
-    updateNPCPosition(id, plr->x, plr->y, plr->z);
+        updateNPCPosition(id, plr->x, plr->y, plr->z);
+    }
 }
 
 void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
