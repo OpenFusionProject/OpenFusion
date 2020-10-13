@@ -45,7 +45,9 @@ void ChunkManager::removePlayer(std::tuple<int, int, int> chunkPos, CNSocket* so
 
     chunk->players.erase(sock); // gone
 
-    // TODO: if players and NPCs are empty, free chunk and remove it from surrounding views
+    // if players and NPCs are empty, free chunk and remove it from surrounding views
+    if (chunk->NPCs.size() == 0 && chunk->players.size() == 0)
+        destroyChunk(chunkPos);
 }
 
 void ChunkManager::removeNPC(std::tuple<int, int, int> chunkPos, int32_t id) {
@@ -56,7 +58,50 @@ void ChunkManager::removeNPC(std::tuple<int, int, int> chunkPos, int32_t id) {
 
     chunk->NPCs.erase(id); // gone
 
-    // TODO: if players and NPCs are empty, free chunk and remove it from surrounding views
+    // if players and NPCs are empty, free chunk and remove it from surrounding views
+    if (chunk->NPCs.size() == 0 && chunk->players.size() == 0)
+        destroyChunk(chunkPos);
+}
+
+void ChunkManager::destroyChunk(std::tuple<int, int, int> chunkPos) {
+    if (!checkChunk(chunkPos))
+        return; // chunk doesn't exist, we don't need to do anything
+
+    Chunk* chunk = chunks[chunkPos];
+
+    // unspawn all of the mobs/npcs
+    for (uint32_t id : chunk->NPCs) {
+        NPCManager::destroyNPC(id);
+    }
+
+    // we also need to remove it from all NPCs/Players views
+    for (Chunk* otherChunk : grabChunks(chunkPos)) {
+        if (otherChunk == chunk)
+            continue;
+        
+        // remove from NPCs
+        for (uint32_t id : otherChunk->NPCs) {
+            if (std::find(NPCManager::NPCs[id]->currentChunks.begin(), NPCManager::NPCs[id]->currentChunks.end(), chunk) != NPCManager::NPCs[id]->currentChunks.end()) {
+                NPCManager::NPCs[id]->currentChunks.erase(std::remove(NPCManager::NPCs[id]->currentChunks.begin(), NPCManager::NPCs[id]->currentChunks.end(), chunk), NPCManager::NPCs[id]->currentChunks.end());
+            }
+        }
+
+        // remove from players
+        for (CNSocket* sock : otherChunk->players) {
+            PlayerView* plyr = &PlayerManager::players[sock];
+            if (std::find(plyr->currentChunks.begin(), plyr->currentChunks.end(), chunk) != plyr->currentChunks.end()) {
+                plyr->currentChunks.erase(std::remove(plyr->currentChunks.begin(), plyr->currentChunks.end(), chunk), plyr->currentChunks.end());
+            }
+        }
+    }
+
+
+    assert(chunk->players.size() == 0);
+
+    // remove from the map
+    chunks.erase(chunkPos);
+
+    delete chunk;
 }
 
 bool ChunkManager::checkChunk(std::tuple<int, int, int> chunk) {

@@ -31,6 +31,7 @@ namespace ChunkManager {
     void removePlayer(std::tuple<int, int, int> chunkPos, CNSocket* sock);
     void removeNPC(std::tuple<int, int, int> chunkPos, int32_t id);
     bool checkChunk(std::tuple<int, int, int> chunk);
+    void destroyChunk(std::tuple<int, int, int> chunkPos);
     std::tuple<int, int, int> grabChunk(int posX, int posY, int instanceID);
     std::vector<Chunk*> grabChunks(std::tuple<int, int, int> chunkPos);
     std::vector<Chunk*> getDeltaChunks(std::vector<Chunk*> from, std::vector<Chunk*> to);
