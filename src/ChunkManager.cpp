@@ -171,6 +171,21 @@ std::vector<Chunk*> ChunkManager::getDeltaChunks(std::vector<Chunk*> from, std::
     return delta;
 }
 
+/*
+ * inefficient algorithm to get all chunks from a specific instance
+ */
+std::vector<std::tuple<int, int, uint64_t>> ChunkManager::getChunksInMap(uint64_t mapNum) {
+    std::vector<std::tuple<int, int, uint64_t>> chnks;
+
+    for (auto it = ChunkManager::chunks.begin(); it != ChunkManager::chunks.end(); it++) {
+        if (std::get<2>(it->first) == mapNum) {
+            chnks.push_back(it->first);
+        }
+    }
+
+    return chnks;
+}
+
 bool ChunkManager::inPopulatedChunks(int posX, int posY, uint64_t instanceID) {
     auto chunk = ChunkManager::grabChunk(posX, posY, instanceID);
     auto nearbyChunks = ChunkManager::grabChunks(chunk);
@@ -181,4 +196,34 @@ bool ChunkManager::inPopulatedChunks(int posX, int posY, uint64_t instanceID) {
     }
 
     return false;
+}
+
+void ChunkManager::createInstance(uint64_t instanceID) {
+
+    std::vector<std::tuple<int, int, uint64_t>> templateChunks = ChunkManager::getChunksInMap(instanceID & 0xffffffff); // base instance chunks
+    if (ChunkManager::getChunksInMap(instanceID).size() == 0) { // only instantiate if the instance doesn't exist already
+        std::cout << "Creating instance " << instanceID << std::endl;
+        for (std::tuple<int, int, uint64_t> &coords : templateChunks) {
+            for (int npcID : chunks[coords]->NPCs) {
+                // make a copy of each NPC in the template chunks and put them in the new instance
+                int newID = NPCManager::nextId++;
+                BaseNPC* newNPC = new BaseNPC();
+                memcpy(newNPC, NPCManager::NPCs[npcID], sizeof(BaseNPC));
+                newNPC->appearanceData.iNPC_ID = newID;
+                NPCManager::NPCs[newID] = newNPC;
+                NPCManager::updateNPCInstance(newID, instanceID);
+            }
+        }
+    }
+    else {
+        std::cout << "Instance " << instanceID << " already exists" << std::endl;
+    }
+}
+
+void ChunkManager::destroyInstance(uint64_t instanceID) {
+    std::cout << "Deleting instance " << instanceID << std::endl;
+    std::vector<std::tuple<int, int, uint64_t>> instanceChunks = ChunkManager::getChunksInMap(instanceID);
+    for (std::tuple<int, int, uint64_t>& coords : instanceChunks) {
+        destroyChunk(coords);
+    }
 }

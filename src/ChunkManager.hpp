@@ -16,8 +16,8 @@ public:
 
 enum {
     INSTANCE_OVERWORLD, // default instance every player starts in
-    INSTANCE_IZ, // all infected zones share an instance
-    INSTANCE_UNIQUE // fusion lairs are generated as requested (+ uid)
+    //INSTANCE_IZ, // all infected zones share an instance
+    //INSTANCE_UNIQUE // fusion lairs are generated as requested (+ uid)
 };
 
 namespace ChunkManager {
@@ -35,5 +35,9 @@ namespace ChunkManager {
     std::tuple<int, int, uint64_t> grabChunk(int posX, int posY, uint64_t instanceID);
     std::vector<Chunk*> grabChunks(std::tuple<int, int, uint64_t> chunkPos);
     std::vector<Chunk*> getDeltaChunks(std::vector<Chunk*> from, std::vector<Chunk*> to);
+    std::vector<std::tuple<int, int, uint64_t>> getChunksInMap(uint64_t mapNum);
     bool inPopulatedChunks(int posX, int posY, uint64_t instanceID);
+
+    void createInstance(uint64_t);
+    void destroyInstance(uint64_t);
 }

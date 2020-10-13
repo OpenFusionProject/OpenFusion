@@ -29,7 +29,7 @@ void TableData::init() {
         inFile >> npcData;
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
-            uint64_t instanceID = npc.find("mapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["mapNum"];
+            int instanceID = npc.find("mapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["mapNum"];
             BaseNPC *tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], npc["angle"], instanceID, npc["id"], nextId);
 
             NPCManager::NPCs[nextId] = tmp;
@@ -37,7 +37,7 @@ void TableData::init() {
             nextId++;
 
             if (npc["id"] == 641 || npc["id"] == 642)
-                NPCManager::RespawnPoints.push_back({ npc["x"], npc["y"], ((int)npc["z"]) + RESURRECT_HEIGHT });
+                NPCManager::RespawnPoints.push_back({ npc["x"], npc["y"], ((int)npc["z"]) + RESURRECT_HEIGHT, instanceID });
         }
     }
     catch (const std::exception& err) {

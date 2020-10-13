@@ -3,6 +3,7 @@
 #include "settings.hpp"
 #include "MobManager.hpp"
 #include "MissionManager.hpp"
+#include "ChunkManager.hpp"
 
 #include <cmath>
 #include <algorithm>
@@ -608,8 +609,9 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
     if (Warps[warpId].isInstance)
     {
         uint64_t instanceID = Warps[warpId].instanceID;
-        if (false) { // TODO check if instance is unique and make a copy
+        if (Warps[warpId].limitTaskID != 0) { // if warp requires you to be on a mission, it's gotta be a unique instance
             instanceID += ((uint64_t)plrv.plr->iIDGroup << 32); // upper 32 bits are leader ID
+            ChunkManager::createInstance(instanceID);
         }
         
         PlayerManager::sendPlayerTo(sock, Warps[warpId].x, Warps[warpId].y, Warps[warpId].z, instanceID);

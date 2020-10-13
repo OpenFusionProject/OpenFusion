@@ -361,7 +361,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     response.PCLoadData2CL.iFirstUseFlag2 = UINT64_MAX;
 
     plr.SerialKey = enter->iEnterSerialKey;
-    plr.instanceID = INSTANCE_OVERWORLD; // TODO: load this from the database (as long as it's not a unique instance)
+    plr.instanceID = INSTANCE_OVERWORLD; // the player should never be in an instance on enter
 
     sock->setEKey(CNSocketEncryption::createNewKey(response.uiSvrTime, response.iID + 1, response.PCLoadData2CL.iFusionMatter + 1));
     sock->setFEKey(plr.FEKey);
@@ -929,7 +929,7 @@ WarpLocation PlayerManager::getRespawnPoint(Player *plr) {
 
     for (auto targ : NPCManager::RespawnPoints) {
         curDist = sqrt(pow(plr->x - targ.x, 2) + pow(plr->y - targ.y, 2));
-        if (curDist < bestDist) {
+        if (curDist < bestDist && targ.instanceID == (plr->instanceID & 0xffffffff)) { // only mapNum needs to match
             best = targ;
             bestDist = curDist;
         }
