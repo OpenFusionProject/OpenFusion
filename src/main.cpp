@@ -41,7 +41,6 @@ void startShard(CNShardServer* server) {
     server->start();
 }
 
-#ifndef _WIN32
 // terminate gracefully on SIGINT (for gprof)
 void terminate(int arg) {
     std::cout << "OpenFusion: terminating." << std::endl;
@@ -54,6 +53,7 @@ void terminate(int arg) {
     exit(0);
 }
 
+#ifndef _WIN32
 void initsignals() {
     struct sigaction act;
 
