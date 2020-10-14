@@ -961,7 +961,8 @@ sItemBase ItemManager::getCrateItem(int itemSetId, int rarity, int playerGender)
 
 // argument is here only so we can call sprintf in brackets
 void ItemManager::throwError(int ignore) {
-    throw (std::exception(buffer));
+    const char* message = buffer;
+    throw (std::exception(message));
 }
 
 // TODO: use this in cleaned up ItemManager
