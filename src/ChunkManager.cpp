@@ -109,7 +109,7 @@ bool ChunkManager::checkChunk(std::tuple<int, int, int> chunk) {
 }
 
 std::tuple<int, int, int> ChunkManager::grabChunk(int posX, int posY, int instanceID) {
-    return std::make_tuple(posX / (settings::CHUNKSIZE / 3), posY / (settings::CHUNKSIZE / 3), instanceID);
+    return std::make_tuple(posX / (settings::VIEWDISTANCE / 3), posY / (settings::VIEWDISTANCE / 3), instanceID);
 }
 
 std::vector<Chunk*> ChunkManager::grabChunks(std::tuple<int, int, int> chunk) {

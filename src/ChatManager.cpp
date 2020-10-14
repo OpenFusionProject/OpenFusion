@@ -279,10 +279,18 @@ void toggleAiCommand(std::string full, std::vector<std::string>& args, CNSocket*
     for (auto& pair : MobManager::Mobs) {
         pair.second->state = MobState::RETREAT;
         pair.second->target = nullptr;
+        pair.second->nextMovement = getTime();
 
-        pair.second->roamX = pair.second->spawnX;
-        pair.second->roamY = pair.second->spawnY;
-        pair.second->roamZ = pair.second->spawnZ;
+        // mobs with static paths can chill where they are
+        if (pair.second->staticPath) {
+            pair.second->roamX = pair.second->appearanceData.iX;
+            pair.second->roamY = pair.second->appearanceData.iY;
+            pair.second->roamZ = pair.second->appearanceData.iZ;
+        } else {
+            pair.second->roamX = pair.second->spawnX;
+            pair.second->roamY = pair.second->spawnY;
+            pair.second->roamZ = pair.second->spawnZ;
+        }
     }
 }
 

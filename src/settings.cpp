@@ -12,7 +12,7 @@ int settings::DBSAVEINTERVAL = 240;
 int settings::SHARDPORT = 8002;
 std::string settings::SHARDSERVERIP = "127.0.0.1";
 time_t settings::TIMEOUT = 60000;
-int settings::CHUNKSIZE = 40000;
+int settings::VIEWDISTANCE = 40000;
 bool settings::SIMULATEMOBS = true;
 
 // default spawn point is Sector V (future)
@@ -47,7 +47,7 @@ void settings::init() {
     SHARDSERVERIP = reader.Get("shard", "ip", "127.0.0.1");
     DBSAVEINTERVAL = reader.GetInteger("shard", "dbsaveinterval", DBSAVEINTERVAL);
     TIMEOUT = reader.GetInteger("shard", "timeout", TIMEOUT);
-    CHUNKSIZE = reader.GetInteger("shard", "chunksize", CHUNKSIZE);
+    VIEWDISTANCE = reader.GetInteger("shard", "viewdistance", VIEWDISTANCE);
     SIMULATEMOBS = reader.GetBoolean("shard", "simulatemobs", SIMULATEMOBS);
     SPAWN_X = reader.GetInteger("shard", "spawnx", SPAWN_X);
     SPAWN_Y = reader.GetInteger("shard", "spawny", SPAWN_Y);

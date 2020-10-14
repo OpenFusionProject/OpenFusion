@@ -5,7 +5,7 @@
 #include "NanoManager.hpp"
 #include "Player.hpp"
 
-#include <string.h> // for memset() and memcmp()
+#include <string.h> // for memset()
 #include <assert.h>
 
 std::map<std::pair<int32_t, int32_t>, Item> ItemManager::ItemData;
@@ -911,6 +911,10 @@ void ItemManager::setItemStats(Player* plr) {
 
     for (int i = 0; i < 4; i++) {
         itemStatsDat = ItemManager::getItemData(plr->Equip[i].iID, plr->Equip[i].iType);
+        if (itemStatsDat == nullptr) {
+            std::cout << "[WARN] setItemStats(): getItemData() returned NULL" << std::endl;
+            continue;
+        }
         plr->pointDamage += itemStatsDat->pointDamage;
         plr->groupDamage += itemStatsDat->groupDamage;
         plr->defense += itemStatsDat->defense;
