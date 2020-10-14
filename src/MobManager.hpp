@@ -25,6 +25,7 @@ struct Mob : public BaseNPC {
     int spawnX;
     int spawnY;
     int spawnZ;
+    int level;
 
     // dead
     time_t killedTime = 0;
@@ -42,6 +43,9 @@ struct Mob : public BaseNPC {
     time_t nextAttack = 0;
     int roamX, roamY, roamZ;
 
+    //drop
+    int dropType;
+
     // temporary; until we're sure what's what
     nlohmann::json data;
 
@@ -53,6 +57,8 @@ struct Mob : public BaseNPC {
 
         regenTime = data["m_iRegenTime"];
         idleRange = (int)data["m_iIdleRange"] * 2; // TODO: tuning?
+        dropType = data["m_iDropType"];
+        level = data["m_iNpcLevel"];
 
         // XXX: temporarily force respawns for Fusions until we implement instancing
         if (regenTime >= 300000000)
@@ -84,9 +90,24 @@ struct Mob : public BaseNPC {
     }
 };
 
+struct MobDropChance {
+    int dropChance;
+    std::vector<int> cratesRatio;
+};
+
+struct MobDrop {
+    std::vector<int> crateIDs;
+    int dropChanceType;
+    int taros;
+    int fm;
+    int boosts;
+};
+
 namespace MobManager {
     extern std::map<int32_t, Mob*> Mobs;
     extern std::queue<int32_t> RemovalQueue;
+    extern std::map<int32_t, MobDropChance> MobDropChances;
+    extern std::map<int32_t, MobDrop> MobDrops;
     extern bool simulateMobs;
 
     void init();
@@ -107,7 +128,10 @@ namespace MobManager {
     void npcAttackPc(Mob *mob, time_t currTime);
     int hitMob(CNSocket *sock, Mob *mob, int damage);
     void killMob(CNSocket *sock, Mob *mob);
-    void giveReward(CNSocket *sock);
+    void giveReward(CNSocket *sock, Mob *mob);
+    sItemBase getReward(MobDrop *drop, MobDropChance *chance);
+    void giveEventReward(CNSocket* sock, Player* player);
+
     std::pair<int,int> lerp(int, int, int, int, int);
     std::pair<int,int> getDamage(int, int, bool, bool, int, int, int);
 
