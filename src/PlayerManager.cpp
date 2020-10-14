@@ -694,7 +694,7 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tZ: " << gotoData->iToZ << std::endl;
     )
 
-    sendPlayerTo(sock, gotoData->iToX, gotoData->iToY, gotoData->iToZ);
+    sendPlayerTo(sock, gotoData->iToX, gotoData->iToY, gotoData->iToZ, 0);
 }
 
 void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
