@@ -38,6 +38,7 @@ struct Player {
     int8_t iSpecialState;
 
     int x, y, z, angle;
+    int lastX, lastY, lastZ, lastAngle;
     uint64_t instanceID;
     sItemBase Equip[AEQUIP_COUNT];
     sItemBase Inven[AINVEN_COUNT];

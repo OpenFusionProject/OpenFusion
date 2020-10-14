@@ -390,10 +390,18 @@ Database::DbPlayer Database::playerToDb(Player *player)
     result.slot = player->slot;
     result.Taros = player->money;
     result.TutorialFlag = player->PCStyle2.iTutorialFlag;
-    result.x_coordinates = player->x;
-    result.y_coordinates = player->y;
-    result.z_coordinates = player->z;
-    result.angle = player->angle;
+    if (player->instanceID == 0) { // only save coords if player isn't instanced
+        result.x_coordinates = player->x;
+        result.y_coordinates = player->y;
+        result.z_coordinates = player->z;
+        result.angle = player->angle;
+    }
+    else {
+        result.x_coordinates = player->lastX;
+        result.y_coordinates = player->lastY;
+        result.z_coordinates = player->lastZ;
+        result.angle = player->lastAngle;
+    }
     result.Nano1 = player->equippedNanos[0];
     result.Nano2 = player->equippedNanos[1];
     result.Nano3 = player->equippedNanos[2];

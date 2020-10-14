@@ -590,19 +590,14 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
     if (Warps.find(warpId) == Warps.end())
         return;
 
-    // loop through all tasks; if the required instance is being left, "fail" the task
-    for (int taskNum : plrv.plr->tasks) {
-        if (MissionManager::Tasks.find(taskNum) == MissionManager::Tasks.end())
-            continue; // sanity check
-
-        TaskData* task = MissionManager::Tasks[taskNum];
-        if ((plrv.plr->instanceID & 0xffffffff) == (int)(task->task["m_iRequireInstanceID"])) { // instance ID matches
-            int failTaskID = task->task["m_iFOutgoingTask"];
-            if (failTaskID != 0) {
-                MissionManager::quitTask(sock, taskNum);
-                // TODO: start fail task
-            }
-        }
+    MissionManager::failInstancedMissions(sock); // fail any missions that require the player's current instance
+    
+    if (plrv.plr->instanceID == 0) {
+        // save last uninstanced coords
+        plrv.plr->lastX = plrv.plr->x;
+        plrv.plr->lastY = plrv.plr->y;
+        plrv.plr->lastZ = plrv.plr->z;
+        plrv.plr->lastAngle = plrv.plr->angle;
     }
 
     // std::cerr << "Warped to Map Num:" << Warps[warpId].instanceID << " NPC ID " << Warps[warpId].npcID << std::endl;

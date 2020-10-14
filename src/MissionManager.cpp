@@ -506,3 +506,21 @@ bool MissionManager::isQuestItemFull(CNSocket* sock, int itemId, int itemCount) 
 
     return (itemCount == plr->QInven[slot].iOpt);
 }
+
+void MissionManager::failInstancedMissions(CNSocket* sock) {
+    // loop through all tasks; if the required instance is being left, "fail" the task
+    Player* plr = PlayerManager::getPlayer(sock);
+    for (int taskNum : plr->tasks) {
+        if (MissionManager::Tasks.find(taskNum) == MissionManager::Tasks.end())
+            continue; // sanity check
+
+        TaskData* task = MissionManager::Tasks[taskNum];
+        if ((plr->instanceID & 0xffffffff) == (int)(task->task["m_iRequireInstanceID"])) { // map num matches
+            int failTaskID = task->task["m_iFOutgoingTask"];
+            if (failTaskID != 0) {
+                MissionManager::quitTask(sock, taskNum);
+                MissionManager::startTask(sock, failTaskID, task->task["m_iSTNanoID"] != 0);
+            }
+        }
+    }
+}

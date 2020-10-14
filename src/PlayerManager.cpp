@@ -8,6 +8,7 @@
 #include "NanoManager.hpp"
 #include "GroupManager.hpp"
 #include "ChatManager.hpp"
+#include "Database.hpp"
 
 #include "settings.hpp"
 
@@ -64,7 +65,11 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
 void PlayerManager::removePlayer(CNSocket* key) {
     PlayerView& view = players[key];
 
+    MissionManager::failInstancedMissions(key);
     GroupManager::groupKickPlayer(view.plr);
+
+    // save player to DB
+    Database::updatePlayer(view.plr);
 
     INITSTRUCT(sP_FE2CL_PC_EXIT, exitPacket);
     exitPacket.iID = players[key].plr->iID;
