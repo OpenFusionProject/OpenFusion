@@ -199,11 +199,10 @@ void MissionManager::quitMission(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_PC_TASK_STOP* missionData = (sP_CL2FE_REQ_PC_TASK_STOP*)data->buf;
-    quitTask(sock, missionData->iTaskNum);
+    quitTask(sock, missionData->iTaskNum, true);
 }
 
-void MissionManager::quitTask(CNSocket* sock, int32_t taskNum) {
-    INITSTRUCT(sP_FE2CL_REP_PC_TASK_STOP_SUCC, response);
+void MissionManager::quitTask(CNSocket* sock, int32_t taskNum, bool manual) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     if (plr == nullptr)
@@ -242,6 +241,14 @@ void MissionManager::quitTask(CNSocket* sock, int32_t taskNum) {
                 memset(&plr->QInven[j], 0, sizeof(sItemBase));
     }
 
+    if (!manual) {
+        INITSTRUCT(sP_FE2CL_REP_PC_TASK_END_FAIL, failResp);
+        failResp.iErrorCode = 1;
+        failResp.iTaskNum = taskNum;
+        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_TASK_END_FAIL, sizeof(sP_FE2CL_REP_PC_TASK_END_FAIL));
+    }
+    
+    INITSTRUCT(sP_FE2CL_REP_PC_TASK_STOP_SUCC, response);
     response.iTaskNum = taskNum;
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_STOP_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_STOP_SUCC));
 }
@@ -510,16 +517,17 @@ bool MissionManager::isQuestItemFull(CNSocket* sock, int itemId, int itemCount) 
 void MissionManager::failInstancedMissions(CNSocket* sock) {
     // loop through all tasks; if the required instance is being left, "fail" the task
     Player* plr = PlayerManager::getPlayer(sock);
-    for (int taskNum : plr->tasks) {
+    for (int i = 0; i < 6; i++) {
+        int taskNum = plr->tasks[i];
         if (MissionManager::Tasks.find(taskNum) == MissionManager::Tasks.end())
             continue; // sanity check
 
         TaskData* task = MissionManager::Tasks[taskNum];
-        if ((plr->instanceID & 0xffffffff) == (int)(task->task["m_iRequireInstanceID"])) { // map num matches
+        if (task->task["m_iRequireInstanceID"] != 0) { // mission is instanced
             int failTaskID = task->task["m_iFOutgoingTask"];
             if (failTaskID != 0) {
-                MissionManager::quitTask(sock, taskNum);
-                MissionManager::startTask(sock, failTaskID, task->task["m_iSTNanoID"] != 0);
+                MissionManager::quitTask(sock, taskNum, false);
+                plr->tasks[i] = failTaskID;
             }
         }
     }

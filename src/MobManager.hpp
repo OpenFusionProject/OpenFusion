@@ -55,8 +55,8 @@ struct Mob : public BaseNPC {
         idleRange = (int)data["m_iIdleRange"] * 2; // TODO: tuning?
 
         // XXX: temporarily force respawns for Fusions until we implement instancing
-        if (regenTime >= 300000000)
-            regenTime = 1500;
+        //if (regenTime >= 300000000)
+        //    regenTime = 1500;
 
         roamX = spawnX = appearanceData.iX;
         roamY = spawnY = appearanceData.iY;

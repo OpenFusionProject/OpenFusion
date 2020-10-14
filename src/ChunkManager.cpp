@@ -2,6 +2,7 @@
 #include "PlayerManager.hpp"
 #include "NPCManager.hpp"
 #include "settings.hpp"
+#include "MobManager.hpp"
 
 std::map<std::tuple<int, int, uint64_t>, Chunk*> ChunkManager::chunks;
 
@@ -207,11 +208,18 @@ void ChunkManager::createInstance(uint64_t instanceID) {
             for (int npcID : chunks[coords]->NPCs) {
                 // make a copy of each NPC in the template chunks and put them in the new instance
                 int newID = NPCManager::nextId++;
-                BaseNPC* newNPC = new BaseNPC();
-                memcpy(newNPC, NPCManager::NPCs[npcID], sizeof(BaseNPC));
-                newNPC->appearanceData.iNPC_ID = newID;
-                NPCManager::NPCs[newID] = newNPC;
-                NPCManager::updateNPCInstance(newID, instanceID);
+                BaseNPC* baseNPC = NPCManager::NPCs[npcID];
+                if (baseNPC->npcClass == NPC_MOB) {
+                    Mob* newMob = new Mob(baseNPC->appearanceData.iX, baseNPC->appearanceData.iY, baseNPC->appearanceData.iZ, baseNPC->appearanceData.iAngle,
+                        instanceID, baseNPC->appearanceData.iNPCType, baseNPC->appearanceData.iHP, NPCManager::NPCData[baseNPC->appearanceData.iNPCType], newID);
+                    NPCManager::NPCs[newID] = newMob;
+                    MobManager::Mobs[newID] = newMob;
+                } else {
+                    BaseNPC* newNPC = new BaseNPC(baseNPC->appearanceData.iX, baseNPC->appearanceData.iY, baseNPC->appearanceData.iZ, baseNPC->appearanceData.iAngle,
+                        instanceID, baseNPC->appearanceData.iNPCType, newID);
+                    NPCManager::NPCs[newID] = newNPC;
+                }
+                NPCManager::updateNPCInstance(newID, instanceID); // make sure the npc state gets updated
             }
         }
     }

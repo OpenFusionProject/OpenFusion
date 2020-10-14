@@ -57,7 +57,7 @@ namespace MissionManager {
 
     bool endTask(CNSocket *sock, int32_t taskNum);
     void saveMission(Player* player, int missionId);
-    void quitTask(CNSocket* sock, int32_t taskNum);
+    void quitTask(CNSocket* sock, int32_t taskNum, bool manual);
 
     void failInstancedMissions(CNSocket* sock);
 }

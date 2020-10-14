@@ -65,7 +65,7 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
 void PlayerManager::removePlayer(CNSocket* key) {
     PlayerView& view = players[key];
 
-    MissionManager::failInstancedMissions(key);
+    //MissionManager::failInstancedMissions(key); moved to enter
     GroupManager::groupKickPlayer(view.plr);
 
     // save player to DB
@@ -233,11 +233,13 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
     plr->instanceID = I;
     if (I != INSTANCE_OVERWORLD) {
         INITSTRUCT(sP_FE2CL_INSTANCE_MAP_INFO, pkt);
+        pkt.iEP_ID = (I >> 32) == 0; // iEP_ID has to be positive for the map to be enabled
         pkt.iInstanceMapNum = (int32_t)(I & 0xffffffff); // lower 32 bits are mapnum
         sock->sendPacket((void*)&pkt, P_FE2CL_INSTANCE_MAP_INFO, sizeof(sP_FE2CL_INSTANCE_MAP_INFO));
         sendPlayerTo(sock, X, Y, Z);
     } else {
         // annoying but necessary to set the flag back
+        MissionManager::failInstancedMissions(sock); // fail any instanced missions
         INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC, resp);
         resp.iX = X;
         resp.iY = Y;
@@ -383,6 +385,8 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     //set player equip stats
     ItemManager::setItemStats(getPlayer(sock));
+
+    MissionManager::failInstancedMissions(sock);
 }
 
 void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size) {
@@ -692,8 +696,9 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tX: " << gotoData->iToX << std::endl;
         std::cout << "\tY: " << gotoData->iToY << std::endl;
         std::cout << "\tZ: " << gotoData->iToZ << std::endl;
-    )
+        )
 
+    MissionManager::failInstancedMissions(sock); // this ensures warping by command still fails instanced missions
     sendPlayerTo(sock, gotoData->iToX, gotoData->iToY, gotoData->iToZ, 0);
 }
 
@@ -910,7 +915,7 @@ void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
         // remove all active missions
         for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
             if (plr->tasks[i] != 0)
-                MissionManager::quitTask(sock, plr->tasks[i]);
+                MissionManager::quitTask(sock, plr->tasks[i], true);
         }
 
         // start Blossom nano mission if applicable
