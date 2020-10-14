@@ -888,7 +888,7 @@ int ItemManager::getItemSetId(Crate crate, int crateId) {
         throwError(sprintf(buffer, "Crate %d has no item sets assigned?!", crateId));
 
     // if crate points to multiple itemSets, choose a random one
-        int itemSetIndex = rand() % itemSetsCount;
+    int itemSetIndex = rand() % itemSetsCount;
     return crate.itemSets[itemSetIndex];
 }
 
