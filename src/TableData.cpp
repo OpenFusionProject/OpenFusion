@@ -29,7 +29,7 @@ void TableData::init() {
 
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
-            BaseNPC *tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], INSTANCE_OVERWORLD, npc["id"], nextId);
+            BaseNPC *tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], npc["angle"], INSTANCE_OVERWORLD, npc["id"], nextId);
 
             NPCManager::NPCs[nextId] = tmp;
             NPCManager::updateNPCPosition(nextId, npc["x"], npc["y"], npc["z"]);
@@ -181,7 +181,7 @@ void TableData::init() {
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
             auto td = NPCManager::NPCData[(int)npc["iNPCType"]];
-            Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], INSTANCE_OVERWORLD, npc["iNPCType"], npc["iHP"], npc["iAngle"], td, nextId);
+            Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], INSTANCE_OVERWORLD, npc["iNPCType"], npc["iHP"], td, nextId);
 
             NPCManager::NPCs[nextId] = tmp;
             MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
@@ -250,7 +250,7 @@ void TableData::loadPaths(int* nextId) {
             auto sliderPoint = _sliderPoint.value();
             if (sliderPoint["stop"] && sliders % 2 == 0) { // check if this point in the circuit is a stop
                 // spawn a slider
-                BaseNPC* slider = new BaseNPC(sliderPoint["iX"], sliderPoint["iY"], sliderPoint["iZ"], INSTANCE_OVERWORLD, 1, (*nextId)++, NPC_BUS);
+                BaseNPC* slider = new BaseNPC(sliderPoint["iX"], sliderPoint["iY"], sliderPoint["iZ"], 0, INSTANCE_OVERWORLD, 1, (*nextId)++, NPC_BUS);
                 NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
                 NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->appearanceData.iX, slider->appearanceData.iY, slider->appearanceData.iZ);
                 // set slider path to a rotation of the circuit

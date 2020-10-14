@@ -548,7 +548,7 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
             NPCs[id] = new Mob(plr->x, plr->y, plr->z, plr->instanceID, req->iNPCType, NPCData[req->iNPCType], id);
             MobManager::Mobs[id] = (Mob*)NPCs[id];
         } else
-            NPCs[id] = new BaseNPC(plr->x, plr->y, plr->z, plr->instanceID, req->iNPCType, id);
+            NPCs[id] = new BaseNPC(plr->x, plr->y, plr->z, 0, plr->instanceID, req->iNPCType, id);
 
         updateNPCPosition(id, plr->x, plr->y, plr->z);
     }
