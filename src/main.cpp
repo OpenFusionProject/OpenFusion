@@ -103,6 +103,13 @@ int main() {
     GroupManager::init();
     Database::open();
 
+    switch (settings::EVENTMODE)
+    {
+    case 1: std::cout << "[INFO] Event active. Hey, Hey It's Knishmas!" << std::endl; break;
+    case 2: std::cout << "[INFO] Event active. Wishing you a spook-tacular Halloween!" << std::endl; break;
+    case 3: std::cout << "[INFO] Event active. Have a very hoppy Easter!" << std::endl; break;
+    }
+
     std::cout << "[INFO] Starting Server Threads..." << std::endl;
     CNLoginServer loginServer(settings::LOGINPORT);
     shardServer = new CNShardServer(settings::SHARDPORT);

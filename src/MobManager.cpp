@@ -219,8 +219,12 @@ void MobManager::giveReward(CNSocket *sock, Mob* mob) {
         plr->Inven[slot] = item->sItem;
 
         sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
+
     }
 
+    // event crates
+    if (settings::EVENTMODE != 0)
+        giveEventReward(sock, plr);
 }
 
 sItemBase MobManager::getReward(MobDrop* drop, MobDropChance* chance) {
@@ -243,6 +247,63 @@ sItemBase MobManager::getReward(MobDrop* drop, MobDropChance* chance) {
     }
     while (sum<=randomNum);
     return reward;
+}
+
+void MobManager::giveEventReward(CNSocket* sock, Player* player) {
+
+    // random drop chance
+    if (rand() % 100 > settings::EVENTCRATECHANCE)
+        return;
+    // no slot = no award
+    int slot = ItemManager::findFreeSlot(player);
+    if (slot == -1)
+        return;
+
+    const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+    // we know it's only one trailing struct, so we can skip full validation
+
+    uint8_t respbuf[resplen]; // not a variable length array, don't worry
+    sP_FE2CL_REP_REWARD_ITEM* reward = (sP_FE2CL_REP_REWARD_ITEM*)respbuf;
+    sItemReward* item = (sItemReward*)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
+
+    // don't forget to zero the buffer!
+    memset(respbuf, 0, resplen);
+
+    // leave everything here as it is
+    reward->m_iCandy = player->money;
+    reward->m_iFusionMatter = player->fusionmatter;
+    reward->m_iBatteryN = player->batteryN;
+    reward->m_iBatteryW = player->batteryW;
+    reward->iFatigue = 100; // prevents warning message
+    reward->iFatigue_Level = 1;
+    reward->iItemCnt = 1; // remember to update resplen if you change this
+
+    // which crate to drop
+    int crateId;
+    switch (settings::EVENTMODE) 
+    {
+        // knishmas
+        case 1: crateId = 1187; break; 
+        // halloween
+        case 2: crateId = 1181; break;
+        // spring
+        case 3: crateId = 1126; break;
+        // what
+        default: 
+            std::cout << "[WARN] Unknown event Id " << settings::EVENTMODE << std::endl;
+            return;
+    }
+ 
+    item->sItem.iType = 9;
+    item->sItem.iID = crateId;
+    item->sItem.iOpt = 1;
+    item->iSlotNum = slot;
+    item->eIL = 1; // Inventory Location. 1 means player inventory.
+
+    // update player
+    player->Inven[slot] = item->sItem;
+    sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
 }
 
 int MobManager::hitMob(CNSocket *sock, Mob *mob, int damage) {
