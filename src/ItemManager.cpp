@@ -949,7 +949,7 @@ sItemBase ItemManager::getCrateItem(int itemSetId, int rarity, int playerGender)
     }
 
     if (items.size() == 0)
-        throwError(sprintf(buffer, "Gender inequality! Set ID %d Rarity %d contains only %s items?!", itemSetId, rarity, playerGender==1 ? "boys" : "girls"));
+        throwError(sprintf(buffer, "Gender inequality! Set ID %d Rarity %d contains only %s items?!", itemSetId, rarity, playerGender==2 ? "boys" : "girls"));
     auto item = items[rand() % items.size()];
     sItemBase result = {};
     result.iID = item->first.first;
