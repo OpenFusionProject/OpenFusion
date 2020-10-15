@@ -85,7 +85,8 @@ void ChunkManager::destroyChunk(std::tuple<int, int, uint64_t> chunkPos) {
     Chunk* chunk = chunks[chunkPos];
 
     // unspawn all of the mobs/npcs
-    for (uint32_t id : chunk->NPCs) {
+    std::set npcIDs(chunk->NPCs);
+    for (uint32_t id : npcIDs) {
         NPCManager::destroyNPC(id);
     }
 

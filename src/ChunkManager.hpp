@@ -15,9 +15,9 @@ public:
 };
 
 enum {
-    INSTANCE_OVERWORLD, // default instance every player starts in
-    //INSTANCE_IZ, // all infected zones share an instance
-    //INSTANCE_UNIQUE // fusion lairs are generated as requested (+ uid)
+    INSTANCE_OVERWORLD // default instance every player starts in
+    //INSTANCE_IZ, // these aren't actually used
+    //INSTANCE_UNIQUE
 };
 
 namespace ChunkManager {

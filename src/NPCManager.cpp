@@ -592,6 +592,8 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
 
     MissionManager::failInstancedMissions(sock); // fail any missions that require the player's current instance
     
+    uint64_t fromInstance = plrv.plr->instanceID; // saved for post-warp
+
     if (plrv.plr->instanceID == 0) {
         // save last uninstanced coords
         plrv.plr->lastX = plrv.plr->x;
@@ -624,6 +626,18 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
         plrv.plr->instanceID = INSTANCE_OVERWORLD;
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
     }
+
+    // post-warp: check if the source instance has no more players in it and delete it if so
+    if ((fromInstance >> 32) == 0)
+        return; // don't clean up overworld/IZ chunks
+
+    std::vector<std::tuple<int, int, uint64_t>> sourceChunkCoords = ChunkManager::getChunksInMap(fromInstance);
+    for (std::tuple<int, int, uint64_t>& coords : sourceChunkCoords) {
+        Chunk* chunk = ChunkManager::chunks[coords];
+        if (chunk->players.size() > 0)
+            return; // there are still players inside
+    }
+    ChunkManager::destroyInstance(fromInstance);
 }
 
 /*
