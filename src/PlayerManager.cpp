@@ -85,7 +85,7 @@ void PlayerManager::removePlayer(CNSocket* key) {
     std::cout << players.size() << " players" << std::endl;
 }
 
-void PlayerManager::removePlayerFromChunks(std::vector<Chunk*> chunks, CNSocket* sock) {
+bool PlayerManager::removePlayerFromChunks(std::vector<Chunk*> chunks, CNSocket* sock) {
     INITSTRUCT(sP_FE2CL_PC_EXIT, exitPlayer);
 
     // for chunks that need the player to be removed from
@@ -119,7 +119,7 @@ void PlayerManager::removePlayerFromChunks(std::vector<Chunk*> chunks, CNSocket*
     }
 
     // remove us from that old stinky chunk
-    ChunkManager::removePlayer(players[sock].chunkPos, sock);
+    return ChunkManager::removePlayer(players[sock].chunkPos, sock);
 }
 
 void PlayerManager::addPlayerToChunks(std::vector<Chunk*> chunks, CNSocket* sock) {
@@ -205,8 +205,14 @@ void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y) {
     // add player to chunk
     std::vector<Chunk*> allChunks = ChunkManager::grabChunks(newPos);
 
+    Chunk *chunk = nullptr;
+    if (ChunkManager::checkChunk(view.chunkPos))
+        chunk = ChunkManager::chunks[view.chunkPos];
+
     // first, remove all the old npcs & players from the old chunks
-    removePlayerFromChunks(ChunkManager::getDeltaChunks(view.currentChunks, allChunks), sock);
+    if (removePlayerFromChunks(ChunkManager::getDeltaChunks(view.currentChunks, allChunks), sock)) {
+        allChunks.erase(std::remove(allChunks.begin(), allChunks.end(), chunk), allChunks.end());
+    }
 
     // now, add all the new npcs & players!
     addPlayerToChunks(ChunkManager::getDeltaChunks(allChunks, view.currentChunks), sock);

@@ -37,30 +37,44 @@ void ChunkManager::addPlayer(int posX, int posY, int instanceID, CNSocket* sock)
     chunk->players.insert(sock);
 }
 
-void ChunkManager::removePlayer(std::tuple<int, int, int> chunkPos, CNSocket* sock) {
+bool ChunkManager::removePlayer(std::tuple<int, int, int> chunkPos, CNSocket* sock) {
     if (!checkChunk(chunkPos))
-        return; // do nothing if chunk doesn't even exist
+        return false; // do nothing if chunk doesn't even exist
 
     Chunk* chunk = chunks[chunkPos];
 
     chunk->players.erase(sock); // gone
 
     // if players and NPCs are empty, free chunk and remove it from surrounding views
-    if (chunk->NPCs.size() == 0 && chunk->players.size() == 0)
+    if (chunk->NPCs.size() == 0 && chunk->players.size() == 0) {
         destroyChunk(chunkPos);
+
+        // the chunk we left was destroyed
+        return true;
+    }
+
+    // the chunk we left was not destroyed
+    return false;
 }
 
-void ChunkManager::removeNPC(std::tuple<int, int, int> chunkPos, int32_t id) {
+bool ChunkManager::removeNPC(std::tuple<int, int, int> chunkPos, int32_t id) {
     if (!checkChunk(chunkPos))
-        return; // do nothing if chunk doesn't even exist
+        return false; // do nothing if chunk doesn't even exist
 
     Chunk* chunk = chunks[chunkPos];
 
     chunk->NPCs.erase(id); // gone
 
     // if players and NPCs are empty, free chunk and remove it from surrounding views
-    if (chunk->NPCs.size() == 0 && chunk->players.size() == 0)
+    if (chunk->NPCs.size() == 0 && chunk->players.size() == 0) {
         destroyChunk(chunkPos);
+
+        // the chunk we left was destroyed
+        return true;
+    }
+
+    // the chunk we left was not destroyed
+    return false;
 }
 
 void ChunkManager::destroyChunk(std::tuple<int, int, int> chunkPos) {

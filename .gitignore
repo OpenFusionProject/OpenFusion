@@ -12,3 +12,4 @@ build/
 .idea/
 *.db
 version.h
+infer-out

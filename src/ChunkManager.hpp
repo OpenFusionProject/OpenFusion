@@ -28,8 +28,8 @@ namespace ChunkManager {
 
     void addNPC(int posX, int posY, int instanceID, int32_t id);
     void addPlayer(int posX, int posY, int instanceID, CNSocket* sock);
-    void removePlayer(std::tuple<int, int, int> chunkPos, CNSocket* sock);
-    void removeNPC(std::tuple<int, int, int> chunkPos, int32_t id);
+    bool removePlayer(std::tuple<int, int, int> chunkPos, CNSocket* sock);
+    bool removeNPC(std::tuple<int, int, int> chunkPos, int32_t id);
     bool checkChunk(std::tuple<int, int, int> chunk);
     void destroyChunk(std::tuple<int, int, int> chunkPos);
     std::tuple<int, int, int> grabChunk(int posX, int posY, int instanceID);

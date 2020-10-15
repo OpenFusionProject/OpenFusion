@@ -126,7 +126,7 @@ void NPCManager::destroyNPC(int32_t id) {
 
     // remove from mob manager
     if (MobManager::Mobs.find(id) != MobManager::Mobs.end())
-            MobManager::Mobs.erase(id);
+        MobManager::Mobs.erase(id);
 
     // finally, remove it from the map and free it
     NPCs.erase(id);
@@ -162,8 +162,15 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
     // send npc enter to new chunks
     addNPC(ChunkManager::getDeltaChunks(allChunks, npc->currentChunks), id);
 
-    // update chunks
-    ChunkManager::removeNPC(npc->chunkPos, id);
+    Chunk *chunk = nullptr;
+    if (ChunkManager::checkChunk(npc->chunkPos))
+        chunk = ChunkManager::chunks[npc->chunkPos];
+
+    if (ChunkManager::removeNPC(npc->chunkPos, id)) {
+        // if the old chunk was deallocated, remove it
+        allChunks.erase(std::remove(allChunks.begin(), allChunks.end(), chunk), allChunks.end());
+    }
+
     ChunkManager::addNPC(X, Y, npc->instanceID, id);
 
     npc->chunkPos = newPos;

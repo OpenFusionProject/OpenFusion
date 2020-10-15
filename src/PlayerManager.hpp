@@ -27,7 +27,7 @@ namespace PlayerManager {
     void addPlayer(CNSocket* key, Player plr);
     void removePlayer(CNSocket* key);
 
-    void removePlayerFromChunks(std::vector<Chunk*> chunks, CNSocket* sock);
+    bool removePlayerFromChunks(std::vector<Chunk*> chunks, CNSocket* sock);
     void addPlayerToChunks(std::vector<Chunk*> chunks, CNSocket* sock);
 
     void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z);
