@@ -17,6 +17,15 @@ std::map<int32_t, int> TableData::RunningNPCRotations;
 std::map<int32_t, int> TableData::RunningNPCMapNumbers;
 std::map<int32_t, BaseNPC*> TableData::RunningMobs;
 
+class TableException : public std::exception {
+public:
+    std::string msg;
+
+    TableException(std::string m) : std::exception() { msg = m; }
+
+    const char *what() const throw() { return msg.c_str(); }
+};
+
 void TableData::init() {
     int32_t nextId = 0;
 
@@ -332,14 +341,12 @@ void TableData::loadDrops() {
             // Check if DropChance exists
             if (MobManager::MobDropChances.find(toAdd.dropChanceType) == MobManager::MobDropChances.end())
             {
-                std::string errorMessage = " MobDropChance not found: " + std::to_string((toAdd.dropChanceType));
-                throw (std::exception((errorMessage).c_str()));
+                throw TableException(" MobDropChance not found: " + std::to_string((toAdd.dropChanceType)));
             }
             // Check if number of crates is correct
             if (!(MobManager::MobDropChances[(int)drop["DropChance"]].cratesRatio.size() == toAdd.crateIDs.size()))
             {
-                std::string errorMessage = " DropType " + std::to_string((int)drop["DropType"]) + " contains invalid number of crates";
-                throw (std::exception((errorMessage).c_str()));
+                throw TableException(" DropType " + std::to_string((int)drop["DropType"]) + " contains invalid number of crates");
             }
 
             toAdd.taros = (int)drop["Taros"];
@@ -380,7 +387,7 @@ void TableData::loadDrops() {
             {
                 char buff[255];
                 sprintf(buff, "Unknown item with Id %d and Type %d", (int)item["Id"], (int)item["Type"]);
-                throw (std::exception(buff));
+                throw TableException(std::string(buff));
             }
             std::map<std::pair<int32_t, int32_t>, Item>::iterator toAdd = ItemManager::ItemData.find(itemDataKey);
             // if item collection doesn't exist, start a new one
