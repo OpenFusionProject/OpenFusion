@@ -506,7 +506,7 @@ void NPCManager::npcCombineItems(CNSocket* sock, CNPacketData* data) {
         resp.iSuccessFlag = 1;
 
         // modify the looks item with the new stats and set the appearance through iOpt
-        itemLooks->iOpt = (int32_t)itemLooks->iID << 16;
+        itemLooks->iOpt = (int32_t)((itemLooks->iOpt) >> 16 > 0 ? (itemLooks->iOpt >> 16) : itemLooks->iID) << 16;
         itemLooks->iID = itemStats->iID;
 
         // delete stats item
