@@ -8,6 +8,7 @@
 #include "contrib/JSON.hpp"
 
 #include <map>
+#include <unordered_map>
 #include <queue>
 
 enum class MobState {
@@ -25,6 +26,7 @@ struct Mob : public BaseNPC {
     int spawnX;
     int spawnY;
     int spawnZ;
+    std::unordered_map<int32_t,time_t> unbuffTimes;
 
     // dead
     time_t killedTime = 0;
@@ -36,11 +38,12 @@ struct Mob : public BaseNPC {
     int idleRange;
     time_t nextMovement = 0;
     bool staticPath = false;
+    int roamX, roamY, roamZ;
 
     // combat
     CNSocket *target = nullptr;
     time_t nextAttack = 0;
-    int roamX, roamY, roamZ;
+
 
     // temporary; until we're sure what's what
     nlohmann::json data;

@@ -219,8 +219,15 @@ int MobManager::hitMob(CNSocket *sock, Mob *mob, int damage) {
         mob->appearanceData.iHP -= damage;
 
         // wake up sleeping monster
-        // TODO: remove client-side bit somehow
-        mob->appearanceData.iConditionBitFlag &= ~CSB_BIT_MEZ;
+        if (mob->appearanceData.iConditionBitFlag & CSB_BIT_MEZ) {
+            mob->appearanceData.iConditionBitFlag &= ~CSB_BIT_MEZ;
+
+            INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
+            pkt1.eCT = 2;
+            pkt1.iID = mob->appearanceData.iNPC_ID;
+            pkt1.iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
+            NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
+        }
 
         if (mob->appearanceData.iHP <= 0)
             killMob(mob->target, mob);
@@ -392,10 +399,8 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
 
         pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
         pkt.iSpeed = speed;
-        pkt.iToX = (targ.first - mob->appearanceData.iX) * 5 / 2 + mob->appearanceData.iX;
-        pkt.iToY = (targ.second - mob->appearanceData.iY) * 5 / 2 + mob->appearanceData.iY;
-        mob->appearanceData.iX = targ.first;
-        mob->appearanceData.iY = targ.second;
+        pkt.iToX = mob->appearanceData.iX = targ.first;
+        pkt.iToY = mob->appearanceData.iY = targ.second;
         pkt.iToZ = mob->target->plr->z;
 
         // notify all nearby players
@@ -496,10 +501,8 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
         pkt.iSpeed = (int)mob->data["m_iRunSpeed"] * 2;
         mob->appearanceData.iX = targ.first;
         mob->appearanceData.iY = targ.second;
-        pkt.iToX = (targ.first - mob->appearanceData.iX) * 5 / 2 + mob->appearanceData.iX;
-        pkt.iToY = (targ.second - mob->appearanceData.iY) * 5 / 2 + mob->appearanceData.iY;
-        mob->appearanceData.iX = targ.first;
-        mob->appearanceData.iY = targ.second;
+        pkt.iToX = mob->appearanceData.iX = targ.first;
+        pkt.iToY = mob->appearanceData.iY = targ.second;
         pkt.iToZ = mob->appearanceData.iZ;
 
         // notify all nearby players
@@ -527,6 +530,27 @@ void MobManager::step(CNServer *serv, time_t currTime) {
         // skip chunks without players
         if (!ChunkManager::inPopulatedChunks(x, y, pair.second->instanceID))
             continue;
+
+        // drain
+        if (pair.second->appearanceData.iConditionBitFlag & CSB_BIT_BOUNDINGBALL) {
+            pair.second->appearanceData.iHP -= pair.second->maxHealth / 50; // lose 10% every second
+            // TODO: Make this send a damage packet
+        }
+
+        // unbuffing
+        for (auto& pair2 : pair.second->unbuffTimes) {
+            if (currTime >= pair2.second) {
+                pair.second->appearanceData.iConditionBitFlag &= ~pair2.first;
+                
+                INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
+                pkt1.eCT = 2;
+                pkt1.iID = pair.second->appearanceData.iNPC_ID;
+                pkt1.iConditionBitFlag = pair.second->appearanceData.iConditionBitFlag;
+                NPCManager::sendToViewable(pair.second, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
+                
+                pair.second->unbuffTimes.erase(pair2.first);
+            }
+        }
 
         // skip mob movement and combat if disabled
         if (!simulateMobs && pair.second->state != MobState::DEAD
