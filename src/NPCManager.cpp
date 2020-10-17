@@ -596,9 +596,32 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
             ChunkManager::createInstance(instanceID);
         }
 
-        PlayerManager::sendPlayerTo(sock, Warps[warpId].x, Warps[warpId].y, Warps[warpId].z, instanceID);
-    } else {
-        INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC, resp); // Can only be used for exiting instances because it sets the instance flag to false
+        if (plrv.plr->iID == plrv.plr->iIDGroup && plrv.plr->groupCnt == 1)
+            PlayerManager::sendPlayerTo(sock, Warps[warpId].x, Warps[warpId].y, Warps[warpId].z, instanceID);
+        else {
+            Player* leaderPlr = PlayerManager::getPlayerFromID(plrv.plr->iIDGroup);
+
+            for (int i = 0; i < leaderPlr->groupCnt; i++) {
+                Player* otherPlr = PlayerManager::getPlayerFromID(leaderPlr->groupIDs[i]);
+                CNSocket* sockTo = PlayerManager::getSockFromID(leaderPlr->groupIDs[i]);
+
+                if (otherPlr == nullptr || sockTo == nullptr)
+                    continue;
+
+                if (otherPlr->instanceID == 0) {
+                    otherPlr->lastX = otherPlr->x;
+                    otherPlr->lastY = otherPlr->y;
+                    otherPlr->lastZ = otherPlr->z;
+                    otherPlr->lastAngle = otherPlr->angle;
+                }
+
+                PlayerManager::sendPlayerTo(sockTo, Warps[warpId].x, Warps[warpId].y, Warps[warpId].z, instanceID);
+            }
+        }
+    }
+    else
+    {
+        INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC, resp); //Can only be used for exiting instances because it sets the instance flag to false
         resp.iX = Warps[warpId].x;
         resp.iY = Warps[warpId].y;
         resp.iZ = Warps[warpId].z;
