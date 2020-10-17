@@ -336,7 +336,7 @@ void TableData::loadDrops() {
             for (nlohmann::json::iterator _crates = drop["CrateIDs"].begin(); _crates != drop["CrateIDs"].end(); _crates++) {
                 toAdd.crateIDs.push_back((int)_crates.value());
             }
-            
+
             toAdd.dropChanceType = (int)drop["DropChance"];
             // Check if DropChance exists
             if (MobManager::MobDropChances.find(toAdd.dropChanceType) == MobManager::MobDropChances.end())
@@ -354,7 +354,9 @@ void TableData::loadDrops() {
             toAdd.boosts = (int)drop["Boosts"];
             MobManager::MobDrops[(int)drop["DropType"]] = toAdd;
         }
+
         std::cout << "[INFO] Loaded " << MobManager::MobDrops.size() << " Mob Drop Types"<<  std::endl;
+
         // Rarity Ratios
         nlohmann::json rarities = dropData["RarityRatios"];
         for (nlohmann::json::iterator _rarity = rarities.begin(); _rarity != rarities.end(); _rarity++) {
@@ -365,6 +367,7 @@ void TableData::loadDrops() {
             }
             ItemManager::RarityRatios[(int)rarity["Type"]] = toAdd;
         }
+
         // Crates
         nlohmann::json crates = dropData["Crates"];
         for (nlohmann::json::iterator _crate = crates.begin(); _crate != crates.end(); _crate++) {
@@ -376,6 +379,7 @@ void TableData::loadDrops() {
             }
             ItemManager::Crates[(int)crate["Id"]] = toAdd;
         }
+
         // Crate Items
         nlohmann::json items = dropData["Items"];
         int itemCount = 0;
@@ -383,28 +387,30 @@ void TableData::loadDrops() {
             auto item = _item.value();
             std::pair<int32_t, int32_t> itemSetkey = std::make_pair((int)item["ItemSet"], (int)item["Rarity"]);
             std::pair<int32_t, int32_t> itemDataKey = std::make_pair((int)item["Id"], (int)item["Type"]);
+
             if (ItemManager::ItemData.find(itemDataKey) == ItemManager::ItemData.end())
             {
                 char buff[255];
                 sprintf(buff, "Unknown item with Id %d and Type %d", (int)item["Id"], (int)item["Type"]);
                 throw TableException(std::string(buff));
             }
+
             std::map<std::pair<int32_t, int32_t>, Item>::iterator toAdd = ItemManager::ItemData.find(itemDataKey);
+
             // if item collection doesn't exist, start a new one
             if (ItemManager::CrateItems.find(itemSetkey) == ItemManager::CrateItems.end()) {
                 std::vector<std::map<std::pair<int32_t, int32_t>, Item>::iterator> vector;
                 vector.push_back(toAdd);
                 ItemManager::CrateItems[itemSetkey] = vector;
-            }
-            // else add a new element to existing collection
-            else
+            } else // else add a new element to existing collection
                 ItemManager::CrateItems[itemSetkey].push_back(toAdd);
+
             itemCount++;
         }
 
-        std::cout << "[INFO] Loaded " << ItemManager::Crates.size() << " Crates containing " 
-            <<itemCount<<" items" << std::endl;
-        
+        std::cout << "[INFO] Loaded " << ItemManager::Crates.size() << " Crates containing "
+                  << itemCount << " items" << std::endl;
+
     }
     catch (const std::exception& err) {
         std::cerr << "[WARN] Malformed drops.json file! Reason:" << err.what() << std::endl;

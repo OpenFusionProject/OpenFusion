@@ -103,11 +103,15 @@ int main() {
     GroupManager::init();
     Database::open();
 
-    switch (settings::EVENTMODE)
-    {
+    switch (settings::EVENTMODE) {
+    case 0: break; // no event
     case 1: std::cout << "[INFO] Event active. Hey, Hey It's Knishmas!" << std::endl; break;
     case 2: std::cout << "[INFO] Event active. Wishing you a spook-tacular Halloween!" << std::endl; break;
     case 3: std::cout << "[INFO] Event active. Have a very hoppy Easter!" << std::endl; break;
+    default:
+        std::cout << "[FATAL] Unknown event set in config file." << std::endl;
+        terminate(0);
+        /* not reached */
     }
 
     std::cout << "[INFO] Starting Server Threads..." << std::endl;

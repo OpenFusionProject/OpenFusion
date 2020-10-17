@@ -11,9 +11,10 @@
 #include <assert.h>
 
 std::map<int32_t, Mob*> MobManager::Mobs;
+std::queue<int32_t> MobManager::RemovalQueue;
+
 std::map<int32_t, MobDropChance> MobManager::MobDropChances;
 std::map<int32_t, MobDrop> MobManager::MobDrops;
-std::queue<int32_t> MobManager::RemovalQueue;
 
 bool MobManager::simulateMobs;
 
@@ -168,7 +169,7 @@ void MobManager::giveReward(CNSocket *sock, Mob* mob) {
         return;
     }
     // find correct mob drop
-    MobDrop drop = MobDrops[mob->dropType];
+    MobDrop& drop = MobDrops[mob->dropType];
 
     plr->money += drop.taros;
     // formula for scaling FM with player/mob level difference
@@ -197,29 +198,27 @@ void MobManager::giveReward(CNSocket *sock, Mob* mob) {
     reward->iFatigue_Level = 1;
     reward->iItemCnt = 1; // remember to update resplen if you change this
 
-
     int slot = ItemManager::findFreeSlot(plr);
-    
-    bool awardDrop = false;
-    MobDropChance chance;
-    // sanity check
-    if (MobDropChances.find(drop.dropChanceType) == MobDropChances.end())
-        std::cout << "[WARN] Unknown Drop Chance Type: " << drop.dropChanceType << std::endl;
-    else {
-        chance = MobDropChances[drop.dropChanceType];
-        awardDrop = (rand() % 1000 < chance.dropChance);
-    }
 
+    bool awardDrop = false;
+    MobDropChance *chance = nullptr;
+    // sanity check
+    if (MobDropChances.find(drop.dropChanceType) == MobDropChances.end()) {
+        std::cout << "[WARN] Unknown Drop Chance Type: " << drop.dropChanceType << std::endl;
+        return; // this also prevents holiday crate drops, but oh well
+    } else {
+        chance = &MobDropChances[drop.dropChanceType];
+        awardDrop = (rand() % 1000 < chance->dropChance);
+    }
 
     // no drop
     if (slot == -1 || !awardDrop) {
-
         // no room for an item, but you still get FM and taros
         reward->iItemCnt = 0;
         sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, sizeof(sP_FE2CL_REP_REWARD_ITEM));
     } else {
         // item reward
-        item->sItem = getReward(&drop, &chance);
+        getReward(&item->sItem, &drop, chance);
         item->iSlotNum = slot;
         item->eIL = 1; // Inventory Location. 1 means player inventory.
 
@@ -227,7 +226,6 @@ void MobManager::giveReward(CNSocket *sock, Mob* mob) {
         plr->Inven[slot] = item->sItem;
 
         sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
-
     }
 
     // event crates
@@ -235,10 +233,9 @@ void MobManager::giveReward(CNSocket *sock, Mob* mob) {
         giveEventReward(sock, plr);
 }
 
-sItemBase MobManager::getReward(MobDrop* drop, MobDropChance* chance) {
-    sItemBase reward = {};
-    reward.iType = 9;
-    reward.iOpt = 1;
+void MobManager::getReward(sItemBase *reward, MobDrop* drop, MobDropChance* chance) {
+    reward->iType = 9;
+    reward->iOpt = 1;
 
     int total = 0;
     for (int ratio : chance->cratesRatio)
@@ -249,29 +246,26 @@ sItemBase MobManager::getReward(MobDrop* drop, MobDropChance* chance) {
     int i = 0;
     int sum = 0;
     do {
-        reward.iID = drop->crateIDs[i];        
+        reward->iID = drop->crateIDs[i];
         sum += chance->cratesRatio[i];
         i++;
     }
     while (sum<=randomNum);
-    return reward;
 }
 
 void MobManager::giveEventReward(CNSocket* sock, Player* player) {
-
     // random drop chance
     if (rand() % 100 > settings::EVENTCRATECHANCE)
         return;
-    // no slot = no award
+    // no slot = no reward
     int slot = ItemManager::findFreeSlot(player);
     if (slot == -1)
         return;
 
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
-    // we know it's only one trailing struct, so we can skip full validation
 
-    uint8_t respbuf[resplen]; // not a variable length array, don't worry
+    uint8_t respbuf[resplen];
     sP_FE2CL_REP_REWARD_ITEM* reward = (sP_FE2CL_REP_REWARD_ITEM*)respbuf;
     sItemReward* item = (sItemReward*)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
 
@@ -289,20 +283,20 @@ void MobManager::giveEventReward(CNSocket* sock, Player* player) {
 
     // which crate to drop
     int crateId;
-    switch (settings::EVENTMODE) 
+    switch (settings::EVENTMODE)
     {
         // knishmas
-        case 1: crateId = 1187; break; 
+        case 1: crateId = 1187; break;
         // halloween
         case 2: crateId = 1181; break;
         // spring
         case 3: crateId = 1126; break;
         // what
-        default: 
+        default:
             std::cout << "[WARN] Unknown event Id " << settings::EVENTMODE << std::endl;
             return;
     }
- 
+
     item->sItem.iType = 9;
     item->sItem.iID = crateId;
     item->sItem.iOpt = 1;
@@ -315,33 +309,33 @@ void MobManager::giveEventReward(CNSocket* sock, Player* player) {
 }
 
 int MobManager::hitMob(CNSocket *sock, Mob *mob, int damage) {
-        // cannot kill mobs multiple times; cannot harm retreating mobs
-        if (mob->state != MobState::ROAMING && mob->state != MobState::COMBAT) {
-            return 0; // no damage
-        }
+    // cannot kill mobs multiple times; cannot harm retreating mobs
+    if (mob->state != MobState::ROAMING && mob->state != MobState::COMBAT) {
+        return 0; // no damage
+    }
 
-        if (mob->state == MobState::ROAMING) {
-            assert(mob->target == nullptr);
-            mob->target = sock;
-            mob->state = MobState::COMBAT;
-            mob->nextMovement = getTime();
-            mob->nextAttack = 0;
+    if (mob->state == MobState::ROAMING) {
+        assert(mob->target == nullptr);
+        mob->target = sock;
+        mob->state = MobState::COMBAT;
+        mob->nextMovement = getTime();
+        mob->nextAttack = 0;
 
-            mob->roamX = mob->appearanceData.iX;
-            mob->roamY = mob->appearanceData.iY;
-            mob->roamZ = mob->appearanceData.iZ;
-        }
+        mob->roamX = mob->appearanceData.iX;
+        mob->roamY = mob->appearanceData.iY;
+        mob->roamZ = mob->appearanceData.iZ;
+    }
 
-        mob->appearanceData.iHP -= damage;
+    mob->appearanceData.iHP -= damage;
 
-        // wake up sleeping monster
-        // TODO: remove client-side bit somehow
-        mob->appearanceData.iConditionBitFlag &= ~CSB_BIT_MEZ;
+    // wake up sleeping monster
+    // TODO: remove client-side bit somehow
+    mob->appearanceData.iConditionBitFlag &= ~CSB_BIT_MEZ;
 
-        if (mob->appearanceData.iHP <= 0)
-            killMob(mob->target, mob);
+    if (mob->appearanceData.iHP <= 0)
+        killMob(mob->target, mob);
 
-        return damage;
+    return damage;
 }
 
 void MobManager::killMob(CNSocket *sock, Mob *mob) {
@@ -349,14 +343,14 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
     mob->target = nullptr;
     mob->appearanceData.iConditionBitFlag = 0;
     mob->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
-    
+
     // check for the edge case where hitting the mob did not aggro it
     if (sock != nullptr) {
         Player* plr = PlayerManager::getPlayer(sock);
-        
+
         if (plr == nullptr)
             return;
-        
+
         if (plr->groupCnt == 1 && plr->iIDGroup == plr->iID) { 
             giveReward(sock, mob);
             MissionManager::mobKilled(sock, mob->appearanceData.iNPCType);

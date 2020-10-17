@@ -43,7 +43,7 @@ struct Mob : public BaseNPC {
     time_t nextAttack = 0;
     int roamX, roamY, roamZ;
 
-    //drop
+    // drop
     int dropType;
 
     // temporary; until we're sure what's what
@@ -129,7 +129,7 @@ namespace MobManager {
     int hitMob(CNSocket *sock, Mob *mob, int damage);
     void killMob(CNSocket *sock, Mob *mob);
     void giveReward(CNSocket *sock, Mob *mob);
-    sItemBase getReward(MobDrop *drop, MobDropChance *chance);
+    void getReward(sItemBase *reward, MobDrop *drop, MobDropChance *chance);
     void giveEventReward(CNSocket* sock, Player* player);
 
     std::pair<int,int> lerp(int, int, int, int, int);

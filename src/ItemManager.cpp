@@ -16,14 +16,11 @@ std::map<int32_t, Crate> ItemManager::Crates;
 /// pair Itemset, Rarity -> vector of pointers (map iterators) to records in ItemData
 std::map<std::pair<int32_t, int32_t>, std::vector<std::map<std::pair<int32_t, int32_t>, Item>::iterator>> ItemManager::CrateItems;
 
-// buffer for error messages
-char buffer[255];
-
 void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_DELETE, itemDeleteHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GIVE_ITEM, itemGMGiveHandler);
-    //this one is for gumballs
+    // this one is for gumballs
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_USE, itemUseHandler);
     // Bank
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_BANK_OPEN, itemBankOpenHandler);
@@ -809,11 +806,15 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_REQ_ITEM_CHEST_OPEN *chest = (sP_CL2FE_REQ_ITEM_CHEST_OPEN *)data->buf;
-    Player *player = PlayerManager::getPlayer(sock);
+    Player *plr = PlayerManager::getPlayer(sock);
 
-    if (player == nullptr)
+    // chest opening acknowledgement packet
+    INITSTRUCT(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, resp);
+    resp.iSlotNum = chest->iSlotNum;
+
+    if (plr == nullptr)
         return;
-    
+
     // item giving packet
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
@@ -827,75 +828,82 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     memset(respbuf, 0, resplen);
 
     // maintain stats
-    reward->m_iCandy = player->money;
-    reward->m_iFusionMatter = player->fusionmatter;
+    reward->m_iCandy = plr->money;
+    reward->m_iFusionMatter = plr->fusionmatter;
     reward->iFatigue = 100; // prevents warning message
     reward->iFatigue_Level = 1;
     reward->iItemCnt = 1; // remember to update resplen if you change this
 
-    // item reward  
-    if (chest->ChestItem.iType != 9)
-        std::cout << "[WARN] Player tried to open a crate with incorrect iType ?!" << std::endl;
-    else 
-        item->sItem = openCrate(chest->ChestItem.iID, player->PCStyle.iGender);
-
     item->iSlotNum = chest->iSlotNum;
     item->eIL = chest->eIL;
 
+    // item reward
+    if (chest->ChestItem.iType != 9) {
+        std::cout << "[WARN] Player tried to open a crate with incorrect iType ?!" << std::endl;
+        return;
+    }
+
+    int itemSetId = -1, rarity = -1, ret = -1;
+    bool failing = false;
+
+    // find the crate
+    if (Crates.find(chest->ChestItem.iID) == Crates.end()) {
+        std::cout << "[WARN] Crate " << chest->ChestItem.iID << " not found!" << std::endl;
+        failing = true;
+    }
+    Crate& crate = Crates[chest->ChestItem.iID];
+
+    if (!failing)
+        itemSetId = getItemSetId(crate, chest->ChestItem.iID);
+    if (itemSetId == -1)
+        failing = true;
+
+    if (!failing)
+        rarity = getRarity(crate, itemSetId);
+    if (rarity == -1)
+        failing = true;
+
+    if (!failing)
+        ret = getCrateItem(item->sItem, itemSetId, rarity, plr->PCStyle.iGender);
+    if (ret == -1)
+        failing = true;
+
+    // if we failed to open a crate, at least give the player a gumball (suggested by Jade)
+    if (failing) {
+        item->sItem.iType = 7;
+        item->sItem.iID = 119 + (rand() % 3);
+        item->sItem.iOpt = 1;
+    }
+
     // update player
-    player->Inven[chest->iSlotNum] = item->sItem;
+    plr->Inven[chest->iSlotNum] = item->sItem;
 
     // transmit item
     sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
 
-    // chest opening acknowledgement packet
-    INITSTRUCT(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, resp);
-
-    resp.iSlotNum = chest->iSlotNum;
-
+    // transmit chest opening acknowledgement packet
     std::cout << "opening chest..." << std::endl;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, sizeof(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC));
 }
 
-sItemBase ItemManager::openCrate(int crateId, int playerGender) {
-    sItemBase reward = {};   
-    try {
-        Crate crate = getCrate(crateId);
-        int itemSetId = getItemSetId(crate, crateId);
-        int rarity = getRarity(crate, itemSetId);           
-        reward = getCrateItem(itemSetId, rarity, playerGender);
-    }
-    catch (const std::exception& err) {
-        std::cerr << "[WARN] An error has occured while trying to open a crate. Error description: \n" << err.what() << std::endl;
-        // if we failed to open a crate, at least give the player a gumball (suggested by Jade)
-        reward.iType = 7;
-        reward.iID = 119 + (rand() % 3);
-        reward.iOpt = 1;
-    }
-
-    return reward;
-}
-
-Crate ItemManager::getCrate(int crateId) {
-    if (Crates.find(crateId) == Crates.end())
-        throwError(sprintf(buffer, "Crate %d was not found!", crateId));
-    return Crates[crateId];
-}
-
-int ItemManager::getItemSetId(Crate crate, int crateId) {
+int ItemManager::getItemSetId(Crate& crate, int crateId) {
     int itemSetsCount = crate.itemSets.size();
-    if (itemSetsCount == 0)
-        throwError(sprintf(buffer, "Crate %d has no item sets assigned?!", crateId));
+    if (itemSetsCount == 0) {
+        std::cout << "[WARN] Crate " << crateId << " has no item sets assigned?!" << std::endl;
+        return -1;
+    }
 
     // if crate points to multiple itemSets, choose a random one
     int itemSetIndex = rand() % itemSetsCount;
     return crate.itemSets[itemSetIndex];
 }
 
-int ItemManager::getRarity(Crate crate , int itemSetId) {
+int ItemManager::getRarity(Crate& crate, int itemSetId) {
     // find rarity ratio
-    if (RarityRatios.find(crate.rarityRatioId) == RarityRatios.end())
-        throwError(sprintf(buffer, "Rarity Ratio %d not found!", crate.rarityRatioId));
+    if (RarityRatios.find(crate.rarityRatioId) == RarityRatios.end()) {
+        std::cout << "[WARN] Rarity Ratio " << crate.rarityRatioId << " not found!" << std::endl;
+        return -1;
+    }
 
     std::vector<int> rarityRatio = RarityRatios[crate.rarityRatioId];
 
@@ -905,7 +913,7 @@ int ItemManager::getRarity(Crate crate , int itemSetId) {
      * it is simpler to do here than to fix individually in the file
      */
 
-    // remember that rarities start from 1 !
+    // remember that rarities start from 1!
     for (int i = 0; i < rarityRatio.size(); i++){
         if (CrateItems.find(std::make_pair(itemSetId, i+1)) == CrateItems.end())
             rarityRatio[i] = 0;
@@ -915,9 +923,10 @@ int ItemManager::getRarity(Crate crate , int itemSetId) {
     for (int value : rarityRatio)
         total += value;
 
-    // if we didn't find any items, throw exception
-    if (total == 0)
-        throwError(sprintf(buffer, "Item Set %d has no items assigned?!", itemSetId));
+    if (total == 0) {
+        std::cout << "Item Set " << itemSetId << " has no items assigned?!" << std::endl;
+        return -1;
+    }
 
     // now return a random rarity number
     int randomNum = rand() % total;
@@ -925,17 +934,19 @@ int ItemManager::getRarity(Crate crate , int itemSetId) {
     int sum = 0;
     do {
         sum += rarityRatio[rarity];
-        rarity++;        
+        rarity++;
     } while (sum <= randomNum);
-    
+
     return rarity;
 }
 
-sItemBase ItemManager::getCrateItem(int itemSetId, int rarity, int playerGender) {
+int ItemManager::getCrateItem(sItemBase& result, int itemSetId, int rarity, int playerGender) {
     std::pair key = std::make_pair(itemSetId, rarity);
 
-    if (CrateItems.find(key) == CrateItems.end())
-        throwError(sprintf(buffer, "Item Set ID %d Rarity %d items have not been found", itemSetId, rarity));
+    if (CrateItems.find(key) == CrateItems.end()) {
+        std::cout << "[WARN] Item Set ID " << itemSetId << " Rarity " << rarity << " items have not been found" << std::endl;
+        return -1;
+    }
 
     // only take into account items that have correct gender
     std::vector<std::map<std::pair<int32_t, int32_t>, Item>::iterator> items;
@@ -948,20 +959,19 @@ sItemBase ItemManager::getCrateItem(int itemSetId, int rarity, int playerGender)
         items.push_back(crateitem);
     }
 
-    if (items.size() == 0)
-        throwError(sprintf(buffer, "Gender inequality! Set ID %d Rarity %d contains only %s items?!", itemSetId, rarity, playerGender==2 ? "boys" : "girls"));
+    if (items.size() == 0) {
+        std::cout << "[WARN] Gender inequality! Set ID " << itemSetId << " Rarity " << rarity << " contains only "
+                  << (playerGender == 2 ? "boys" : "girls") << " items?!" << std::endl;
+        return -1;
+    }
+
     auto item = items[rand() % items.size()];
-    sItemBase result = {};
+
     result.iID = item->first.first;
     result.iType = item->first.second;
     result.iOpt = 1;
 
-    return result;
-}
-
-// argument is here only so we can call sprintf in brackets
-void ItemManager::throwError(int ignore) {
-    throw buffer;
+    return 0;
 }
 
 // TODO: use this in cleaned up ItemManager
