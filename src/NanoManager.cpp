@@ -407,14 +407,14 @@ bool doDebuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage_N_Debuff *re
 
     Mob* mob = MobManager::Mobs[pktdata[i]];
 
-    int damage = MobManager::hitMob(sock, mob, amount);
+    int damage = MobManager::hitMob(sock, mob, 0); // using amount for something else
 
     respdata[i].eCT = 4;
     respdata[i].iDamage = damage;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
     respdata[i].iHP = mob->appearanceData.iHP;
     respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag |= iCBFlag;
-
+    mob->unbuffTimes[iCBFlag] = getTime() + amount;
     std::cout << (int)mob->appearanceData.iNPC_ID << " was debuffed" << std::endl;
 
     return true;
@@ -428,10 +428,12 @@ bool doBuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Buff *respdata, int i
     }
 
     Mob* mob = MobManager::Mobs[pktdata[i]];
+    MobManager::hitMob(sock, mob, 0);
 
     respdata[i].eCT = 4;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
     respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag |= iCBFlag;
+    mob->unbuffTimes[iCBFlag] = getTime() + amount;
 
     std::cout << (int)mob->appearanceData.iNPC_ID << " was debuffed" << std::endl;
 
@@ -669,15 +671,15 @@ void activePower(CNSocket *sock, CNPacketData *data,
 
 // active nano power dispatch table
 std::vector<ActivePower> ActivePowers = {
-    ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  doDebuff>,         EST_STUN, CSB_BIT_STUN,                 0),
+    ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  doDebuff>,         EST_STUN, CSB_BIT_STUN,              2250),
     ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          doHeal>,           EST_HEAL_HP, CSB_BIT_NONE,             25),
-    ActivePower(GroupHealPowers, activePower<sSkillResult_Heal_HP,     doGroupHeal, GHEAL>,EST_HEAL_HP, CSB_BIT_NONE,            25),
+    ActivePower(GroupHealPowers, activePower<sSkillResult_Heal_HP,     doGroupHeal, GHEAL>,EST_HEAL_HP, CSB_BIT_NONE,            15),
     // TODO: Recall
-    ActivePower(DrainPowers, activePower<sSkillResult_Buff,            doBuff>,           EST_BOUNDINGBALL, CSB_BIT_BOUNDINGBALL, 0),
-    ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SNARE, CSB_BIT_DN_MOVE_SPEED,       0),
+    ActivePower(DrainPowers, activePower<sSkillResult_Buff,            doBuff>,        EST_BOUNDINGBALL, CSB_BIT_BOUNDINGBALL, 3000),
+    ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SNARE, CSB_BIT_DN_MOVE_SPEED,    4500),
     ActivePower(DamagePowers, activePower<sSkillResult_Damage,         doDamage>,         EST_DAMAGE, CSB_BIT_NONE,              12),
     ActivePower(LeechPowers, activePower<sSkillResult_Heal_HP,         doLeech, LEECH>,   EST_BLOODSUCKING, CSB_BIT_NONE,        18),
-    ActivePower(SleepPowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SLEEP, CSB_BIT_MEZ,                 0),
+    ActivePower(SleepPowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SLEEP, CSB_BIT_MEZ,              4500),
 };
 
 }; // namespace

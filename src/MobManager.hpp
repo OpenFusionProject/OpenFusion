@@ -8,6 +8,7 @@
 #include "contrib/JSON.hpp"
 
 #include <map>
+#include <unordered_map>
 #include <queue>
 
 enum class MobState {
@@ -27,6 +28,8 @@ struct Mob : public BaseNPC {
     int spawnZ;
     int level;
 
+    std::unordered_map<int32_t,time_t> unbuffTimes;
+
     // dead
     time_t killedTime = 0;
     time_t regenTime;
@@ -38,11 +41,12 @@ struct Mob : public BaseNPC {
     const int sightRange;
     time_t nextMovement = 0;
     bool staticPath = false;
+    int roamX, roamY, roamZ;
 
     // combat
     CNSocket *target = nullptr;
     time_t nextAttack = 0;
-    int roamX, roamY, roamZ;
+
 
     // drop
     int dropType;
