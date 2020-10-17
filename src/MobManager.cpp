@@ -356,7 +356,15 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     if (distance <= (int)mob->data["m_iAtkRange"]) {
         // attack logic
         if (mob->nextAttack == 0) {
-            mob->nextAttack = currTime + (int)mob->data["m_iInitalTime"] * 100; // I *think* this is what this is
+            INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
+            pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
+            pkt.iSpeed = (int)mob->data["m_iRunSpeed"];
+            pkt.iToX = mob->appearanceData.iX;
+            pkt.iToY = mob->appearanceData.iY;
+            pkt.iToZ = mob->target->plr->z;
+            NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
+
+            mob->nextAttack = currTime + (int)mob->data["m_iInitalTime"] * 100; //I *think* this is what this is
             npcAttackPc(mob, currTime);
         } else if (mob->nextAttack != 0 && currTime >= mob->nextAttack) {
             mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
@@ -366,7 +374,9 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
         // movement logic
         if (mob->nextMovement != 0 && currTime < mob->nextMovement)
             return;
-        mob->nextMovement = currTime + 500;
+        mob->nextMovement = currTime + 399;
+        if (currTime >= mob->nextAttack)
+            mob->nextAttack = 0;
 
         int speed = mob->data["m_iRunSpeed"];
 
@@ -374,7 +384,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
         if (mob->appearanceData.iConditionBitFlag & CSB_BIT_DN_MOVE_SPEED)
             speed /= 2;
 
-        auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, mob->target->plr->x, mob->target->plr->y, speed);
+        auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, mob->target->plr->x, mob->target->plr->y,std::min(distance-(int)mob->data["m_iAtkRange"]+1, speed*2/5));
 
         NPCManager::updateNPCPosition(mob->appearanceData.iNPC_ID, targ.first, targ.second, mob->appearanceData.iZ);
 
@@ -382,9 +392,11 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
 
         pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
         pkt.iSpeed = speed;
-        pkt.iToX = mob->appearanceData.iX = targ.first;
-        pkt.iToY = mob->appearanceData.iY = targ.second;
-        pkt.iToZ = mob->appearanceData.iZ;
+        pkt.iToX = (targ.first - mob->appearanceData.iX) * 5 / 2 + mob->appearanceData.iX;
+        pkt.iToY = (targ.second - mob->appearanceData.iY) * 5 / 2 + mob->appearanceData.iY;
+        mob->appearanceData.iX = targ.first;
+        mob->appearanceData.iY = targ.second;
+        pkt.iToZ = mob->target->plr->z;
 
         // notify all nearby players
         NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
@@ -470,7 +482,7 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
     if (mob->nextMovement != 0 && currTime < mob->nextMovement)
         return;
 
-    mob->nextMovement = currTime + 500;
+    mob->nextMovement = currTime + 399;
 
     int distance = hypot(mob->appearanceData.iX - mob->roamX, mob->appearanceData.iY - mob->roamY);
 
@@ -478,12 +490,16 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
     if (distance > 10) {
         INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
 
-        auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, mob->roamX, mob->roamY, (int)mob->data["m_iRunSpeed"] * 3);
+        auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, mob->roamX, mob->roamY, (int)mob->data["m_iRunSpeed"]*4/5);
 
         pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
-        pkt.iSpeed = (int)mob->data["m_iRunSpeed"] * 3;
-        pkt.iToX = mob->appearanceData.iX = targ.first;
-        pkt.iToY = mob->appearanceData.iY = targ.second;
+        pkt.iSpeed = (int)mob->data["m_iRunSpeed"] * 2;
+        mob->appearanceData.iX = targ.first;
+        mob->appearanceData.iY = targ.second;
+        pkt.iToX = (targ.first - mob->appearanceData.iX) * 5 / 2 + mob->appearanceData.iX;
+        pkt.iToY = (targ.second - mob->appearanceData.iY) * 5 / 2 + mob->appearanceData.iY;
+        mob->appearanceData.iX = targ.first;
+        mob->appearanceData.iY = targ.second;
         pkt.iToZ = mob->appearanceData.iZ;
 
         // notify all nearby players
@@ -554,8 +570,6 @@ void MobManager::step(CNServer *serv, time_t currTime) {
  */
 std::pair<int,int> MobManager::lerp(int x1, int y1, int x2, int y2, int speed) {
     std::pair<int,int> ret = {x1, y1};
-
-    speed /= 2;
 
     if (speed == 0)
         return ret;

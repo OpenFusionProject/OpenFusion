@@ -249,6 +249,7 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
         PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
         plrv.currentChunks.clear();
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
+        updatePlayerPosition(sock, X, Y, Z);
     }
     
 }
@@ -266,6 +267,7 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z) {
     plrv.currentChunks.clear();
     plrv.chunkPos = std::make_tuple(0, 0, plrv.plr->instanceID);
     sock->sendPacket((void*)&pkt, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
+    updatePlayerPosition(sock, X, Y, Z);
 }
 
 void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
