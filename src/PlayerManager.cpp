@@ -233,8 +233,8 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
     plr->instanceID = I;
     if (I != INSTANCE_OVERWORLD) {
         INITSTRUCT(sP_FE2CL_INSTANCE_MAP_INFO, pkt);
-        pkt.iEP_ID = (I >> 32) == 0; // iEP_ID has to be positive for the map to be enabled
-        pkt.iInstanceMapNum = (int32_t)(I & 0xffffffff); // lower 32 bits are mapnum
+        pkt.iEP_ID = PLAYERID(I) == 0; // iEP_ID has to be positive for the map to be enabled
+        pkt.iInstanceMapNum = (int32_t)MAPNUM(I); // lower 32 bits are mapnum
         sock->sendPacket((void*)&pkt, P_FE2CL_INSTANCE_MAP_INFO, sizeof(sP_FE2CL_INSTANCE_MAP_INFO));
         sendPlayerTo(sock, X, Y, Z);
     } else {
@@ -939,7 +939,7 @@ WarpLocation PlayerManager::getRespawnPoint(Player *plr) {
 
     for (auto targ : NPCManager::RespawnPoints) {
         curDist = sqrt(pow(plr->x - targ.x, 2) + pow(plr->y - targ.y, 2));
-        if (curDist < bestDist && targ.instanceID == (plr->instanceID & 0xffffffff)) { // only mapNum needs to match
+        if (curDist < bestDist && targ.instanceID == MAPNUM(plr->instanceID)) { // only mapNum needs to match
             best = targ;
             bestDist = curDist;
         }
