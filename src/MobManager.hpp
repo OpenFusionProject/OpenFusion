@@ -115,7 +115,7 @@ namespace MobManager {
     std::pair<int,int> getDamage(int, int, bool, bool, int, int, int);
 
     void pcAttackChars(CNSocket *sock, CNPacketData *data);
-    void resendMobHP(Mob *mob);
+    void drainMobHP(Mob *mob, int amount);
     void incNextMovement(Mob *mob, time_t currTime=0);
     bool aggroCheck(Mob *mob, time_t currTime);
 }
