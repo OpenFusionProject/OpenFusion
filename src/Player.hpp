@@ -50,6 +50,7 @@ struct Player {
 
     bool inCombat;
     bool passiveNanoOut;
+    int healCooldown;
 
     int pointDamage;
     int groupDamage;
