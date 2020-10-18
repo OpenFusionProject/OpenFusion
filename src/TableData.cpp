@@ -50,7 +50,8 @@ void TableData::init() {
         }
     }
     catch (const std::exception& err) {
-        std::cerr << "[WARN] Malformed NPCs.json file! Reason:" << err.what() << std::endl;
+        std::cerr << "[FATAL] Malformed NPCs.json file! Reason:" << err.what() << std::endl;
+        terminate(0);
     }
 
     // load everything else from xdttable
@@ -176,7 +177,8 @@ void TableData::init() {
         std::cout << "[INFO] Loaded " << NanoManager::NanoTable.size() << " nanos" << std::endl;
     }
     catch (const std::exception& err) {
-        std::cerr << "[WARN] Malformed xdt.json file! Reason:" << err.what() << std::endl;
+        std::cerr << "[FATAL] Malformed xdt.json file! Reason:" << err.what() << std::endl;
+        terminate(0);
     }
 
     // load temporary mob dump
@@ -203,7 +205,8 @@ void TableData::init() {
         std::cout << "[INFO] Populated " << NPCManager::NPCs.size() << " NPCs" << std::endl;
     }
     catch (const std::exception& err) {
-        std::cerr << "[WARN] Malformed mobs.json file! Reason:" << err.what() << std::endl;
+        std::cerr << "[FATAL] Malformed mobs.json file! Reason:" << err.what() << std::endl;
+        terminate(0);
     }
 
     loadDrops();
@@ -300,7 +303,8 @@ void TableData::loadPaths(int* nextId) {
         std::cout << "[INFO] Loaded " << TransportManager::NPCQueues.size() << " NPC paths" << std::endl;
     }
     catch (const std::exception& err) {
-        std::cerr << "[WARN] Malformed paths.json file! Reason:" << err.what() << std::endl;
+        std::cerr << "[FATAL] Malformed paths.json file! Reason:" << err.what() << std::endl;
+        terminate(0);
     }
 }
 
@@ -413,7 +417,8 @@ void TableData::loadDrops() {
 
     }
     catch (const std::exception& err) {
-        std::cerr << "[WARN] Malformed drops.json file! Reason:" << err.what() << std::endl;
+        std::cerr << "[FATAL] Malformed drops.json file! Reason:" << err.what() << std::endl;
+        terminate(0);
     }
 }
 
@@ -563,7 +568,8 @@ void TableData::loadGruntwork(int32_t *nextId) {
         std::cout << "[INFO] Loaded gruntwork.json" << std::endl;
     }
     catch (const std::exception& err) {
-        std::cerr << "[WARN] Malformed gruntwork.json file! Reason:" << err.what() << std::endl;
+        std::cerr << "[FATAL] Malformed gruntwork.json file! Reason:" << err.what() << std::endl;
+        terminate(0);
     }
 }
 
@@ -623,7 +629,7 @@ void TableData::flush() {
         mob["iX"] = m->spawnX;
         mob["iY"] = m->spawnY;
         mob["iZ"] = m->spawnZ;
-        mob["iMapNum"] = m->instanceID;
+        mob["iMapNum"] = m->instanceID & 0xffffffff;
         // this is a bit imperfect, since this is a live angle, not a spawn angle so it'll change often, but eh
         mob["iAngle"] = m->appearanceData.iAngle;
 

@@ -8,6 +8,7 @@
 #include "TransportManager.hpp"
 
 #include <cmath>
+#include <limits.h>
 #include <assert.h>
 
 std::map<int32_t, Mob*> MobManager::Mobs;
@@ -501,7 +502,8 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     }
 
     // retreat if the player leaves combat range
-    distance = hypot(plr->x - mob->roamX, plr->y - mob->roamY);
+    int xyDistance = hypot(plr->x - mob->roamX, plr->y - mob->roamY);
+    distance = hypot(xyDistance, plr->z - mob->roamZ);
     if (distance >= mob->data["m_iCombatRange"]) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
@@ -1034,6 +1036,9 @@ void MobManager::resendMobHP(Mob *mob) {
  * as the mob, since it might be near a chunk boundary.
  */
 bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
+    CNSocket *closest = nullptr;
+    int closestDistance = INT_MAX;
+
     for (Chunk *chunk : mob->currentChunks) {
         for (CNSocket *s : chunk->players) {
             Player *plr = s->plr;
@@ -1053,21 +1058,27 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
             int xyDistance = hypot(mob->appearanceData.iX - plr->x, mob->appearanceData.iY - plr->y);
             int distance = hypot(xyDistance, mob->appearanceData.iZ - plr->z);
 
-            if (distance > mobRange)
+            if (distance > mobRange || distance > closestDistance)
                 continue;
 
-            // found player. engage.
-            mob->target = s;
-            mob->state = MobState::COMBAT;
-            mob->nextMovement = currTime;
-            mob->nextAttack = 0;
-
-            mob->roamX = mob->appearanceData.iX;
-            mob->roamY = mob->appearanceData.iY;
-            mob->roamZ = mob->appearanceData.iZ;
-
-            return true;
+            // found a player
+            closest = s;
+            closestDistance = distance;
         }
+    }
+
+    if (closest != nullptr) {
+        // found closest player. engage.
+        mob->target = closest;
+        mob->state = MobState::COMBAT;
+        mob->nextMovement = currTime;
+        mob->nextAttack = 0;
+
+        mob->roamX = mob->appearanceData.iX;
+        mob->roamY = mob->appearanceData.iY;
+        mob->roamZ = mob->appearanceData.iZ;
+
+        return true;
     }
 
     return false;

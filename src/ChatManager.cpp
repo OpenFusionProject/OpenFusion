@@ -203,7 +203,7 @@ void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
 
 void summonWCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     if (args.size() < 2) {
-        ChatManager::sendServerMessage(sock, "/level: no mob type specified");
+        ChatManager::sendServerMessage(sock, "/summonW: no mob type specified");
         return;
     }
     Player* plr = PlayerManager::getPlayer(sock);
@@ -225,7 +225,7 @@ void summonWCommand(std::string full, std::vector<std::string>& args, CNSocket* 
 
     BaseNPC *npc = nullptr;
     if (team == 2) {
-        npc = new Mob(plr->x, plr->y, plr->z + 1000, plr->instanceID, type, NPCManager::NPCData[type], NPCManager::nextId++);
+        npc = new Mob(plr->x, plr->y, plr->z + 200, plr->instanceID, type, NPCManager::NPCData[type], NPCManager::nextId++);
         npc->appearanceData.iAngle = (plr->angle + 180) % 360;
 
         NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
@@ -240,9 +240,22 @@ void summonWCommand(std::string full, std::vector<std::string>& args, CNSocket* 
 
     NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z);
 
+    // if we're in a lair, we need to spawn the mob in both the private instance and the template
+    if ((plr->instanceID >> 32) != 0) {
+        npc = new Mob(plr->x, plr->y, plr->z + 200, plr->instanceID & 0xffffffff, type, NPCManager::NPCData[type], NPCManager::nextId++);
+        npc->appearanceData.iAngle = (plr->angle + 180) % 360;
+
+        NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
+        MobManager::Mobs[npc->appearanceData.iNPC_ID] = (Mob*)npc;
+
+        ((Mob*)npc)->summoned = false;
+
+        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z);
+    }
+
     ChatManager::sendServerMessage(sock, "/summonW: placed mob with type: " + std::to_string(type) +
         ", id: " + std::to_string(npc->appearanceData.iNPC_ID));
-    TableData::RunningMobs[npc->appearanceData.iNPC_ID] = npc;
+    TableData::RunningMobs[npc->appearanceData.iNPC_ID] = npc; // only record the one in the template
 }
 
 void unsummonWCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
