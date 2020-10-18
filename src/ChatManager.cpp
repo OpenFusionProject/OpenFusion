@@ -6,6 +6,7 @@
 #include "TableData.hpp"
 #include "NPCManager.hpp"
 #include "MobManager.hpp"
+#include "MissionManager.hpp"
 
 #include <sstream>
 #include <iterator>
@@ -389,6 +390,41 @@ void npcInstanceCommand(std::string full, std::vector<std::string>& args, CNSock
     NPCManager::updateNPCInstance(npc->appearanceData.iNPC_ID, instance);
 }
 
+void minfoCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player* plr = PlayerManager::getPlayer(sock);
+    ChatManager::sendServerMessage(sock, "[MINFO] Current mission ID: " + std::to_string(plr->CurrentMissionID));
+
+    for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+        if (plr->tasks[i] != 0) {
+            TaskData& task = *MissionManager::Tasks[plr->tasks[i]];
+            if ((int)(task["m_iHMissionID"]) == plr->CurrentMissionID) {
+                ChatManager::sendServerMessage(sock, "[MINFO] Current task ID: " + std::to_string(plr->tasks[i]));
+                ChatManager::sendServerMessage(sock, "[MINFO] Current task type: " + std::to_string((int)(task["m_iHTaskType"])));
+                ChatManager::sendServerMessage(sock, "[MINFO] Current waypoint NPC ID: " + std::to_string((int)(task["m_iSTGrantWayPoint"])));
+
+                for (int j = 0; j < 3; j++)
+                    if ((int)(task["m_iCSUEnemyID"][j]) != 0)
+                        ChatManager::sendServerMessage(sock, "[MINFO] Current task mob #" + std::to_string(j+1) +": " + std::to_string((int)(task["m_iCSUEnemyID"][j])));
+
+                return;
+            }
+        }
+    }
+}
+
+void tasksCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+        if (plr->tasks[i] != 0) {
+            TaskData& task = *MissionManager::Tasks[plr->tasks[i]];
+            ChatManager::sendServerMessage(sock, "[TASK-" + std::to_string(i) + "] mission ID: " + std::to_string((int)(task["m_iHMissionID"])));
+            ChatManager::sendServerMessage(sock, "[TASK-" + std::to_string(i) + "] task ID: " + std::to_string(plr->tasks[i]));
+        }
+    }
+}
+
 void flushCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     TableData::flush();
     ChatManager::sendServerMessage(sock, "Wrote gruntwork to " + settings::GRUNTWORKJSON);
@@ -413,6 +449,8 @@ void ChatManager::init() {
     registerCommand("level", 50, levelCommand);
     registerCommand("population", 100, populationCommand);
     registerCommand("refresh", 100, refreshCommand);
+    registerCommand("minfo", 30, minfoCommand, "show details of the current mission and task.");
+    registerCommand("tasks", 30, tasksCommand, "list all active missions and their respective task ids.");
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {
