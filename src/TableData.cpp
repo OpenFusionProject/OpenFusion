@@ -629,7 +629,7 @@ void TableData::flush() {
         mob["iX"] = m->spawnX;
         mob["iY"] = m->spawnY;
         mob["iZ"] = m->spawnZ;
-        mob["iMapNum"] = m->instanceID & 0xffffffff;
+        mob["iMapNum"] = MAPNUM(m->instanceID);
         // this is a bit imperfect, since this is a live angle, not a spawn angle so it'll change often, but eh
         mob["iAngle"] = m->appearanceData.iAngle;
 

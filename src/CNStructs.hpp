@@ -28,6 +28,10 @@
 #define INITSTRUCT(T, x) T x; \
     memset(&x, 0, sizeof(T));
 
+// macros to extract fields from instanceIDs
+#define MAPNUM(x) ((x) & 0xffffffff)
+#define PLAYERID(x) ((x) >> 32)
+
 // TODO: rewrite U16toU8 & U8toU16 to not use codecvt
 
 std::string U16toU8(char16_t* src);

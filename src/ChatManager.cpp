@@ -44,20 +44,12 @@ bool runCmd(std::string full, CNSocket* sock) {
 }
 
 void helpCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
-    ChatManager::sendServerMessage(sock, "Commands available to you");
+    ChatManager::sendServerMessage(sock, "Commands available to you:");
     Player *plr = PlayerManager::getPlayer(sock);
 
     for (auto& cmd : ChatManager::commands) {
         if (cmd.second.requiredAccLevel >= plr->accountId)
             ChatManager::sendServerMessage(sock, "/" + cmd.first + (cmd.second.help.length() > 0 ? " - " + cmd.second.help : ""));
-    }
-}
-
-void testCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
-    ChatManager::sendServerMessage(sock, "Test command is working! Here are your passed args:");
-
-    for (std::string arg : args) {
-        ChatManager::sendServerMessage(sock, arg);
     }
 }
 
@@ -242,8 +234,8 @@ void summonWCommand(std::string full, std::vector<std::string>& args, CNSocket* 
     NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z);
 
     // if we're in a lair, we need to spawn the mob in both the private instance and the template
-    if ((plr->instanceID >> 32) != 0) {
-        npc = new Mob(plr->x, plr->y, plr->z + 200, plr->instanceID & 0xffffffff, type, NPCManager::NPCData[type], NPCManager::nextId++);
+    if (PLAYERID(plr->instanceID) != 0) {
+        npc = new Mob(plr->x, plr->y, plr->z + 200, MAPNUM(plr->instanceID), type, NPCManager::NPCData[type], NPCManager::nextId++);
         npc->appearanceData.iAngle = (plr->angle + 180) % 360;
 
         NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
@@ -343,7 +335,7 @@ void instanceCommand(std::string full, std::vector<std::string>& args, CNSocket*
     // no additional arguments: report current instance ID
     if (args.size() < 2) {
         ChatManager::sendServerMessage(sock, "[INST] Current instance ID: " + std::to_string(plr->instanceID));
-        ChatManager::sendServerMessage(sock, "[INST] (Map " + std::to_string(plr->instanceID & 0xffffffff) + ", instance " + std::to_string(plr->instanceID >> 32) + ")");
+        ChatManager::sendServerMessage(sock, "[INST] (Map " + std::to_string(MAPNUM(plr->instanceID)) + ", instance " + std::to_string(PLAYERID(plr->instanceID)) + ")");
         return;
     }
 
@@ -435,20 +427,19 @@ void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_MENUCHAT_MESSAGE, menuChatHandler);
 
-    registerCommand("help", 100, helpCommand, "lists all unlocked commands");
-    registerCommand("test", 1, testCommand);
-    registerCommand("access", 100, accessCommand);
-    registerCommand("instance", 30, instanceCommand);
-    registerCommand("mss", 30, mssCommand);
-    registerCommand("npcr", 30, npcRotateCommand);
-    registerCommand("npci", 30, npcInstanceCommand);
-    registerCommand("summonW", 30, summonWCommand);
-    registerCommand("unsummonW", 30, unsummonWCommand);
-    registerCommand("toggleai", 30, toggleAiCommand);
-    registerCommand("flush", 30, flushCommand);
-    registerCommand("level", 50, levelCommand);
-    registerCommand("population", 100, populationCommand);
-    registerCommand("refresh", 100, refreshCommand);
+    registerCommand("help", 100, helpCommand, "list all unlocked server-side commands");
+    registerCommand("access", 100, accessCommand, "print your access level");
+    registerCommand("instance", 30, instanceCommand, "print or change your current instance");
+    registerCommand("mss", 30, mssCommand, "edit Monkey Skyway routes");
+    registerCommand("npcr", 30, npcRotateCommand, "rotate NPCs");
+    registerCommand("npci", 30, npcInstanceCommand, "move NPCs across instances");
+    registerCommand("summonW", 30, summonWCommand, "permanently summon NPCs");
+    registerCommand("unsummonW", 30, unsummonWCommand, "delete permanently summoned NPCs");
+    registerCommand("toggleai", 30, toggleAiCommand, "enable/disable mob AI");
+    registerCommand("flush", 30, flushCommand, "save gruntwork to file");
+    registerCommand("level", 50, levelCommand, "change your character's level");
+    registerCommand("population", 100, populationCommand, "check how many players are online");
+    registerCommand("refresh", 100, refreshCommand, "teleport yourself to your current location");
     registerCommand("minfo", 30, minfoCommand, "show details of the current mission and task.");
     registerCommand("tasks", 30, tasksCommand, "list all active missions and their respective task ids.");
 }

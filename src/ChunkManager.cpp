@@ -202,7 +202,7 @@ bool ChunkManager::inPopulatedChunks(int posX, int posY, uint64_t instanceID) {
 
 void ChunkManager::createInstance(uint64_t instanceID) {
 
-    std::vector<std::tuple<int, int, uint64_t>> templateChunks = ChunkManager::getChunksInMap(instanceID & 0xffffffff); // base instance chunks
+    std::vector<std::tuple<int, int, uint64_t>> templateChunks = ChunkManager::getChunksInMap(MAPNUM(instanceID)); // base instance chunks
     if (ChunkManager::getChunksInMap(instanceID).size() == 0) { // only instantiate if the instance doesn't exist already
         std::cout << "Creating instance " << instanceID << std::endl;
         for (std::tuple<int, int, uint64_t> &coords : templateChunks) {
