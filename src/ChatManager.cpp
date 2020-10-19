@@ -216,32 +216,40 @@ void summonWCommand(std::string full, std::vector<std::string>& args, CNSocket* 
 
     assert(NPCManager::nextId < INT32_MAX);
 
+#define EXTRA_HEIGHT 200
     BaseNPC *npc = nullptr;
+    int id = NPCManager::nextId++;
     if (team == 2) {
-        npc = new Mob(plr->x, plr->y, plr->z + 200, plr->instanceID, type, NPCManager::NPCData[type], NPCManager::nextId++);
-        npc->appearanceData.iAngle = (plr->angle + 180) % 360;
-
-        NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
+        npc = new Mob(plr->x, plr->y, plr->z + EXTRA_HEIGHT, plr->instanceID, type, NPCManager::NPCData[type], id);
         MobManager::Mobs[npc->appearanceData.iNPC_ID] = (Mob*)npc;
 
         // re-enable respawning
         ((Mob*)npc)->summoned = false;
     } else {
-        ChatManager::sendServerMessage(sock, "Error: /summonW only supports Mobs at this time.");
-        return;
+        npc = new BaseNPC(plr->x, plr->y, plr->z + EXTRA_HEIGHT, 0, plr->instanceID, type, id);
     }
+
+    npc->appearanceData.iAngle = (plr->angle + 180) % 360;
+    NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
 
     NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z);
 
-    // if we're in a lair, we need to spawn the mob in both the private instance and the template
+    // if we're in a lair, we need to spawn the NPC in both the private instance and the template
     if (PLAYERID(plr->instanceID) != 0) {
-        npc = new Mob(plr->x, plr->y, plr->z + 200, MAPNUM(plr->instanceID), type, NPCManager::NPCData[type], NPCManager::nextId++);
+        id = NPCManager::nextId++;
+
+        if (team == 2) {
+            npc = new Mob(plr->x, plr->y, plr->z + EXTRA_HEIGHT, MAPNUM(plr->instanceID), type, NPCManager::NPCData[type], id);
+
+            MobManager::Mobs[npc->appearanceData.iNPC_ID] = (Mob*)npc;
+
+            ((Mob*)npc)->summoned = false;
+        } else {
+            npc = new BaseNPC(plr->x, plr->y, plr->z + EXTRA_HEIGHT, 0, MAPNUM(plr->instanceID), type, id);
+        }
+
         npc->appearanceData.iAngle = (plr->angle + 180) % 360;
-
         NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
-        MobManager::Mobs[npc->appearanceData.iNPC_ID] = (Mob*)npc;
-
-        ((Mob*)npc)->summoned = false;
 
         NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z);
     }
@@ -313,14 +321,24 @@ void npcRotateCommand(std::string full, std::vector<std::string>& args, CNSocket
 
     int angle = (plr->angle + 180) % 360;
     NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ, angle);
-    TableData::RunningNPCRotations[npc->appearanceData.iNPC_ID] = angle;
-    
+
+    // if it's a gruntwork NPC, rotate in-place
+    if (TableData::RunningMobs.find(npc->appearanceData.iNPC_ID) != TableData::RunningMobs.end()) {
+        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ, angle);
+
+        ChatManager::sendServerMessage(sock, "[NPCR] Successfully set angle to " + std::to_string(angle) + " for gruntwork NPC "
+            + std::to_string(npc->appearanceData.iNPC_ID));
+    } else {
+        TableData::RunningNPCRotations[npc->appearanceData.iNPC_ID] = angle;
+
+        ChatManager::sendServerMessage(sock, "[NPCR] Successfully set angle to " + std::to_string(angle) + " for NPC "
+            + std::to_string(npc->appearanceData.iNPC_ID));
+    }
+
     // update rotation clientside
     INITSTRUCT(sP_FE2CL_NPC_ENTER, pkt);
     pkt.NPCAppearanceData = npc->appearanceData;
     sock->sendPacket((void*)&pkt, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
-
-    ChatManager::sendServerMessage(sock, "[NPCR] Successfully set angle to " + std::to_string(angle) + " for NPC " + std::to_string(npc->appearanceData.iNPC_ID));
 }
 
 void refreshCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {

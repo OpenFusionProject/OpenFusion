@@ -551,18 +551,25 @@ void TableData::loadGruntwork(int32_t *nextId) {
         auto mobs = gruntwork["mobs"];
         for (auto _mob = mobs.begin(); _mob != mobs.end(); _mob++) {
             auto mob = _mob.value();
-
+            BaseNPC *npc;
+            int id = (*nextId)++;
             uint64_t instanceID = mob.find("iMapNum") == mob.end() ? INSTANCE_OVERWORLD : (int)mob["iMapNum"];
-            Mob *npc = new Mob(mob["iX"], mob["iY"], mob["iZ"], instanceID, mob["iNPCType"],
-                NPCManager::NPCData[(int)mob["iNPCType"]], (*nextId)++);
+
+            if (NPCManager::NPCData[(int)mob["iNPCType"]]["m_iTeam"] == 2) {
+                npc = new Mob(mob["iX"], mob["iY"], mob["iZ"], instanceID, mob["iNPCType"],
+                    NPCManager::NPCData[(int)mob["iNPCType"]], id);
+
+                // re-enable respawning
+                ((Mob*)npc)->summoned = false;
+
+                MobManager::Mobs[npc->appearanceData.iNPC_ID] = (Mob*)npc;
+            } else {
+                npc = new BaseNPC(mob["iX"], mob["iY"], mob["iZ"], mob["iAngle"], instanceID, mob["iNPCType"], id);
+            }
 
             NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
-            MobManager::Mobs[npc->appearanceData.iNPC_ID] = npc;
             TableData::RunningMobs[npc->appearanceData.iNPC_ID] = npc;
             NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, mob["iX"], mob["iY"], mob["iZ"]);
-
-            // re-enable respawning
-            npc->summoned = false;
         }
 
         std::cout << "[INFO] Loaded gruntwork.json" << std::endl;
@@ -618,21 +625,36 @@ void TableData::flush() {
 
     for (auto& pair : RunningMobs) {
         nlohmann::json mob;
-        Mob *m = (Mob*)pair.second; // we need spawnX, etc
+        BaseNPC *npc = pair.second;
 
         if (NPCManager::NPCs.find(pair.first) == NPCManager::NPCs.end())
             continue;
 
-        // NOTE: this format deviates slightly from the one in mobs.json
-        mob["iNPCType"] = (int)m->appearanceData.iNPCType;
-        mob["iHP"] = (int)m->maxHealth;
-        mob["iX"] = m->spawnX;
-        mob["iY"] = m->spawnY;
-        mob["iZ"] = m->spawnZ;
-        mob["iMapNum"] = MAPNUM(m->instanceID);
-        // this is a bit imperfect, since this is a live angle, not a spawn angle so it'll change often, but eh
-        mob["iAngle"] = m->appearanceData.iAngle;
+        int x, y, z, hp;
+        if (npc->npcClass == NPC_MOB) {
+            Mob *m = (Mob*)npc;
+            x = m->spawnX;
+            y = m->spawnY;
+            z = m->spawnZ;
+            hp = m->maxHealth;
+        } else {
+            x = npc->appearanceData.iX;
+            y = npc->appearanceData.iY;
+            z = npc->appearanceData.iZ;
+            hp = npc->appearanceData.iHP;
+        }
 
+        // NOTE: this format deviates slightly from the one in mobs.json
+        mob["iNPCType"] = (int)npc->appearanceData.iNPCType;
+        mob["iHP"] = hp;
+        mob["iX"] = x;
+        mob["iY"] = y;
+        mob["iZ"] = z;
+        mob["iMapNum"] = MAPNUM(npc->instanceID);
+        // this is a bit imperfect, since this is a live angle, not a spawn angle so it'll change often, but eh
+        mob["iAngle"] = npc->appearanceData.iAngle;
+
+        // it's called mobs, but really it's everything
         gruntwork["mobs"].push_back(mob);
     }
 
