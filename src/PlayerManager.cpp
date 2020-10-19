@@ -64,15 +64,13 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
 
 void PlayerManager::removePlayer(CNSocket* key) {
     PlayerView& view = players[key];
+    uint64_t fromInstance = view.plr->instanceID;
 
     //MissionManager::failInstancedMissions(key); moved to enter
     GroupManager::groupKickPlayer(view.plr);
 
     // save player to DB
     Database::updatePlayer(view.plr);
-
-    INITSTRUCT(sP_FE2CL_PC_EXIT, exitPacket);
-    exitPacket.iID = players[key].plr->iID;
 
     // remove players from all chunks
     removePlayerFromChunks(view.currentChunks, key);
@@ -86,6 +84,9 @@ void PlayerManager::removePlayer(CNSocket* key) {
     key->plr = nullptr;
     delete view.plr;
     players.erase(key);
+
+    // if the player was in a lair, clean it up
+    ChunkManager::destroyInstanceIfEmpty(fromInstance);
 
     std::cout << players.size() << " players" << std::endl;
 }
@@ -230,6 +231,9 @@ void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y, uint64_t ins
 void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I) {
     PlayerView& plrv = PlayerManager::players[sock];
     Player* plr = plrv.plr;
+
+    uint64_t fromInstance = plr->instanceID;
+
     plr->instanceID = I;
     if (I != INSTANCE_OVERWORLD) {
         INITSTRUCT(sP_FE2CL_INSTANCE_MAP_INFO, pkt);
@@ -250,7 +254,8 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
         plrv.currentChunks.clear();
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
     }
-    
+
+    ChunkManager::destroyInstanceIfEmpty(fromInstance);
 }
 
 void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z) {

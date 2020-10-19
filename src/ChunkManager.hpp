@@ -40,4 +40,5 @@ namespace ChunkManager {
 
     void createInstance(uint64_t);
     void destroyInstance(uint64_t);
+    void destroyInstanceIfEmpty(uint64_t);
 }

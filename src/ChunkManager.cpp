@@ -236,3 +236,19 @@ void ChunkManager::destroyInstance(uint64_t instanceID) {
         destroyChunk(coords);
     }
 }
+
+void ChunkManager::destroyInstanceIfEmpty(uint64_t instanceID) {
+    if (PLAYERID(instanceID) == 0)
+        return; // don't clean up overworld/IZ chunks
+
+    std::vector<std::tuple<int, int, uint64_t>> sourceChunkCoords = getChunksInMap(instanceID);
+
+    for (std::tuple<int, int, uint64_t>& coords : sourceChunkCoords) {
+        Chunk* chunk = chunks[coords];
+
+        if (chunk->players.size() > 0)
+            return; // there are still players inside
+    }
+
+    destroyInstance(instanceID);
+}

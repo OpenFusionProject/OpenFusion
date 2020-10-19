@@ -628,16 +628,7 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
     }
 
     // post-warp: check if the source instance has no more players in it and delete it if so
-    if (PLAYERID(fromInstance) == 0)
-        return; // don't clean up overworld/IZ chunks
-
-    std::vector<std::tuple<int, int, uint64_t>> sourceChunkCoords = ChunkManager::getChunksInMap(fromInstance);
-    for (std::tuple<int, int, uint64_t>& coords : sourceChunkCoords) {
-        Chunk* chunk = ChunkManager::chunks[coords];
-        if (chunk->players.size() > 0)
-            return; // there are still players inside
-    }
-    ChunkManager::destroyInstance(fromInstance);
+    ChunkManager::destroyInstanceIfEmpty(fromInstance);
 }
 
 /*
