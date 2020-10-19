@@ -13,7 +13,7 @@ std::map<int32_t, std::vector<VendorListing>> ItemManager::VendorTables;
 std::map<int32_t, CrocPotEntry> ItemManager::CrocPotTable;
 std::map<int32_t, std::vector<int>> ItemManager::RarityRatios;
 std::map<int32_t, Crate> ItemManager::Crates;
-/// pair Itemset, Rarity -> vector of pointers (map iterators) to records in ItemData
+// pair Itemset, Rarity -> vector of pointers (map iterators) to records in ItemData
 std::map<std::pair<int32_t, int32_t>, std::vector<std::map<std::pair<int32_t, int32_t>, Item>::iterator>> ItemManager::CrateItems;
 
 void ItemManager::init() {
@@ -143,8 +143,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         if (itemmove->eFrom == (int)SlotType::EQUIP) {
             equipChange.iEquipSlotNum = itemmove->iFromSlotNum;
             equipChange.EquipSlotItem = resp.ToSlotItem;
-        }
-        else {
+        } else {
             equipChange.iEquipSlotNum = itemmove->iToSlotNum;
             equipChange.EquipSlotItem = resp.FromSlotItem;
         }
@@ -237,11 +236,11 @@ void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {
     if (player == nullptr)
         return;
 
-    //gumball can only be used from inventory, so we ignore eIL
+    // gumball can only be used from inventory, so we ignore eIL
     sItemBase gumball = player->Inven[request->iSlotNum];
     sNano nano = player->Nanos[player->equippedNanos[request->iNanoSlot]];
 
-    //sanity check, check if gumball exists
+    // sanity check, check if gumball exists
     if (!(gumball.iOpt > 0 && gumball.iType == 7 && gumball.iID>=119 && gumball.iID<=121)) {
         std::cout << "[WARN] Gumball not found" << std::endl;
         INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_FAIL, response);
@@ -249,7 +248,7 @@ void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    //sanity check, check if gumball type matches nano style
+    // sanity check, check if gumball type matches nano style
     int nanoStyle = NanoManager::nanoStyle(nano.iID);
     if (!((gumball.iID == 119 && nanoStyle == 0) ||
         (  gumball.iID == 120 && nanoStyle == 1) ||
@@ -274,11 +273,11 @@ void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {
    // response.iSkillID = ?
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_ITEM_USE_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_USE_SUCC));
-    //update inventory serverside
+    // update inventory serverside
     player->Inven[response.iSlotNum] = response.RemainItem;
 
-    //this is a temporary way of calling buff efect
-    //TODO: send buff data via response packet
+    // this is a temporary way of calling buff efect
+    // TODO: send buff data via response packet
     int value1 = CSB_BIT_STIMPAKSLOT1 << request->iNanoSlot;
     int value2 = ECSB_STIMPAKSLOT1 + request->iNanoSlot;
 
@@ -950,8 +949,7 @@ int ItemManager::getCrateItem(sItemBase& result, int itemSetId, int rarity, int 
 
     // only take into account items that have correct gender
     std::vector<std::map<std::pair<int32_t, int32_t>, Item>::iterator> items;
-    for (auto crateitem : CrateItems[key])
-    {
+    for (auto crateitem : CrateItems[key]) {
         int gender = crateitem->second.gender;
         // if gender is incorrect, exclude item
         if (gender != 0 && gender != playerGender)

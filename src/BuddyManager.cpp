@@ -22,7 +22,7 @@ void BuddyManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_BUDDY_WARP, reqBuddyWarp);
 }
 
-//Buddy request
+// Buddy request
 void BuddyManager::requestBuddy(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_REQUEST_MAKE_BUDDY))
         return; // malformed packet
@@ -51,12 +51,12 @@ void BuddyManager::requestBuddy(CNSocket* sock, CNPacketData* data) {
     resp.iBuddyID = plr.plr->iID;
     resp.iBuddyPCUID = plr.plr->PCStyle.iPC_UID;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_REQUEST_MAKE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_REQUEST_MAKE_BUDDY_SUCC)); //informs the player that the request was sent
-    requestedBuddy(otherSock, plrReq, plr); //The other player will see the request
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_REQUEST_MAKE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_REQUEST_MAKE_BUDDY_SUCC)); // informs the player that the request was sent
+    requestedBuddy(otherSock, plrReq, plr); // The other player will see the request
 
 }
 
-//Sending buddy request by player name
+// Sending buddy request by player name
 void BuddyManager::reqBuddyByName(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_FIND_NAME_MAKE_BUDDY)) {
         return; // malformed packet
@@ -72,13 +72,13 @@ void BuddyManager::reqBuddyByName(CNSocket* sock, CNPacketData* data) {
 
     CNSocket* otherSock = sock;
 
-    int sizeOfRes = sizeof(pkt->szFirstName) / 9; //Maximum size of a player's first name
-    int sizeOfLNRes = sizeof(pkt->szLastName) / 17; //Maximum size of a player's last name
+    int sizeOfRes = sizeof(pkt->szFirstName) / 9; // Maximum size of a player's first name
+    int sizeOfLNRes = sizeof(pkt->szLastName) / 17; // Maximum size of a player's last name
 
     for (auto pair : PlayerManager::players) {
         int sizeOfReq = sizeof(pair.second.plr->PCStyle.szFirstName) / 9;
         int sizeOfLNReq = sizeof(pair.second.plr->PCStyle.szLastName) / 17;
-        if (BuddyManager::firstNameCheck(pair.second.plr->PCStyle.szFirstName, pkt->szFirstName, sizeOfReq, sizeOfRes) == true && BuddyManager::lastNameCheck(pair.second.plr->PCStyle.szLastName, pkt->szLastName, sizeOfLNReq, sizeOfLNRes) == true) { //This long line of gorgeous parameters is to check if the player's name matches :eyes:
+        if (BuddyManager::firstNameCheck(pair.second.plr->PCStyle.szFirstName, pkt->szFirstName, sizeOfReq, sizeOfRes) == true && BuddyManager::lastNameCheck(pair.second.plr->PCStyle.szLastName, pkt->szLastName, sizeOfLNReq, sizeOfLNRes) == true) { // This long line of gorgeous parameters is to check if the player's name matches :eyes:
             otherSock = pair.first;
             break;
         }
@@ -93,7 +93,7 @@ void BuddyManager::reqBuddyByName(CNSocket* sock, CNPacketData* data) {
 
 }
 
-//Accepting buddy request
+// Accepting buddy request
 void BuddyManager::reqAcceptBuddy(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_ACCEPT_MAKE_BUDDY))
         return; // malformed packet
@@ -118,7 +118,7 @@ void BuddyManager::reqAcceptBuddy(CNSocket* sock, CNPacketData* data) {
     PlayerView& plr = PlayerManager::players[otherSock];
 
     if (pkt->iAcceptFlag == 1) {
-        //resp.iBuddySlot = 0; //hard-coding this for now
+        //resp.iBuddySlot = 0; // hard-coding this for now
         resp.BuddyInfo.iID = pkt->iBuddyID;
         resp.BuddyInfo.iPCUID = pkt->iBuddyPCUID;
         resp.BuddyInfo.iNameCheckFlag = plr.plr->PCStyle.iNameCheck;
@@ -131,7 +131,7 @@ void BuddyManager::reqAcceptBuddy(CNSocket* sock, CNPacketData* data) {
         memcpy(resp.BuddyInfo.szLastName, plr.plr->PCStyle.szLastName, sizeof(plr.plr->PCStyle.szLastName));
 
         sock->sendPacket((void*)&resp, P_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC));
-        buddyList(sock, resp.BuddyInfo); //saves buddy data to player's buddylist
+        buddyList(sock, resp.BuddyInfo); // saves buddy data to player's buddylist
         if (plr.plr->PCStyle.iPC_UID == pkt->iBuddyPCUID) {
             resp.BuddyInfo.iID = plrReq->iID;
             resp.BuddyInfo.iPCUID = plrReq->PCStyle.iPC_UID;
@@ -143,21 +143,20 @@ void BuddyManager::reqAcceptBuddy(CNSocket* sock, CNPacketData* data) {
             memcpy(resp.BuddyInfo.szFirstName, plrReq->PCStyle.szFirstName, sizeof(plrReq->PCStyle.szFirstName));
             memcpy(resp.BuddyInfo.szLastName, plrReq->PCStyle.szLastName, sizeof(plrReq->PCStyle.szLastName));
             otherSock->sendPacket((void*)&resp, P_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC));
-            buddyList(otherSock, resp.BuddyInfo); //saves requester's data to this player's buddylist
+            buddyList(otherSock, resp.BuddyInfo); // saves requester's data to this player's buddylist
         }
-    }
-    else {
+    } else {
         INITSTRUCT(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_FAIL, declineResp);
 
-        declineResp.iErrorCode = 6; //Buddy declined notification
+        declineResp.iErrorCode = 6; // Buddy declined notification
         declineResp.iBuddyID = pkt->iBuddyID;
         declineResp.iBuddyPCUID = pkt->iBuddyPCUID;
 
-        otherSock->sendPacket((void*)&declineResp, P_FE2CL_REP_ACCEPT_MAKE_BUDDY_FAIL, sizeof(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_FAIL)); //tells the requester that the player declined
+        otherSock->sendPacket((void*)&declineResp, P_FE2CL_REP_ACCEPT_MAKE_BUDDY_FAIL, sizeof(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_FAIL)); // tells the requester that the player declined
     }
 }
 
-//Accepting buddy request from the find name request
+// Accepting buddy request from the find name request
 void BuddyManager::reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_FIND_NAME_ACCEPT_BUDDY)) {
         return; // malformed packet
@@ -188,7 +187,7 @@ void BuddyManager::reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
     PlayerView& plr = PlayerManager::players[otherSock];
 
     if (pkt->iAcceptFlag == 1) {
-        //resp.iBuddySlot = 0; //hard-coding this for now
+        //resp.iBuddySlot = 0; // hard-coding this for now
         //resp.BuddyInfo.iID = plrReq->iID;
         resp.BuddyInfo.iPCUID = pkt->iBuddyPCUID;
         resp.BuddyInfo.iNameCheckFlag = plr.plr->PCStyle.iNameCheck;
@@ -218,11 +217,10 @@ void BuddyManager::reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
             otherSock->sendPacket((void*)&resp, P_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC));
             buddyList(otherSock, resp.BuddyInfo);
         }
-    }
-    else {
+    } else {
         INITSTRUCT(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_FAIL, declineResp);
 
-        declineResp.iErrorCode = 6; //Buddy declined notification
+        declineResp.iErrorCode = 6; // Buddy declined notification
         declineResp.iBuddyID = plr.plr->iID;
         declineResp.iBuddyPCUID = pkt->iBuddyPCUID;
 
@@ -231,7 +229,7 @@ void BuddyManager::reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
 
 }
 
-//Buddy freechatting
+// Buddy freechatting
 void BuddyManager::reqBuddyFreechat(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE))
         return; // malformed packet
@@ -250,19 +248,19 @@ void BuddyManager::reqBuddyFreechat(CNSocket* sock, CNPacketData* data) {
     resp.iToPCUID = pkt->iBuddyPCUID;
     resp.iEmoteCode = pkt->iEmoteCode;
     memcpy(resp.szFreeChat, pkt->szFreeChat, sizeof(pkt->szFreeChat));
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC)); //shows the player that they sent the message to their buddy
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC)); // shows the player that they sent the message to their buddy
 
     for (auto pair : PlayerManager::players) {
         if (pair.second.plr->PCStyle.iPC_UID != plr->PCStyle.iPC_UID) {
             otherSock = pair.first;
-            otherSock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC)); //sends the message to the buddy.
+            otherSock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC)); // sends the message to the buddy.
         }
     }
 
 
 }
 
-//Buddy menuchat
+// Buddy menuchat
 void BuddyManager::reqBuddyMenuchat(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE))
         return; // malformed packet
@@ -281,29 +279,29 @@ void BuddyManager::reqBuddyMenuchat(CNSocket* sock, CNPacketData* data) {
     resp.iToPCUID = pkt->iBuddyPCUID;
     resp.iEmoteCode = pkt->iEmoteCode;
     memcpy(resp.szFreeChat, pkt->szFreeChat, sizeof(pkt->szFreeChat));
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC)); //shows the player that they sent the message to their buddy
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC)); // shows the player that they sent the message to their buddy
 
     for (auto pair : PlayerManager::players) {
         if (pair.second.plr->PCStyle.iPC_UID != plr->PCStyle.iPC_UID) {
             otherSock = pair.first;
-            otherSock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC)); //sends the message to the buddy.
+            otherSock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC)); // sends the message to the buddy.
         }
     }
 }
 
-//Getting buddy state
+// Getting buddy state
 void BuddyManager::reqPktGetBuddyState(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_GET_BUDDY_STATE_SUCC, resp);
     INITSTRUCT(sBuddyBaseInfo, buddyInfo);
 
     for (int BuddySlot = 0; BuddySlot < 50; BuddySlot++) {
-        resp.aBuddyState[BuddySlot] = 1; //this sets every buddy to online. Will get the pcstate right directly from the DB.
+        resp.aBuddyState[BuddySlot] = 1; // this sets every buddy to online. Will get the pcstate right directly from the DB.
         resp.aBuddyID[BuddySlot] = buddyInfo.iID;
         sock->sendPacket((void*)&resp, P_FE2CL_REP_GET_BUDDY_STATE_SUCC, sizeof(sP_FE2CL_REP_GET_BUDDY_STATE_SUCC));
     }
 }
 
-//Blocking the buddy
+// Blocking the buddy
 void BuddyManager::reqBuddyBlock(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SET_BUDDY_BLOCK))
         return; // malformed packet
@@ -319,10 +317,10 @@ void BuddyManager::reqBuddyBlock(CNSocket* sock, CNPacketData* data) {
 
 }
 
-//Deleting the buddy
+// Deleting the buddy
 void BuddyManager::reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_REMOVE_BUDDY))
-        return; //malformed packet
+        return; // malformed packet
 
     sP_CL2FE_REQ_REMOVE_BUDDY* pkt = (sP_CL2FE_REQ_REMOVE_BUDDY*)data->buf;
 
@@ -334,8 +332,8 @@ void BuddyManager::reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_REMOVE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_REMOVE_BUDDY_SUCC));
 }
 
-//Warping to buddy
-void BuddyManager::reqBuddyWarp(CNSocket* sock, CNPacketData* data) {} //stub
+// Warping to buddy
+void BuddyManager::reqBuddyWarp(CNSocket* sock, CNPacketData* data) {} // stub
 
 #pragma region Helper methods
 
@@ -348,11 +346,11 @@ void BuddyManager::requestedBuddy(CNSocket* sock, Player* plrReq, PlayerView& pl
     memcpy(resp.szFirstName, plrReq->PCStyle.szFirstName, sizeof(plrReq->PCStyle.szFirstName));
     memcpy(resp.szLastName, plrReq->PCStyle.szLastName, sizeof(plrReq->PCStyle.szLastName));
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_REQUEST_MAKE_BUDDY_SUCC_TO_ACCEPTER, sizeof(sP_FE2CL_REP_REQUEST_MAKE_BUDDY_SUCC_TO_ACCEPTER)); //player get the buddy request.
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_REQUEST_MAKE_BUDDY_SUCC_TO_ACCEPTER, sizeof(sP_FE2CL_REP_REQUEST_MAKE_BUDDY_SUCC_TO_ACCEPTER)); // player get the buddy request.
 
 }
 
-//Buddy list load
+// Buddy list load
 void BuddyManager::buddyList(CNSocket* sock, sBuddyBaseInfo BuddyInfo) {
 
     size_t resplen = sizeof(sP_FE2CL_REP_PC_BUDDYLIST_INFO_SUCC) + sizeof(sBuddyBaseInfo);
@@ -378,14 +376,14 @@ void BuddyManager::buddyList(CNSocket* sock, sBuddyBaseInfo BuddyInfo) {
         memcpy(respdata->szLastName, BuddyInfo.szLastName, sizeof(BuddyInfo.szLastName));
     }
 
-    sock->sendPacket((void*)respbuf, P_FE2CL_REP_PC_BUDDYLIST_INFO_SUCC, resplen); //updates/loads player's buddy list
+    sock->sendPacket((void*)respbuf, P_FE2CL_REP_PC_BUDDYLIST_INFO_SUCC, resplen); // updates/loads player's buddy list
 
 }
 
-//If the requested player accepts the buddy request, the requester's buddylist will get loaded up.
+// If the requested player accepts the buddy request, the requester's buddylist will get loaded up.
 void BuddyManager::otherAcceptBuddy(CNSocket* sock, int32_t BuddyID, int64_t BuddyPCUID, sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC resp, Player* plr) {
 
-    //resp.iBuddySlot = 0; //hard-coding this for now
+    // resp.iBuddySlot = 0; //hard-coding this for now
     resp.BuddyInfo.iID = BuddyID;
     resp.BuddyInfo.iPCUID = BuddyPCUID;
     resp.BuddyInfo.iNameCheckFlag = plr->PCStyle.iNameCheck;
@@ -401,7 +399,7 @@ void BuddyManager::otherAcceptBuddy(CNSocket* sock, int32_t BuddyID, int64_t Bud
     buddyList(sock, resp.BuddyInfo);
 }
 
-//Check if the requested name matches the requested player's name
+// Check if the requested name matches the requested player's name
 bool BuddyManager::firstNameCheck(char16_t reqFirstName[], char16_t resFirstName[], int sizeOfReq, int sizeOfRes) {
     // If lengths of array are not equal means
     // array are not equal

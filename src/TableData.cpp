@@ -165,7 +165,7 @@ void TableData::init() {
 
         std::cout << "[INFO] Loaded " << ItemManager::CrocPotTable.size() << " croc pot value sets" << std::endl;
 
-        //load nano info
+        // load nano info
         nlohmann::json nanoInfo = xdtData["m_pNanoTable"]["m_pNanoData"];
         for (nlohmann::json::iterator _nano = nanoInfo.begin(); _nano != nanoInfo.end(); _nano++) {
             auto nano = _nano.value();
@@ -223,8 +223,7 @@ void TableData::init() {
  */
 int TableData::getItemType(int itemSet) {
     int overriden;
-    switch (itemSet)
-    {
+    switch (itemSet) {
     case 11: // Chest items don't have iEquipLoc and are type 9.
         overriden = 9;
         break;
@@ -343,13 +342,11 @@ void TableData::loadDrops() {
 
             toAdd.dropChanceType = (int)drop["DropChance"];
             // Check if DropChance exists
-            if (MobManager::MobDropChances.find(toAdd.dropChanceType) == MobManager::MobDropChances.end())
-            {
+            if (MobManager::MobDropChances.find(toAdd.dropChanceType) == MobManager::MobDropChances.end()) {
                 throw TableException(" MobDropChance not found: " + std::to_string((toAdd.dropChanceType)));
             }
             // Check if number of crates is correct
-            if (!(MobManager::MobDropChances[(int)drop["DropChance"]].cratesRatio.size() == toAdd.crateIDs.size()))
-            {
+            if (!(MobManager::MobDropChances[(int)drop["DropChance"]].cratesRatio.size() == toAdd.crateIDs.size())) {
                 throw TableException(" DropType " + std::to_string((int)drop["DropType"]) + " contains invalid number of crates");
             }
 
@@ -392,8 +389,7 @@ void TableData::loadDrops() {
             std::pair<int32_t, int32_t> itemSetkey = std::make_pair((int)item["ItemSet"], (int)item["Rarity"]);
             std::pair<int32_t, int32_t> itemDataKey = std::make_pair((int)item["Id"], (int)item["Type"]);
 
-            if (ItemManager::ItemData.find(itemDataKey) == ItemManager::ItemData.end())
-            {
+            if (ItemManager::ItemData.find(itemDataKey) == ItemManager::ItemData.end()) {
                 char buff[255];
                 sprintf(buff, "Unknown item with Id %d and Type %d", (int)item["Id"], (int)item["Type"]);
                 throw TableException(std::string(buff));

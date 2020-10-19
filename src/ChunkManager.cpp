@@ -94,7 +94,7 @@ void ChunkManager::destroyChunk(std::tuple<int, int, uint64_t> chunkPos) {
     for (Chunk* otherChunk : grabChunks(chunkPos)) {
         if (otherChunk == chunk)
             continue;
-        
+
         // remove from NPCs
         for (uint32_t id : otherChunk->NPCs) {
             if (std::find(NPCManager::NPCs[id]->currentChunks.begin(), NPCManager::NPCs[id]->currentChunks.end(), chunk) != NPCManager::NPCs[id]->currentChunks.end()) {
@@ -223,8 +223,7 @@ void ChunkManager::createInstance(uint64_t instanceID) {
                 NPCManager::updateNPCInstance(newID, instanceID); // make sure the npc state gets updated
             }
         }
-    }
-    else {
+    } else {
         std::cout << "Instance " << instanceID << " already exists" << std::endl;
     }
 }

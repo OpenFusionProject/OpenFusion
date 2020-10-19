@@ -288,8 +288,7 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
     if (plr->Inven[req->iInvenSlotNum].iOpt - req->iItemCnt > 0) { // selling part of a stack
         item->iOpt -= req->iItemCnt;
         original.iOpt = req->iItemCnt;
-    }
-    else { // selling entire slot
+    } else { // selling entire slot
         item->iID = 0;
         item->iOpt = 0;
         item->iType = 0;
@@ -378,7 +377,7 @@ void NPCManager::npcVendorTable(CNSocket* sock, CNPacketData* data) {
         vItem.item = base;
         vItem.iSortNum = listings[i].sort;
         vItem.iVendorID = req->iVendorID;
-        //vItem.fBuyCost = listings[i].price; this value is not actually the one that is used
+        //vItem.fBuyCost = listings[i].price; // this value is not actually the one that is used
 
         resp.item[i] = vItem;
     }
@@ -461,8 +460,7 @@ void NPCManager::npcCombineItems(CNSocket* sock, CNPacketData* data) {
     Item* itemLooksDat = ItemManager::getItemData(itemLooks->iID, itemLooks->iType);
 
     if (itemStatsDat == nullptr || itemLooksDat == nullptr
-        || ItemManager::CrocPotTable.find(abs(itemStatsDat->level - itemLooksDat->level)) == ItemManager::CrocPotTable.end()) // sanity check 2
-    {
+        || ItemManager::CrocPotTable.find(abs(itemStatsDat->level - itemLooksDat->level)) == ItemManager::CrocPotTable.end()) { // sanity check 2
         INITSTRUCT(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, failResp);
         failResp.iCostumeItemSlot = req->iCostumeItemSlot;
         failResp.iStatItemSlot = req->iStatItemSlot;
@@ -477,8 +475,7 @@ void NPCManager::npcCombineItems(CNSocket* sock, CNPacketData* data) {
     float successChance = recipe->base / 100.0f; // base success chance
 
     // rarity gap multiplier
-    switch(abs(itemStatsDat->rarity - itemLooksDat->rarity))
-    {
+    switch(abs(itemStatsDat->rarity - itemLooksDat->rarity)) {
     case 0:
         successChance *= recipe->rd0;
         break;
@@ -514,8 +511,7 @@ void NPCManager::npcCombineItems(CNSocket* sock, CNPacketData* data) {
         itemStats->iOpt = 0;
         itemStats->iTimeLimit = 0;
         itemStats->iType = 0;
-    }
-    else {
+    } else {
         // failure; don't do anything?
         resp.iSuccessFlag = 0;
     }
@@ -591,7 +587,7 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
         return;
 
     MissionManager::failInstancedMissions(sock); // fail any missions that require the player's current instance
-    
+
     uint64_t fromInstance = plrv.plr->instanceID; // saved for post-warp
 
     if (plrv.plr->instanceID == 0) {
@@ -603,19 +599,16 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
     }
 
     // std::cerr << "Warped to Map Num:" << Warps[warpId].instanceID << " NPC ID " << Warps[warpId].npcID << std::endl;
-    if (Warps[warpId].isInstance)
-    {
+    if (Warps[warpId].isInstance) {
         uint64_t instanceID = Warps[warpId].instanceID;
         if (Warps[warpId].limitTaskID != 0) { // if warp requires you to be on a mission, it's gotta be a unique instance
             instanceID += ((uint64_t)plrv.plr->iIDGroup << 32); // upper 32 bits are leader ID
             ChunkManager::createInstance(instanceID);
         }
-        
+
         PlayerManager::sendPlayerTo(sock, Warps[warpId].x, Warps[warpId].y, Warps[warpId].z, instanceID);
-    }
-    else
-    {
-        INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC, resp); //Can only be used for exiting instances because it sets the instance flag to false
+    } else {
+        INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC, resp); // Can only be used for exiting instances because it sets the instance flag to false
         resp.iX = Warps[warpId].x;
         resp.iY = Warps[warpId].y;
         resp.iZ = Warps[warpId].z;

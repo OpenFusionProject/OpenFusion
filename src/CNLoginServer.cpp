@@ -57,27 +57,23 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
                         loginSessions[sock].slot = 1;
                         loginSessions[sock].lastHeartbeat = getTime();
                         success = true;
-                }
+
                 // if user exists, check if password is correct
-                else if (CNLoginServer::isPasswordCorrect(findUser->Password, userPassword)) {
+                } else if (CNLoginServer::isPasswordCorrect(findUser->Password, userPassword)) {
                     /*calling this here to timestamp login attempt,
                      * in order to make duplicate exit sanity check work*/
                     Database::updateSelected(findUser->AccountID, findUser->Selected);
                     // check if account isn't currently in use
                     if (CNLoginServer::isAccountInUse(findUser->AccountID)) {
                         errorCode = (int)LoginError::ID_ALREADY_IN_USE;
-                    }
-                    // if not, login success
-                    else
-                    {
+                    } else { // if not, login success
                         loginSessions[sock] = CNLoginData();
                         loginSessions[sock].userID = findUser->AccountID;
                         loginSessions[sock].slot = findUser->Selected;
                         loginSessions[sock].lastHeartbeat = getTime();
                         success = true;
                     }
-                }
-                else {
+                } else {
                     errorCode = (int)LoginError::ID_AND_PASSWORD_DO_NOT_MATCH;
                 }
             }
@@ -369,11 +365,12 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             if (settings::VERBOSITY)
                 std::cerr << "OpenFusion: LOGIN UNIMPLM ERR. PacketType: " << Defines::p2str(CL2LS, data->type) << " (" << data->type << ")" << std::endl;
             break;
-        /* Unimplemented CL2LS packets:
-            P_CL2LS_CHECK_NAME_LIST - unused by the client
-            P_CL2LS_REQ_SERVER_SELECT
-            P_CL2LS_REQ_SHARD_LIST_INFO - dev commands, useless as we only run 1 server
-        */
+        /*
+         * Unimplemented CL2LS packets:
+         *  P_CL2LS_CHECK_NAME_LIST - unused by the client
+         *  P_CL2LS_REQ_SERVER_SELECT
+         *  P_CL2LS_REQ_SHARD_LIST_INFO - dev commands, useless as we only run 1 server
+         */
     }
 }
 

@@ -105,7 +105,7 @@ void GroupManager::joinGroup(CNSocket* sock, CNPacketData* data) {
         std::cout << "[WARN] bad sP_FE2CL_PC_GROUP_JOIN packet size\n";
         return;
     }
-    
+
     int bitFlagBefore = getGroupFlags(otherPlr);
 
     plr->iIDGroup = otherPlr->iID;
@@ -122,7 +122,7 @@ void GroupManager::joinGroup(CNSocket* sock, CNPacketData* data) {
 
     resp->iID_NewMember = plr->iID;
     resp->iMemberPCCnt = otherPlr->groupCnt;
-    
+
     int bitFlag = getGroupFlags(otherPlr);
 
     for (int i = 0; i < otherPlr->groupCnt; i++) {
@@ -147,10 +147,10 @@ void GroupManager::joinGroup(CNSocket* sock, CNPacketData* data) {
         respdata[i].iY = varPlr->y;
         respdata[i].iZ = varPlr->z;
         // client doesnt read nano data here
-        
+
         NanoManager::nanoChangeBuff(sockTo, varPlr, bitFlagBefore | varPlr->iConditionBitFlag, bitFlag | varPlr->iConditionBitFlag);
     }
-    
+
     sendToGroup(otherPlr, (void*)&respbuf, P_FE2CL_PC_GROUP_JOIN, resplen);
 }
 
@@ -236,10 +236,10 @@ void GroupManager::groupTickInfo(Player* plr) {
 
     for (int i = 0; i < plr->groupCnt; i++) {
         Player* varPlr = PlayerManager::getPlayerFromID(plr->groupIDs[i]);
-        
+
         if (varPlr == nullptr)
             continue;
-        
+
         respdata[i].iPC_ID = varPlr->iID;
         respdata[i].iPCUID = varPlr->PCStyle.iPC_UID;
         respdata[i].iNameCheck = varPlr->PCStyle.iNameCheck;
@@ -263,7 +263,7 @@ void GroupManager::groupTickInfo(Player* plr) {
     sendToGroup(plr, (void*)&respbuf, P_FE2CL_PC_GROUP_MEMBER_INFO, resplen);
 }
 
-void GroupManager::groupKickPlayer(Player* plr) {    
+void GroupManager::groupKickPlayer(Player* plr) {
     // if you are the group leader, destroy your own group and kick everybody
     if (plr->iID == plr->iIDGroup) {
         groupUnbuff(plr);
@@ -282,7 +282,7 @@ void GroupManager::groupKickPlayer(Player* plr) {
         std::cout << "[WARN] bad sP_FE2CL_PC_GROUP_LEAVE packet size\n";
         return;
     }
-    
+
     size_t resplen = sizeof(sP_FE2CL_PC_GROUP_LEAVE) + (otherPlr->groupCnt - 1) * sizeof(sPCGroupMemberInfo);
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
 
@@ -317,8 +317,8 @@ void GroupManager::groupKickPlayer(Player* plr) {
         respdata[i-moveDown].iLv = varPlr->level;
         respdata[i-moveDown].iHP = varPlr->HP;
         respdata[i-moveDown].iMaxHP = PC_MAXHEALTH(varPlr->level);
-        //respdata[i-moveDown]].iMapType = 0;
-        //respdata[i-moveDown]].iMapNum = 0;
+        // respdata[i-moveDown]].iMapType = 0;
+        // respdata[i-moveDown]].iMapNum = 0;
         respdata[i-moveDown].iX = varPlr->x;
         respdata[i-moveDown].iY = varPlr->y;
         respdata[i-moveDown].iZ = varPlr->z;
@@ -334,9 +334,9 @@ void GroupManager::groupKickPlayer(Player* plr) {
 
     plr->iIDGroup = plr->iID;
     otherPlr->groupCnt -= 1;
-    
+
     sendToGroup(otherPlr, (void*)&respbuf, P_FE2CL_PC_GROUP_LEAVE, resplen);
-    
+
     CNSocket* sock = PlayerManager::getSockFromID(plr->iID);
 
     if (sock == nullptr)
@@ -348,13 +348,13 @@ void GroupManager::groupKickPlayer(Player* plr) {
 
 void GroupManager::groupUnbuff(Player* plr) {
     int bitFlag = getGroupFlags(plr);
-    
+
     for (int i = 0; i < plr->groupCnt; i++) {
         CNSocket* sock = PlayerManager::getSockFromID(plr->groupIDs[i]);
-        
+
         if (sock == nullptr)
             continue;
-        
+
         Player* otherPlr = PlayerManager::getPlayer(sock);
         NanoManager::nanoChangeBuff(sock, otherPlr, bitFlag | otherPlr->iConditionBitFlag, otherPlr->iConditionBitFlag);
     }
@@ -362,15 +362,15 @@ void GroupManager::groupUnbuff(Player* plr) {
 
 int GroupManager::getGroupFlags(Player* plr) {
     int bitFlag = 0;
-    
+
     for (int i = 0; i < plr->groupCnt; i++) {
         Player* otherPlr = PlayerManager::getPlayerFromID(plr->groupIDs[i]);
-        
+
         if (otherPlr == nullptr)
             continue;
-        
-        bitFlag |= otherPlr->iGroupConditionBitFlag; 
+
+        bitFlag |= otherPlr->iGroupConditionBitFlag;
     }
-    
+
     return bitFlag;
 }

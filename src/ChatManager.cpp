@@ -311,7 +311,7 @@ void toggleAiCommand(std::string full, std::vector<std::string>& args, CNSocket*
 void npcRotateCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     PlayerView& plrv = PlayerManager::players[sock];
     Player* plr = plrv.plr;
-    
+
     BaseNPC* npc = NPCManager::getNearestNPC(plrv.currentChunks, plr->x, plr->y, plr->z);
 
     if (npc == nullptr) {

@@ -100,8 +100,7 @@ auto db = make_storage("database.db",
 
 #pragma region LoginServer
 
-void Database::open()
-{
+void Database::open() {
     // this parameter means it will try to preserve data during migration
     bool preserve = true;
     db.sync_schema(preserve);
@@ -130,8 +129,7 @@ int Database::getPlayersCount() {
     return db.count<DbPlayer>();
 }
 
-int Database::addAccount(std::string login, std::string password)
-{
+int Database::addAccount(std::string login, std::string password) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     password = BCrypt::generateHash(password);
@@ -143,19 +141,17 @@ int Database::addAccount(std::string login, std::string password)
     return db.insert(account);
 }
 
-void Database::updateSelected(int accountId, int slot)
-{
+void Database::updateSelected(int accountId, int slot) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     Account acc = db.get<Account>(accountId);
     acc.Selected = slot;
-    //timestamp
+    // timestamp
     acc.LastLogin = getTimestamp();
     db.update(acc);
 }
 
-std::unique_ptr<Database::Account> Database::findAccount(std::string login)
-{
+std::unique_ptr<Database::Account> Database::findAccount(std::string login) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     // this is awful, I've tried everything to improve it
@@ -167,8 +163,7 @@ std::unique_ptr<Database::Account> Database::findAccount(std::string login)
         std::unique_ptr<Account>(new Account(find.front()));
 }
 
-bool Database::isNameFree(sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck)
-{
+bool Database::isNameFree(sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     std::string First = U16toU8(nameCheck->szFirstName);
@@ -180,8 +175,7 @@ bool Database::isNameFree(sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck)
             .empty());
 }
 
-int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
-{
+int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     // fail if the player already has 4 or more characters
@@ -190,7 +184,7 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
 
     DbPlayer create = {};
 
-    //set timestamp
+    // set timestamp
     create.Created = getTimestamp();
     // save packet data
     create.FirstName = U16toU8(save->szFirstName);
@@ -226,7 +220,7 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     create.y_coordinates = settings::SPAWN_Y;
     create.z_coordinates = settings::SPAWN_Z;
     create.angle = settings::SPAWN_ANGLE;
-    //set mentor to computress
+    // set mentor to computress
     create.Mentor = 5;
 
     // initialize the quest blob to 128 0-bytes
@@ -235,8 +229,7 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID)
     return db.insert(create);
 }
 
-void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character)
-{
+void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     DbPlayer finish = getDbPlayerById(character->PCStyle.iPC_UID);
@@ -277,8 +270,7 @@ void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character)
     db.insert(UB);
 }
 
-void Database::finishTutorial(int PlayerID)
-{
+void Database::finishTutorial(int PlayerID) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     Player finish = getPlayer(PlayerID);
@@ -307,8 +299,7 @@ void Database::finishTutorial(int PlayerID)
     db.update(playerToDb(&finish));
 }
 
-int Database::deleteCharacter(int characterID, int userID)
-{
+int Database::deleteCharacter(int characterID, int userID) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     auto find =
@@ -321,8 +312,7 @@ int Database::deleteCharacter(int characterID, int userID)
     return slot;
 }
 
-std::vector <Player> Database::getCharacters(int UserID)
-{
+std::vector <Player> Database::getCharacters(int UserID) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     std::vector<DbPlayer>characters =
@@ -361,9 +351,8 @@ void Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save) {
     db.update(Player);
 }
 
-Database::DbPlayer Database::playerToDb(Player *player)
-{
-    //TODO: move stuff that is never updated to separate table so it doesn't try to update it every time
+Database::DbPlayer Database::playerToDb(Player *player) {
+    // TODO: move stuff that is never updated to separate table so it doesn't try to update it every time
     DbPlayer result = {};
 
     result.PlayerID = player->iID;
@@ -395,8 +384,7 @@ Database::DbPlayer Database::playerToDb(Player *player)
         result.y_coordinates = player->y;
         result.z_coordinates = player->z;
         result.angle = player->angle;
-    }
-    else {
+    } else {
         result.x_coordinates = player->lastX;
         result.y_coordinates = player->lastY;
         result.z_coordinates = player->lastZ;
@@ -580,8 +568,7 @@ void Database::updateNanos(Player *player) {
         where(c(&Nano::playerId) == player->iID)
         );
     // insert
-    for (int i=1; i < SIZEOF_NANO_BANK_SLOT; i++)
-    {
+    for (int i=1; i < SIZEOF_NANO_BANK_SLOT; i++) {
         if ((player->Nanos[i]).iID == 0)
             continue;
         Nano toAdd = {};
@@ -603,8 +590,7 @@ void Database::updateQuests(Player* player) {
         where(c(&DbQuest::PlayerId) == player->iID)
         );
     // insert
-    for (int i = 0; i < ACTIVE_MISSION_COUNT; i++)
-    {
+    for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
         if (player->tasks[i] == 0)
             continue;
         DbQuest toAdd = {};
@@ -655,8 +641,7 @@ void Database::removeExpiredVehicles(Player* player) {
     std::vector<sItemBase*> toRemove;
 
     // equiped vehicle
-    if (player->Equip[8].iOpt > 0 && player->Equip[8].iTimeLimit < currentTime)
-    {
+    if (player->Equip[8].iOpt > 0 && player->Equip[8].iTimeLimit < currentTime) {
         toRemove.push_back(&player->Equip[8]);
         player->toRemoveVehicle.eIL = 0;
         player->toRemoveVehicle.iSlotNum = 8;

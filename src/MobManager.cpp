@@ -83,11 +83,11 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
             damage.first = plr->groupDamage;
         else
             damage.first = plr->pointDamage;
-        
+
         int difficulty = (int)mob->data["m_iNpcLevel"];
-        
+
         damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW >= 11 + difficulty), NanoManager::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
-        
+
         if (plr->batteryW >= 11 + difficulty)
             plr->batteryW -= 11 + difficulty;
 
@@ -258,6 +258,7 @@ void MobManager::giveEventReward(CNSocket* sock, Player* player) {
     // random drop chance
     if (rand() % 100 > settings::EVENTCRATECHANCE)
         return;
+
     // no slot = no reward
     int slot = ItemManager::findFreeSlot(player);
     if (slot == -1)
@@ -284,18 +285,17 @@ void MobManager::giveEventReward(CNSocket* sock, Player* player) {
 
     // which crate to drop
     int crateId;
-    switch (settings::EVENTMODE)
-    {
-        // knishmas
-        case 1: crateId = 1187; break;
-        // halloween
-        case 2: crateId = 1181; break;
-        // spring
-        case 3: crateId = 1126; break;
-        // what
-        default:
-            std::cout << "[WARN] Unknown event Id " << settings::EVENTMODE << std::endl;
-            return;
+    switch (settings::EVENTMODE) {
+    // knishmas
+    case 1: crateId = 1187; break;
+    // halloween
+    case 2: crateId = 1181; break;
+    // spring
+    case 3: crateId = 1126; break;
+    // what
+    default:
+        std::cout << "[WARN] Unknown event Id " << settings::EVENTMODE << std::endl;
+        return;
     }
 
     item->sItem.iType = 9;
@@ -352,7 +352,7 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
         if (plr == nullptr)
             return;
 
-        if (plr->groupCnt == 1 && plr->iIDGroup == plr->iID) { 
+        if (plr->groupCnt == 1 && plr->iIDGroup == plr->iID) {
             giveReward(sock, mob);
             MissionManager::mobKilled(sock, mob->appearanceData.iNPCType);
         } else {
@@ -360,7 +360,7 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
 
             if (plr == nullptr)
                 return;
-            
+
             for (int i = 0; i < plr->groupCnt; i++) {
                 CNSocket* sockTo = PlayerManager::getSockFromID(plr->groupIDs[i]);
                 giveReward(sockTo, mob);
@@ -732,9 +732,9 @@ void MobManager::dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
 
     INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt1);
 
-    pkt1.eCSTB = ECSB_INFECTION; //eCharStatusTimeBuffID
-    pkt1.eTBU = 1; //eTimeBuffUpdate
-    pkt1.eTBT = 0; //eTimeBuffType 1 means nano
+    pkt1.eCSTB = ECSB_INFECTION; // eCharStatusTimeBuffID
+    pkt1.eTBU = 1; // eTimeBuffUpdate
+    pkt1.eTBT = 0; // eTimeBuffType 1 means nano
     pkt1.iConditionBitFlag = plr->iConditionBitFlag;
 
     sock->sendPacket((void*)&pkt1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
@@ -871,19 +871,19 @@ std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool
     int damage = attackPower * attackPower / (attackPower + defensePower);
     damage = std::max(std::max(29, attackPower / 7), damage - defensePower * (12 + difficulty) / 65);
     damage = damage * (rand() % 40 + 80) / 100;
-    
+
     // Adaptium/Blastons/Cosmix
     if (attackerStyle != -1 && defenderStyle != -1 && attackerStyle != defenderStyle) {
-        if (attackerStyle < defenderStyle || attackerStyle - defenderStyle == 2) 
+        if (attackerStyle < defenderStyle || attackerStyle - defenderStyle == 2)
             damage = damage * 5 / 4;
         else
             damage = damage * 4 / 5;
     }
-    
+
     // weapon boosts
     if (batteryBoost)
         damage = damage * 5 / 4;
-    
+
     ret.first = damage;
     ret.second = 1;
 
@@ -949,9 +949,9 @@ void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
                 damage.first = plr->groupDamage;
             else
                 damage.first = plr->pointDamage;
-        
+
             damage = getDamage(damage.first, target->defense, true, (plr->batteryW >= 12), -1, -1, 1);
-        
+
             if (plr->batteryW >= 12)
                 plr->batteryW -= 12;
 
@@ -976,12 +976,12 @@ void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
                 damage.first = plr->groupDamage;
             else
                 damage.first = plr->pointDamage;
-            
+
             int difficulty = (int)mob->data["m_iNpcLevel"];
-            
+
             damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW >= 11 + difficulty),
                 NanoManager::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
-            
+
             if (plr->batteryW >= 11 + difficulty)
                 plr->batteryW -= 11 + difficulty;
 

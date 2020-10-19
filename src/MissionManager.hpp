@@ -48,7 +48,7 @@ namespace MissionManager {
 
     int findQSlot(Player *plr, int id);
     void dropQuestItem(CNSocket *sock, int task, int count, int id, int mobid);
-    //checks if player doesn't have n/n quest items
+    // checks if player doesn't have n/n quest items
     bool isQuestItemFull(CNSocket* sock, int itemId, int itemCount);
     int giveMissionReward(CNSocket *sock, int task);
     void updateFusionMatter(CNSocket* sock, int fusion);

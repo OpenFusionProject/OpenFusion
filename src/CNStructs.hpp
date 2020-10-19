@@ -1,6 +1,6 @@
 /*
-    CNStructs.hpp - defines some basic structs & useful methods for packets used by FusionFall based on the version defined
-*/
+ * CNStructs.hpp - defines some basic structs & useful methods for packets used by FusionFall based on the version defined
+ */
 
 #pragma once
 

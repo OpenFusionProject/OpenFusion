@@ -44,7 +44,6 @@ namespace ItemManager {
     // Bank
     void itemBankOpenHandler(CNSocket* sock, CNPacketData* data);
     void itemTradeOfferHandler(CNSocket* sock, CNPacketData* data);
-    //void itemTradeOfferCancel(CNSocket* sock, CNPacketData* data);
     void itemTradeOfferAcceptHandler(CNSocket* sock, CNPacketData* data);
     void itemTradeOfferRefusalHandler(CNSocket* sock, CNPacketData* data);
     void itemTradeConfirmHandler(CNSocket* sock, CNPacketData* data);

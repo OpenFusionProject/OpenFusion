@@ -9,8 +9,7 @@ int CNSocketEncryption::Encrypt_byte_change_A(int ERSize, uint8_t* data, int siz
     int num2 = 0;
     int num3 = 0;
 
-    while (num + ERSize <= size)
-    {
+    while (num + ERSize <= size) {
         int num4 = num + num3;
         int num5 = num + (ERSize - 1 - num3);
 
@@ -19,8 +18,7 @@ int CNSocketEncryption::Encrypt_byte_change_A(int ERSize, uint8_t* data, int siz
         data[num5] = b;
         num += ERSize;
         num3++;
-        if (num3 > ERSize / 2)
-        {
+        if (num3 > ERSize / 2) {
             num3 = 0;
         }
     }

@@ -60,10 +60,6 @@ struct Mob : public BaseNPC {
         dropType = data["m_iDropType"];
         level = data["m_iNpcLevel"];
 
-        // XXX: temporarily force respawns for Fusions until we implement instancing
-        //if (regenTime >= 300000000)
-        //    regenTime = 1500;
-
         roamX = spawnX = appearanceData.iX;
         roamY = spawnY = appearanceData.iY;
         roamZ = spawnZ = appearanceData.iZ;

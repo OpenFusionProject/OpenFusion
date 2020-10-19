@@ -7,8 +7,7 @@
 namespace Database {
 #pragma region DatabaseStructs
 
-    struct Account
-    {
+    struct Account {
         int AccountID;
         std::string Login;
         std::string Password;
@@ -16,8 +15,7 @@ namespace Database {
         uint64_t Created;
         uint64_t LastLogin;
     };
-    struct Inventory
-    {
+    struct Inventory {
         int playerId;
         int slot;
         int16_t Type;
@@ -31,8 +29,7 @@ namespace Database {
         int16_t iSkillID;
         int16_t iStamina;
     };
-    struct DbPlayer
-    {
+    struct DbPlayer {
         int PlayerID;
         int AccountID;
         short int slot;
@@ -130,7 +127,7 @@ namespace Database {
     void getNanos(Player* player);
     void getQuests(Player* player);
 
-    //parsing blobs
+    // parsing blobs
     void appendBlob(std::vector<char>*blob, int64_t input);
     int64_t blobToInt64(std::vector<char>::iterator it);
 }

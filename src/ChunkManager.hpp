@@ -15,9 +15,9 @@ public:
 };
 
 enum {
-    INSTANCE_OVERWORLD // default instance every player starts in
-    //INSTANCE_IZ, // these aren't actually used
-    //INSTANCE_UNIQUE
+    INSTANCE_OVERWORLD, // default instance every player starts in
+    INSTANCE_IZ, // these aren't actually used
+    INSTANCE_UNIQUE // these aren't actually used
 };
 
 namespace ChunkManager {

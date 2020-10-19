@@ -54,13 +54,13 @@
 #endif
 
 /*
-    Packets format (sent from the client):
-        [4 bytes] - size of packet including the 4 byte packet type
-        [size bytes] - Encrypted packet (byte swapped && xor'd with 8 byte key; see CNSocketEncryption)
-            [4 bytes] - packet type (which is a combination of the first 4 bytes of the packet and a checksum in some versions)
-            [structure] - one member contains length of trailing data (expressed in packet-dependant structures)
-            [trailing data] - optional variable-length data that only some packets make use of
-*/
+ * Packets format (sent from the client):
+ *     [4 bytes] - size of packet including the 4 byte packet type
+ *     [size bytes] - Encrypted packet (byte swapped && xor'd with 8 byte key; see CNSocketEncryption)
+ *         [4 bytes] - packet type (which is a combination of the first 4 bytes of the packet and a checksum in some versions)
+ *         [structure] - one member contains length of trailing data (expressed in packet-dependant structures)
+ *         [trailing data] - optional variable-length data that only some packets make use of
+ */
 
 // error checking calloc wrapper
 inline void* xmalloc(size_t sz) {
