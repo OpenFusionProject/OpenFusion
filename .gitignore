@@ -13,3 +13,4 @@ build/
 *.db
 version.h
 infer-out
+gmon.out

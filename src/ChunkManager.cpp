@@ -8,15 +8,33 @@ std::map<std::tuple<int, int, uint64_t>, Chunk*> ChunkManager::chunks;
 
 void ChunkManager::init() {} // stubbed
 
+void ChunkManager::newChunk(std::tuple<int, int, uint64_t> pos) {
+    Chunk *chunk = new Chunk();
+
+    chunk->players = std::set<CNSocket*>();
+    chunk->NPCs = std::set<int32_t>();
+
+    // add the new chunk to every player and mob that's near it
+    for (Chunk *c : grabChunks(pos)) {
+        if (c == chunk)
+            continue;
+
+        for (CNSocket *s : c->players)
+            PlayerManager::players[s].currentChunks.push_back(chunk);
+
+        for (int32_t id : c->NPCs)
+            NPCManager::NPCs[id]->currentChunks.push_back(chunk);
+    }
+
+    chunks[pos] = chunk;
+}
+
 void ChunkManager::addNPC(int posX, int posY, uint64_t instanceID, int32_t id) {
     std::tuple<int, int, uint64_t> pos = grabChunk(posX, posY, instanceID);
 
     // make chunk if it doesn't exist!
-    if (chunks.find(pos) == chunks.end()) {
-        chunks[pos] = new Chunk();
-        chunks[pos]->players = std::set<CNSocket*>();
-        chunks[pos]->NPCs = std::set<int32_t>();
-    }
+    if (chunks.find(pos) == chunks.end())
+        newChunk(pos);
 
     Chunk* chunk = chunks[pos];
 
@@ -27,11 +45,8 @@ void ChunkManager::addPlayer(int posX, int posY, uint64_t instanceID, CNSocket* 
     std::tuple<int, int, uint64_t> pos = grabChunk(posX, posY, instanceID);
 
     // make chunk if it doesn't exist!
-    if (chunks.find(pos) == chunks.end()) {
-        chunks[pos] = new Chunk();
-        chunks[pos]->players = std::set<CNSocket*>();
-        chunks[pos]->NPCs = std::set<int32_t>();
-    }
+    if (chunks.find(pos) == chunks.end())
+        newChunk(pos);
 
     Chunk* chunk = chunks[pos];
 
@@ -212,7 +227,7 @@ void ChunkManager::createInstance(uint64_t instanceID) {
                 BaseNPC* baseNPC = NPCManager::NPCs[npcID];
                 if (baseNPC->npcClass == NPC_MOB) {
                     Mob* newMob = new Mob(baseNPC->appearanceData.iX, baseNPC->appearanceData.iY, baseNPC->appearanceData.iZ, baseNPC->appearanceData.iAngle,
-                        instanceID, baseNPC->appearanceData.iNPCType, baseNPC->appearanceData.iHP, NPCManager::NPCData[baseNPC->appearanceData.iNPCType], newID);
+                        instanceID, baseNPC->appearanceData.iNPCType, ((Mob*)baseNPC)->maxHealth, NPCManager::NPCData[baseNPC->appearanceData.iNPCType], newID);
                     NPCManager::NPCs[newID] = newMob;
                     MobManager::Mobs[newID] = newMob;
                 } else {

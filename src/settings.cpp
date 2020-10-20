@@ -12,7 +12,7 @@ int settings::DBSAVEINTERVAL = 240;
 int settings::SHARDPORT = 8002;
 std::string settings::SHARDSERVERIP = "127.0.0.1";
 time_t settings::TIMEOUT = 60000;
-int settings::VIEWDISTANCE = 40000;
+int settings::VIEWDISTANCE = 25600;
 bool settings::SIMULATEMOBS = true;
 
 // default spawn point is Sector V (future)

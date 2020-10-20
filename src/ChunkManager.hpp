@@ -26,6 +26,7 @@ namespace ChunkManager {
 
     extern std::map<std::tuple<int, int, uint64_t>, Chunk*> chunks;
 
+    void newChunk(std::tuple<int, int, uint64_t> pos);
     void addNPC(int posX, int posY, uint64_t instanceID, int32_t id);
     void addPlayer(int posX, int posY, uint64_t instanceID, CNSocket* sock);
     bool removePlayer(std::tuple<int, int, uint64_t> chunkPos, CNSocket* sock);

@@ -793,9 +793,7 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
         NanoManager::nanoUnbuff(sock, CSB_BIT_PHOENIX, ECSB_PHOENIX, 0, false);
         plr->HP = PC_MAXHEALTH(plr->level);
     } else {
-        plr->x = target.x;
-        plr->y = target.y;
-        plr->z = target.z;
+        updatePlayerPosition(sock, target.x, target.y, target.z);
 
         if (reviveData->iRegenType != 5)
             plr->HP = PC_MAXHEALTH(plr->level);

@@ -264,14 +264,13 @@ void TableData::loadPaths(int* nextId) {
         for (nlohmann::json::iterator _sliderPoint = pathDataSlider.begin(); _sliderPoint != pathDataSlider.end(); _sliderPoint++) {
             auto sliderPoint = _sliderPoint.value();
             if (sliderPoint["stop"]) { // check if this point in the circuit is a stop
-                if (stops % 2 == 0) { // on;y put a slider down every other stop
                 // spawn a slider
-                    BaseNPC* slider = new BaseNPC(sliderPoint["iX"], sliderPoint["iY"], sliderPoint["iZ"], 0, INSTANCE_OVERWORLD, 1, (*nextId)++, NPC_BUS);
-                    NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
-                    NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->appearanceData.iX, slider->appearanceData.iY, slider->appearanceData.iZ);
-                    // set slider path to a rotation of the circuit
-                    constructPathSlider(pathDataSlider, pos, slider->appearanceData.iNPC_ID);
-                }
+                BaseNPC* slider = new BaseNPC(sliderPoint["iX"], sliderPoint["iY"], sliderPoint["iZ"], 0, INSTANCE_OVERWORLD, 1, (*nextId)++, NPC_BUS);
+                NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
+                NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->appearanceData.iX, slider->appearanceData.iY, slider->appearanceData.iZ);
+                // set slider path to a rotation of the circuit
+                constructPathSlider(pathDataSlider, pos, slider->appearanceData.iNPC_ID);
+
                 stops++;
             }
             pos++;

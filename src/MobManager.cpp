@@ -1046,7 +1046,7 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
             if (plr->HP <= 0)
                 continue;
 
-            int mobRange = mob->data["m_iSightRange"];
+            int mobRange = mob->sightRange;
 
             if (plr->iConditionBitFlag & CSB_BIT_UP_STEALTH)
                 mobRange /= 3;

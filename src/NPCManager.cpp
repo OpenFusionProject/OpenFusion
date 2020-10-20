@@ -107,7 +107,7 @@ void NPCManager::addNPC(std::vector<Chunk*> viewableChunks, int32_t id) {
 void NPCManager::destroyNPC(int32_t id) {
     // sanity check
     if (NPCs.find(id) == NPCs.end()) {
-        std::cout << "npc not found : " << id << std::endl;
+        std::cout << "npc not found: " << id << std::endl;
         return;
     }
 
@@ -133,8 +133,6 @@ void NPCManager::destroyNPC(int32_t id) {
     // finally, remove it from the map and free it
     NPCs.erase(id);
     delete entity;
-
-    std::cout << "npc removed!" << std::endl;
 }
 
 void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z, int angle) {
@@ -601,7 +599,9 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
     // std::cerr << "Warped to Map Num:" << Warps[warpId].instanceID << " NPC ID " << Warps[warpId].npcID << std::endl;
     if (Warps[warpId].isInstance) {
         uint64_t instanceID = Warps[warpId].instanceID;
-        if (Warps[warpId].limitTaskID != 0) { // if warp requires you to be on a mission, it's gotta be a unique instance
+
+        // if warp requires you to be on a mission, it's gotta be a unique instance
+        if (Warps[warpId].limitTaskID != 0 || instanceID == 14) { // 14 is a special case for the Time Lab
             instanceID += ((uint64_t)plrv.plr->iIDGroup << 32); // upper 32 bits are leader ID
             ChunkManager::createInstance(instanceID);
         }

@@ -35,6 +35,7 @@ struct Mob : public BaseNPC {
 
     // roaming
     int idleRange;
+    const int sightRange;
     time_t nextMovement = 0;
     bool staticPath = false;
 
@@ -50,7 +51,9 @@ struct Mob : public BaseNPC {
     nlohmann::json data;
 
     Mob(int x, int y, int z, int angle, uint64_t iID, int type, int hp, nlohmann::json d, int32_t id)
-        : BaseNPC(x, y, z, angle, iID, type, id), maxHealth(hp) {
+        : BaseNPC(x, y, z, angle, iID, type, id),
+          maxHealth(hp),
+          sightRange(d["m_iSightRange"]) {
         state = MobState::ROAMING;
 
         data = d;
