@@ -6,7 +6,7 @@
 #include <unordered_map>
 
 const int SLIDER_SPEED = 1200;
-const int SLIDER_STOP_TICKS = 8;
+const int SLIDER_STOP_TICKS = 16;
 
 struct WarpLocation;
 

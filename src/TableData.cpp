@@ -258,19 +258,23 @@ void TableData::loadPaths(int* nextId) {
         std::cout << "[INFO] Loaded " << TransportManager::SkywayPaths.size() << " skyway paths" << std::endl;
 
         // slider circuit
-        int sliders = 0;
+        int stops = 0;
+        int pos = 0;
         nlohmann::json pathDataSlider = pathData["slider"];
         for (nlohmann::json::iterator _sliderPoint = pathDataSlider.begin(); _sliderPoint != pathDataSlider.end(); _sliderPoint++) {
             auto sliderPoint = _sliderPoint.value();
-            if (sliderPoint["stop"] && sliders % 2 == 0) { // check if this point in the circuit is a stop
+            if (sliderPoint["stop"]) { // check if this point in the circuit is a stop
+                if (stops % 2 == 0) { // on;y put a slider down every other stop
                 // spawn a slider
-                BaseNPC* slider = new BaseNPC(sliderPoint["iX"], sliderPoint["iY"], sliderPoint["iZ"], 0, INSTANCE_OVERWORLD, 1, (*nextId)++, NPC_BUS);
-                NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
-                NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->appearanceData.iX, slider->appearanceData.iY, slider->appearanceData.iZ);
-                // set slider path to a rotation of the circuit
-                constructPathSlider(pathDataSlider, 0, slider->appearanceData.iNPC_ID);
-                sliders++;
+                    BaseNPC* slider = new BaseNPC(sliderPoint["iX"], sliderPoint["iY"], sliderPoint["iZ"], 0, INSTANCE_OVERWORLD, 1, (*nextId)++, NPC_BUS);
+                    NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
+                    NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->appearanceData.iX, slider->appearanceData.iY, slider->appearanceData.iZ);
+                    // set slider path to a rotation of the circuit
+                    constructPathSlider(pathDataSlider, pos, slider->appearanceData.iNPC_ID);
+                }
+                stops++;
             }
+            pos++;
         }
 
         // npc paths
@@ -452,13 +456,14 @@ void TableData::constructPathSlider(nlohmann::json points, int rotations, int sl
         for (int i = 0; i < stopTime + 1; i++) // repeat point if it's a stop
             route.push(from); // add point A to the queue
         WarpLocation to = { point["iX"] , point["iY"] , point["iZ"] }; // point B coords
+        // we may need to change this later; right now, the speed is cut before and after stops (no accel)
         float curve = 1;
         if (stopTime > 0) { // point A is a stop
-            curve = 2.0f;
+            curve = 0.375f;//2.0f;
         } else if (point["stop"]) { // point B is a stop
-            curve = 0.35f;
+            curve = 0.375f;//0.35f;
         }
-        TransportManager::lerp(&route, from, to, SLIDER_SPEED, curve); // lerp from A to B (arbitrary speed)
+        TransportManager::lerp(&route, from, to, SLIDER_SPEED * curve, 1); // lerp from A to B (arbitrary speed)
         from = to; // update point A
         stopTime = point["stop"] ? SLIDER_STOP_TICKS : 0;
     }
