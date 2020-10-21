@@ -64,7 +64,7 @@ namespace NanoManager {
     // Helper methods
     void addNano(CNSocket* sock, int16_t nanoId, int16_t slot, bool spendfm=false);
     void summonNano(CNSocket* sock, int slot);
-    void setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill);
+    void setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill, bool GMCommand);
     void resetNanoSkill(CNSocket* sock, int16_t nanoId);
 
     void nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t eSkillType, int32_t iCBFlag, int16_t eCharStatusTimeBuffID, int16_t iValue = 0, bool groupPower = false);

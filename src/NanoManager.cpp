@@ -188,7 +188,7 @@ void NanoManager::nanoSkillSetHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_NANO_TUNE* skill = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
-    setNanoSkill(sock, skill);
+    setNanoSkill(sock, skill, 0);
 }
 
 void NanoManager::nanoSkillSetGMHandler(CNSocket* sock, CNPacketData* data) {
@@ -196,7 +196,7 @@ void NanoManager::nanoSkillSetGMHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_NANO_TUNE* skillGM = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
-    setNanoSkill(sock, skillGM);
+    setNanoSkill(sock, skillGM, 1);
 }
 
 void NanoManager::nanoRecallHandler(CNSocket* sock, CNPacketData* data) {
@@ -348,7 +348,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
     plr->activeNano = nanoId;
 }
 
-void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
+void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill, bool isGMCommand) {
     if (skill->iNanoID > 36)
         return;
 
@@ -364,13 +364,8 @@ void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
         summonNano(sock, -1); // just unsummon the nano to prevent infinite buffs
 
     sNano nano = plr->Nanos[skill->iNanoID];
-    int reqItemCount = NanoTunings[skill->iTuneID].reqItemCount;
-    int reqItemID = NanoTunings[skill->iTuneID].reqItems;
-
     nano.iSkillID = skill->iTuneID;
     plr->Nanos[skill->iNanoID] = nano;
-
-    plr->fusionmatter -= MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"];
 
     // Send to client
     INITSTRUCT(sP_FE2CL_REP_NANO_TUNE_SUCC, resp);
@@ -380,12 +375,12 @@ void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
     //resp.aItem[9] = plr->Inven[0]; // temp fix for a bug TODO: Use this for nano power changing later
 
 
-
-    //sP_CL2FE_REQ_PC_ITEM_DELETE* itemdel = (sP_CL2FE_REQ_PC_ITEM_DELETE*)data->buf;
-    //INITSTRUCT(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC, resp2);
-
-    /*if (reqItemCount == 0)
-        return;*/
+    if(isGMCommand)
+        sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_TUNE_SUCC, sizeof(sP_FE2CL_REP_NANO_TUNE_SUCC));
+    
+    int reqItemCount = NanoTunings[skill->iTuneID].reqItemCount;
+    int reqItemID = NanoTunings[skill->iTuneID].reqItems;
+    plr->fusionmatter -= MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"];
     for (int i = 0; i < 10; i++) {
         if (skill->aiNeedItemSlotNum[i]) {
             resp.aItem[i] = plr->Inven[skill->aiNeedItemSlotNum[i]];
