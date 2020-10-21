@@ -22,7 +22,7 @@ std::set<int> LeechPowers = {24, 51, 89};
 std::set<int> SleepPowers = {28, 30, 32, 49, 70, 71, 81, 85, 94};
 
 // passive powers
-std::set<int> ScavengePowers = {3, 50, 99};
+std::set<int> ScavangePowers = {3, 50, 99};
 std::set<int> RunPowers = {4, 68, 86};
 std::set<int> GroupRunPowers = {8, 62, 73};
 std::set<int> BonusPowers = {6, 54, 104};
@@ -33,9 +33,9 @@ std::set<int> FreedomPowers = {31, 39, 107};
 std::set<int> GroupFreedomPowers = {15, 55, 77};
 std::set<int> JumpPowers = {16, 44, 88};
 std::set<int> GroupJumpPowers = {35, 60, 100};
-std::set<int> SelfRevivePowers = {22, 48, 84};
+std::set<int> SelfRevivePowers = {22, 48, 83};
 std::set<int> SneakPowers = {29, 72, 80};
-std::set<int> GroupSneakPowers = {23, 65, 83};
+std::set<int> GroupSneakPowers = {23, 65, 84};
 std::set<int> TreasureFinderPowers = {26, 40, 74};
 
 /*
@@ -233,7 +233,7 @@ void NanoManager::nanoPotionHandler(CNSocket* sock, CNPacketData* data) {
     response.iBatteryN = player->batteryN - difference;
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_CHARGE_NANO_STAMINA, sizeof(sP_FE2CL_REP_CHARGE_NANO_STAMINA));
-    // now update serverside
+    //now update serverside
     player->batteryN -= difference;
     player->Nanos[nano.iID].iStamina += difference;
 
@@ -357,7 +357,7 @@ void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
     if (plr == nullptr)
         return;
 
-    if (plr->fusionmatter < (int)MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"]) //check that player has enough fusion matter to change skill
+    if (plr->fusionmatter < MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"]) //check that player has enough fusion matter to change skill
         return;
 
     if (plr->activeNano > 0 && plr->activeNano == skill->iNanoID)
@@ -438,14 +438,14 @@ bool doDebuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Damage_N_Debuff *re
 
     Mob* mob = MobManager::Mobs[pktdata[i]];
 
-    int damage = MobManager::hitMob(sock, mob, 0); // using amount for something else
+    int damage = MobManager::hitMob(sock, mob, amount);
 
     respdata[i].eCT = 4;
     respdata[i].iDamage = damage;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
     respdata[i].iHP = mob->appearanceData.iHP;
     respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag |= iCBFlag;
-    mob->unbuffTimes[iCBFlag] = getTime() + amount;
+
     std::cout << (int)mob->appearanceData.iNPC_ID << " was debuffed" << std::endl;
 
     return true;
@@ -459,12 +459,10 @@ bool doBuff(CNSocket *sock, int32_t *pktdata, sSkillResult_Buff *respdata, int i
     }
 
     Mob* mob = MobManager::Mobs[pktdata[i]];
-    MobManager::hitMob(sock, mob, 0);
 
     respdata[i].eCT = 4;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
     respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag |= iCBFlag;
-    mob->unbuffTimes[iCBFlag] = getTime() + amount;
 
     std::cout << (int)mob->appearanceData.iNPC_ID << " was debuffed" << std::endl;
 
@@ -702,15 +700,15 @@ void activePower(CNSocket *sock, CNPacketData *data,
 
 // active nano power dispatch table
 std::vector<ActivePower> ActivePowers = {
-    ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  doDebuff>,         EST_STUN, CSB_BIT_STUN,              2250),
-    ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          doHeal>,           EST_HEAL_HP, CSB_BIT_NONE,             35),
-    ActivePower(GroupHealPowers, activePower<sSkillResult_Heal_HP,     doGroupHeal, GHEAL>,EST_HEAL_HP, CSB_BIT_NONE,            20),
+    ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  doDebuff>,         EST_STUN, CSB_BIT_STUN,                 0),
+    ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          doHeal>,           EST_HEAL_HP, CSB_BIT_NONE,             25),
+    ActivePower(GroupHealPowers, activePower<sSkillResult_Heal_HP,     doGroupHeal, GHEAL>,EST_HEAL_HP, CSB_BIT_NONE,            25),
     // TODO: Recall
-    ActivePower(DrainPowers, activePower<sSkillResult_Buff,            doBuff>,        EST_BOUNDINGBALL, CSB_BIT_BOUNDINGBALL, 3000),
-    ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SNARE, CSB_BIT_DN_MOVE_SPEED,    4500),
+    ActivePower(DrainPowers, activePower<sSkillResult_Buff,            doBuff>,           EST_BOUNDINGBALL, CSB_BIT_BOUNDINGBALL, 0),
+    ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SNARE, CSB_BIT_DN_MOVE_SPEED,       0),
     ActivePower(DamagePowers, activePower<sSkillResult_Damage,         doDamage>,         EST_DAMAGE, CSB_BIT_NONE,              12),
     ActivePower(LeechPowers, activePower<sSkillResult_Heal_HP,         doLeech, LEECH>,   EST_BLOODSUCKING, CSB_BIT_NONE,        18),
-    ActivePower(SleepPowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SLEEP, CSB_BIT_MEZ,              4500),
+    ActivePower(SleepPowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SLEEP, CSB_BIT_MEZ,                 0),
 };
 
 }; // namespace
@@ -722,26 +720,26 @@ void NanoManager::nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t 
 
     if (plr == nullptr)
         return;
-
+    
     int pktCnt = 1;
     Player *leader = plr;
     plr->iConditionBitFlag |= iCBFlag;
-
+    
     if (groupPower) {
         plr->iGroupConditionBitFlag |= iCBFlag;
-
+        
         if (plr->iID != plr->iIDGroup)
             leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
-
+        
         if (leader == nullptr)
             return;
-
+        
         pktCnt = leader->groupCnt;
     }
 
     if (leader == nullptr)
         return;
-
+    
     if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE), pktCnt, sizeof(sSkillResult_Buff))) {
         std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size\n";
         return;
@@ -761,7 +759,7 @@ void NanoManager::nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t 
     resp->iNanoStamina = plr->Nanos[plr->activeNano].iStamina;
     resp->eST = eSkillType;
     resp->iTargetCnt = pktCnt;
-
+    
     int bitFlag = GroupManager::getGroupFlags(leader);
 
     for (int i = 0; i < pktCnt; i++) {
@@ -778,15 +776,15 @@ void NanoManager::nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t 
 
         if (varPlr == nullptr || sockTo == nullptr)
             continue;
-
+        
         respdata[i].eCT = 1;
         respdata[i].iID = varPlr->iID;
         respdata[i].iConditionBitFlag = iCBFlag;
 
         INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt1);
-        pkt1.eCSTB = eCharStatusTimeBuffID; // eCharStatusTimeBuffID
-        pkt1.eTBU = 1; // eTimeBuffUpdate
-        pkt1.eTBT = 1; // eTimeBuffType 1 means nano
+        pkt1.eCSTB = eCharStatusTimeBuffID; //eCharStatusTimeBuffID
+        pkt1.eTBU = 1; //eTimeBuffUpdate
+        pkt1.eTBT = 1; //eTimeBuffType 1 means nano
         pkt1.iConditionBitFlag = bitFlag | varPlr->iConditionBitFlag;
 
         if (iValue > 0)
@@ -804,23 +802,23 @@ void NanoManager::nanoUnbuff(CNSocket* sock, int32_t iCBFlag, int16_t eCharStatu
 
     if (plr == nullptr)
         return;
-
+    
     int pktCnt = 1;
     Player *leader = plr;
     plr->iConditionBitFlag &= ~iCBFlag;
-
+    
     if (groupPower) {
         plr->iGroupConditionBitFlag &= ~iCBFlag;
-
+        
         if (plr->iID != plr->iIDGroup)
             leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
-
+        
         if (leader == nullptr)
             return;
-
+        
         pktCnt = leader->groupCnt;
     }
-
+    
     int bitFlag = GroupManager::getGroupFlags(leader);
 
     for (int i = 0; i < pktCnt; i++) {
@@ -834,11 +832,11 @@ void NanoManager::nanoUnbuff(CNSocket* sock, int32_t iCBFlag, int16_t eCharStatu
             varPlr = PlayerManager::getPlayerFromID(leader->groupIDs[i]);
             sockTo = PlayerManager::getSockFromID(leader->groupIDs[i]);
         }
-
+        
         INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, resp1);
-        resp1.eCSTB = eCharStatusTimeBuffID; // eCharStatusTimeBuffID
-        resp1.eTBU = 2; // eTimeBuffUpdate
-        resp1.eTBT = 1; // eTimeBuffType 1 means nano
+        resp1.eCSTB = eCharStatusTimeBuffID; //eCharStatusTimeBuffID
+        resp1.eTBU = 2; //eTimeBuffUpdate
+        resp1.eTBT = 1; //eTimeBuffType 1 means nano
         resp1.iConditionBitFlag = bitFlag | varPlr->iConditionBitFlag;
 
         if (iValue > 0)
@@ -858,7 +856,7 @@ int NanoManager::nanoStyle(int nanoId) {
 namespace NanoManager {
 
 std::vector<PassivePower> PassivePowers = {
-    PassivePower(ScavengePowers,       EST_REWARDBLOB,       CSB_BIT_REWARD_BLOB,       ECSB_REWARD_BLOB,       0, false),
+    PassivePower(ScavangePowers,       EST_REWARDBLOB,       CSB_BIT_REWARD_BLOB,       ECSB_REWARD_BLOB,       0, false),
     PassivePower(RunPowers,            EST_RUN,              CSB_BIT_UP_MOVE_SPEED,     ECSB_UP_MOVE_SPEED,   200, false),
     PassivePower(GroupRunPowers,       EST_RUN,              CSB_BIT_UP_MOVE_SPEED,     ECSB_UP_MOVE_SPEED,   200,  true),
     PassivePower(BonusPowers,          EST_REWARDCASH,       CSB_BIT_REWARD_CASH,       ECSB_REWARD_CASH,       0, false),
@@ -925,8 +923,8 @@ void NanoManager::nanoChangeBuff(CNSocket* sock, Player* plr, int32_t cbFrom, in
     resp.eTBU = 3;
     resp.eTBT = 1;
     resp.iConditionBitFlag = cbTo;
-
-    if (!(cbFrom & CSB_BIT_UP_MOVE_SPEED) && (cbTo & CSB_BIT_UP_MOVE_SPEED)) {
+    
+    if (!(cbFrom & CSB_BIT_UP_MOVE_SPEED) && (cbTo & CSB_BIT_UP_MOVE_SPEED)) {   
         resp.eCSTB = ECSB_UP_MOVE_SPEED;
         resp.eTBU = 1;
         resp.TimeBuff.iValue = 200;
@@ -939,7 +937,7 @@ void NanoManager::nanoChangeBuff(CNSocket* sock, Player* plr, int32_t cbFrom, in
         sock->sendPacket((void*)&resp, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
         sentPacket = true;
     }
-
+    
     if (!(cbFrom & CSB_BIT_UP_JUMP_HEIGHT) && (cbTo & CSB_BIT_UP_JUMP_HEIGHT)) {
         resp.eCSTB = ECSB_UP_JUMP_HEIGHT;
         resp.eTBU = 1;
@@ -953,7 +951,7 @@ void NanoManager::nanoChangeBuff(CNSocket* sock, Player* plr, int32_t cbFrom, in
         sock->sendPacket((void*)&resp, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
         sentPacket = true;
     }
-
+    
     if (!sentPacket)
         sock->sendPacket((void*)&resp, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
 }
