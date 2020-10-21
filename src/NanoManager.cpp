@@ -22,7 +22,7 @@ std::set<int> LeechPowers = {24, 51, 89};
 std::set<int> SleepPowers = {28, 30, 32, 49, 70, 71, 81, 85, 94};
 
 // passive powers
-std::set<int> ScavangePowers = {3, 50, 99};
+std::set<int> ScavengePowers = {3, 50, 99};
 std::set<int> RunPowers = {4, 68, 86};
 std::set<int> GroupRunPowers = {8, 62, 73};
 std::set<int> BonusPowers = {6, 54, 104};
@@ -33,9 +33,9 @@ std::set<int> FreedomPowers = {31, 39, 107};
 std::set<int> GroupFreedomPowers = {15, 55, 77};
 std::set<int> JumpPowers = {16, 44, 88};
 std::set<int> GroupJumpPowers = {35, 60, 100};
-std::set<int> SelfRevivePowers = {22, 48, 83};
+std::set<int> SelfRevivePowers = {22, 48, 84};
 std::set<int> SneakPowers = {29, 72, 80};
-std::set<int> GroupSneakPowers = {23, 65, 84};
+std::set<int> GroupSneakPowers = {23, 65, 83};
 std::set<int> TreasureFinderPowers = {26, 40, 74};
 
 /*
@@ -825,7 +825,7 @@ int NanoManager::nanoStyle(int nanoId) {
 namespace NanoManager {
 
 std::vector<PassivePower> PassivePowers = {
-    PassivePower(ScavangePowers,       EST_REWARDBLOB,       CSB_BIT_REWARD_BLOB,       ECSB_REWARD_BLOB,       0, false),
+    PassivePower(ScavengePowers,       EST_REWARDBLOB,       CSB_BIT_REWARD_BLOB,       ECSB_REWARD_BLOB,       0, false),
     PassivePower(RunPowers,            EST_RUN,              CSB_BIT_UP_MOVE_SPEED,     ECSB_UP_MOVE_SPEED,   200, false),
     PassivePower(GroupRunPowers,       EST_RUN,              CSB_BIT_UP_MOVE_SPEED,     ECSB_UP_MOVE_SPEED,   200,  true),
     PassivePower(BonusPowers,          EST_REWARDCASH,       CSB_BIT_REWARD_CASH,       ECSB_REWARD_CASH,       0, false),
