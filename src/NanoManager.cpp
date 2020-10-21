@@ -396,6 +396,7 @@ void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
     while (reqItemCount!=0&&i<reqItemCount) {
         if (resp.aItem[i].iOpt > reqItemCount) {
             plr->Inven[resp.aiItemSlotNum[i]].iOpt -= reqItemCount;
+            resp.aItem[i].iOpt -= reqItemCount;
             reqItemCount = 0;
         }
         else {
