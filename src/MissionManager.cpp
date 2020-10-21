@@ -77,20 +77,27 @@ void MissionManager::taskStart(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
+    TaskData& task = *Tasks[missionData->iTaskNum];
+
     response.iTaskNum = missionData->iTaskNum;
+    response.iRemainTime = task["m_iSTGrantTimer"];
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
 
-    // HACK: auto-succeed Eduardo escort task
-    // TODO: maybe check for iTaskType == 6 and skip all escort missions?
-    if (missionData->iTaskNum == 576) {
+    // HACK: auto-succeed escort task
+    if (task["m_iHTaskType"] == 6) {
         std::cout << "Sending Eduardo success packet" << std::endl;
         INITSTRUCT(sP_FE2CL_REP_PC_TASK_END_SUCC, response);
 
-        endTask(sock, 576);
-        response.iTaskNum = 576;
+        endTask(sock, missionData->iTaskNum);
+        response.iTaskNum = missionData->iTaskNum;
 
         sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_END_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_END_SUCC));
     }
+
+    // Give player their delivery items at the start.
+    for (int i = 0; i < 3; i++)
+        if (task["m_iSTItemID"][i] != 0 && task["m_iSTItemNumNeeded"][i] > 0)
+            dropQuestItem(sock, missionData->iTaskNum, task["m_iSTItemNumNeeded"][i], task["m_iSTItemID"][i], 0);
 }
 
 void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
@@ -98,6 +105,25 @@ void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_PC_TASK_END* missionData = (sP_CL2FE_REQ_PC_TASK_END*)data->buf;
+
+    // failed timed missions give an iNPC_ID of 0
+    if (missionData->iNPC_ID == 0) {
+        TaskData* task = MissionManager::Tasks[missionData->iTaskNum];
+        // double-checking
+        if (task->task["m_iHTaskType"] == 3) {
+            Player* plr = PlayerManager::getPlayer(sock);
+            int failTaskID = task->task["m_iFOutgoingTask"];
+            if (failTaskID != 0) {
+                MissionManager::quitTask(sock, missionData->iTaskNum, false);
+                
+                for (int i = 0; i < 6; i++)
+                    if (plr->tasks[i] == missionData->iTaskNum)
+                        plr->tasks[i] = failTaskID;
+                return;
+            }
+        }
+    }
+
     INITSTRUCT(sP_FE2CL_REP_PC_TASK_END_SUCC, response);
 
     response.iTaskNum = missionData->iTaskNum;

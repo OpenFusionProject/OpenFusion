@@ -672,8 +672,8 @@ void activePower(CNSocket *sock, CNPacketData *data,
 // active nano power dispatch table
 std::vector<ActivePower> ActivePowers = {
     ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  doDebuff>,         EST_STUN, CSB_BIT_STUN,              2250),
-    ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          doHeal>,           EST_HEAL_HP, CSB_BIT_NONE,             25),
-    ActivePower(GroupHealPowers, activePower<sSkillResult_Heal_HP,     doGroupHeal, GHEAL>,EST_HEAL_HP, CSB_BIT_NONE,            15),
+    ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          doHeal>,           EST_HEAL_HP, CSB_BIT_NONE,             35),
+    ActivePower(GroupHealPowers, activePower<sSkillResult_Heal_HP,     doGroupHeal, GHEAL>,EST_HEAL_HP, CSB_BIT_NONE,            20),
     // TODO: Recall
     ActivePower(DrainPowers, activePower<sSkillResult_Buff,            doBuff>,        EST_BOUNDINGBALL, CSB_BIT_BOUNDINGBALL, 3000),
     ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SNARE, CSB_BIT_DN_MOVE_SPEED,    4500),

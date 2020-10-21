@@ -29,12 +29,12 @@ void GroupManager::requestGroup(CNSocket* sock, CNPacketData* data) {
     Player* otherPlr = PlayerManager::getPlayerFromID(recv->iID_To);
 
     if (plr == nullptr || otherPlr == nullptr)
-		return;
+        return;
 
     otherPlr = PlayerManager::getPlayerFromID(otherPlr->iIDGroup);
 
     if (otherPlr == nullptr)
-		return;
+        return;
 
     // fail if the group is full or the other player is already in a group
     if (plr->groupCnt >= 4 || otherPlr->groupCnt > 1) {
@@ -50,9 +50,9 @@ void GroupManager::requestGroup(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_PC_GROUP_INVITE, resp);
 
-	resp.iHostID = plr->iIDGroup;
+    resp.iHostID = plr->iIDGroup;
 
-	otherSock->sendPacket((void*)&resp, P_FE2CL_PC_GROUP_INVITE, sizeof(sP_FE2CL_PC_GROUP_INVITE));
+    otherSock->sendPacket((void*)&resp, P_FE2CL_PC_GROUP_INVITE, sizeof(sP_FE2CL_PC_GROUP_INVITE));
 }
 
 void GroupManager::refuseGroup(CNSocket* sock, CNPacketData* data) {
@@ -61,7 +61,7 @@ void GroupManager::refuseGroup(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_GROUP_INVITE_REFUSE* recv = (sP_CL2FE_REQ_PC_GROUP_INVITE_REFUSE*)data->buf;
 
-	CNSocket* otherSock = PlayerManager::getSockFromID(recv->iID_From);
+    CNSocket* otherSock = PlayerManager::getSockFromID(recv->iID_From);
 
     if (otherSock == nullptr)
         return;
@@ -69,13 +69,13 @@ void GroupManager::refuseGroup(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     if (plr == nullptr)
-		return;
+        return;
 
     INITSTRUCT(sP_FE2CL_PC_GROUP_INVITE_REFUSE, resp);
 
     resp.iID_To = plr->iID;
 
-	otherSock->sendPacket((void*)&resp, P_FE2CL_PC_GROUP_INVITE_REFUSE, sizeof(sP_FE2CL_PC_GROUP_INVITE_REFUSE));
+    otherSock->sendPacket((void*)&resp, P_FE2CL_PC_GROUP_INVITE_REFUSE, sizeof(sP_FE2CL_PC_GROUP_INVITE_REFUSE));
 }
 
 void GroupManager::joinGroup(CNSocket* sock, CNPacketData* data) {
@@ -87,12 +87,12 @@ void GroupManager::joinGroup(CNSocket* sock, CNPacketData* data) {
     Player* otherPlr = PlayerManager::getPlayerFromID(recv->iID_From);
 
     if (plr == nullptr || otherPlr == nullptr)
-		return;
+        return;
 
     otherPlr = PlayerManager::getPlayerFromID(otherPlr->iIDGroup);
 
     if (otherPlr == nullptr)
-		return;
+        return;
 
     // fail if the group is full or the other player is already in a group
     if (plr->groupCnt > 1 || plr->iIDGroup != plr->iID || otherPlr->groupCnt >= 4) {
@@ -172,7 +172,7 @@ void GroupManager::chatGroup(CNSocket* sock, CNPacketData* data) {
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
     if (plr == nullptr || otherPlr == nullptr)
-		return;
+        return;
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC, resp);
@@ -184,14 +184,14 @@ void GroupManager::chatGroup(CNSocket* sock, CNPacketData* data) {
 
 void GroupManager::menuChatGroup(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE))
-		return; // malformed packet
+        return; // malformed packet
 
     sP_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
     if (plr == nullptr || otherPlr == nullptr)
-		return;
+        return;
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC, resp);
@@ -276,7 +276,7 @@ void GroupManager::groupKickPlayer(Player* plr) {
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
     if (otherPlr == nullptr)
-		return;
+        return;
 
     if (!validOutVarPacket(sizeof(sP_FE2CL_PC_GROUP_LEAVE), otherPlr->groupCnt - 1, sizeof(sPCGroupMemberInfo))) {
         std::cout << "[WARN] bad sP_FE2CL_PC_GROUP_LEAVE packet size\n";
@@ -340,7 +340,7 @@ void GroupManager::groupKickPlayer(Player* plr) {
     CNSocket* sock = PlayerManager::getSockFromID(plr->iID);
 
     if (sock == nullptr)
-		return;
+        return;
 
     INITSTRUCT(sP_FE2CL_PC_GROUP_LEAVE_SUCC, resp1);
     sock->sendPacket((void*)&resp1, P_FE2CL_PC_GROUP_LEAVE_SUCC, sizeof(sP_FE2CL_PC_GROUP_LEAVE_SUCC));

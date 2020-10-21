@@ -608,13 +608,6 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
                 if (otherPlr == nullptr || sockTo == nullptr)
                     continue;
 
-                if (otherPlr->instanceID == 0) {
-                    otherPlr->lastX = otherPlr->x;
-                    otherPlr->lastY = otherPlr->y;
-                    otherPlr->lastZ = otherPlr->z;
-                    otherPlr->lastAngle = otherPlr->angle;
-                }
-
                 PlayerManager::sendPlayerTo(sockTo, Warps[warpId].x, Warps[warpId].y, Warps[warpId].z, instanceID);
             }
         }
