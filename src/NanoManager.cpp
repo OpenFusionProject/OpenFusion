@@ -375,11 +375,18 @@ void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill, bo
     //resp.aItem[9] = plr->Inven[0]; // temp fix for a bug TODO: Use this for nano power changing later
 
 
+    //validate that all slots are valid or zeroes
+    int reqItemID = NanoTunings[skill->iTuneID].reqItems;
+    for (int i = 0; i < 10; i++) {
+        if (!skill->aiNeedItemSlotNum[i] && plr->Inven[skill->aiNeedItemSlotNum[i]].iID != reqItemID)
+            isGMCommand = 1;
+    }
+
+
     if(isGMCommand)
         sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_TUNE_SUCC, sizeof(sP_FE2CL_REP_NANO_TUNE_SUCC));
     
     int reqItemCount = NanoTunings[skill->iTuneID].reqItemCount;
-    int reqItemID = NanoTunings[skill->iTuneID].reqItems;
     plr->fusionmatter -= MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"];
     for (int i = 0; i < 10; i++) {
         if (skill->aiNeedItemSlotNum[i]) {
