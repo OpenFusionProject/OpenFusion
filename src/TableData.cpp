@@ -175,6 +175,18 @@ void TableData::init() {
         }
 
         std::cout << "[INFO] Loaded " << NanoManager::NanoTable.size() << " nanos" << std::endl;
+
+        nlohmann::json nanoTuneInfo = xdtData["m_pNanoTable"]["m_pNanoTuneData"];
+        for (nlohmann::json::iterator _nano = nanoTuneInfo.begin(); _nano != nanoTuneInfo.end(); _nano++) {
+            auto nano = _nano.value();
+            NanoTuning nanoData;
+            nanoData.reqItems = nano["m_iReqItemID"];
+            nanoData.reqItemCount = nano["m_iReqItemCount"];
+            NanoManager::NanoTunings[nano["m_iSkillID"]] = nanoData;
+        }
+
+        std::cout << "[INFO] Loaded " << NanoManager::NanoTable.size() << " nano tunings" << std::endl;
+
     }
     catch (const std::exception& err) {
         std::cerr << "[FATAL] Malformed xdt.json file! Reason:" << err.what() << std::endl;

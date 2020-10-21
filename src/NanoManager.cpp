@@ -46,6 +46,7 @@ std::set<int> TreasureFinderPowers = {26, 40, 74};
 }; // namespace
 
 std::map<int32_t, NanoData> NanoManager::NanoTable;
+std::map<int32_t, NanoTuning> NanoManager::NanoTunings;
 
 void NanoManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_ACTIVE, nanoSummonHandler);
@@ -187,7 +188,7 @@ void NanoManager::nanoSkillSetHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_NANO_TUNE* skill = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
-    setNanoSkill(sock, skill->iNanoID, skill->iTuneID);
+    setNanoSkill(sock, skill);
 }
 
 void NanoManager::nanoSkillSetGMHandler(CNSocket* sock, CNPacketData* data) {
@@ -195,7 +196,7 @@ void NanoManager::nanoSkillSetGMHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_NANO_TUNE* skillGM = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
-    setNanoSkill(sock, skillGM->iNanoID, skillGM->iTuneID);
+    setNanoSkill(sock, skillGM);
 }
 
 void NanoManager::nanoRecallHandler(CNSocket* sock, CNPacketData* data) {
@@ -347,8 +348,8 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
     plr->activeNano = nanoId;
 }
 
-void NanoManager::setNanoSkill(CNSocket* sock, int16_t nanoId, int16_t skillId) {
-    if (nanoId > 36)
+void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
+    if (skill->iNanoID > 36)
         return;
 
     Player *plr = PlayerManager::getPlayer(sock);
@@ -356,25 +357,55 @@ void NanoManager::setNanoSkill(CNSocket* sock, int16_t nanoId, int16_t skillId) 
     if (plr == nullptr)
         return;
 
-    if (plr->activeNano > 0 && plr->activeNano == nanoId)
+    if (plr->fusionmatter < MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"]) //check that player has enough fusion matter to change skill
+        return;
+
+    if (plr->activeNano > 0 && plr->activeNano == skill->iNanoID)
         summonNano(sock, -1); // just unsummon the nano to prevent infinite buffs
 
-    sNano nano = plr->Nanos[nanoId];
+    sNano nano = plr->Nanos[skill->iNanoID];
+    int reqItemCount = NanoTunings[skill->iTuneID].reqItemCount;
+    int reqItemID = NanoTunings[skill->iTuneID].reqItems;
 
-    nano.iSkillID = skillId;
-    plr->Nanos[nanoId] = nano;
+    nano.iSkillID = skill->iTuneID;
+    plr->Nanos[skill->iNanoID] = nano;
+
+    plr->fusionmatter -= MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"];
 
     // Send to client
     INITSTRUCT(sP_FE2CL_REP_NANO_TUNE_SUCC, resp);
-    resp.iNanoID = nanoId;
-    resp.iSkillID = skillId;
+    resp.iNanoID = skill->iNanoID;
+    resp.iSkillID = skill->iTuneID;
     resp.iPC_FusionMatter = plr->fusionmatter;
-    resp.aItem[9] = plr->Inven[0]; // temp fix for a bug TODO: Use this for nano power changing later
+    //resp.aItem[9] = plr->Inven[0]; // temp fix for a bug TODO: Use this for nano power changing later
+
+
+
+    //sP_CL2FE_REQ_PC_ITEM_DELETE* itemdel = (sP_CL2FE_REQ_PC_ITEM_DELETE*)data->buf;
+    //INITSTRUCT(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC, resp2);
+
+    if (reqItemCount == 0)
+        return;
+    for (int i = 0; i < reqItemCount; i++) {
+        if (!skill->aiNeedItemSlotNum[i])
+            return;
+        if (resp.aItem[i].iOpt > reqItemCount) {
+            plr->Inven[resp.aiItemSlotNum[i]].iOpt -= reqItemCount;
+        }
+        else {
+            reqItemCount -= plr->Inven[resp.aiItemSlotNum[i]].iOpt;
+            plr->Inven[resp.aiItemSlotNum[i]].iID = 0;
+            plr->Inven[resp.aiItemSlotNum[i]].iType = 0;
+            plr->Inven[resp.aiItemSlotNum[i]].iOpt = 0;
+        }
+    }
+
+
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_TUNE_SUCC, sizeof(sP_FE2CL_REP_NANO_TUNE_SUCC));
 
     DEBUGLOG(
-        std::cout << U16toU8(plr->PCStyle.szFirstName) << U16toU8(plr->PCStyle.szLastName) << " set skill id " << skillId << " for nano: " << nanoId << std::endl;
+        std::cout << U16toU8(plr->PCStyle.szFirstName) << U16toU8(plr->PCStyle.szLastName) << " set skill id " << skill->iTuneID << " for nano: " << skill->iNanoID << std::endl;
     )
 }
 
