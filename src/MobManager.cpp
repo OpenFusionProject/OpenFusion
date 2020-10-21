@@ -85,10 +85,10 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
             damage.first = plr->pointDamage;
 
         int difficulty = (int)mob->data["m_iNpcLevel"];
-        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW > 0), NanoManager::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
+        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW > 6 + difficulty), NanoManager::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
         
-        if (plr->batteryW >= 4 + difficulty)
-            plr->batteryW -= 4 + difficulty;
+        if (plr->batteryW >= 6 + difficulty)
+            plr->batteryW -= 6 + difficulty;
         else
             plr->batteryW = 0;
 
@@ -127,7 +127,7 @@ void MobManager::npcAttackPc(Mob *mob, time_t currTime) {
     sP_FE2CL_NPC_ATTACK_PCs *pkt = (sP_FE2CL_NPC_ATTACK_PCs*)respbuf;
     sAttackResult *atk = (sAttackResult*)(respbuf + sizeof(sP_FE2CL_NPC_ATTACK_PCs));
 
-    auto damage = getDamage(450 + (int)mob->data["m_iPower"], plr->defense, false, false, -1, -1, 1);
+    auto damage = getDamage(450 + (int)mob->data["m_iPower"], plr->defense, false, false, -1, -1, rand() % plr->level + 1);
     plr->HP -= damage.first;
 
     pkt->iNPC_ID = mob->appearanceData.iNPC_ID;
@@ -330,16 +330,16 @@ int MobManager::hitMob(CNSocket *sock, Mob *mob, int damage) {
 
     mob->appearanceData.iHP -= damage;
 
-        // wake up sleeping monster
-        if (mob->appearanceData.iConditionBitFlag & CSB_BIT_MEZ) {
-            mob->appearanceData.iConditionBitFlag &= ~CSB_BIT_MEZ;
+    // wake up sleeping monster
+    if (mob->appearanceData.iConditionBitFlag & CSB_BIT_MEZ) {
+        mob->appearanceData.iConditionBitFlag &= ~CSB_BIT_MEZ;
 
-            INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
-            pkt1.eCT = 2;
-            pkt1.iID = mob->appearanceData.iNPC_ID;
-            pkt1.iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
-            NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
-        }
+        INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
+        pkt1.eCT = 2;
+        pkt1.iID = mob->appearanceData.iNPC_ID;
+        pkt1.iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
+        NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
+    }
 
     if (mob->appearanceData.iHP <= 0)
         killMob(mob->target, mob);
@@ -616,7 +616,7 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
         mob->appearanceData.iY = targ.second;
         pkt.iToX = mob->appearanceData.iX = targ.first;
         pkt.iToY = mob->appearanceData.iY = targ.second;
-        pkt.iToZ = mob->appearanceData.iZ;
+        pkt.iToZ = mob->appearanceData.iZ = mob->spawnZ;
 
         // notify all nearby players
         NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
@@ -999,10 +999,10 @@ void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
             else
                 damage.first = plr->pointDamage;
 
-            damage = getDamage(damage.first, target->defense, true, (plr->batteryW > 0), -1, -1, 1);
+            damage = getDamage(damage.first, target->defense, true, (plr->batteryW > 6 + plr->level), -1, -1, 1);
 
-            if (plr->batteryW >= 4 + plr->level)
-                plr->batteryW -= 4 + plr->level;
+            if (plr->batteryW >= 6 + plr->level)
+                plr->batteryW -= 6 + plr->level;
             else
                 plr->batteryW = 0;
 
@@ -1030,11 +1030,11 @@ void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
 
             int difficulty = (int)mob->data["m_iNpcLevel"];
 
-            damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW > 0),
+            damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW > 6 + difficulty),
                 NanoManager::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
 
-            if (plr->batteryW >= 4 + difficulty)
-                plr->batteryW -= 4 + difficulty;
+            if (plr->batteryW >= 6 + difficulty)
+                plr->batteryW -= 6 + difficulty;
             else
                 plr->batteryW = 0;
 

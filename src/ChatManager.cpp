@@ -411,6 +411,7 @@ void minfoCommand(std::string full, std::vector<std::string>& args, CNSocket* so
                 ChatManager::sendServerMessage(sock, "[MINFO] Current task ID: " + std::to_string(plr->tasks[i]));
                 ChatManager::sendServerMessage(sock, "[MINFO] Current task type: " + std::to_string((int)(task["m_iHTaskType"])));
                 ChatManager::sendServerMessage(sock, "[MINFO] Current waypoint NPC ID: " + std::to_string((int)(task["m_iSTGrantWayPoint"])));
+                ChatManager::sendServerMessage(sock, "[MINFO] Current terminator NPC ID: " + std::to_string((int)(task["m_iHTerminatorNPCID"])));
 
                 for (int j = 0; j < 3; j++)
                     if ((int)(task["m_iCSUEnemyID"][j]) != 0)
