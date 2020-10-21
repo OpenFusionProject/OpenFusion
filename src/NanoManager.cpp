@@ -387,13 +387,16 @@ void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
     /*if (reqItemCount == 0)
         return;*/
     for (int i = 0; i < 10; i++) {
-        if (resp.aiItemSlotNum[i])
-            resp.aItem[i] = plr->Inven[resp.aiItemSlotNum[i]];
+        if (skill->aiNeedItemSlotNum[i]) {
+            resp.aItem[i] = plr->Inven[skill->aiNeedItemSlotNum[i]];
+            resp.aiItemSlotNum[i] = skill->aiNeedItemSlotNum[i];
+        }
     }
     int i = 0;
     while (reqItemCount!=0&&i<reqItemCount) {
         if (resp.aItem[i].iOpt > reqItemCount) {
             plr->Inven[resp.aiItemSlotNum[i]].iOpt -= reqItemCount;
+            reqItemCount = 0;
         }
         else {
             reqItemCount -= plr->Inven[resp.aiItemSlotNum[i]].iOpt;
