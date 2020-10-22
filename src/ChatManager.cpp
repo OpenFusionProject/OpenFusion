@@ -436,6 +436,25 @@ void tasksCommand(std::string full, std::vector<std::string>& args, CNSocket* so
     }
 }
 
+void buffCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    if (args.size() < 3) {
+        ChatManager::sendServerMessage(sock, "/buff: no skill Id and duration time specified");
+        return;
+    }
+
+    char* tmp;
+    int  skillId = std::strtol(args[1].c_str(), &tmp, 10);
+    if (*tmp)
+        return;
+    int  duration = std::strtol(args[2].c_str(), &tmp, 10);
+    if (*tmp)
+        return;
+
+    if (NPCManager::eggBuffPlayer(sock, skillId, duration)<0)
+        ChatManager::sendServerMessage(sock, "/buff: unknown skill Id");
+    
+}
+
 void notifyCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player *plr = PlayerManager::getPlayer(sock);
 
@@ -478,6 +497,7 @@ void ChatManager::init() {
     registerCommand("population", 100, populationCommand, "check how many players are online");
     registerCommand("refresh", 100, refreshCommand, "teleport yourself to your current location");
     registerCommand("minfo", 30, minfoCommand, "show details of the current mission and task.");
+    registerCommand("buff", 50, buffCommand, "give yourself a buff effect");
     registerCommand("tasks", 30, tasksCommand, "list all active missions and their respective task ids.");
     registerCommand("notify", 30, notifyCommand, "receive a message whenever a player joins the server");
     registerCommand("players", 30, playersCommand, "print all players on the server");

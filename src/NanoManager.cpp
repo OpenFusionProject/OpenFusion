@@ -800,7 +800,7 @@ void NanoManager::nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t 
         pkt1.eCSTB = eCharStatusTimeBuffID; // eCharStatusTimeBuffID
         pkt1.eTBU = 1; // eTimeBuffUpdate
         pkt1.eTBT = 1; // eTimeBuffType 1 means nano
-        pkt1.iConditionBitFlag = bitFlag | varPlr->iConditionBitFlag;
+        pkt1.iConditionBitFlag = bitFlag | varPlr->iConditionBitFlag | varPlr->iEggConditionBitFlag;
 
         if (iValue > 0)
             pkt1.TimeBuff.iValue = iValue;
@@ -852,7 +852,7 @@ void NanoManager::nanoUnbuff(CNSocket* sock, int32_t iCBFlag, int16_t eCharStatu
         resp1.eCSTB = eCharStatusTimeBuffID; // eCharStatusTimeBuffID
         resp1.eTBU = 2; // eTimeBuffUpdate
         resp1.eTBT = 1; // eTimeBuffType 1 means nano
-        resp1.iConditionBitFlag = bitFlag | varPlr->iConditionBitFlag;
+        resp1.iConditionBitFlag = bitFlag | varPlr->iConditionBitFlag | varPlr->iEggConditionBitFlag;
 
         if (iValue > 0)
             resp1.TimeBuff.iValue = iValue;

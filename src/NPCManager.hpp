@@ -19,7 +19,8 @@ struct WarpLocation {
 namespace NPCManager {
     extern std::map<int32_t, BaseNPC*> NPCs;
     extern std::map<int32_t, WarpLocation> Warps;
-    extern std::vector<WarpLocation> RespawnPoints;
+    extern std::vector<WarpLocation> RespawnPoints;   
+    extern std::map<std::pair<int32_t, int32_t>, time_t> EggBuffs;
     extern nlohmann::json NPCData;
     extern int32_t nextId;
     void init();
@@ -50,4 +51,7 @@ namespace NPCManager {
     void handleWarp(CNSocket* sock, int32_t warpId);
 
     BaseNPC* getNearestNPC(std::vector<Chunk*> chunks, int X, int Y, int Z);
+
+    /// returns -1 on fail
+    int eggBuffPlayer(CNSocket* sock, int skillId, int duration);
 }
