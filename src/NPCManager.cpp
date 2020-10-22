@@ -4,6 +4,7 @@
 #include "MobManager.hpp"
 #include "MissionManager.hpp"
 #include "ChunkManager.hpp"
+#include "NanoManager.hpp"
 
 #include <cmath>
 #include <algorithm>
@@ -18,6 +19,8 @@
 std::map<int32_t, BaseNPC*> NPCManager::NPCs;
 std::map<int32_t, WarpLocation> NPCManager::Warps;
 std::vector<WarpLocation> NPCManager::RespawnPoints;
+/// Player Id, CBFlag -> remaining time
+std::map<std::pair<int32_t, int32_t>, time_t> NPCManager::EggBuffs;
 nlohmann::json NPCManager::NPCData;
 
 /*
@@ -643,4 +646,50 @@ BaseNPC* NPCManager::getNearestNPC(std::vector<Chunk*> chunks, int X, int Y, int
         }
     }
     return npc;
+}
+
+
+int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int duration) {
+
+    Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr)
+        return -1;
+
+    int32_t CBFlag = -1, iValue, CSTB;
+
+    // find the right passive power data    
+    for (auto& pwr : NanoManager::PassivePowers)
+        if (pwr.powers.count(skillId)) {
+            CBFlag = pwr.iCBFlag;
+            CSTB = pwr.eCharStatusTimeBuffID;
+            iValue = pwr.iValue;
+        }
+
+    if (CBFlag < 0)
+        return -1;
+
+    std::pair<int32_t, int32_t> key = std::make_pair(plr->iID, CBFlag);
+
+    // if player doesn't have this buff yet
+    if (EggBuffs.find(key) == EggBuffs.end())
+    {
+        // save new cbflag serverside
+        plr->iEggConditionBitFlag |= CBFlag;
+
+        // send buff update package
+        INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, updatePacket);
+        updatePacket.eCSTB = CSTB; // eCharStatusTimeBuffID
+        updatePacket.eTBU = 1; // eTimeBuffUpdate 1 means Add
+        updatePacket.eTBT = 3; // eTimeBuffType 3 means egg
+        updatePacket.TimeBuff.iValue = iValue;
+        int32_t updatedFlag = plr->iConditionBitFlag | plr->iGroupConditionBitFlag | plr->iEggConditionBitFlag;
+        updatePacket.iConditionBitFlag = updatedFlag;
+
+        sock->sendPacket((void*)&updatePacket, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));       
+    }
+
+    // save the buff serverside;  
+    EggBuffs[key] = duration;
+    
+    return 0;
 }
