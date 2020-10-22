@@ -19,8 +19,8 @@
 std::map<int32_t, BaseNPC*> NPCManager::NPCs;
 std::map<int32_t, WarpLocation> NPCManager::Warps;
 std::vector<WarpLocation> NPCManager::RespawnPoints;
-/// Player Id, CBFlag -> remaining time
-std::map<std::pair<int32_t, int32_t>, time_t> NPCManager::EggBuffs;
+/// sock, CBFlag -> remaining time
+std::map<std::pair<CNSocket*, int32_t>, time_t> NPCManager::EggBuffs;
 nlohmann::json NPCManager::NPCData;
 
 /*
@@ -43,6 +43,8 @@ void NPCManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY, npcVendorBuyback);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_BATTERY_BUY, npcVendorBuyBattery);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_COMBINATION, npcCombineItems);
+
+    REGISTER_SHARD_TIMER(buffStep, 1000);
 }
 
 void NPCManager::removeNPC(std::vector<Chunk*> viewableChunks, int32_t id) {
@@ -672,7 +674,7 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int duration) {
     if (CBFlag < 0)
         return -1;
 
-    std::pair<int32_t, int32_t> key = std::make_pair(plr->iID, CBFlag);
+    std::pair<CNSocket*, int32_t> key = std::make_pair(sock, CBFlag);
 
     // if player doesn't have this buff yet
     if (EggBuffs.find(key) == EggBuffs.end())
@@ -696,4 +698,52 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int duration) {
     EggBuffs[key] = duration;
     
     return 0;
+}
+
+void NPCManager::buffStep(CNServer* serv, time_t currTime) {
+
+    auto it = EggBuffs.begin();
+    while (it != EggBuffs.end()) {
+        // decrement remaining time
+        it->second --;
+        if (it->second > 0)
+            it++;
+
+        // if time reached 0
+        else{
+            CNSocket* sock = it->first.first;
+            Player* plr = PlayerManager::getPlayer(sock);
+
+            // if player is still on the server
+            if (plr != nullptr) {
+                int32_t CBFlag = it->first.second;
+                int32_t CSTB = -1, iValue;
+
+                // find CSTB Value
+                for (auto pwr : NanoManager::PassivePowers) {
+                    if (pwr.iCBFlag == CBFlag) {
+                        CSTB = pwr.eCharStatusTimeBuffID;
+                        iValue = pwr.iValue;
+                        break;
+                    }
+                }
+
+                if (CSTB >= 0) {
+                    // update CBFlag serverside
+                    plr->iEggConditionBitFlag &= ~CBFlag;
+                    // send buff update packet
+                    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, updatePacket);
+                    updatePacket.eCSTB = CSTB; // eCharStatusTimeBuffID
+                    updatePacket.eTBU = 2; // eTimeBuffUpdate 2 means remove
+                    updatePacket.eTBT = 3; // eTimeBuffType 3 means egg
+                    updatePacket.iConditionBitFlag = plr->iConditionBitFlag | plr->iGroupConditionBitFlag | plr->iEggConditionBitFlag;
+                    updatePacket.TimeBuff.iValue = iValue;
+                    sock->sendPacket((void*)&updatePacket, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+                }
+            }
+            // remove buff from the map
+            it = EggBuffs.erase(it);
+        }
+
+    }
 }
