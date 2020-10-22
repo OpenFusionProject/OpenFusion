@@ -19,7 +19,7 @@
 std::map<int32_t, BaseNPC*> NPCManager::NPCs;
 std::map<int32_t, WarpLocation> NPCManager::Warps;
 std::vector<WarpLocation> NPCManager::RespawnPoints;
-/// sock, CBFlag -> remaining time
+/// sock, CBFlag -> until
 std::map<std::pair<CNSocket*, int32_t>, time_t> NPCManager::EggBuffs;
 nlohmann::json NPCManager::NPCData;
 
@@ -694,8 +694,10 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int duration) {
         sock->sendPacket((void*)&updatePacket, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));       
     }
 
-    // save the buff serverside;  
-    EggBuffs[key] = duration;
+    // save the buff serverside;
+    // if you get the same buff again, new duration will override the previous one
+    time_t until = getTimestamp() + duration;
+    EggBuffs[key] = until;
     
     return 0;
 }
@@ -704,9 +706,8 @@ void NPCManager::buffStep(CNServer* serv, time_t currTime) {
 
     auto it = EggBuffs.begin();
     while (it != EggBuffs.end()) {
-        // decrement remaining time
-        it->second --;
-        if (it->second > 0)
+        // check remaining time
+        if (it->second > getTimestamp())
             it++;
 
         // if time reached 0
