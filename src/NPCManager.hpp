@@ -20,7 +20,7 @@ namespace NPCManager {
     extern std::map<int32_t, BaseNPC*> NPCs;
     extern std::map<int32_t, WarpLocation> Warps;
     extern std::vector<WarpLocation> RespawnPoints;   
-    extern std::map<std::pair<int32_t, int32_t>, time_t> EggBuffs;
+    extern std::map<std::pair<CNSocket*, int32_t>, time_t> EggBuffs;
     extern nlohmann::json NPCData;
     extern int32_t nextId;
     void init();
@@ -54,4 +54,5 @@ namespace NPCManager {
 
     /// returns -1 on fail
     int eggBuffPlayer(CNSocket* sock, int skillId, int duration);
+    void buffStep(CNServer* serv, time_t currTime);
 }
