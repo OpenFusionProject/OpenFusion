@@ -231,6 +231,16 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
     PlayerView& plrv = PlayerManager::players[sock];
     Player* plr = plrv.plr;
 
+    if (plrv.plr->instanceID == 0) {
+        // save last uninstanced coords
+        plrv.plr->lastX = plrv.plr->x;
+        plrv.plr->lastY = plrv.plr->y;
+        plrv.plr->lastZ = plrv.plr->z;
+        plrv.plr->lastAngle = plrv.plr->angle;
+    }
+
+    MissionManager::failInstancedMissions(sock); // fail any instanced missions
+
     uint64_t fromInstance = plr->instanceID;
 
     plr->instanceID = I;
@@ -242,7 +252,6 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
         sendPlayerTo(sock, X, Y, Z);
     } else {
         // annoying but necessary to set the flag back
-        MissionManager::failInstancedMissions(sock); // fail any instanced missions
         INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC, resp);
         resp.iX = X;
         resp.iY = Y;
@@ -702,7 +711,6 @@ void PlayerManager::gotoPlayer(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tZ: " << gotoData->iToZ << std::endl;
         )
 
-    MissionManager::failInstancedMissions(sock); // this ensures warping by command still fails instanced missions
     sendPlayerTo(sock, gotoData->iToX, gotoData->iToY, gotoData->iToZ, 0);
 }
 

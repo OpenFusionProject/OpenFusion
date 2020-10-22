@@ -584,17 +584,7 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
     if (Warps.find(warpId) == Warps.end())
         return;
 
-    MissionManager::failInstancedMissions(sock); // fail any missions that require the player's current instance
-
     uint64_t fromInstance = plrv.plr->instanceID; // saved for post-warp
-
-    if (plrv.plr->instanceID == 0) {
-        // save last uninstanced coords
-        plrv.plr->lastX = plrv.plr->x;
-        plrv.plr->lastY = plrv.plr->y;
-        plrv.plr->lastZ = plrv.plr->z;
-        plrv.plr->lastAngle = plrv.plr->angle;
-    }
 
     // std::cerr << "Warped to Map Num:" << Warps[warpId].instanceID << " NPC ID " << Warps[warpId].npcID << std::endl;
     if (Warps[warpId].isInstance) {
