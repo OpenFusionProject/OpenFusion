@@ -188,7 +188,7 @@ void NanoManager::nanoSkillSetHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_NANO_TUNE* skill = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
-    setNanoSkill(sock, skill, 0);
+    setNanoSkill(sock, skill, 1);
 }
 
 void NanoManager::nanoSkillSetGMHandler(CNSocket* sock, CNPacketData* data) {
@@ -196,7 +196,7 @@ void NanoManager::nanoSkillSetGMHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_NANO_TUNE* skillGM = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
-    setNanoSkill(sock, skillGM, 1);
+    setNanoSkill(sock, skillGM, 0);
 }
 
 void NanoManager::nanoRecallHandler(CNSocket* sock, CNPacketData* data) {
@@ -348,16 +348,13 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
     plr->activeNano = nanoId;
 }
 
-void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill, bool isGMCommand) {
+void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill, bool isNanoStation) {
     if (skill->iNanoID > 36)
         return;
 
     Player *plr = PlayerManager::getPlayer(sock);
 
     if (plr == nullptr)
-        return;
-
-    if (plr->fusionmatter < (int)MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"]) //check that player has enough fusion matter to change skill
         return;
 
     if (plr->activeNano > 0 && plr->activeNano == skill->iNanoID)
@@ -379,13 +376,16 @@ void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill, bo
     int reqItemID = NanoTunings[skill->iTuneID].reqItems;
     for (int i = 0; i < 10; i++) {
         if (!skill->aiNeedItemSlotNum[i] && plr->Inven[skill->aiNeedItemSlotNum[i]].iID != reqItemID)
-            isGMCommand = 1;
+            isNanoStation = 0;
     }
 
 
-    if(isGMCommand)
+    if(!isNanoStation)
         sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_TUNE_SUCC, sizeof(sP_FE2CL_REP_NANO_TUNE_SUCC));
-    
+
+    if (plr->fusionmatter < (int)MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"]) // check that player has enough fusion matter to change skill
+        return;
+
     int reqItemCount = NanoTunings[skill->iTuneID].reqItemCount;
     plr->fusionmatter -= MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"];
     for (int i = 0; i < 10; i++) {
