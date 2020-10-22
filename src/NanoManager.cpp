@@ -387,7 +387,7 @@ void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill, bo
         return;
 
     int reqItemCount = NanoTunings[skill->iTuneID].reqItemCount;
-    plr->fusionmatter -= MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"];
+    plr->fusionmatter -= (int)MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"];
     for (int i = 0; i < 10; i++) {
         if (skill->aiNeedItemSlotNum[i]) {
             resp.aItem[i] = plr->Inven[skill->aiNeedItemSlotNum[i]];
@@ -395,7 +395,7 @@ void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill, bo
         }
     }
     int i = 0;
-    while (reqItemCount!=0&&i<reqItemCount) {
+    while (reqItemCount != 0 && i < reqItemCount) {
         if (resp.aItem[i].iOpt > reqItemCount) {
             plr->Inven[resp.aiItemSlotNum[i]].iOpt -= reqItemCount;
             resp.aItem[i].iOpt -= reqItemCount;
