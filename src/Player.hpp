@@ -2,6 +2,7 @@
 
 #include <string>
 #include <cstring>
+#include <unordered_map>
 
 #include "CNProtocol.hpp"
 #include "CNStructs.hpp"
@@ -68,6 +69,8 @@ struct Player {
     int groupCnt;
     int32_t groupIDs[4];
     int32_t iGroupConditionBitFlag;
+
+    int32_t iEggConditionBitFlag;
 
     bool notify;
 
