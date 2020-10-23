@@ -14,7 +14,10 @@ void ChunkManager::newChunk(std::tuple<int, int, uint64_t> pos) {
     chunk->players = std::set<CNSocket*>();
     chunk->NPCs = std::set<int32_t>();
 
-    // add the new chunk to every player and mob that's near it
+    chunks[pos] = chunk;
+}
+
+void ChunkManager::populateNewChunk(Chunk* chunk, std::tuple<int, int, uint64_t> pos) {// add the new chunk to every player and mob that's near it
     for (Chunk *c : grabChunks(pos)) {
         if (c == chunk)
             continue;
@@ -25,32 +28,52 @@ void ChunkManager::newChunk(std::tuple<int, int, uint64_t> pos) {
         for (int32_t id : c->NPCs)
             NPCManager::NPCs[id]->currentChunks.push_back(chunk);
     }
-
-    chunks[pos] = chunk;
 }
 
 void ChunkManager::addNPC(int posX, int posY, uint64_t instanceID, int32_t id) {
     std::tuple<int, int, uint64_t> pos = grabChunk(posX, posY, instanceID);
 
+    bool newChunkUsed = false;
+
     // make chunk if it doesn't exist!
-    if (chunks.find(pos) == chunks.end())
+    if (chunks.find(pos) == chunks.end()) {
         newChunk(pos);
+        newChunkUsed = true;
+    }
 
     Chunk* chunk = chunks[pos];
 
+    if (newChunkUsed)
+        NPCManager::NPCs[id]->currentChunks.push_back(chunk);
+
     chunk->NPCs.insert(id);
+
+    // we must update other players after the NPC is added to chunk
+    if (newChunkUsed)
+        populateNewChunk(chunk, pos);
 }
 
 void ChunkManager::addPlayer(int posX, int posY, uint64_t instanceID, CNSocket* sock) {
     std::tuple<int, int, uint64_t> pos = grabChunk(posX, posY, instanceID);
 
+    bool newChunkUsed = false;
+
     // make chunk if it doesn't exist!
-    if (chunks.find(pos) == chunks.end())
+    if (chunks.find(pos) == chunks.end()) {
         newChunk(pos);
+        newChunkUsed = true;
+    }
 
     Chunk* chunk = chunks[pos];
 
+    if (newChunkUsed)
+        PlayerManager::players[sock].currentChunks.push_back(chunk);
+
     chunk->players.insert(sock);
+
+    // we must update other players after this player is added to chunk
+    if (newChunkUsed)
+        populateNewChunk(chunk, pos);
 }
 
 bool ChunkManager::removePlayer(std::tuple<int, int, uint64_t> chunkPos, CNSocket* sock) {
