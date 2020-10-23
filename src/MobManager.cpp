@@ -578,12 +578,12 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
 }
 
 void MobManager::retreatStep(Mob *mob, time_t currTime) {
-    // distance between spawn point and current location
     if (mob->nextMovement != 0 && currTime < mob->nextMovement)
         return;
 
     mob->nextMovement = currTime + 500;
 
+    // distance between spawn point and current location
     int distance = hypot(mob->appearanceData.iX - mob->roamX, mob->appearanceData.iY - mob->roamY);
 
     //if (distance > mob->data["m_iIdleRange"]) {

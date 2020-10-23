@@ -31,7 +31,8 @@ void CNShardServer::handlePacket(CNSocket* sock, CNPacketData* data) {
     else if (settings::VERBOSITY > 0)
         std::cerr << "OpenFusion: SHARD UNIMPLM ERR. PacketType: " << Defines::p2str(CL2FE, data->type) << " (" << data->type << ")" << std::endl;
 
-    PlayerManager::players[sock].lastHeartbeat = getTime();
+    if (PlayerManager::players.find(sock) != PlayerManager::players.end())
+        PlayerManager::players[sock].lastHeartbeat = getTime();
 }
 
 void CNShardServer::keepAliveTimer(CNServer* serv, time_t currTime) {
