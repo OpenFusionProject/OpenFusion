@@ -223,6 +223,8 @@ void TableData::init() {
 
     loadDrops();
 
+    loadEggs();
+
     loadPaths(&nextId); // load paths
 
     loadGruntwork(&nextId);
@@ -429,6 +431,35 @@ void TableData::loadDrops() {
     }
     catch (const std::exception& err) {
         std::cerr << "[FATAL] Malformed drops.json file! Reason:" << err.what() << std::endl;
+        terminate(0);
+    }
+}
+
+void TableData::loadEggs() {
+    try {
+        std::ifstream inFile(settings::EGGSJSON);
+        nlohmann::json eggData;
+
+        // read file into json
+        inFile >> eggData;
+
+        // EggTypes
+        nlohmann::json eggTypes = eggData["EggTypes"];
+        for (nlohmann::json::iterator _eggType = eggTypes.begin(); _eggType != eggTypes.end(); _eggType++) {
+            auto eggType = _eggType.value();
+            EggType toAdd = {};
+            toAdd.dropCrateId = (int)eggType["DropCrateId"];
+            toAdd.effectId = (int)eggType["EffectId"];
+            toAdd.duration = (int)eggType["Duration"];
+            toAdd.regen= (int)eggType["Regen"];
+            NPCManager::EggTypes[(int)eggType["Id"]] = toAdd;
+        }
+
+        std::cout << "[INFO] Loaded Egg Data" <<std::endl;
+
+    }
+    catch (const std::exception& err) {
+        std::cerr << "[FATAL] Malformed eggs.json file! Reason:" << err.what() << std::endl;
         terminate(0);
     }
 }
