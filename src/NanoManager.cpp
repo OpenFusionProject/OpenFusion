@@ -188,7 +188,7 @@ void NanoManager::nanoSkillSetHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_NANO_TUNE* skill = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
-    setNanoSkill(sock, skill, 1);
+    setNanoSkill(sock, skill, true);
 }
 
 void NanoManager::nanoSkillSetGMHandler(CNSocket* sock, CNPacketData* data) {
@@ -196,7 +196,7 @@ void NanoManager::nanoSkillSetGMHandler(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_NANO_TUNE* skillGM = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
-    setNanoSkill(sock, skillGM, 0);
+    setNanoSkill(sock, skillGM, false);
 }
 
 void NanoManager::nanoRecallHandler(CNSocket* sock, CNPacketData* data) {
@@ -376,7 +376,7 @@ void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill, bo
     int reqItemID = NanoTunings[skill->iTuneID].reqItems;
     for (int i = 0; i < 10; i++) {
         if (!skill->aiNeedItemSlotNum[i] && plr->Inven[skill->aiNeedItemSlotNum[i]].iID != reqItemID)
-            isNanoStation = 0;
+            isNanoStation = false;
     }
 
 
