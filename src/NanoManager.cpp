@@ -389,6 +389,7 @@ void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill, bo
 
     int reqItemCount = NanoTunings[skill->iTuneID].reqItemCount;
     plr->fusionmatter -= (int)MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"];
+    resp.iPC_FusionMatter = plr->fusionmatter; // update fusion matter in packet
     for (int i = 0; i < 10; i++) {
         if (skill->aiNeedItemSlotNum[i]) {
             resp.aItem[i] = plr->Inven[skill->aiNeedItemSlotNum[i]];
