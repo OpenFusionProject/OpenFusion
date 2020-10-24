@@ -236,8 +236,8 @@ namespace sqlite_orm {
         template<size_t N, size_t I, class L, class R>
         void move_tuple_impl(L &lhs, R &rhs) {
             std::get<I>(lhs) = std::move(std::get<I>(rhs));
-            internal::static_if<std::integral_constant<bool, N != I + 1>{}>([](auto &lhs, auto &rhs) {
-                move_tuple_impl<N, I + 1>(lhs, rhs);
+            internal::static_if<std::integral_constant<bool, N != I + 1>{}>([](auto &l, auto &r) {
+                move_tuple_impl<N, I + 1>(l, r);
             })(lhs, rhs);
         }
     }
@@ -247,8 +247,8 @@ namespace sqlite_orm {
         template<size_t N, class L, class R>
         void move_tuple(L &lhs, R &rhs) {
             using bool_type = std::integral_constant<bool, N != 0>;
-            static_if<bool_type{}>([](auto &lhs, auto &rhs) {
-                tuple_helper::move_tuple_impl<N, 0>(lhs, rhs);
+            static_if<bool_type{}>([](auto &l, auto &r) {
+                tuple_helper::move_tuple_impl<N, 0>(l, r);
             })(lhs, rhs);
         }
 
@@ -577,8 +577,8 @@ namespace sqlite_orm {
 
             const foreign_key_type &fk;
 
-            on_update_delete_t(decltype(fk) fk_, decltype(update) update, foreign_key_action action_) :
-                on_update_delete_base{update}, fk(fk_), _action(action_) {}
+            on_update_delete_t(decltype(fk) fk_, decltype(update) update_, foreign_key_action action_) :
+                on_update_delete_base{update_}, fk(fk_), _action(action_) {}
 
             foreign_key_action _action = foreign_key_action::none;
 
@@ -691,8 +691,8 @@ namespace sqlite_orm {
             foreign_key_intermediate_t(tuple_type columns_) : columns(std::move(columns_)) {}
 
             template<class... Rs>
-            foreign_key_t<std::tuple<Cs...>, std::tuple<Rs...>> references(Rs... references) {
-                return {std::move(this->columns), std::make_tuple(std::forward<Rs>(references)...)};
+            foreign_key_t<std::tuple<Cs...>, std::tuple<Rs...>> references(Rs... refs) {
+                return {std::move(this->columns), std::make_tuple(std::forward<Rs>(refs)...)};
             }
         };
 #endif
@@ -1544,12 +1544,12 @@ namespace sqlite_orm {
              */
             constraints_type constraints;
 
-            column_t(std::string name,
+            column_t(std::string name_,
                      member_pointer_t member_pointer_,
                      getter_type getter_,
                      setter_type setter_,
                      constraints_type constraints_) :
-                column_base{std::move(name)},
+                column_base{std::move(name_)},
                 member_pointer(member_pointer_), getter(getter_), setter(setter_), constraints(move(constraints_)) {}
 
             /**
@@ -1922,7 +1922,7 @@ namespace sqlite_orm {
             T expr;
             internal::collate_argument argument;
 
-            collate_t(T expr_, internal::collate_argument argument_) : expr(expr_), argument(argument_) {}
+            collate_t(T expr_, internal::collate_argument argument_) : expr(std::move(expr_)), argument(argument_) {}
 
             operator std::string() const {
                 return constraints::collate_t{this->argument};
@@ -2205,7 +2205,7 @@ namespace sqlite_orm {
             L l;  //  left expression
             A arg;  //  in arg
 
-            in_t(L l_, A arg_, bool negative) : in_base{negative}, l(l_), arg(std::move(arg_)) {}
+            in_t(L l_, A arg_, bool negative_) : in_base{negative_}, l(l_), arg(std::move(arg_)) {}
         };
 
         struct is_null_string {
@@ -2344,8 +2344,8 @@ namespace sqlite_orm {
         struct dynamic_order_by_entry_t : order_by_base {
             std::string name;
 
-            dynamic_order_by_entry_t(decltype(name) name_, int asc_desc, std::string collate_argument) :
-                order_by_base{asc_desc, move(collate_argument)}, name(move(name_)) {}
+            dynamic_order_by_entry_t(decltype(name) name_, int asc_desc_, std::string collate_argument_) :
+                order_by_base{asc_desc_, move(collate_argument_)}, name(move(name_)) {}
         };
 
         /**
@@ -2463,8 +2463,8 @@ namespace sqlite_orm {
             sqlite_orm::internal::optional_container<escape_t>
                 arg3;  //  not escape cause escape exists as a function here
 
-            like_t(arg_t arg_, pattern_t pattern_, sqlite_orm::internal::optional_container<escape_t> escape) :
-                arg(std::move(arg_)), pattern(std::move(pattern_)), arg3(std::move(escape)) {}
+            like_t(arg_t arg_, pattern_t pattern_, sqlite_orm::internal::optional_container<escape_t> escape_) :
+                arg(std::move(arg_)), pattern(std::move(pattern_)), arg3(std::move(escape_)) {}
 
             template<class C>
             like_t<A, T, C> escape(C c) const {
@@ -4332,8 +4332,8 @@ namespace sqlite_orm {
             using left_type = typename compound_operator<L, R>::left_type;
             using right_type = typename compound_operator<L, R>::right_type;
 
-            union_t(left_type l, right_type r, decltype(all) all) :
-                compound_operator<L, R>(std::move(l), std::move(r)), union_base{all} {}
+            union_t(left_type l, right_type r, decltype(all) all_) :
+                compound_operator<L, R>(std::move(l), std::move(r)), union_base{all_} {}
 
             union_t(left_type l, right_type r) : union_t(std::move(l), std::move(r), false) {}
         };
@@ -4979,14 +4979,14 @@ namespace sqlite_orm {
             std::transform(str.begin(), str.end(), std::back_inserter(upper_str), [](char c) {
                 return static_cast<char>(std::toupper(static_cast<int>(c)));
             });
-            static std::array<journal_mode, 6> all = {
+            static std::array<journal_mode, 6> all = {{
                 journal_mode::DELETE,
                 journal_mode::TRUNCATE,
                 journal_mode::PERSIST,
                 journal_mode::MEMORY,
                 journal_mode::WAL,
                 journal_mode::OFF,
-            };
+            }};
             for(auto j: all) {
                 if(to_string(j) == upper_str) {
                     return std::make_unique<journal_mode>(j);
@@ -5400,8 +5400,8 @@ namespace sqlite_orm {
             using columns_type = std::tuple<Cols...>;
             using object_type = void;
 
-            index_t(std::string name, bool unique, columns_type columns_) :
-                index_base{move(name), unique}, columns(move(columns_)) {}
+            index_t(std::string name_, bool unique_, columns_type columns_) :
+                index_base{move(name_), unique_}, columns(move(columns_)) {}
 
             columns_type columns;
         };
@@ -5990,22 +5990,22 @@ namespace sqlite_orm {
                     // Make static_if have at least one input as a workaround for GCC bug:
                     // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=64095
                     if(!res) {
-                        static_if<std::is_same<C, member_pointer_t>{}>([&res, &obj, &col](const C &c) {
-                            if(compare_any(col.member_pointer, c)) {
+                        static_if<std::is_same<C, member_pointer_t>{}>([&res, &obj, &col](const C &c_) {
+                            if(compare_any(col.member_pointer, c_)) {
                                 res = &(obj.*col.member_pointer);
                             }
                         })(c);
                     }
                     if(!res) {
-                        static_if<std::is_same<C, getter_type>{}>([&res, &obj, &col](const C &c) {
-                            if(compare_any(col.getter, c)) {
+                        static_if<std::is_same<C, getter_type>{}>([&res, &obj, &col](const C &c_) {
+                            if(compare_any(col.getter, c_)) {
                                 res = &((obj).*(col.getter))();
                             }
                         })(c);
                     }
                     if(!res) {
-                        static_if<std::is_same<C, setter_type>{}>([&res, &obj, &col](const C &c) {
-                            if(compare_any(col.setter, c)) {
+                        static_if<std::is_same<C, setter_type>{}>([&res, &obj, &col](const C &c_) {
+                            if(compare_any(col.setter, c_)) {
                                 res = &((obj).*(col.getter))();
                             }
                         })(c);
@@ -6271,7 +6271,7 @@ namespace sqlite_orm {
         struct storage_impl_base {
 
             bool table_exists(const std::string &tableName, sqlite3 *db) const {
-                auto res = false;
+                auto result = false;
                 std::stringstream ss;
                 ss << "SELECT COUNT(*) FROM sqlite_master WHERE type = '"
                    << "table"
@@ -6287,13 +6287,13 @@ namespace sqlite_orm {
                         }
                         return 0;
                     },
-                    &res,
+                    &result,
                     nullptr);
                 if(rc != SQLITE_OK) {
                     throw std::system_error(std::error_code(sqlite3_errcode(db), get_sqlite_error_category()),
                                             sqlite3_errmsg(db));
                 }
-                return res;
+                return result;
             }
 
             void rename_table(sqlite3 *db, const std::string &oldName, const std::string &newName) const {
@@ -6355,7 +6355,7 @@ namespace sqlite_orm {
             }
 
             std::vector<table_info> get_table_info(const std::string &tableName, sqlite3 *db) const {
-                std::vector<table_info> res;
+                std::vector<table_info> result;
                 auto query = "PRAGMA table_info('" + tableName + "')";
                 auto rc = sqlite3_exec(
                     db,
@@ -6375,13 +6375,13 @@ namespace sqlite_orm {
                         }
                         return 0;
                     },
-                    &res,
+                    &result,
                     nullptr);
                 if(rc != SQLITE_OK) {
                     throw std::system_error(std::error_code(sqlite3_errcode(db), get_sqlite_error_category()),
                                             sqlite3_errmsg(db));
                 }
-                return res;
+                return result;
             }
         };
 
@@ -7184,8 +7184,8 @@ namespace sqlite_orm {
 
             expression_type t;
 
-            prepared_statement_t(T t_, sqlite3_stmt *stmt, connection_ref con_) :
-                prepared_statement_base{stmt, std::move(con_)}, t(std::move(t_)) {}
+            prepared_statement_t(T t_, sqlite3_stmt *stmt_, connection_ref con_) :
+                prepared_statement_base{stmt_, std::move(con_)}, t(std::move(t_)) {}
         };
 
         template<class T>
@@ -7973,8 +7973,8 @@ namespace sqlite_orm {
 
             template<class L>
             void operator()(const node_type &c, const L &l) const {
-                c.case_expression.apply([&l](auto &c) {
-                    iterate_ast(c, l);
+                c.case_expression.apply([&l](auto &c_) {
+                    iterate_ast(c_, l);
                 });
                 iterate_tuple(c.args, [&l](auto &pair) {
                     iterate_ast(pair.first, l);
@@ -8079,6 +8079,16 @@ namespace sqlite_orm {
             template<class L>
             void operator()(const node_type &node, const L &l) const {
                 iterate_ast(node.vector, l);
+            }
+        };
+
+        template<class T>
+        struct ast_iterator<collate_t<T>, void> {
+            using node_type = collate_t<T>;
+
+            template<class L>
+            void operator()(const node_type &node, const L &l) const {
+                iterate_ast(node.expr, l);
             }
         };
 
@@ -8189,6 +8199,14 @@ namespace sqlite_orm {
 
         pragma_t(get_connection_t get_connection_) : get_connection(std::move(get_connection_)) {}
 
+        void busy_timeout(int value) {
+            this->set_pragma("busy_timeout", value);
+        }
+
+        int busy_timeout() {
+            return this->get_pragma<int>("busy_timeout");
+        }
+
         sqlite_orm::journal_mode journal_mode() {
             return this->get_pragma<sqlite_orm::journal_mode>("journal_mode");
         }
@@ -8237,7 +8255,7 @@ namespace sqlite_orm {
         T get_pragma(const std::string &name) {
             auto connection = this->get_connection();
             auto query = "PRAGMA " + name;
-            T res;
+            T result;
             auto db = connection.get();
             auto rc = sqlite3_exec(
                 db,
@@ -8249,10 +8267,10 @@ namespace sqlite_orm {
                     }
                     return 0;
                 },
-                &res,
+                &result,
                 nullptr);
             if(rc == SQLITE_OK) {
-                return res;
+                return result;
             } else {
                 throw std::system_error(std::error_code(sqlite3_errcode(db), get_sqlite_error_category()),
                                         sqlite3_errmsg(db));
@@ -8700,13 +8718,11 @@ namespace sqlite_orm {
 
             bool transaction(const std::function<bool()> &f) {
                 this->begin_transaction();
-                auto con = this->get_connection();
-                auto db = con.get();
                 auto shouldCommit = f();
                 if(shouldCommit) {
-                    this->commit(db);
+                    this->commit();
                 } else {
-                    this->rollback(db);
+                    this->rollback();
                 }
                 return shouldCommit;
             }
@@ -8744,10 +8760,10 @@ namespace sqlite_orm {
                     db,
                     sql.c_str(),
                     [](void *data, int argc, char **argv, char * * /*columnName*/) -> int {
-                        auto &tableNames = *(data_t *)data;
+                        auto &tableNames_ = *(data_t *)data;
                         for(int i = 0; i < argc; i++) {
                             if(argv[i]) {
-                                tableNames.push_back(argv[i]);
+                                tableNames_.push_back(argv[i]);
                             }
                         }
                         return 0;
@@ -8863,6 +8879,27 @@ namespace sqlite_orm {
                 return this->connection->filename;
             }
 
+            /**
+             * Checks whether connection to database is opened right now.
+             * Returns always `true` for in memory databases.
+             */
+            bool is_opened() const {
+                return this->connection->retain_count() > 0;
+            }
+
+            int busy_handler(std::function<int(int)> handler) {
+                _busy_handler = move(handler);
+                if(this->is_opened()) {
+                    if(_busy_handler) {
+                        return sqlite3_busy_handler(this->connection->get(), busy_handler_callback, this);
+                    } else {
+                        return sqlite3_busy_handler(this->connection->get(), nullptr, nullptr);
+                    }
+                } else {
+                    return SQLITE_OK;
+                }
+            }
+
           protected:
             storage_base(const std::string &filename_, int foreignKeysCount) :
                 pragma(std::bind(&storage_base::get_connection, this)),
@@ -8900,6 +8937,7 @@ namespace sqlite_orm {
             std::unique_ptr<connection_holder> connection;
             std::map<std::string, collating_function> collatingFunctions;
             const int cachedForeignKeysCount;
+            std::function<int(int)> _busy_handler;
 
             connection_ref get_connection() {
                 connection_ref res{*this->connection};
@@ -8924,7 +8962,7 @@ namespace sqlite_orm {
 
             bool foreign_keys(sqlite3 *db) {
                 std::string query = "PRAGMA foreign_keys";
-                auto res = false;
+                auto result = false;
                 auto rc = sqlite3_exec(
                     db,
                     query.c_str(),
@@ -8935,13 +8973,13 @@ namespace sqlite_orm {
                         }
                         return 0;
                     },
-                    &res,
+                    &result,
                     nullptr);
                 if(rc != SQLITE_OK) {
                     throw std::system_error(std::error_code(sqlite3_errcode(db), get_sqlite_error_category()),
                                             sqlite3_errmsg(db));
                 }
-                return res;
+                return result;
             }
 
 #endif
@@ -8970,6 +9008,10 @@ namespace sqlite_orm {
 
                 for(auto &p: this->limit.limits) {
                     sqlite3_limit(db, p.first, p.second);
+                }
+
+                if(_busy_handler) {
+                    sqlite3_busy_handler(this->connection->get(), busy_handler_callback, this);
                 }
 
                 if(this->on_open) {
@@ -9035,7 +9077,7 @@ namespace sqlite_orm {
             }
 
             std::string current_timestamp(sqlite3 *db) {
-                std::string res;
+                std::string result;
                 std::stringstream ss;
                 ss << "SELECT CURRENT_TIMESTAMP";
                 auto query = ss.str();
@@ -9051,13 +9093,13 @@ namespace sqlite_orm {
                         }
                         return 0;
                     },
-                    &res,
+                    &result,
                     nullptr);
                 if(rc != SQLITE_OK) {
                     throw std::system_error(std::error_code(sqlite3_errcode(db), get_sqlite_error_category()),
                                             sqlite3_errmsg(db));
                 }
-                return res;
+                return result;
             }
 
             void drop_table_internal(const std::string &tableName, sqlite3 *db) {
@@ -9085,6 +9127,15 @@ namespace sqlite_orm {
             static int collate_callback(void *arg, int leftLen, const void *lhs, int rightLen, const void *rhs) {
                 auto &f = *(collating_function *)arg;
                 return f(leftLen, lhs, rightLen, rhs);
+            }
+
+            static int busy_handler_callback(void *selfPointer, int triesCount) {
+                auto &storage = *static_cast<storage_base *>(selfPointer);
+                if(storage._busy_handler) {
+                    return storage._busy_handler(triesCount);
+                } else {
+                    return 0;
+                }
             }
 
             //  returns foreign keys count in storage definition
@@ -9859,8 +9910,8 @@ namespace sqlite_orm {
             std::string operator()(const statement_type &c, const C &context) const {
                 std::stringstream ss;
                 ss << "CASE ";
-                c.case_expression.apply([&ss, context](auto &c) {
-                    ss << serialize(c, context) << " ";
+                c.case_expression.apply([&ss, context](auto &c_) {
+                    ss << serialize(c_, context) << " ";
                 });
                 iterate_tuple(c.args, [&ss, context](auto &pair) {
                     ss << "WHEN " << serialize(pair.first, context) << " ";
@@ -10545,17 +10596,17 @@ namespace sqlite_orm {
                 }
                 ss << "VALUES ";
                 auto valuesString = [columnNamesCount] {
-                    std::stringstream ss;
-                    ss << "(";
+                    std::stringstream ss_;
+                    ss_ << "(";
                     for(size_t i = 0; i < columnNamesCount; ++i) {
-                        ss << "?";
+                        ss_ << "?";
                         if(i < columnNamesCount - 1) {
-                            ss << ", ";
+                            ss_ << ", ";
                         } else {
-                            ss << ")";
+                            ss_ << ")";
                         }
                     }
-                    return ss.str();
+                    return ss_.str();
                 }();
                 auto valuesCount = static_cast<int>(std::distance(rep.range.first, rep.range.second));
                 for(auto i = 0; i < valuesCount; ++i) {
@@ -10600,17 +10651,17 @@ namespace sqlite_orm {
                 }
                 ss << "VALUES ";
                 auto valuesString = [columnNamesCount] {
-                    std::stringstream ss;
-                    ss << "(";
+                    std::stringstream ss_;
+                    ss_ << "(";
                     for(size_t i = 0; i < columnNamesCount; ++i) {
-                        ss << "?";
+                        ss_ << "?";
                         if(i < columnNamesCount - 1) {
-                            ss << ", ";
+                            ss_ << ", ";
                         } else {
-                            ss << ")";
+                            ss_ << ")";
                         }
                     }
-                    return ss.str();
+                    return ss_.str();
                 }();
                 auto valuesCount = static_cast<int>(std::distance(statement.range.first, statement.range.second));
                 for(auto i = 0; i < valuesCount; ++i) {
@@ -11980,7 +12031,7 @@ namespace sqlite_orm {
             }
 
             template<class T, class... Args>
-            prepared_statement_t<get_all_t<T, Args...>> prepare(get_all_t<T, Args...> get) {
+            prepared_statement_t<get_all_t<T, Args...>> prepare(get_all_t<T, Args...> get_) {
                 auto con = this->get_connection();
                 sqlite3_stmt *stmt;
                 auto db = con.get();
@@ -11988,9 +12039,9 @@ namespace sqlite_orm {
                 context_t context{this->impl};
                 context.skip_table_name = false;
                 context.replace_bindable_with_question = true;
-                auto query = serialize(get, context);
+                auto query = serialize(get_, context);
                 if(sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
-                    return {std::move(get), stmt, con};
+                    return {std::move(get_), stmt, con};
                 } else {
                     throw std::system_error(std::error_code(sqlite3_errcode(db), get_sqlite_error_category()),
                                             sqlite3_errmsg(db));
@@ -11998,7 +12049,7 @@ namespace sqlite_orm {
             }
 
             template<class T, class... Args>
-            prepared_statement_t<get_all_pointer_t<T, Args...>> prepare(get_all_pointer_t<T, Args...> get) {
+            prepared_statement_t<get_all_pointer_t<T, Args...>> prepare(get_all_pointer_t<T, Args...> get_) {
                 auto con = this->get_connection();
                 sqlite3_stmt *stmt;
                 auto db = con.get();
@@ -12006,9 +12057,9 @@ namespace sqlite_orm {
                 context_t context{this->impl};
                 context.skip_table_name = false;
                 context.replace_bindable_with_question = true;
-                auto query = serialize(get, context);
+                auto query = serialize(get_, context);
                 if(sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
-                    return {std::move(get), stmt, con};
+                    return {std::move(get_), stmt, con};
                 } else {
                     throw std::system_error(std::error_code(sqlite3_errcode(db), get_sqlite_error_category()),
                                             sqlite3_errmsg(db));
@@ -12017,7 +12068,7 @@ namespace sqlite_orm {
 
 #ifdef SQLITE_ORM_OPTIONAL_SUPPORTED
             template<class T, class R, class... Args>
-            prepared_statement_t<get_all_optional_t<T, R, Args...>> prepare(get_all_optional_t<T, R, Args...> get) {
+            prepared_statement_t<get_all_optional_t<T, R, Args...>> prepare(get_all_optional_t<T, R, Args...> get_) {
                 auto con = this->get_connection();
                 sqlite3_stmt *stmt;
                 auto db = con.get();
@@ -12025,9 +12076,9 @@ namespace sqlite_orm {
                 context_t context{this->impl};
                 context.skip_table_name = false;
                 context.replace_bindable_with_question = true;
-                auto query = serialize(get, context);
+                auto query = serialize(get_, context);
                 if(sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
-                    return {std::move(get), stmt, con};
+                    return {std::move(get_), stmt, con};
                 } else {
                     throw std::system_error(std::error_code(sqlite3_errcode(db), get_sqlite_error_category()),
                                             sqlite3_errmsg(db));
@@ -12073,7 +12124,7 @@ namespace sqlite_orm {
             }
 
             template<class T, class... Ids>
-            prepared_statement_t<get_t<T, Ids...>> prepare(get_t<T, Ids...> get) {
+            prepared_statement_t<get_t<T, Ids...>> prepare(get_t<T, Ids...> get_) {
                 auto con = this->get_connection();
                 sqlite3_stmt *stmt;
                 auto db = con.get();
@@ -12081,9 +12132,9 @@ namespace sqlite_orm {
                 context_t context{this->impl};
                 context.skip_table_name = false;
                 context.replace_bindable_with_question = true;
-                auto query = serialize(get, context);
+                auto query = serialize(get_, context);
                 if(sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
-                    return {std::move(get), stmt, con};
+                    return {std::move(get_), stmt, con};
                 } else {
                     throw std::system_error(std::error_code(sqlite3_errcode(db), get_sqlite_error_category()),
                                             sqlite3_errmsg(db));
@@ -12091,7 +12142,7 @@ namespace sqlite_orm {
             }
 
             template<class T, class... Ids>
-            prepared_statement_t<get_pointer_t<T, Ids...>> prepare(get_pointer_t<T, Ids...> get) {
+            prepared_statement_t<get_pointer_t<T, Ids...>> prepare(get_pointer_t<T, Ids...> get_) {
                 auto con = this->get_connection();
                 sqlite3_stmt *stmt;
                 auto db = con.get();
@@ -12099,9 +12150,9 @@ namespace sqlite_orm {
                 context_t context{this->impl};
                 context.skip_table_name = false;
                 context.replace_bindable_with_question = true;
-                auto query = serialize(get, context);
+                auto query = serialize(get_, context);
                 if(sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
-                    return {std::move(get), stmt, con};
+                    return {std::move(get_), stmt, con};
                 } else {
                     throw std::system_error(std::error_code(sqlite3_errcode(db), get_sqlite_error_category()),
                                             sqlite3_errmsg(db));
@@ -12110,7 +12161,7 @@ namespace sqlite_orm {
 
 #ifdef SQLITE_ORM_OPTIONAL_SUPPORTED
             template<class T, class... Ids>
-            prepared_statement_t<get_optional_t<T, Ids...>> prepare(get_optional_t<T, Ids...> get) {
+            prepared_statement_t<get_optional_t<T, Ids...>> prepare(get_optional_t<T, Ids...> get_) {
                 auto con = this->get_connection();
                 sqlite3_stmt *stmt;
                 auto db = con.get();
@@ -12118,9 +12169,9 @@ namespace sqlite_orm {
                 context_t context{this->impl};
                 context.skip_table_name = false;
                 context.replace_bindable_with_question = true;
-                auto query = serialize(get, context);
+                auto query = serialize(get_, context);
                 if(sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
-                    return {std::move(get), stmt, con};
+                    return {std::move(get_), stmt, con};
                 } else {
                     throw std::system_error(std::error_code(sqlite3_errcode(db), get_sqlite_error_category()),
                                             sqlite3_errmsg(db));
@@ -13315,8 +13366,8 @@ namespace sqlite_orm {
                 ++index;
             }
             if(index == N) {
-                internal::static_if<std::is_same<result_tupe, node_type>{}>([](auto &result, auto &node) {
-                    result = const_cast<typename std::remove_reference<decltype(result)>::type>(&node);
+                internal::static_if<std::is_same<result_tupe, node_type>{}>([](auto &r, auto &n) {
+                    r = const_cast<typename std::remove_reference<decltype(r)>::type>(&n);
                 })(result, node);
             }
         });
@@ -13338,8 +13389,8 @@ namespace sqlite_orm {
                 ++index;
             }
             if(index == N) {
-                internal::static_if<std::is_same<result_tupe, node_type>{}>([](auto &result, auto &node) {
-                    result = const_cast<typename std::remove_reference<decltype(result)>::type>(&node);
+                internal::static_if<std::is_same<result_tupe, node_type>{}>([](auto &r, auto &n) {
+                    r = const_cast<typename std::remove_reference<decltype(r)>::type>(&n);
                 })(result, node);
             }
         });
