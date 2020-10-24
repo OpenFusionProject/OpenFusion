@@ -222,9 +222,9 @@ void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y, uint64_t ins
     // now, add all the new npcs & players!
     addPlayerToChunks(ChunkManager::getDeltaChunks(allChunks, view.currentChunks), sock);
 
-    ChunkManager::addPlayer(X, Y, view.plr->instanceID, sock); // takes care of adding the player to the chunk if it exists or not
     view.chunkPos = newPos;
     view.currentChunks = allChunks;
+    ChunkManager::addPlayer(X, Y, view.plr->instanceID, sock); // takes care of adding the player to the chunk if it exists or not
 }
 
 void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I) {
