@@ -7,6 +7,7 @@
 #include "NanoManager.hpp"
 
 #include <cmath>
+#define M_PI 3.14159265358979323846
 #include <algorithm>
 #include <list>
 #include <fstream>
@@ -21,6 +22,8 @@ std::map<int32_t, WarpLocation> NPCManager::Warps;
 std::vector<WarpLocation> NPCManager::RespawnPoints;
 /// sock, CBFlag -> until
 std::map<std::pair<CNSocket*, int32_t>, time_t> NPCManager::EggBuffs;
+std::unordered_map<int, EggType> NPCManager::EggTypes;
+std::unordered_map<int, Egg*> NPCManager::Eggs;
 nlohmann::json NPCManager::NPCData;
 
 /*
@@ -43,8 +46,10 @@ void NPCManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY, npcVendorBuyback);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_BATTERY_BUY, npcVendorBuyBattery);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_COMBINATION, npcCombineItems);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SHINY_SUMMON, eggSummon);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SHINY_PICKUP, eggPickup);
 
-    REGISTER_SHARD_TIMER(buffStep, 1000);
+    REGISTER_SHARD_TIMER(eggStep, 1000);
 }
 
 void NPCManager::removeNPC(std::vector<Chunk*> viewableChunks, int32_t id) {
@@ -60,6 +65,17 @@ void NPCManager::removeNPC(std::vector<Chunk*> viewableChunks, int32_t id) {
             for (CNSocket* sock : chunk->players) {
                 // send to socket
                 sock->sendPacket((void*)&exitBusData, P_FE2CL_TRANSPORTATION_EXIT, sizeof(sP_FE2CL_TRANSPORTATION_EXIT));
+            }
+        }
+        break;
+    case NPC_EGG:
+        INITSTRUCT(sP_FE2CL_SHINY_EXIT, exitEggData);
+        exitEggData.iShinyID = id;
+
+        for (Chunk* chunk : viewableChunks) {
+            for (CNSocket* sock : chunk->players) {
+                // send to socket
+                sock->sendPacket((void*)&exitEggData, P_FE2CL_SHINY_EXIT, sizeof(sP_FE2CL_SHINY_EXIT));
             }
         }
         break;
@@ -91,6 +107,17 @@ void NPCManager::addNPC(std::vector<Chunk*> viewableChunks, int32_t id) {
             for (CNSocket* sock : chunk->players) {
                 // send to socket
                 sock->sendPacket((void*)&enterBusData, P_FE2CL_TRANSPORTATION_ENTER, sizeof(sP_FE2CL_TRANSPORTATION_ENTER));
+            }
+        }
+        break;
+    case NPC_EGG:
+        INITSTRUCT(sP_FE2CL_SHINY_ENTER, enterEggData);
+        npcDataToEggData(&npc->appearanceData, &enterEggData.ShinyAppearanceData);
+
+        for (Chunk* chunk : viewableChunks) {
+            for (CNSocket* sock : chunk->players) {
+                // send to socket
+                sock->sendPacket((void*)&enterEggData, P_FE2CL_SHINY_ENTER, sizeof(sP_FE2CL_SHINY_ENTER));
             }
         }
         break;
@@ -134,6 +161,10 @@ void NPCManager::destroyNPC(int32_t id) {
     // remove from mob manager
     if (MobManager::Mobs.find(id) != MobManager::Mobs.end())
         MobManager::Mobs.erase(id);
+
+    // remove from eggs
+    if (Eggs.find(id) != Eggs.end())
+        Eggs.erase(id);
 
     // finally, remove it from the map and free it
     NPCs.erase(id);
@@ -650,7 +681,6 @@ BaseNPC* NPCManager::getNearestNPC(std::vector<Chunk*> chunks, int X, int Y, int
     return npc;
 }
 
-
 int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int duration) {
 
     Player* plr = PlayerManager::getPlayer(sock);
@@ -698,12 +728,12 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int duration) {
     return 0;
 }
 
-void NPCManager::buffStep(CNServer* serv, time_t currTime) {
-
+void NPCManager::eggStep(CNServer* serv, time_t currTime) {
+    // tick buffs
     auto it = EggBuffs.begin();
     while (it != EggBuffs.end()) {
         // check remaining time
-        if (it->second > getTimestamp())
+        if (it->second > currTime)
             it++;
 
         // if time reached 0
@@ -742,5 +772,149 @@ void NPCManager::buffStep(CNServer* serv, time_t currTime) {
             it = EggBuffs.erase(it);
         }
 
+    }
+
+    // check dead eggs
+    for (auto egg : Eggs) {
+        if (!egg.second->dead)
+            return;
+        if (egg.second->deadUntil <= currTime) {
+            // respawn it
+            addNPC(egg.second->currentChunks, egg.first);
+            egg.second->dead = false;
+        }
+    }
+
+}
+
+void NPCManager::npcDataToEggData(sNPCAppearanceData* npc, sShinyAppearanceData* egg) {
+    egg->iX = npc->iX;
+    egg->iY = npc->iY;
+    egg->iZ = npc->iZ;
+    // client doesn't care about egg->iMapNum
+    egg->iShinyType = npc->iNPCType;
+    egg->iShiny_ID = npc->iNPC_ID;
+}
+
+void NPCManager::eggSummon(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_SHINY_SUMMON))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_SHINY_SUMMON* summon = (sP_CL2FE_REQ_SHINY_SUMMON*)data->buf;
+
+    assert(NPCManager::nextId < INT32_MAX);
+    int id = NPCManager::nextId++;
+
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    if (plr == nullptr)
+        return;
+
+    /*
+     * the packet sends us player position with a random offset,
+     * instead we're using some math to place the egg right in front of the player
+     */
+
+    int addX = -500.0f * sin(plr->angle / 180.0f * M_PI);
+    int addY = -500.0f * cos(plr->angle / 180.0f * M_PI);
+
+    Egg* egg = new Egg (plr->x + addX, plr->y + addY, plr->z, plr->instanceID, summon->iShinyType, id, false);
+    NPCManager::NPCs[id] = egg;
+    NPCManager::Eggs[id] = egg;
+    NPCManager::updateNPCPosition(id, plr->x + addX, plr->y + addY, plr->z, plr->instanceID);
+
+}
+
+void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_SHINY_PICKUP))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_SHINY_PICKUP* pickup = (sP_CL2FE_REQ_SHINY_PICKUP*)data->buf;
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    if (plr == nullptr)
+        return;
+
+    int eggId = pickup->iShinyID;
+
+    if (Eggs.find(eggId) == Eggs.end()) {
+        std::cout << "[WARN] Player tried to open non existing egg?!" << std::endl;
+        return;
+    }
+    Egg* egg = Eggs[eggId];
+
+    if (egg->dead) {
+        std::cout << "[WARN] Player tried to open a dead egg?!" << std::endl;
+        return;
+    }
+
+    int typeId = egg->appearanceData.iNPCType;
+    if (EggTypes.find(typeId) == EggTypes.end()) {
+        if (egg->npcClass != NPCClass::NPC_EGG) {
+            std::cout << "[WARN] Egg Type "<< typeId <<" not found!" << std::endl;
+            return;
+        }
+    }
+    EggType* type = &EggTypes[typeId];
+
+    // response packet
+    INITSTRUCT(sP_FE2CL_REP_SHINY_PICKUP_SUCC, resp);
+    resp.iSkillID = type->effectId;
+    if (resp.iSkillID == 0)
+        resp.iSkillID = -1;
+
+    // this packet is only responsible for showing UI effect stuff
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_SHINY_PICKUP_SUCC, sizeof(sP_FE2CL_REP_SHINY_PICKUP_SUCC));
+
+    // buff
+    if (type->effectId != 0)
+        eggBuffPlayer(sock, type->effectId, type->duration);
+    
+    // drop
+    if (type->dropCrateId != 0) {
+        const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
+        assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+        // we know it's only one trailing struct, so we can skip full validation
+
+        uint8_t respbuf[resplen]; // not a variable length array, don't worry
+        sP_FE2CL_REP_REWARD_ITEM* reward = (sP_FE2CL_REP_REWARD_ITEM*)respbuf;
+        sItemReward* item = (sItemReward*)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
+
+        // don't forget to zero the buffer!
+        memset(respbuf, 0, resplen);
+
+        // send back player's stats
+        reward->m_iCandy = plr->money;
+        reward->m_iFusionMatter = plr->fusionmatter;
+        reward->m_iBatteryN = plr->batteryN;
+        reward->m_iBatteryW = plr->batteryW;
+        reward->iFatigue = 100; // prevents warning message
+        reward->iFatigue_Level = 1;
+        reward->iItemCnt = 1; // remember to update resplen if you change this
+
+        int slot = ItemManager::findFreeSlot(plr);
+
+        // no space for drop
+        if (slot != -1) {
+
+            // item reward
+            item->sItem.iType = 9;
+            item->sItem.iOpt = 1;
+            item->sItem.iID = type->dropCrateId;
+            item->iSlotNum = slot;
+            item->eIL = 1; // Inventory Location. 1 means player inventory.
+
+            // update player
+            plr->Inven[slot] = item->sItem;
+            sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
+        }
+    }
+
+    if (egg->summoned)
+        destroyNPC(eggId);
+    else {
+        removeNPC(egg->currentChunks, eggId);
+        egg->dead = true;
+        egg->deadUntil = getTimestamp() + type->regen;
     }
 }

@@ -116,6 +116,11 @@ bool PlayerManager::removePlayerFromChunks(std::vector<Chunk*> chunks, CNSocket*
                 exitBusData.iT_ID = id;
                 sock->sendPacket((void*)&exitBusData, P_FE2CL_TRANSPORTATION_EXIT, sizeof(sP_FE2CL_TRANSPORTATION_EXIT));
                 break;
+            case NPC_EGG:
+                INITSTRUCT(sP_FE2CL_SHINY_EXIT, exitEggData);
+                exitEggData.iShinyID = id;
+                sock->sendPacket((void*)&exitEggData, P_FE2CL_SHINY_EXIT, sizeof(sP_FE2CL_SHINY_EXIT));
+                break;
             default:
                 INITSTRUCT(sP_FE2CL_NPC_EXIT, exitData);
                 exitData.iNPC_ID = id;
@@ -149,6 +154,11 @@ void PlayerManager::addPlayerToChunks(std::vector<Chunk*> chunks, CNSocket* sock
                 INITSTRUCT(sP_FE2CL_TRANSPORTATION_ENTER, enterBusData);
                 enterBusData.AppearanceData = { 3, npc->appearanceData.iNPC_ID, npc->appearanceData.iNPCType, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ };
                 sock->sendPacket((void*)&enterBusData, P_FE2CL_TRANSPORTATION_ENTER, sizeof(sP_FE2CL_TRANSPORTATION_ENTER));
+                break;
+            case NPC_EGG:
+                INITSTRUCT(sP_FE2CL_SHINY_ENTER, enterEggData);
+                NPCManager::npcDataToEggData(&npc->appearanceData, &enterEggData.ShinyAppearanceData);
+                sock->sendPacket((void*)&enterEggData, P_FE2CL_SHINY_ENTER, sizeof(sP_FE2CL_SHINY_ENTER));
                 break;
             default:
                 INITSTRUCT(sP_FE2CL_NPC_ENTER, enterData);

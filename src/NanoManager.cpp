@@ -23,15 +23,15 @@ std::set<int> SleepPowers = {28, 30, 32, 49, 70, 71, 81, 85, 94};
 
 // passive powers
 std::set<int> ScavengePowers = {3, 50, 99};
-std::set<int> RunPowers = {4, 68, 86};
+std::set<int> RunPowers = {4, 68, 86, 132};
 std::set<int> GroupRunPowers = {8, 62, 73};
 std::set<int> BonusPowers = {6, 54, 104};
-std::set<int> GuardPowers = {9, 57, 76};
-std::set<int> RadarPowers = {11, 67, 95};
-std::set<int> AntidotePowers = {14, 58, 102};
-std::set<int> FreedomPowers = {31, 39, 107};
+std::set<int> GuardPowers = {9, 57, 76, 157};
+std::set<int> RadarPowers = {11, 67, 95, 156};
+std::set<int> AntidotePowers = {14, 58, 102, 159};
+std::set<int> FreedomPowers = {31, 39, 107, 158};
 std::set<int> GroupFreedomPowers = {15, 55, 77};
-std::set<int> JumpPowers = {16, 44, 88};
+std::set<int> JumpPowers = {16, 44, 88, 154};
 std::set<int> GroupJumpPowers = {35, 60, 100};
 std::set<int> SelfRevivePowers = {22, 48, 84};
 std::set<int> SneakPowers = {29, 72, 80};
