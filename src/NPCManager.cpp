@@ -734,10 +734,11 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int duration) {
 
 void NPCManager::eggStep(CNServer* serv, time_t currTime) {
     // tick buffs
+    time_t timeStamp = getTimestamp();
     auto it = EggBuffs.begin();
     while (it != EggBuffs.end()) {
         // check remaining time
-        if (it->second > currTime)
+        if (it->second > timeStamp)
             it++;
 
         // if time reached 0
@@ -781,11 +782,13 @@ void NPCManager::eggStep(CNServer* serv, time_t currTime) {
     // check dead eggs
     for (auto egg : Eggs) {
         if (!egg.second->dead)
-            return;
-        if (egg.second->deadUntil <= currTime) {
+            continue;
+        if (egg.second->deadUntil <= timeStamp) {
             // respawn it
-            addNPC(egg.second->currentChunks, egg.first);
             egg.second->dead = false;
+            egg.second->deadUntil = 0;
+            egg.second->appearanceData.iHP = 400;
+            addNPC(egg.second->currentChunks, egg.first);
         }
     }
 
@@ -920,5 +923,6 @@ void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
         removeNPC(egg->currentChunks, eggId);
         egg->dead = true;
         egg->deadUntil = getTimestamp() + type->regen;
+        egg->appearanceData.iHP = 0;
     }
 }
