@@ -651,9 +651,11 @@ void MobManager::step(CNServer *serv, time_t currTime) {
         }
 
         // unbuffing
-        for (auto& pair2 : pair.second->unbuffTimes) {
-            if (currTime >= pair2.second) {
-                pair.second->appearanceData.iConditionBitFlag &= ~pair2.first;
+        std::unordered_map<int32_t, time_t>::iterator it = pair.second->unbuffTimes.begin();
+        while (it != pair.second->unbuffTimes.end()) {
+            
+            if (currTime >= it->second) {
+                pair.second->appearanceData.iConditionBitFlag &= ~it->first;
                 
                 INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
                 pkt1.eCT = 2;
@@ -661,7 +663,9 @@ void MobManager::step(CNServer *serv, time_t currTime) {
                 pkt1.iConditionBitFlag = pair.second->appearanceData.iConditionBitFlag;
                 NPCManager::sendToViewable(pair.second, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
                 
-                pair.second->unbuffTimes.erase(pair2.first);
+                it = pair.second->unbuffTimes.erase(it);
+            } else {
+                it++;
             }
         }
 
