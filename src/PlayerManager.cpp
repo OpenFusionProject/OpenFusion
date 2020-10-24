@@ -150,6 +150,10 @@ void PlayerManager::addPlayerToChunks(std::vector<Chunk*> chunks, CNSocket* sock
         // add npcs
         for (int32_t id : chunk->NPCs) {
             BaseNPC* npc = NPCManager::NPCs[id];
+
+            if (npc->appearanceData.iHP <= 0)
+                continue;
+
             switch (npc->npcClass) {
             case NPC_BUS:
                 INITSTRUCT(sP_FE2CL_TRANSPORTATION_ENTER, enterBusData);
