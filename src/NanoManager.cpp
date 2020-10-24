@@ -375,7 +375,7 @@ void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill, bo
     //validate that all slots are valid or zeroes
     int reqItemID = NanoTunings[skill->iTuneID].reqItems;
     for (int i = 0; i < 10; i++) {
-        if (!skill->aiNeedItemSlotNum[i] && plr->Inven[skill->aiNeedItemSlotNum[i]].iID != reqItemID)
+        if (!skill->aiNeedItemSlotNum[i] && skill->aiNeedItemSlotNum[i] < AINVEN_COUNT && plr->Inven[skill->aiNeedItemSlotNum[i]].iID != reqItemID)
             isNanoStation = false;
     }
 
