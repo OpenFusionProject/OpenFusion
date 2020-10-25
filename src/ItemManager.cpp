@@ -233,8 +233,8 @@ void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_ITEM_USE* request = (sP_CL2FE_REQ_ITEM_USE*)data->buf;
     Player* player = PlayerManager::getPlayer(sock);
 
-    if (player == nullptr)
-        return;
+    if (player == nullptr || request->iSlotNum < 0 || request->iSlotNum >= AINVEN_COUNT)
+        return; // sanity check
 
     // gumball can only be used from inventory, so we ignore eIL
     sItemBase gumball = player->Inven[request->iSlotNum];

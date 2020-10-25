@@ -229,8 +229,8 @@ void MissionManager::quitMission(CNSocket* sock, CNPacketData* data) {
 void MissionManager::quitTask(CNSocket* sock, int32_t taskNum, bool manual) {
     Player* plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr)
-        return;
+    if (plr == nullptr || Tasks.find(taskNum) == Tasks.end())
+        return; // sanity check
 
     // update player
     int i;
