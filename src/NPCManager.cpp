@@ -691,15 +691,31 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int duration) {
     if (plr == nullptr)
         return -1;
 
-    int32_t CBFlag = -1, iValue, CSTB;
+    int32_t CBFlag = -1, iValue = 0, CSTB, EST;
 
-    // find the right passive power data    
-    for (auto& pwr : NanoManager::PassivePowers)
-        if (pwr.powers.count(skillId)) {
-            CBFlag = pwr.iCBFlag;
-            CSTB = pwr.eCharStatusTimeBuffID;
-            iValue = pwr.iValue;
-        }
+    // damage and heal have to be set by hand
+    if (skillId == 183) {
+        // damage
+        CBFlag = CSB_BIT_INFECTION;
+        CSTB = ECSB_INFECTION;
+        EST = EST_INFECTIONDAMAGE;
+    }
+    else if (skillId == 150) {
+        // heal
+        CBFlag = CSB_BIT_HEAL;
+        CSTB = ECSB_HEAL;
+        EST = EST_HEAL_HP;
+    }
+    else {
+        // find the right passive power data  
+        for (auto& pwr : NanoManager::PassivePowers)
+            if (pwr.powers.count(skillId)) {
+                CBFlag = pwr.iCBFlag;
+                CSTB = pwr.eCharStatusTimeBuffID;
+                EST = pwr.eSkillType;
+                iValue = pwr.iValue;
+            }
+    }
 
     if (CBFlag < 0)
         return -1;
@@ -721,7 +737,7 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int duration) {
         int32_t updatedFlag = plr->iConditionBitFlag | plr->iGroupConditionBitFlag | plr->iEggConditionBitFlag;
         updatePacket.iConditionBitFlag = updatedFlag;
 
-        sock->sendPacket((void*)&updatePacket, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));       
+        sock->sendPacket((void*)&updatePacket, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
     }
 
     // save the buff serverside;
@@ -729,6 +745,36 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int duration) {
     time_t until = getTimestamp() + duration;
     EggBuffs[key] = until;
     
+    /*
+     * to give player a visual effect (eg. blue particles for run or wings for jump)
+     * we have to send him NANO_SKILL_USE packet with nano Id set to 0
+     * yes, this is utterly stupid and disgusting
+     */
+
+    const size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE) + sizeof(sSkillResult_Buff);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+    // we know it's only one trailing struct, so we can skip full validation
+
+    uint8_t respbuf[resplen]; // not a variable length array, don't worry
+    sP_FE2CL_NANO_SKILL_USE* skillUse = (sP_FE2CL_NANO_SKILL_USE*)respbuf;
+    sSkillResult_Buff* skill = (sSkillResult_Buff*)(respbuf + sizeof(sP_FE2CL_NANO_SKILL_USE));
+
+    memset(respbuf, 0, resplen);
+
+    skillUse->iPC_ID = plr->iID;
+    skillUse->iSkillID = skillId;
+    skillUse->iNanoID = 0;
+    skillUse->iNanoStamina = 150;
+    skillUse->eST = EST;
+    skillUse->iTargetCnt = 1;
+
+    skill->eCT = 1;
+    skill->iID = plr->iID;
+    skill->iConditionBitFlag = plr->iConditionBitFlag | plr->iGroupConditionBitFlag | plr->iEggConditionBitFlag;
+
+    sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
+    PlayerManager::sendToViewable(sock, (void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
+
     return 0;
 }
 
@@ -742,25 +788,34 @@ void NPCManager::eggStep(CNServer* serv, time_t currTime) {
             it++;
 
         // if time reached 0
-        else{
+        else {
             CNSocket* sock = it->first.first;
             Player* plr = PlayerManager::getPlayer(sock);
-
+           
             // if player is still on the server
             if (plr != nullptr) {
+
                 int32_t CBFlag = it->first.second;
-                int32_t CSTB = -1, iValue;
+                int32_t CSTB = -1, iValue = 0;
 
                 // find CSTB Value
-                for (auto pwr : NanoManager::PassivePowers) {
-                    if (pwr.iCBFlag == CBFlag) {
-                        CSTB = pwr.eCharStatusTimeBuffID;
-                        iValue = pwr.iValue;
-                        break;
+                if (CBFlag == CSB_BIT_INFECTION)
+                    CSTB = ECSB_INFECTION;           
+
+                else if (CBFlag == CSB_BIT_HEAL)
+                    CSTB = ECSB_HEAL;
+
+                else {
+                    for (auto pwr : NanoManager::PassivePowers) {
+                        if (pwr.iCBFlag == CBFlag) {
+                            CSTB = pwr.eCharStatusTimeBuffID;
+                            iValue = pwr.iValue;
+                            break;
+                        }
                     }
                 }
 
-                if (CSTB >= 0) {
+                if (CSTB > 0) {
                     // update CBFlag serverside
                     plr->iEggConditionBitFlag &= ~CBFlag;
                     // send buff update packet
@@ -776,7 +831,6 @@ void NPCManager::eggStep(CNServer* serv, time_t currTime) {
             // remove buff from the map
             it = EggBuffs.erase(it);
         }
-
     }
 
     // check dead eggs
@@ -825,7 +879,7 @@ void NPCManager::eggSummon(CNSocket* sock, CNPacketData* data) {
     int addX = -500.0f * sin(plr->angle / 180.0f * M_PI);
     int addY = -500.0f * cos(plr->angle / 180.0f * M_PI);
 
-    Egg* egg = new Egg (plr->x + addX, plr->y + addY, plr->z, plr->instanceID, summon->iShinyType, id, false);
+    Egg* egg = new Egg (plr->x + addX, plr->y + addY, plr->z, plr->instanceID, summon->iShinyType, id, true);
     NPCManager::NPCs[id] = egg;
     NPCManager::Eggs[id] = egg;
     NPCManager::updateNPCPosition(id, plr->x + addX, plr->y + addY, plr->z, plr->instanceID);
@@ -858,25 +912,86 @@ void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
     int typeId = egg->appearanceData.iNPCType;
     if (EggTypes.find(typeId) == EggTypes.end()) {
         if (egg->npcClass != NPCClass::NPC_EGG) {
-            std::cout << "[WARN] Egg Type "<< typeId <<" not found!" << std::endl;
+            std::cout << "[WARN] Egg Type " << typeId << " not found!" << std::endl;
             return;
         }
     }
     EggType* type = &EggTypes[typeId];
 
-    // response packet
-    INITSTRUCT(sP_FE2CL_REP_SHINY_PICKUP_SUCC, resp);
-    resp.iSkillID = type->effectId;
-    if (resp.iSkillID == 0)
-        resp.iSkillID = -1;
-
-    // this packet is only responsible for showing UI effect stuff
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_SHINY_PICKUP_SUCC, sizeof(sP_FE2CL_REP_SHINY_PICKUP_SUCC));
-
-    // buff
+    // buff the player
     if (type->effectId != 0)
         eggBuffPlayer(sock, type->effectId, type->duration);
-    
+
+    // damage egg
+    if (type->effectId == 183) {
+        size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_Damage);
+        assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+        uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+
+        memset(respbuf, 0, resplen);
+
+        sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK* pkt = (sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK*)respbuf;
+        sSkillResult_Damage* dmg = (sSkillResult_Damage*)(respbuf + sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
+
+        dmg->iDamage = PC_MAXHEALTH(plr->level) * 6 / 10;
+
+        plr->HP -= dmg->iDamage;
+
+        pkt->iID = plr->iID;
+        pkt->eCT = 1; // player
+        pkt->iTB_ID = 19;
+        dmg->iHP = plr->HP;
+
+        sock->sendPacket((void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
+        PlayerManager::sendToViewable(sock, (void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
+    }
+    // heal egg
+    else if (type->effectId == 150) {
+        size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_Heal_HP);
+        assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+        uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+
+        memset(respbuf, 0, resplen);
+
+        sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK* pkt = (sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK*)respbuf;
+        sSkillResult_Heal_HP* heal = (sSkillResult_Heal_HP*)(respbuf + sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
+
+        heal->iHealHP = PC_MAXHEALTH(plr->level) * 35 / 100;
+        plr->HP += heal->iHealHP;
+        if (plr->HP > PC_MAXHEALTH(plr->level))
+            plr->HP = PC_MAXHEALTH(plr->level);
+
+        heal->iHP = plr->HP;
+        heal->iID = plr->iID;
+        heal->eCT = 1;
+
+        pkt->iID = plr->iID;
+        pkt->eCT = 1; // player
+        pkt->iTB_ID = ECSB_HEAL;
+
+        sock->sendPacket((void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
+        PlayerManager::sendToViewable(sock, (void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
+    }
+
+    /*
+     * SHINY_PIKUP_SUCC is only causing a GUI effect in the client
+     * (buff icon pops up in the bottom of the screen)
+     * so we don't send it for non-effect
+     */
+
+    if (type->effectId != 0)
+    {
+    INITSTRUCT(sP_FE2CL_REP_SHINY_PICKUP_SUCC, resp);
+    resp.iSkillID = type->effectId;
+
+    // in general client finds correct icon on it's own,
+    // but for damage we have to supply correct CSTB
+    if (resp.iSkillID == 183)
+        resp.eCSTB = ECSB_INFECTION;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_SHINY_PICKUP_SUCC, sizeof(sP_FE2CL_REP_SHINY_PICKUP_SUCC));
+    }
+
     // drop
     if (type->dropCrateId != 0) {
         const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
