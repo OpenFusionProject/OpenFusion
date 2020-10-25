@@ -23,7 +23,7 @@ std::set<int> SleepPowers = {28, 30, 32, 49, 70, 71, 81, 85, 94};
 
 // passive powers
 std::set<int> ScavengePowers = {3, 50, 99};
-std::set<int> RunPowers = {4, 68, 86, 132};
+std::set<int> RunPowers = {4, 68, 86, 155};
 std::set<int> GroupRunPowers = {8, 62, 73};
 std::set<int> BonusPowers = {6, 54, 104};
 std::set<int> GuardPowers = {9, 57, 76, 157};
