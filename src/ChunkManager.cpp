@@ -267,8 +267,9 @@ void ChunkManager::createInstance(uint64_t instanceID) {
 }
 
 void ChunkManager::destroyInstance(uint64_t instanceID) {
-    std::cout << "Deleting instance " << instanceID << std::endl;
+    
     std::vector<std::tuple<int, int, uint64_t>> instanceChunks = ChunkManager::getChunksInMap(instanceID);
+    std::cout << "Deleting instance " << instanceID << " (" << instanceChunks.size() << " chunks)" << std::endl;
     for (std::tuple<int, int, uint64_t>& coords : instanceChunks) {
         destroyChunk(coords);
     }

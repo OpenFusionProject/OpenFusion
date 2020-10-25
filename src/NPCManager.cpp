@@ -584,8 +584,6 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
     if (Warps.find(warpId) == Warps.end())
         return;
 
-    uint64_t fromInstance = plrv.plr->instanceID; // saved for post-warp
-
     // std::cerr << "Warped to Map Num:" << Warps[warpId].instanceID << " NPC ID " << Warps[warpId].npcID << std::endl;
     if (Warps[warpId].isInstance) {
         uint64_t instanceID = Warps[warpId].instanceID;
@@ -625,9 +623,6 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
         plrv.plr->instanceID = INSTANCE_OVERWORLD;
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
     }
-
-    // post-warp: check if the source instance has no more players in it and delete it if so
-    ChunkManager::destroyInstanceIfEmpty(fromInstance);
 }
 
 /*

@@ -241,7 +241,7 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
 
     MissionManager::failInstancedMissions(sock); // fail any instanced missions
 
-    uint64_t fromInstance = plr->instanceID;
+    uint64_t fromInstance = plrv.plr->instanceID; // pre-warp instance, saved for post-warp
 
     plr->instanceID = I;
     if (I != INSTANCE_OVERWORLD) {
@@ -264,6 +264,7 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
         updatePlayerPosition(sock, X, Y, Z);
     }
 
+    // post-warp: check if the source instance has no more players in it and delete it if so
     ChunkManager::destroyInstanceIfEmpty(fromInstance);
 }
 
