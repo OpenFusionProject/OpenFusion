@@ -291,6 +291,9 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     // TODO: check if serialkey exists, if it doesn't send sP_FE2CL_REP_PC_ENTER_FAIL
     Player plr = CNSharedData::getPlayer(enter->iEnterSerialKey);
 
+    plr.buddyCnt = 0;
+    std::cout << "Buddy Count: " << plr.buddyCnt << std::endl;
+
     plr.groupCnt = 1;
     plr.iIDGroup = plr.groupIDs[0] = plr.iID;
 
