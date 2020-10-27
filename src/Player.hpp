@@ -69,5 +69,5 @@ struct Player {
     int32_t iGroupConditionBitFlag;
 
     int buddyCnt;
-    int32_t buddyIDs[50];
+    int64_t buddyIDs[50];
 };
