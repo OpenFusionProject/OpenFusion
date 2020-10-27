@@ -70,4 +70,7 @@ struct Player {
     int32_t iGroupConditionBitFlag;
 
     bool notify;
+
+    int buddyCnt;
+    int64_t buddyIDs[50];
 };
