@@ -406,22 +406,25 @@ void NPCManager::npcVendorBuyBattery(CNSocket* sock, CNPacketData* data) {
     if (plr == nullptr)
         return;
 
-    int cost = req->Item.iOpt * 10;
+    int cost = req->Item.iOpt * 100;
     if ((req->Item.iID == 3 ? (plr->batteryW >= 9999) : (plr->batteryN >= 9999)) || plr->money < cost) { // sanity check
         INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL, failResp);
         failResp.iErrorCode = 0;
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL));
     }
 
-    plr->money -= cost;
-    plr->batteryW += req->Item.iID == 3 ? req->Item.iOpt * 10 : 0;
-    plr->batteryN += req->Item.iID == 4 ? req->Item.iOpt * 10 : 0;
+    cost = plr->batteryW + plr->batteryN;
+    plr->batteryW += req->Item.iID == 3 ? req->Item.iOpt * 100 : 0;
+    plr->batteryN += req->Item.iID == 4 ? req->Item.iOpt * 100 : 0;
 
     // caps
     if (plr->batteryW > 9999)
         plr->batteryW = 9999;
     if (plr->batteryN > 9999)
         plr->batteryN = 9999;
+
+    cost = plr->batteryW + plr->batteryN - cost;
+    plr->money -= cost;
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_SUCC, resp);
 

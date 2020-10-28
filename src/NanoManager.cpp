@@ -715,15 +715,15 @@ void activePower(CNSocket *sock, CNPacketData *data,
 
 // active nano power dispatch table
 std::vector<ActivePower> ActivePowers = {
-    ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  doDebuff>,         EST_STUN, CSB_BIT_STUN,              2250),
+    ActivePower(StunPowers, activePower<sSkillResult_Damage_N_Debuff,  doDebuff>,         EST_STUN, CSB_BIT_STUN,              4000),
     ActivePower(HealPowers, activePower<sSkillResult_Heal_HP,          doHeal>,           EST_HEAL_HP, CSB_BIT_NONE,             35),
     ActivePower(GroupHealPowers, activePower<sSkillResult_Heal_HP,     doGroupHeal, GHEAL>,EST_HEAL_HP, CSB_BIT_NONE,            20),
     // TODO: Recall
-    ActivePower(DrainPowers, activePower<sSkillResult_Buff,            doBuff>,        EST_BOUNDINGBALL, CSB_BIT_BOUNDINGBALL, 3000),
-    ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SNARE, CSB_BIT_DN_MOVE_SPEED,    4500),
+    ActivePower(DrainPowers, activePower<sSkillResult_Buff,            doBuff>,        EST_BOUNDINGBALL, CSB_BIT_BOUNDINGBALL, 6000),
+    ActivePower(SnarePowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SNARE, CSB_BIT_DN_MOVE_SPEED,    8000),
     ActivePower(DamagePowers, activePower<sSkillResult_Damage,         doDamage>,         EST_DAMAGE, CSB_BIT_NONE,              12),
     ActivePower(LeechPowers, activePower<sSkillResult_Heal_HP,         doLeech, LEECH>,   EST_BLOODSUCKING, CSB_BIT_NONE,        18),
-    ActivePower(SleepPowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SLEEP, CSB_BIT_MEZ,              4500),
+    ActivePower(SleepPowers, activePower<sSkillResult_Damage_N_Debuff, doDebuff>,         EST_SLEEP, CSB_BIT_MEZ,              8000),
 };
 
 }; // namespace

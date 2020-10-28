@@ -855,10 +855,10 @@ void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
         sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_ON_SUCC));
 
         // send to other players
-        plr.plr->iPCState = 8;
+        plr.plr->iPCState |= 8;
         INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
         response2.iPC_ID = plr.plr->iID;
-        response2.iState = 8;
+        response2.iState = plr.plr->iPCState;
 
         for (Chunk* chunk : players[sock].currentChunks) {
             for (CNSocket* otherSock : chunk->players) {
@@ -879,19 +879,20 @@ void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
-
-    INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
-    sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_OFF_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_OFF_SUCC));
-
     PlayerView plr = PlayerManager::players[sock];
 
-    // send to other players
-    plr.plr->iPCState = 0;
-    INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
-    response2.iPC_ID = plr.plr->iID;
-    response2.iState = 0;
+    if (plr.plr->iPCState & 8) {
+        INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
+        sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_OFF_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_OFF_SUCC));
 
-    sendToViewable(sock, (void*)&response2, P_FE2CL_PC_STATE_CHANGE, sizeof(sP_FE2CL_PC_STATE_CHANGE));
+        // send to other players
+        plr.plr->iPCState &= ~8;
+        INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
+        response2.iPC_ID = plr.plr->iID;
+        response2.iState = plr.plr->iPCState;
+
+        sendToViewable(sock, (void*)&response2, P_FE2CL_PC_STATE_CHANGE, sizeof(sP_FE2CL_PC_STATE_CHANGE));
+    }
 }
 
 void PlayerManager::setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {

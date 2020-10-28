@@ -46,7 +46,7 @@ struct Mob : public BaseNPC {
     // combat
     CNSocket *target = nullptr;
     time_t nextAttack = 0;
-
+    time_t lastDrainTime = 0;
 
     // drop
     int dropType;
@@ -142,4 +142,5 @@ namespace MobManager {
     void drainMobHP(Mob *mob, int amount);
     void incNextMovement(Mob *mob, time_t currTime=0);
     bool aggroCheck(Mob *mob, time_t currTime);
+    void clearDebuff(Mob *mob);
 }

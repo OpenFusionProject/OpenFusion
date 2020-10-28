@@ -268,9 +268,9 @@ void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {
     response.eIL = 1;
     response.iSlotNum = request->iSlotNum;
     response.RemainItem = gumball;
-   // response.iTargetCnt = ?
-   // response.eST = ?
-   // response.iSkillID = ?
+    // response.iTargetCnt = ?
+    // response.eST = ?
+    // response.iSkillID = ?
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_ITEM_USE_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_USE_SUCC));
     // update inventory serverside
