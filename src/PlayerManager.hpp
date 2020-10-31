@@ -64,6 +64,7 @@ namespace PlayerManager {
     void exitPlayerVehicle(CNSocket* sock, CNPacketData* data);
 
     Player *getPlayer(CNSocket* key);
+    std::string getPlayerName(Player *plr, bool id=true);
     WarpLocation getRespawnPoint(Player *plr);
 
     bool isAccountInUse(int accountId);

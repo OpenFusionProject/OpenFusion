@@ -58,7 +58,7 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
 
     key->plr = p;
 
-    std::cout << U16toU8(plr.PCStyle.szFirstName) << " " << U16toU8(plr.PCStyle.szLastName) << " has joined!" << std::endl;
+    std::cout << getPlayerName(p) << " has joined!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
 }
 
@@ -78,7 +78,7 @@ void PlayerManager::removePlayer(CNSocket* key) {
     if (ChunkManager::chunks.find(view.chunkPos) != ChunkManager::chunks.end())
         ChunkManager::chunks[view.chunkPos]->players.erase(key);
 
-    std::cout << U16toU8(view.plr->PCStyle.szFirstName) << " " << U16toU8(view.plr->PCStyle.szLastName) << " (PlayerId = " << view.plr->iID << ") has left!" << std::endl;
+    std::cout << getPlayerName(key->plr) << " has left!" << std::endl;
 
     key->plr = nullptr;
     delete view.plr;
@@ -943,6 +943,19 @@ Player *PlayerManager::getPlayer(CNSocket* key) {
         return players[key].plr;
 
     return nullptr;
+}
+
+std::string PlayerManager::getPlayerName(Player *plr, bool id) {
+    // the print in CNShardServer can print packets from players that haven't yet joined
+    if (plr == nullptr)
+        return "NOT IN GAME";
+
+    std::string ret = U16toU8(plr->PCStyle.szFirstName) + " " + U16toU8(plr->PCStyle.szLastName);
+
+    if (id)
+        ret += " [" + std::to_string(plr->iID) + "]";
+
+    return ret;
 }
 
 WarpLocation PlayerManager::getRespawnPoint(Player *plr) {

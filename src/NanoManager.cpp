@@ -124,7 +124,7 @@ void NanoManager::nanoGMGiveHandler(CNSocket* sock, CNPacketData* data) {
     addNano(sock, nano->iNanoID, 0);
 
     DEBUGLOG(
-        std::cout << U16toU8(plr->PCStyle.szFirstName) << U16toU8(plr->PCStyle.szLastName) << " requested to add nano id: " << nano->iNanoID << std::endl;
+        std::cout << PlayerManager::getPlayerName(plr) << " requested to add nano id: " << nano->iNanoID << std::endl;
     )
 }
 
@@ -142,7 +142,7 @@ void NanoManager::nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
 
     // Send to client
     DEBUGLOG(
-        std::cout << U16toU8(plr->PCStyle.szFirstName) << U16toU8(plr->PCStyle.szLastName) << " requested to summon nano slot: " << pkt->iNanoSlotNum << std::endl;
+        std::cout << PlayerManager::getPlayerName(plr) << " requested to summon nano slot: " << pkt->iNanoSlotNum << std::endl;
     )
 }
 
@@ -156,7 +156,7 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
     int16_t skillId = plr->Nanos[nanoId].iSkillID;
 
     DEBUGLOG(
-        std::cout << U16toU8(plr->PCStyle.szFirstName) << U16toU8(plr->PCStyle.szLastName) << " requested to summon nano skill " << std::endl;
+        std::cout << PlayerManager::getPlayerName(plr) << " requested to summon nano skill " << std::endl;
     )
 
     for (auto& pwr : ActivePowers)
@@ -418,7 +418,7 @@ void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_TUNE_SUCC, sizeof(sP_FE2CL_REP_NANO_TUNE_SUCC));
 
     DEBUGLOG(
-        std::cout << U16toU8(plr->PCStyle.szFirstName) << U16toU8(plr->PCStyle.szLastName) << " set skill id " << skill->iTuneID << " for nano: " << skill->iNanoID << std::endl;
+        std::cout << PlayerManager::getPlayerName(plr) << " set skill id " << skill->iTuneID << " for nano: " << skill->iNanoID << std::endl;
     )
 }
 

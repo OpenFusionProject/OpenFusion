@@ -171,14 +171,18 @@ void GroupManager::chatGroup(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
+    std::string fullChat = ChatManager::sanitizeText(U16toU8(chat->szFreeChat));
+
     if (plr == nullptr || otherPlr == nullptr)
         return;
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC, resp);
-    memcpy(resp.szFreeChat, chat->szFreeChat, sizeof(chat->szFreeChat));
+
+    U8toU16(fullChat, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
     resp.iSendPCID = plr->iID;
     resp.iEmoteCode = chat->iEmoteCode;
+
     sendToGroup(otherPlr, (void*)&resp, P_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC));
 }
 
@@ -190,14 +194,18 @@ void GroupManager::menuChatGroup(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
+    std::string fullChat = ChatManager::sanitizeText(U16toU8(chat->szFreeChat));
+
     if (plr == nullptr || otherPlr == nullptr)
         return;
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC, resp);
-    memcpy(resp.szFreeChat, chat->szFreeChat, sizeof(chat->szFreeChat));
+
+    U8toU16(fullChat, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
     resp.iSendPCID = plr->iID;
     resp.iEmoteCode = chat->iEmoteCode;
+
     sendToGroup(otherPlr, (void*)&resp, P_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC));
 }
 
