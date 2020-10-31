@@ -402,6 +402,10 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     ItemManager::setItemStats(getPlayer(sock));
 
     MissionManager::failInstancedMissions(sock);
+
+    for (auto& pair : PlayerManager::players)
+        if (pair.second.plr->notify)
+            ChatManager::sendServerMessage(pair.first, "[ADMIN]" + getPlayerName(&plr) + " has joined.");
 }
 
 void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size) {

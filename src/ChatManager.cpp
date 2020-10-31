@@ -436,6 +436,24 @@ void tasksCommand(std::string full, std::vector<std::string>& args, CNSocket* so
     }
 }
 
+void notifyCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    if (plr->notify) {
+	    plr->notify = false;
+	    ChatManager::sendServerMessage(sock, "[ADMIN] No longer receiving join notifications");
+    } else {
+	    plr->notify = true;
+	    ChatManager::sendServerMessage(sock, "[ADMIN] Receiving join notifications");
+    }
+}
+
+void playersCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    ChatManager::sendServerMessage(sock, "[ADMIN] Players on the server:");
+    for (auto pair : PlayerManager::players)
+        ChatManager::sendServerMessage(sock, PlayerManager::getPlayerName(pair.second.plr));
+}
+
 void flushCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     TableData::flush();
     ChatManager::sendServerMessage(sock, "Wrote gruntwork to " + settings::GRUNTWORKJSON);
@@ -461,6 +479,8 @@ void ChatManager::init() {
     registerCommand("refresh", 100, refreshCommand, "teleport yourself to your current location");
     registerCommand("minfo", 30, minfoCommand, "show details of the current mission and task.");
     registerCommand("tasks", 30, tasksCommand, "list all active missions and their respective task ids.");
+    registerCommand("notify", 30, notifyCommand, "receive a message whenever a player joins the server");
+    registerCommand("players", 30, playersCommand, "print all players on the server");
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {
