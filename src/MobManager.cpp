@@ -144,7 +144,8 @@ void MobManager::npcAttackPc(Mob *mob, time_t currTime) {
     if (plr->HP <= 0) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        aggroCheck(mob, currTime);
+        if (!aggroCheck(mob, currTime))
+            clearDebuff(mob);
     }
 }
 
@@ -351,6 +352,7 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
     mob->state = MobState::DEAD;
     mob->target = nullptr;
     mob->appearanceData.iConditionBitFlag = 0;
+    mob->unbuffTimes.clear();
     mob->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
 
     // check for the edge case where hitting the mob did not aggro it
@@ -449,7 +451,8 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     if (PlayerManager::players.find(mob->target) == PlayerManager::players.end()) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        aggroCheck(mob, currTime);
+        if (!aggroCheck(mob, currTime))
+            clearDebuff(mob);
         return;
     }
 
@@ -462,9 +465,39 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     if (plr->HP <= 0) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        aggroCheck(mob, currTime);
+        if (!aggroCheck(mob, currTime))
+            clearDebuff(mob);
         return;
     }
+
+    // drain
+    if ((mob->lastDrainTime == 0 || currTime - mob->lastDrainTime >= 1000) && mob->appearanceData.iConditionBitFlag & CSB_BIT_BOUNDINGBALL) {
+        drainMobHP(mob, mob->maxHealth / 15); // lose 6.67% every second
+        mob->lastDrainTime = currTime;
+    }
+
+    // unbuffing
+    std::unordered_map<int32_t, time_t>::iterator it = mob->unbuffTimes.begin();
+    while (it != mob->unbuffTimes.end()) {
+
+        if (currTime >= it->second) {
+            mob->appearanceData.iConditionBitFlag &= ~it->first;
+
+            INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
+            pkt1.eCT = 2;
+            pkt1.iID = mob->appearanceData.iNPC_ID;
+            pkt1.iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
+            NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
+                    
+            it = mob->unbuffTimes.erase(it);
+        } else {
+            it++;
+        }
+    }
+
+    // skip attack if stunned or asleep
+    if (mob->appearanceData.iConditionBitFlag & (CSB_BIT_STUN|CSB_BIT_MEZ))
+        return;
 
     int distance = hypot(plr->x - mob->appearanceData.iX, plr->y - mob->appearanceData.iY);
 
@@ -481,6 +514,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
             pkt.iToX = mob->appearanceData.iX;
             pkt.iToY = mob->appearanceData.iY;
             pkt.iToZ = mob->target->plr->z;
+            pkt.iMoveStyle = 1;
             NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
 
             mob->nextAttack = currTime + (int)mob->data["m_iInitalTime"] * 100; //I *think* this is what this is
@@ -514,6 +548,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
         pkt.iToX = mob->appearanceData.iX = targ.first;
         pkt.iToY = mob->appearanceData.iY = targ.second;
         pkt.iToZ = mob->target->plr->z;
+        pkt.iMoveStyle = 1;
 
         // notify all nearby players
         NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
@@ -525,6 +560,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     if (distance >= mob->data["m_iCombatRange"]) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
+        clearDebuff(mob);
     }
 }
 
@@ -615,6 +651,7 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
         pkt.iToX = mob->appearanceData.iX = targ.first;
         pkt.iToY = mob->appearanceData.iY = targ.second;
         pkt.iToZ = mob->appearanceData.iZ = mob->spawnZ;
+        pkt.iMoveStyle = 1;
 
         // notify all nearby players
         NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
@@ -631,12 +668,11 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
         
         // HACK: we haven't found a better way to refresh a mob's client-side status
         drainMobHP(mob, 0);
+        clearDebuff(mob);
     }
 }
 
 void MobManager::step(CNServer *serv, time_t currTime) {
-    static time_t lastDrainTime = 0;
-    
     for (auto& pair : Mobs) {
         int x = pair.second->appearanceData.iX;
         int y = pair.second->appearanceData.iY;
@@ -645,38 +681,9 @@ void MobManager::step(CNServer *serv, time_t currTime) {
         if (!ChunkManager::inPopulatedChunks(x, y, pair.second->instanceID))
             continue;
 
-        // drain
-        if (currTime - lastDrainTime >= 600 && pair.second->appearanceData.iConditionBitFlag & CSB_BIT_BOUNDINGBALL) {
-            drainMobHP(pair.second, pair.second->maxHealth * 3 / 50); // lose 10% every second
-        }
-
-        // unbuffing
-        std::unordered_map<int32_t, time_t>::iterator it = pair.second->unbuffTimes.begin();
-        while (it != pair.second->unbuffTimes.end()) {
-            
-            if (currTime >= it->second) {
-                pair.second->appearanceData.iConditionBitFlag &= ~it->first;
-                
-                INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
-                pkt1.eCT = 2;
-                pkt1.iID = pair.second->appearanceData.iNPC_ID;
-                pkt1.iConditionBitFlag = pair.second->appearanceData.iConditionBitFlag;
-                NPCManager::sendToViewable(pair.second, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
-                
-                it = pair.second->unbuffTimes.erase(it);
-            } else {
-                it++;
-            }
-        }
-
         // skip mob movement and combat if disabled
         if (!simulateMobs && pair.second->state != MobState::DEAD
         && pair.second->state != MobState::RETREAT)
-            continue;
-
-        // skip attack/move if stunned or asleep
-        if (pair.second->appearanceData.iConditionBitFlag & (CSB_BIT_STUN|CSB_BIT_MEZ)
-        && (pair.second->state == MobState::ROAMING || pair.second->state == MobState::COMBAT))
             continue;
 
         switch (pair.second->state) {
@@ -697,9 +704,6 @@ void MobManager::step(CNServer *serv, time_t currTime) {
             break;
         }
     }
-    
-    if (currTime - lastDrainTime >= 600)
-        lastDrainTime = currTime;
 
     // deallocate all NPCs queued for removal
     while (RemovalQueue.size() > 0) {
@@ -920,7 +924,7 @@ std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool
 
     // base calculation
     int damage = attackPower * attackPower / (attackPower + defensePower);
-    damage = std::max(10 + attackPower / 10, damage - defensePower * (4 + difficulty) / 40);
+    //damage = std::max(10 + attackPower / 10, damage - defensePower * (4 + difficulty) / 100);
     damage = damage * (rand() % 40 + 80) / 100;
 
     // Adaptium/Blastons/Cosmix
@@ -1082,6 +1086,9 @@ void MobManager::drainMobHP(Mob *mob, int amount) {
     drain->iHP = mob->appearanceData.iHP -= amount;
 
     NPCManager::sendToViewable(mob, (void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
+
+    if (mob->appearanceData.iHP <= 0)
+        killMob(mob->target, mob);
 }
 
 /*
@@ -1136,4 +1143,15 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
     }
 
     return false;
+}
+
+void MobManager::clearDebuff(Mob *mob) {
+    mob->appearanceData.iConditionBitFlag = 0;
+    mob->unbuffTimes.clear();
+
+    INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
+    pkt1.eCT = 2;
+    pkt1.iID = mob->appearanceData.iNPC_ID;
+    pkt1.iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
+    NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
 }
