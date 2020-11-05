@@ -36,6 +36,16 @@ namespace BuddyManager {
 	// Buddy warping
 	void reqBuddyWarp(CNSocket* sock, CNPacketData* data);
 
+	// Email methods
+	void emailUpdateCheck(CNSocket* sock, CNPacketData* data);
+	void emailReceivePageList(CNSocket* sock, CNPacketData* data);
+	void emailRead(CNSocket* sock, CNPacketData* data);
+	void emailReceiveTaros(CNSocket* sock, CNPacketData* data);
+	void emailReceiveItemSingle(CNSocket* sock, CNPacketData* data);
+	void emailReceiveItemAll(CNSocket* sock, CNPacketData* data);
+	void emailDelete(CNSocket* sock, CNPacketData* data);
+	void emailSend(CNSocket* sock, CNPacketData* data);
+
 	// helper methods
 	
 	// Name checks

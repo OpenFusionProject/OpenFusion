@@ -4,6 +4,7 @@
 #include "PlayerManager.hpp"
 #include "BuddyManager.hpp"
 #include "Database.hpp"
+#include "ItemManager.hpp"
 
 #include <iostream>
 #include <chrono>
@@ -21,6 +22,15 @@ void BuddyManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SET_BUDDY_BLOCK, reqBuddyBlock);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_REMOVE_BUDDY, reqBuddyDelete);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_BUDDY_WARP, reqBuddyWarp);
+    //
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_EMAIL_UPDATE_CHECK, emailUpdateCheck);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_RECV_EMAIL_PAGE_LIST, emailReceivePageList);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_READ_EMAIL, emailRead);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_RECV_EMAIL_CANDY, emailReceiveTaros);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_RECV_EMAIL_ITEM, emailReceiveItemSingle);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_RECV_EMAIL_ITEM_ALL, emailReceiveItemAll);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_DELETE_EMAIL, emailDelete);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SEND_EMAIL, emailSend);
 }
 
 // Refresh buddy list
@@ -437,6 +447,212 @@ void BuddyManager::reqBuddyWarp(CNSocket* sock, CNPacketData* data) {
     }
 
     PlayerManager::sendPlayerTo(sock, otherPlr->x, otherPlr->y, otherPlr->z);
+}
+
+void BuddyManager::emailUpdateCheck(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_EMAIL_UPDATE_CHECK))
+        return; // malformed packet
+
+    INITSTRUCT(sP_FE2CL_REP_PC_NEW_EMAIL, resp);
+    resp.iNewEmailCnt = 1; // TODO query the db for total unread emails
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_NEW_EMAIL, sizeof(sP_FE2CL_REP_PC_NEW_EMAIL));
+}
+
+void BuddyManager::emailReceivePageList(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_RECV_EMAIL_PAGE_LIST))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_RECV_EMAIL_PAGE_LIST* pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_PAGE_LIST*)data->buf;
+
+    INITSTRUCT(sP_FE2CL_REP_PC_RECV_EMAIL_PAGE_LIST_SUCC, resp);
+    resp.iPageNum = pkt->iPageNum;
+
+    // TODO load email info from db
+    sEmailInfo* testEmail1 = new sEmailInfo();
+    testEmail1->iEmailIndex = 1;
+    testEmail1->iFromPCUID = 2;
+    testEmail1->iItemCandyFlag = 0;
+    testEmail1->iReadFlag = 0;
+    U8toU16("Firstname", testEmail1->szFirstName, sizeof(testEmail1->szFirstName));
+    U8toU16("Lastname", testEmail1->szLastName, sizeof(testEmail1->szLastName));
+    U8toU16("Flags down", testEmail1->szSubject, sizeof(testEmail1->szSubject));
+    resp.aEmailInfo[0] = *testEmail1;
+    //
+    sEmailInfo* testEmail2 = new sEmailInfo();
+    testEmail2->iEmailIndex = 2;
+    testEmail2->iFromPCUID = 2;
+    testEmail2->iItemCandyFlag = 1;
+    testEmail2->iReadFlag = 1;
+    U8toU16("Firstname", testEmail2->szFirstName, sizeof(testEmail2->szFirstName));
+    U8toU16("Lastname", testEmail2->szLastName, sizeof(testEmail2->szLastName));
+    U8toU16("Flags up", testEmail2->szSubject, sizeof(testEmail2->szSubject));
+    resp.aEmailInfo[1] = *testEmail2;
+    //
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_RECV_EMAIL_PAGE_LIST_SUCC, sizeof(sP_FE2CL_REP_PC_RECV_EMAIL_PAGE_LIST_SUCC));
+}
+
+void BuddyManager::emailRead(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_READ_EMAIL))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_READ_EMAIL* pkt = (sP_CL2FE_REQ_PC_READ_EMAIL*)data->buf;
+
+    // TODO load email content from db
+    int taros = 100;
+    std::string body = "sample body";
+    sItemBase attachments[4];
+    attachments[0] = { 1, 1, 0, 0 };
+    attachments[1] = { 1, 2, 0, 0 };
+    attachments[2] = { 0, 0, 0, 0 };
+    attachments[3] = { 1, 3, 0, 0 };
+    // 
+
+    INITSTRUCT(sP_FE2CL_REP_PC_READ_EMAIL_SUCC, resp);
+    resp.iEmailIndex = pkt->iEmailIndex;
+    resp.iCash = taros;
+    for (int i = 0; i < 4; i++) {
+        resp.aItem[i] = attachments[i];
+    }
+    U8toU16(body, (char16_t*)resp.szContent, sizeof(resp.szContent));
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_READ_EMAIL_SUCC, sizeof(sP_FE2CL_REP_PC_READ_EMAIL_SUCC));
+}
+
+void BuddyManager::emailReceiveTaros(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_RECV_EMAIL_CANDY))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_RECV_EMAIL_CANDY* pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_CANDY*)data->buf;
+
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    //pkt->iEmailIndex; TODO get email content from db, update email taros, update player taros
+    plr->money += 100; // sample
+
+    INITSTRUCT(sP_FE2CL_REP_PC_RECV_EMAIL_CANDY_SUCC, resp);
+    resp.iCandy = plr->money;
+    resp.iEmailIndex = pkt->iEmailIndex;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_RECV_EMAIL_CANDY_SUCC, sizeof(sP_FE2CL_REP_PC_RECV_EMAIL_CANDY_SUCC));
+}
+
+void BuddyManager::emailReceiveItemSingle(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM* pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM*)data->buf;
+
+    // TODO get email item from db and delete it
+    sItemBase itemFrom = {1, 1, 0, 0};
+
+    // move item to player inventory
+    Player* plr = PlayerManager::getPlayer(sock);
+    if (pkt->iSlotNum < 0 || pkt->iSlotNum >= AINVEN_COUNT)
+        return; // sanity check
+    sItemBase& itemTo = plr->Inven[pkt->iSlotNum];
+    itemTo.iID = itemFrom.iID;
+    itemTo.iOpt = itemFrom.iOpt;
+    itemTo.iTimeLimit = itemFrom.iTimeLimit;
+    itemTo.iType = itemFrom.iType;
+    
+    INITSTRUCT(sP_FE2CL_REP_PC_RECV_EMAIL_ITEM_SUCC, resp);
+    resp.iEmailIndex = pkt->iEmailIndex;
+    resp.iEmailItemSlot = pkt->iEmailItemSlot;
+    resp.iSlotNum = pkt->iSlotNum;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_RECV_EMAIL_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_RECV_EMAIL_ITEM_SUCC));
+
+    // update inventory
+    INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp2);
+    resp2.eIL = 1;
+    resp2.iSlotNum = resp.iSlotNum;
+    resp2.Item = itemTo;
+
+    sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_GIVE_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC));
+}
+
+void BuddyManager::emailReceiveItemAll(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM_ALL))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM_ALL* pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM_ALL*)data->buf;
+
+    // TODO get attachments from db and delete them
+    std::queue<sItemBase> itemsFrom;
+    // sample data
+    itemsFrom.push({ 1, 1, 0, 0 });
+    itemsFrom.push({ 1, 2, 0, 0 });
+    itemsFrom.push({ 1, 3, 0, 0 });
+
+    // move items to player inventory
+    Player* plr = PlayerManager::getPlayer(sock);
+    while (!itemsFrom.empty()) {
+        int slot = ItemManager::findFreeSlot(plr);
+        if (slot < 0 || slot >= AINVEN_COUNT) {
+            INITSTRUCT(sP_FE2CL_REP_PC_RECV_EMAIL_ITEM_ALL_FAIL, failResp);
+            failResp.iEmailIndex = pkt->iEmailIndex;
+            failResp.iErrorCode = 0; // ???
+            break; // stop execution; no free slots
+        }
+
+        sItemBase itemFrom = itemsFrom.front();
+        itemsFrom.pop(); // remove attachment from the queue
+        sItemBase& itemTo = plr->Inven[slot];
+        itemTo.iID = itemFrom.iID;
+        itemTo.iOpt = itemFrom.iOpt;
+        itemTo.iTimeLimit = itemFrom.iTimeLimit;
+        itemTo.iType = itemFrom.iType;
+
+        // update inventory
+        INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp2);
+        resp2.eIL = 1;
+        resp2.iSlotNum = slot;
+        resp2.Item = itemTo;
+
+        sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_GIVE_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC));
+    }
+
+    INITSTRUCT(sP_FE2CL_REP_PC_RECV_EMAIL_ITEM_ALL_SUCC, resp);
+    resp.iEmailIndex = pkt->iEmailIndex;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_RECV_EMAIL_ITEM_ALL_SUCC, sizeof(sP_FE2CL_REP_PC_RECV_EMAIL_ITEM_ALL_SUCC));
+}
+
+void BuddyManager::emailDelete(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_DELETE_EMAIL))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_DELETE_EMAIL* pkt = (sP_CL2FE_REQ_PC_DELETE_EMAIL*)data->buf;
+
+    // TODO delete emails from db
+    //pkt->iEmailIndexArray interesting, this is an array
+    std::cout << "email delete request lol" << std::endl;
+
+    INITSTRUCT(sP_FE2CL_REP_PC_DELETE_EMAIL_SUCC, resp);
+    for (int i = 0; i < 5; i++) {
+        resp.iEmailIndexArray[i] = pkt->iEmailIndexArray[i]; // i'm scared of memcpy
+    }
+    
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_DELETE_EMAIL_SUCC, sizeof(sP_FE2CL_REP_PC_DELETE_EMAIL_SUCC));
+}
+
+void BuddyManager::emailSend(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_SEND_EMAIL))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_SEND_EMAIL* pkt = (sP_CL2FE_REQ_PC_SEND_EMAIL*)data->buf;
+    
+    // TODO add email info & content to db
+
+    INITSTRUCT(sP_FE2CL_REP_PC_SEND_EMAIL_SUCC, resp);
+    for (int i = 0; i < 4; i++) {
+        resp.aItem[i] = pkt->aItem[i];
+    }
+    resp.iCandy = pkt->iCash;
+    resp.iTo_PCUID = pkt->iTo_PCUID;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_SEND_EMAIL_SUCC, sizeof(sP_FE2CL_REP_PC_SEND_EMAIL_SUCC));
 }
 
 #pragma region Helper methods
