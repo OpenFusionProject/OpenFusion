@@ -44,11 +44,20 @@ struct NanoTuning {
     int reqItems;
 };
 
+struct SkillData {
+    int skillType;
+    int targetType;
+    int batteryUse[4];
+    int durationTime[4];
+    int powerIntensity[4];
+};
+
 namespace NanoManager {
     extern std::vector<ActivePower> ActivePowers;
     extern std::vector<PassivePower> PassivePowers;
     extern std::map<int32_t, NanoData> NanoTable;
     extern std::map<int32_t, NanoTuning> NanoTunings;
+    extern std::map<int32_t, SkillData> SkillTable;
     void init();
 
     void nanoSummonHandler(CNSocket* sock, CNPacketData* data);

@@ -190,6 +190,22 @@ void TableData::init() {
 
         std::cout << "[INFO] Loaded " << NanoManager::NanoTable.size() << " nano tunings" << std::endl;
 
+        // load nano powers
+        nlohmann::json skills = xdtData["m_pSkillTable"]["m_pSkillData"];
+
+        for (nlohmann::json::iterator _skills = skills.begin(); _skills != skills.end(); _skills++) {
+            auto skills = _skills.value();
+            SkillData skillData = {skills["m_iSkillType"], skills["m_iTargetType"]};
+            for (int i = 0; i < 4; i++) {
+                skillData.batteryUse[i] = skills["m_iBatteryDrainUse"][i];
+                skillData.durationTime[i] = skills["m_iDurationTime"][i];
+                skillData.powerIntensity[i] = skills["m_iValueA"][i];
+            }
+            NanoManager::SkillTable[skills["m_iSkillNumber"]] = skillData;
+        }
+
+        std::cout << "[INFO] Loaded " << NanoManager::SkillTable.size() << " nano skills" << std::endl;
+
     }
     catch (const std::exception& err) {
         std::cerr << "[FATAL] Malformed xdt.json file! Reason:" << err.what() << std::endl;
