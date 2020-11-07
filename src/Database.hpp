@@ -84,6 +84,29 @@ namespace Database {
         int PlayerBId;
         int16_t Status;
     };
+    struct EmailData {
+        int PlayerId;
+        int MsgIndex;
+        int32_t ReadFlag;
+        int32_t ItemFlag;
+        int SenderId;
+        std::string SenderFirstName;
+        std::string SenderLastName;
+        std::string SubjectLine;
+        std::string MsgBody;
+        int Taros;
+        uint64_t SendTime;
+        uint64_t DeleteTime;
+    };
+    struct EmailItem {
+        int PlayerId;
+        int MsgIndex;
+        int Slot;
+        int16_t Type;
+        int16_t Id;
+        int32_t Opt;
+        int32_t TimeLimit;
+    };
 
 
 #pragma endregion DatabaseStructs
@@ -138,4 +161,15 @@ namespace Database {
     // parsing blobs
     void appendBlob(std::vector<char>*blob, int64_t input);
     int64_t blobToInt64(std::vector<char>::iterator it);
+
+    // email
+    int getUnreadEmailCount(int playerID);
+    std::vector<EmailData> getEmails(int playerID, int page);
+    EmailData getEmail(int playerID, int index);
+    sItemBase* getEmailAttachments(int playerID, int index);
+    void updateEmailContent(EmailData* data);
+    void deleteEmailAttachments(int playerID, int index, int slot);
+    void deleteEmails(int playerID, int64_t* indices);
+    int getNextEmailIndex(int playerID);
+    void sendEmail(EmailData* data, std::vector<sItemBase> attachments);
 }

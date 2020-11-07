@@ -98,6 +98,29 @@ auto db = make_storage("database.db",
         make_column("PlayerAId", &Database::Buddyship::PlayerAId),
         make_column("PlayerBId", &Database::Buddyship::PlayerBId),
         make_column("Status", &Database::Buddyship::Status)
+    ),
+    make_table("EmailData",
+        make_column("PlayerId", &Database::EmailData::PlayerId),
+        make_column("MsgIndex", &Database::EmailData::MsgIndex),
+        make_column("ReadFlag", &Database::EmailData::ReadFlag),
+        make_column("ItemFlag", &Database::EmailData::ItemFlag),
+        make_column("SenderId", &Database::EmailData::SenderId),
+        make_column("SenderFirstName", &Database::EmailData::SenderFirstName, collate_nocase()),
+        make_column("SenderLastName", &Database::EmailData::SenderLastName, collate_nocase()),
+        make_column("SubjectLine", &Database::EmailData::SubjectLine),
+        make_column("MsgBody", &Database::EmailData::MsgBody),
+        make_column("Taros", &Database::EmailData::Taros),
+        make_column("SendTime", &Database::EmailData::SendTime),
+        make_column("DeleteTime", &Database::EmailData::DeleteTime)
+    ),
+    make_table("EmailItems",
+        make_column("PlayerId", &Database::EmailItem::PlayerId),
+        make_column("MsgIndex", &Database::EmailItem::MsgIndex),
+        make_column("Slot", &Database::EmailItem::Slot),
+        make_column("Id", &Database::EmailItem::Id),
+        make_column("Type", &Database::EmailItem::Type),
+        make_column("Opt", &Database::EmailItem::Opt),
+        make_column("TimeLimit", &Database::EmailItem::TimeLimit)
     )
 );
 
@@ -741,6 +764,153 @@ int Database::getNumBuddies(Player* player) {
 
     // again, for peace of mind
     return buddies.size() > 50 ? 50 : buddies.size();
+}
+
+// email
+int Database::getUnreadEmailCount(int playerID) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    auto emailData = db.get_all<Database::EmailData>(
+        where(c(&Database::EmailData::PlayerId) == playerID && c(&Database::EmailData::ReadFlag) == 0)
+        );
+
+    return emailData.size();
+}
+
+std::vector<Database::EmailData> Database::getEmails(int playerID, int page) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+    
+    std::vector<Database::EmailData> emails;
+
+    auto emailData = db.get_all<Database::EmailData>(
+        where(c(&Database::EmailData::PlayerId) == playerID),
+        order_by(&Database::EmailData::MsgIndex).desc(),
+        limit(5 * (page - 1), 5)
+        );
+
+    int i = 0;
+    for (Database::EmailData email : emailData) {
+        emails.push_back(email);
+        i++;
+    }
+
+    return emails;
+}
+
+Database::EmailData Database::getEmail(int playerID, int index) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    auto emailData = db.get_all<Database::EmailData>(
+        where(c(&Database::EmailData::PlayerId) == playerID && c(&Database::EmailData::MsgIndex) == index)
+        );
+
+    if (emailData.size() > 1)
+        std::cout << "[WARN] Duplicate emails detected (player " << playerID << ", index " << index << ")" << std::endl;
+
+    return emailData.at(0);
+}
+
+sItemBase* Database::getEmailAttachments(int playerID, int index) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    sItemBase* items = new sItemBase[4];
+    for (int i = 0; i < 4; i++)
+        items[i] = { 0, 0, 0, 0 }; // zero out items
+
+    auto attachments = db.get_all<Database::EmailItem>(
+        where(c(&Database::EmailItem::PlayerId) == playerID && c(&Database::EmailItem::MsgIndex) == index)
+        );
+
+    if (attachments.size() > 4)
+        std::cout << "[WARN] Email has too many attachments (player " << playerID << ", index " << index << ")" << std::endl;
+
+    for (Database::EmailItem& item : attachments) {
+        items[item.Slot - 1] = { item.Type, item.Id, item.Opt, item.TimeLimit };
+    }
+
+    return items;
+}
+
+void Database::updateEmailContent(EmailData* data) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    db.begin_transaction();
+
+    db.remove_all<Database::EmailData>(
+        where(c(&Database::EmailData::PlayerId) == data->PlayerId && c(&Database::EmailData::MsgIndex) == data->MsgIndex)
+        );
+    db.insert(*data);
+
+    db.commit();
+}
+
+void Database::deleteEmailAttachments(int playerID, int index, int slot) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    db.begin_transaction();
+
+    if (slot == -1) { // delete all
+        db.remove_all<Database::EmailItem>(
+            where(c(&Database::EmailItem::PlayerId) == playerID && c(&Database::EmailItem::MsgIndex) == index)
+            );
+    } else { // delete single by comparing slot num
+        db.remove_all<Database::EmailItem>(
+            where(c(&Database::EmailItem::PlayerId) == playerID && c(&Database::EmailItem::MsgIndex) == index
+                && c(&Database::EmailItem::Slot) == slot)
+            );
+    }
+
+    db.commit();
+}
+
+void Database::deleteEmails(int playerID, int64_t* indices) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    db.begin_transaction();
+
+    for (int i = 0; i < 5; i++) {
+        db.remove_all<Database::EmailData>(
+            where(c(&Database::EmailData::PlayerId) == playerID && c(&Database::EmailData::MsgIndex) == indices[i])
+            ); // no need to check if the index is 0, since an email will never have index < 1
+    }
+
+    db.commit();
+}
+
+int Database::getNextEmailIndex(int playerID) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    auto emailData = db.get_all<Database::EmailData>(
+        where(c(&Database::EmailData::PlayerId) == playerID),
+        order_by(&Database::EmailData::MsgIndex).desc(),
+        limit(1)
+        );
+
+    return (emailData.size() > 0 ? emailData.at(0).MsgIndex + 1 : 1);
+}
+
+void Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    db.begin_transaction();
+
+    db.insert(*data); // add email data to db
+    // add email attachments to db email inventory
+    int slot = 1;
+    for (sItemBase item : attachments) {
+        EmailItem dbItem = {
+            data->PlayerId,
+            data->MsgIndex,
+            slot,
+            item.iType,
+            item.iID,
+            item.iOpt,
+            item.iTimeLimit
+        };
+        db.insert(dbItem);
+    }
+
+    db.commit();
 }
 
 #pragma endregion ShardServer
