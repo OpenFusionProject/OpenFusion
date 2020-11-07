@@ -47,6 +47,7 @@ std::set<int> TreasureFinderPowers = {26, 40, 74};
 
 std::map<int32_t, NanoData> NanoManager::NanoTable;
 std::map<int32_t, NanoTuning> NanoManager::NanoTunings;
+std::map<int32_t, SkillData> NanoManager::SkillTable;
 
 void NanoManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_ACTIVE, nanoSummonHandler);
@@ -58,6 +59,71 @@ void NanoManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_SKILL_USE, nanoSkillUseHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_WARP_USE_RECALL, nanoRecallHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_CHARGE_NANO_STAMINA, nanoPotionHandler);
+}
+
+void NanoManager::doNanoSkill(CNSocket* sock, int eSkillType, int eCT, int target[]) {
+    size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE);
+    uint8_t respbuf[4096];
+
+    if (eSkillType == 1) { //damage
+        if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE), target.size(), sizeof(sSkillResult_Damage))) {
+            std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size\n";
+            return;
+        }
+
+        resplen += target.size() * sizeof(sSkillResult_Damage);
+        
+        
+    } else if
+        
+    }
+    
+    if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE), pkt->iTargetCnt, sizeof(sSkillResult_Damage_N_Debuff))) {
+        std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size\n";
+        return;
+    }
+
+
+
+
+    memset(respbuf, 0, resplen);
+
+    sP_FE2CL_NANO_SKILL_USE *resp = (sP_FE2CL_NANO_SKILL_USE*)respbuf;
+    sSkillResult_Damage_N_Debuff *respdata = (sSkillResult_Damage_N_Debuff*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE));
+
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    resp->iPC_ID = plr->iID;
+    resp->iSkillID = skillId;
+    resp->iNanoID = nanoId;
+    resp->iNanoStamina = 150;
+    resp->eST = eSkillType;
+    resp->iTargetCnt = pkt->iTargetCnt;
+
+    for (int i = 0; i < pkt->iTargetCnt; i++) {
+        if (NPCManager::NPCs.find(pktdata[i]) == NPCManager::NPCs.end()) {
+            // not sure how to best handle this
+            std::cout << "[WARN] nanoDebuffEnemy: mob ID not found" << std::endl;
+            return;
+        }
+        BaseNPC& mob = NPCManager::NPCs[pktdata[i]];
+
+        mob.appearanceData.iHP -= damageAmount;
+
+        if (mob.appearanceData.iHP <= 0)
+            CombatManager::giveReward(sock);
+
+        respdata[i].eCT = 4;
+        respdata[i].iDamage = damageAmount;
+        respdata[i].iID = mob.appearanceData.iNPC_ID;
+        respdata[i].iHP = mob.appearanceData.iHP;
+        respdata[i].iConditionBitFlag = iCBFlag;
+        std::cout << (int)mob.appearanceData.iNPC_ID << " was debuffed" << std::endl;
+    }
+
+    sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
+    for (CNSocket* s : PlayerManager::players[sock].viewable)
+        s->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
 }
 
 void NanoManager::nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
