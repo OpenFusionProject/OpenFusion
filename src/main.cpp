@@ -173,3 +173,22 @@ time_t getTimestamp() {
 
     return (time_t)value.count();
 }
+
+// convert integer timestamp (in s) to FF systime struct
+sSYSTEMTIME timeStampToStruct(uint64_t time) {
+
+    const time_t timeProper = time;
+    tm ts = *localtime(&timeProper);
+
+    sSYSTEMTIME systime;
+    systime.wMilliseconds = 0;
+    systime.wSecond = ts.tm_sec;
+    systime.wMinute = ts.tm_min;
+    systime.wHour = ts.tm_hour;
+    systime.wDay = ts.tm_mday;
+    systime.wDayOfWeek = ts.tm_wday + 1;
+    systime.wMonth = ts.tm_mon + 1;
+    systime.wYear = ts.tm_year + 1900;
+
+    return systime;
+}

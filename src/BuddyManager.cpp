@@ -5,6 +5,7 @@
 #include "BuddyManager.hpp"
 #include "Database.hpp"
 #include "ItemManager.hpp"
+#include "Database.hpp"
 
 #include <iostream>
 #include <chrono>
@@ -454,7 +455,7 @@ void BuddyManager::emailUpdateCheck(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     INITSTRUCT(sP_FE2CL_REP_PC_NEW_EMAIL, resp);
-    resp.iNewEmailCnt = 1; // TODO query the db for total unread emails
+    resp.iNewEmailCnt = Database::getUnreadEmailCount(PlayerManager::getPlayer(sock)->iID);
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_NEW_EMAIL, sizeof(sP_FE2CL_REP_PC_NEW_EMAIL));
 }
 
@@ -467,27 +468,22 @@ void BuddyManager::emailReceivePageList(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_PC_RECV_EMAIL_PAGE_LIST_SUCC, resp);
     resp.iPageNum = pkt->iPageNum;
 
-    // TODO load email info from db
-    sEmailInfo* testEmail1 = new sEmailInfo();
-    testEmail1->iEmailIndex = 1;
-    testEmail1->iFromPCUID = 2;
-    testEmail1->iItemCandyFlag = 0;
-    testEmail1->iReadFlag = 0;
-    U8toU16("Firstname", testEmail1->szFirstName, sizeof(testEmail1->szFirstName));
-    U8toU16("Lastname", testEmail1->szLastName, sizeof(testEmail1->szLastName));
-    U8toU16("Flags down", testEmail1->szSubject, sizeof(testEmail1->szSubject));
-    resp.aEmailInfo[0] = *testEmail1;
-    //
-    sEmailInfo* testEmail2 = new sEmailInfo();
-    testEmail2->iEmailIndex = 2;
-    testEmail2->iFromPCUID = 2;
-    testEmail2->iItemCandyFlag = 1;
-    testEmail2->iReadFlag = 1;
-    U8toU16("Firstname", testEmail2->szFirstName, sizeof(testEmail2->szFirstName));
-    U8toU16("Lastname", testEmail2->szLastName, sizeof(testEmail2->szLastName));
-    U8toU16("Flags up", testEmail2->szSubject, sizeof(testEmail2->szSubject));
-    resp.aEmailInfo[1] = *testEmail2;
-    //
+    std::vector<Database::EmailData> emails = Database::getEmails(PlayerManager::getPlayer(sock)->iID, pkt->iPageNum);
+    for (int i = 0; i < emails.size(); i++) {
+        // convert each email and load them into the packet
+        Database::EmailData* email = &emails.at(i);
+        sEmailInfo* emailInfo = new sEmailInfo();
+        emailInfo->iEmailIndex = email->MsgIndex;
+        emailInfo->iReadFlag = email->ReadFlag;
+        emailInfo->iItemCandyFlag = email->ItemFlag;
+        emailInfo->iFromPCUID = email->SenderId;
+        emailInfo->SendTime = timeStampToStruct(email->SendTime);
+        emailInfo->DeleteTime = timeStampToStruct(email->DeleteTime);
+        U8toU16(email->SenderFirstName, emailInfo->szFirstName, sizeof(emailInfo->szFirstName));
+        U8toU16(email->SenderLastName, emailInfo->szLastName, sizeof(emailInfo->szLastName));
+        U8toU16(email->SubjectLine, emailInfo->szSubject, sizeof(emailInfo->szSubject));
+        resp.aEmailInfo[i] = *emailInfo;
+    }
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_RECV_EMAIL_PAGE_LIST_SUCC, sizeof(sP_FE2CL_REP_PC_RECV_EMAIL_PAGE_LIST_SUCC));
 }
@@ -498,23 +494,20 @@ void BuddyManager::emailRead(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_READ_EMAIL* pkt = (sP_CL2FE_REQ_PC_READ_EMAIL*)data->buf;
 
-    // TODO load email content from db
-    int taros = 100;
-    std::string body = "sample body";
-    sItemBase attachments[4];
-    attachments[0] = { 1, 1, 0, 0 };
-    attachments[1] = { 1, 2, 0, 0 };
-    attachments[2] = { 0, 0, 0, 0 };
-    attachments[3] = { 1, 3, 0, 0 };
-    // 
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    Database::EmailData email = Database::getEmail(plr->iID, pkt->iEmailIndex);
+    sItemBase* attachments = Database::getEmailAttachments(plr->iID, pkt->iEmailIndex);
+    email.ReadFlag = 1; // mark as read
+    Database::updateEmailContent(&email);
 
     INITSTRUCT(sP_FE2CL_REP_PC_READ_EMAIL_SUCC, resp);
     resp.iEmailIndex = pkt->iEmailIndex;
-    resp.iCash = taros;
+    resp.iCash = email.Taros;
     for (int i = 0; i < 4; i++) {
         resp.aItem[i] = attachments[i];
     }
-    U8toU16(body, (char16_t*)resp.szContent, sizeof(resp.szContent));
+    U8toU16(email.MsgBody, (char16_t*)resp.szContent, sizeof(resp.szContent));
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_READ_EMAIL_SUCC, sizeof(sP_FE2CL_REP_PC_READ_EMAIL_SUCC));
 }
@@ -527,8 +520,12 @@ void BuddyManager::emailReceiveTaros(CNSocket* sock, CNPacketData* data) {
 
     Player* plr = PlayerManager::getPlayer(sock);
 
-    //pkt->iEmailIndex; TODO get email content from db, update email taros, update player taros
-    plr->money += 100; // sample
+    Database::EmailData email = Database::getEmail(plr->iID, pkt->iEmailIndex);
+    // money transfer
+    plr->money += email.Taros;
+    email.Taros = 0;
+    // update Taros in email
+    Database::updateEmailContent(&email);
 
     INITSTRUCT(sP_FE2CL_REP_PC_RECV_EMAIL_CANDY_SUCC, resp);
     resp.iCandy = plr->money;
@@ -542,12 +539,14 @@ void BuddyManager::emailReceiveItemSingle(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM* pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM*)data->buf;
+    Player* plr = PlayerManager::getPlayer(sock);
 
-    // TODO get email item from db and delete it
-    sItemBase itemFrom = {1, 1, 0, 0};
+    // get email item from db and delete it
+    sItemBase* attachments = Database::getEmailAttachments(plr->iID, pkt->iEmailIndex);
+    sItemBase itemFrom = attachments[pkt->iEmailItemSlot - 1];
+    Database::deleteEmailAttachments(plr->iID, pkt->iEmailIndex, pkt->iEmailItemSlot);
 
     // move item to player inventory
-    Player* plr = PlayerManager::getPlayer(sock);
     if (pkt->iSlotNum < 0 || pkt->iSlotNum >= AINVEN_COUNT)
         return; // sanity check
     sItemBase& itemTo = plr->Inven[pkt->iSlotNum];
@@ -578,26 +577,20 @@ void BuddyManager::emailReceiveItemAll(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM_ALL* pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM_ALL*)data->buf;
 
-    // TODO get attachments from db and delete them
-    std::queue<sItemBase> itemsFrom;
-    // sample data
-    itemsFrom.push({ 1, 1, 0, 0 });
-    itemsFrom.push({ 1, 2, 0, 0 });
-    itemsFrom.push({ 1, 3, 0, 0 });
-
     // move items to player inventory
     Player* plr = PlayerManager::getPlayer(sock);
-    while (!itemsFrom.empty()) {
+    sItemBase* itemsFrom = Database::getEmailAttachments(plr->iID, pkt->iEmailIndex);
+    for (int i = 0; i < 4; i++) {
         int slot = ItemManager::findFreeSlot(plr);
         if (slot < 0 || slot >= AINVEN_COUNT) {
             INITSTRUCT(sP_FE2CL_REP_PC_RECV_EMAIL_ITEM_ALL_FAIL, failResp);
             failResp.iEmailIndex = pkt->iEmailIndex;
             failResp.iErrorCode = 0; // ???
-            break; // stop execution; no free slots
+            break; // sanity check; should never happen
         }
 
-        sItemBase itemFrom = itemsFrom.front();
-        itemsFrom.pop(); // remove attachment from the queue
+        // copy data over
+        sItemBase itemFrom = itemsFrom[i];
         sItemBase& itemTo = plr->Inven[slot];
         itemTo.iID = itemFrom.iID;
         itemTo.iOpt = itemFrom.iOpt;
@@ -613,6 +606,9 @@ void BuddyManager::emailReceiveItemAll(CNSocket* sock, CNPacketData* data) {
         sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_GIVE_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC));
     }
 
+    // delete all items from db
+    Database::deleteEmailAttachments(plr->iID, pkt->iEmailIndex, -1);
+
     INITSTRUCT(sP_FE2CL_REP_PC_RECV_EMAIL_ITEM_ALL_SUCC, resp);
     resp.iEmailIndex = pkt->iEmailIndex;
 
@@ -625,9 +621,7 @@ void BuddyManager::emailDelete(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_DELETE_EMAIL* pkt = (sP_CL2FE_REQ_PC_DELETE_EMAIL*)data->buf;
 
-    // TODO delete emails from db
-    //pkt->iEmailIndexArray interesting, this is an array
-    std::cout << "email delete request lol" << std::endl;
+    Database::deleteEmails(PlayerManager::getPlayer(sock)->iID, pkt->iEmailIndexArray);
 
     INITSTRUCT(sP_FE2CL_REP_PC_DELETE_EMAIL_SUCC, resp);
     for (int i = 0; i < 5; i++) {
@@ -642,14 +636,51 @@ void BuddyManager::emailSend(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_PC_SEND_EMAIL* pkt = (sP_CL2FE_REQ_PC_SEND_EMAIL*)data->buf;
-    
-    // TODO add email info & content to db
+    Player* plr = PlayerManager::getPlayer(sock);
 
     INITSTRUCT(sP_FE2CL_REP_PC_SEND_EMAIL_SUCC, resp);
+
+    // handle items
+    std::vector<sItemBase> attachments;
     for (int i = 0; i < 4; i++) {
-        resp.aItem[i] = pkt->aItem[i];
+        sEmailItemInfoFromCL attachment = pkt->aItem[i];
+        resp.aItem[i] = attachment;
+        if (attachment.ItemInven.iID > 0 && attachment.ItemInven.iType > 0) {
+            if (attachment.iSlotNum < 0 || attachment.iSlotNum >= AINVEN_COUNT)
+                continue; // sanity check
+            attachments.push_back(attachment.ItemInven);
+            // delete item
+            plr->Inven[attachment.iSlotNum] = { 0, 0, 0, 0 };
+        }
     }
-    resp.iCandy = pkt->iCash;
+
+    int cost = pkt->iCash + 50 + 20 * attachments.size(); // attached taros + postage
+    plr->money -= cost;
+    Database::EmailData email = {
+        (int)pkt->iTo_PCUID, // PlayerId
+        Database::getNextEmailIndex(pkt->iTo_PCUID), // MsgIndex
+        0, // ReadFlag (unread)
+        (pkt->iCash > 0 || attachments.size() > 0) ? 1 : 0, // ItemFlag
+        plr->iID, // SenderID
+        U16toU8(plr->PCStyle.szFirstName), // SenderFirstName
+        U16toU8(plr->PCStyle.szLastName), // SenderLastName
+        U16toU8(pkt->szSubject), // SubjectLine
+        U16toU8(pkt->szContent), // MsgBody
+        pkt->iCash, // Taros
+        (uint64_t)getTimestamp(), // SendTime
+        0 // DeleteTime (unimplemented)
+    };
+
+    Database::sendEmail(&email, attachments);
+
+    // HACK: use set value packet to force GUI taros update
+    INITSTRUCT(sP_FE2CL_GM_REP_PC_SET_VALUE, tarosResp);
+    tarosResp.iPC_ID = plr->iID;
+    tarosResp.iSetValueType = 5;
+    tarosResp.iSetValue = plr->money;
+    sock->sendPacket((void*)&tarosResp, P_FE2CL_GM_REP_PC_SET_VALUE, sizeof(sP_FE2CL_GM_REP_PC_SET_VALUE));
+
+    resp.iCandy = plr->money;
     resp.iTo_PCUID = pkt->iTo_PCUID;
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_SEND_EMAIL_SUCC, sizeof(sP_FE2CL_REP_PC_SEND_EMAIL_SUCC));
