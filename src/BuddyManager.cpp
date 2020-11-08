@@ -399,7 +399,30 @@ void BuddyManager::reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
 }
 
 // Warping to buddy
-void BuddyManager::reqBuddyWarp(CNSocket* sock, CNPacketData* data) {} // stub
+void BuddyManager::reqBuddyWarp(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_BUDDY_WARP))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_BUDDY_WARP* pkt = (sP_CL2FE_REQ_PC_BUDDY_WARP*)data->buf;
+
+    if (pkt->iSlotNum < 0 || pkt->iSlotNum >= 50)
+        return; // sanity check
+
+    Player* otherPlr = PlayerManager::getPlayerFromID(pkt->iBuddyPCUID);
+    if (otherPlr == nullptr)
+        return; // buddy offline
+
+    if (otherPlr->instanceID != INSTANCE_OVERWORLD) {
+        // player is instanced; no warp allowed
+        INITSTRUCT(sP_FE2CL_REP_PC_BUDDY_WARP_FAIL, resp);
+        resp.iBuddyPCUID = pkt->iBuddyPCUID;
+        resp.iErrorCode = 0;
+        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BUDDY_WARP_FAIL, sizeof(sP_FE2CL_REP_PC_BUDDY_WARP_FAIL));
+        return;
+    }
+
+    PlayerManager::sendPlayerTo(sock, otherPlr->x, otherPlr->y, otherPlr->z);
+}
 
 #pragma region Helper methods
 
