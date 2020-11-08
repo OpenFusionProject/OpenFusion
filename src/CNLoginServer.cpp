@@ -438,8 +438,9 @@ bool CNLoginServer::isPasswordCorrect(std::string actualPassword, std::string tr
 }
 
 bool CNLoginServer::isCharacterNameGood(std::string Firstname, std::string Lastname) {
-    std::regex firstnamecheck("[a-zA-Z0-9]+(?: [a-zA-Z0-9]+)*$");
-    std::regex lastnamecheck("[a-zA-Z0-9]+(?: [a-zA-Z0-9]+)*$");
+    //Allow alphanumeric and dot characters in names(disallows dot and space characters at the beginning of a name)
+    std::regex firstnamecheck(R"(((?! )(?!\.)[a-zA-Z0-9]*\.{0,1}(?!\.+ +)[a-zA-Z0-9]* {0,1}(?! +))*$)");
+    std::regex lastnamecheck(R"(((?! )(?!\.)[a-zA-Z0-9]*\.{0,1}(?!\.+ +)[a-zA-Z0-9]* {0,1}(?! +))*$)");
     return (std::regex_match(Firstname, firstnamecheck) && std::regex_match(Lastname, lastnamecheck));
 }
 #pragma endregion helperMethods
