@@ -917,6 +917,11 @@ void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
+    if (egg->chunkPos != ChunkManager::grabChunk(plr->x, plr->y, plr->instanceID)) {
+        std::cout << "[WARN] Player tried to open an egg from the other chunk?!" << std::endl;
+        return;
+    }
+
     int typeId = egg->appearanceData.iNPCType;
     if (EggTypes.find(typeId) == EggTypes.end()) {
         if (egg->npcClass != NPCClass::NPC_EGG) {
