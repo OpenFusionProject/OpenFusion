@@ -3,6 +3,7 @@
 #include "ChatManager.hpp"
 #include "PlayerManager.hpp"
 #include "BuddyManager.hpp"
+#include "Database.hpp"
 
 #include <iostream>
 #include <chrono>
@@ -20,6 +21,54 @@ void BuddyManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SET_BUDDY_BLOCK, reqBuddyBlock);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_REMOVE_BUDDY, reqBuddyDelete);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_BUDDY_WARP, reqBuddyWarp);
+}
+
+// Refresh buddy list
+void BuddyManager::refreshBuddyList(CNSocket* sock) {
+    Player* plr = PlayerManager::getPlayer(sock);
+    int buddyCnt = Database::getNumBuddies(plr);
+
+    if (!validOutVarPacket(sizeof(sP_FE2CL_REP_PC_BUDDYLIST_INFO_SUCC), buddyCnt, sizeof(sBuddyBaseInfo))) {
+        std::cout << "[WARN] bad sP_FE2CL_REP_PC_BUDDYLIST_INFO_SUCC packet size\n";
+        return;
+    }
+
+    // initialize response struct
+    size_t resplen = sizeof(sP_FE2CL_REP_PC_BUDDYLIST_INFO_SUCC) + buddyCnt * sizeof(sBuddyBaseInfo);
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+
+    memset(respbuf, 0, resplen);
+
+    sP_FE2CL_REP_PC_BUDDYLIST_INFO_SUCC* resp = (sP_FE2CL_REP_PC_BUDDYLIST_INFO_SUCC*)respbuf;
+    sBuddyBaseInfo* respdata = (sBuddyBaseInfo*)(respbuf + sizeof(sP_FE2CL_REP_PC_BUDDYLIST_INFO_SUCC));
+
+    // base response fields
+    resp->iBuddyCnt = buddyCnt;
+    resp->iID = plr->iID;
+    resp->iPCUID = plr->PCStyle.iPC_UID;
+    resp->iListNum = 0; // ???
+
+    int buddyIndex = 0;
+    for (int i = 0; i < 50; i++) {
+        int64_t buddyID = plr->buddyIDs[i];
+        if (buddyID != 0) {
+            sBuddyBaseInfo buddyInfo = {};
+            Database::DbPlayer buddyPlayerData = Database::getDbPlayerById(buddyID);
+            buddyInfo.bBlocked = 0;
+            buddyInfo.bFreeChat = 1;
+            buddyInfo.iGender = buddyPlayerData.Gender;
+            buddyInfo.iID = buddyID;
+            buddyInfo.iPCUID = buddyID;
+            buddyInfo.iNameCheckFlag = buddyPlayerData.NameCheck;
+            buddyInfo.iPCState = buddyPlayerData.PCState;
+            U8toU16(buddyPlayerData.FirstName, buddyInfo.szFirstName, sizeof(buddyInfo.szFirstName));
+            U8toU16(buddyPlayerData.LastName, buddyInfo.szLastName, sizeof(buddyInfo.szLastName));
+            respdata[buddyIndex] = buddyInfo;
+            buddyIndex++;
+        }
+    }
+
+    sock->sendPacket((void*)respbuf, P_FE2CL_REP_PC_BUDDYLIST_INFO_SUCC, resplen);
 }
 
 // Buddy request
@@ -321,17 +370,32 @@ void BuddyManager::reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
 
     Player* plr = PlayerManager::getPlayer(sock);
 
+    // remove buddy on our side
     INITSTRUCT(sP_FE2CL_REP_REMOVE_BUDDY_SUCC, resp);
-
     resp.iBuddyPCUID = pkt->iBuddyPCUID;
     resp.iBuddySlot = pkt->iBuddySlot;
-
     if (pkt->iBuddySlot < 0 || pkt->iBuddySlot >= 50)
         return; // sanity check
-
     plr->buddyIDs[resp.iBuddySlot] = 0;
-
     sock->sendPacket((void*)&resp, P_FE2CL_REP_REMOVE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_REMOVE_BUDDY_SUCC));
+
+    // remove buddy on their side, reusing the struct
+    CNSocket* otherSock = PlayerManager::getSockFromID(pkt->iBuddyPCUID);
+    if (otherSock == nullptr)
+        return; // other player isn't online, no broadcast needed
+    Player* otherPlr = PlayerManager::getPlayer(otherSock);
+    // search for the slot with the requesting player's ID
+    resp.iBuddyPCUID = plr->PCStyle.iPC_UID;
+    for (int i = 0; i < 50; i++) {
+        if (otherPlr->buddyIDs[i] == plr->PCStyle.iPC_UID) {
+            // remove buddy
+            otherPlr->buddyIDs[i] = 0;
+            // broadcast
+            resp.iBuddySlot = i;
+            otherSock->sendPacket((void*)&resp, P_FE2CL_REP_REMOVE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_REMOVE_BUDDY_SUCC));
+            return;
+        }
+    }
 }
 
 // Warping to buddy

@@ -9,6 +9,7 @@
 #include "GroupManager.hpp"
 #include "ChatManager.hpp"
 #include "Database.hpp"
+#include "BuddyManager.hpp"
 
 #include "settings.hpp"
 
@@ -402,6 +403,9 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     ItemManager::setItemStats(getPlayer(sock));
 
     MissionManager::failInstancedMissions(sock);
+
+    // send over buddy list
+    BuddyManager::refreshBuddyList(sock);
 
     for (auto& pair : PlayerManager::players)
         if (pair.second.plr->notify)

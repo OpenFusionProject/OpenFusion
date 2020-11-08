@@ -79,6 +79,11 @@ namespace Database {
         int RemainingNPCCount2;
         int RemainingNPCCount3;
     };
+    struct Buddyship {
+        int PlayerAId;
+        int PlayerBId;
+        int16_t Status;
+    };
 
 
 #pragma endregion DatabaseStructs
@@ -121,11 +126,14 @@ namespace Database {
     void updateInventory(Player *player);
     void updateNanos(Player *player);
     void updateQuests(Player* player);
+    void updateBuddies(Player* player);
 
     void getInventory(Player* player);
     void removeExpiredVehicles(Player* player);
     void getNanos(Player* player);
     void getQuests(Player* player);
+    void getBuddies(Player* player);
+    int getNumBuddies(Player* player);
 
     // parsing blobs
     void appendBlob(std::vector<char>*blob, int64_t input);

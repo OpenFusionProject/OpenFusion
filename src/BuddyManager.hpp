@@ -11,6 +11,9 @@
 namespace BuddyManager {
 	void init();
 
+	// Buddy list
+	void refreshBuddyList(CNSocket* sock);
+
 	// Buddy requests
 	void requestBuddy(CNSocket* sock, CNPacketData* data);
 	void reqBuddyByName(CNSocket* sock, CNPacketData* data);

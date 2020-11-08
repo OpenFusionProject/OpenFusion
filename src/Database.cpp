@@ -93,6 +93,11 @@ auto db = make_storage("database.db",
         make_column("RemainingNPCCount1", &Database::DbQuest::RemainingNPCCount1),
         make_column("RemainingNPCCount2", &Database::DbQuest::RemainingNPCCount2),
         make_column("RemainingNPCCount3", &Database::DbQuest::RemainingNPCCount3)
+    ),
+    make_table("Buddyships",
+        make_column("PlayerAId", &Database::Buddyship::PlayerAId),
+        make_column("PlayerBId", &Database::Buddyship::PlayerBId),
+        make_column("Status", &Database::Buddyship::Status)
     )
 );
 
@@ -463,6 +468,7 @@ Player Database::DbToPlayer(DbPlayer player) {
     Database::removeExpiredVehicles(&result);
     Database::getNanos(&result);
     Database::getQuests(&result);
+    Database::getBuddies(&result);
 
     // load completed quests
     memcpy(&result.aQuestFlag, player.QuestFlag.data(), std::min(sizeof(result.aQuestFlag), player.QuestFlag.size()));
@@ -492,6 +498,7 @@ void Database::updatePlayer(Player *player) {
     updateInventory(player);
     updateNanos(player);
     updateQuests(player);
+    updateBuddies(player);
 }
 
 void Database::updateInventory(Player *player){
@@ -604,6 +611,27 @@ void Database::updateQuests(Player* player) {
     db.commit();
 }
 
+void Database::updateBuddies(Player* player) {
+    db.begin_transaction();
+
+    db.remove_all<Buddyship>( // remove all buddyships with this player involved
+        where(c(&Buddyship::PlayerAId) == player->iID || c(&Buddyship::PlayerBId) == player->iID)
+        );
+
+    // iterate through player's buddies and add records for each non-zero entry
+    for (int i = 0; i < 50; i++) {
+        if (player->buddyIDs[i] != 0) {
+            Buddyship record;
+            record.PlayerAId = player->iID;
+            record.PlayerBId = player->buddyIDs[i];
+            record.Status = 0; // still not sure how we'll handle blocking
+            db.insert(record);
+        }
+    }
+
+    db.commit();
+}
+
 void Database::getInventory(Player* player) {
     // get items from DB
     auto items = db.get_all<Inventory>(
@@ -689,6 +717,30 @@ void Database::getQuests(Player* player) {
         player->RemainingNPCCount[i][2] = current.RemainingNPCCount3;
         i++;
     }
+}
+
+void Database::getBuddies(Player* player) {
+    auto buddies = db.get_all<Buddyship>( // player can be on either side
+        where(c(&Buddyship::PlayerAId) == player->iID || c(&Buddyship::PlayerBId) == player->iID)
+        );
+
+    // there should never be more than 50 buddyships per player, but just in case
+    for (int i = 0; i < 50 && i < buddies.size(); i++) {
+        // if the player is player A, then the buddy is player B, and vice versa
+        player->buddyIDs[i] = player->iID == buddies.at(i).PlayerAId
+            ? buddies.at(i).PlayerBId : buddies.at(i).PlayerAId;
+    }
+}
+
+int Database::getNumBuddies(Player* player) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    auto buddies = db.get_all<Buddyship>( // player can be on either side
+        where(c(&Buddyship::PlayerAId) == player->iID || c(&Buddyship::PlayerBId) == player->iID)
+        );
+
+    // again, for peace of mind
+    return buddies.size() > 50 ? 50 : buddies.size();
 }
 
 #pragma endregion ShardServer
