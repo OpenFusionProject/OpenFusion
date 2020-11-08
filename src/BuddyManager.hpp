@@ -11,6 +11,9 @@
 namespace BuddyManager {
 	void init();
 
+	// Buddy list
+	void refreshBuddyList(CNSocket* sock);
+
 	// Buddy requests
 	void requestBuddy(CNSocket* sock, CNPacketData* data);
 	void reqBuddyByName(CNSocket* sock, CNPacketData* data);
@@ -33,12 +36,19 @@ namespace BuddyManager {
 	// Buddy warping
 	void reqBuddyWarp(CNSocket* sock, CNPacketData* data);
 
-	// helper methods
-	void requestedBuddy(CNSocket* sock, Player* plrReq, PlayerView& plr);
-	void buddyList(CNSocket* sock, sBuddyBaseInfo BuddyInfo); // updates the buddylist
-	void otherAcceptBuddy(CNSocket* sock, int32_t BuddyID, int64_t BuddyPCUID, sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC resp, Player* plr); // tells the other player that they are now buddies with the requester.
+	// Email methods
+	void emailUpdateCheck(CNSocket* sock, CNPacketData* data);
+	void emailReceivePageList(CNSocket* sock, CNPacketData* data);
+	void emailRead(CNSocket* sock, CNPacketData* data);
+	void emailReceiveTaros(CNSocket* sock, CNPacketData* data);
+	void emailReceiveItemSingle(CNSocket* sock, CNPacketData* data);
+	void emailReceiveItemAll(CNSocket* sock, CNPacketData* data);
+	void emailDelete(CNSocket* sock, CNPacketData* data);
+	void emailSend(CNSocket* sock, CNPacketData* data);
 
+	// helper methods
+	
 	// Name checks
-	bool firstNameCheck(char16_t reqFirstName[], char16_t resFirstName[], int sizeOfReq, int sizeOfRes); // checks if the request and requested player's first names match
-	bool lastNameCheck(char16_t reqLastName[], char16_t resLastName[], int sizeOfLNReq, int sizeOfLNRes); // checks if the request and requested player's last names match
+	int getAvailableBuddySlot(Player* plr);
+	bool playerHasBuddyWithID(Player* plr, int buddyID);
 }

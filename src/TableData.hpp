@@ -9,6 +9,7 @@ namespace TableData {
     extern std::map<int32_t, int> RunningNPCRotations;
     extern std::map<int32_t, int> RunningNPCMapNumbers;
     extern std::map<int32_t, BaseNPC*> RunningMobs;
+    extern std::map<int32_t, BaseNPC*> RunningEggs;
 
     void init();
     void cleanup();
@@ -18,6 +19,7 @@ namespace TableData {
     int getItemType(int);
     void loadPaths(int*);
     void loadDrops();
+    void loadEggs(int32_t* nextId);
     void constructPathSkyway(nlohmann::json::iterator);
     void constructPathSlider(nlohmann::json, int, int);
     void constructPathNPC(nlohmann::json::iterator, int id=0);

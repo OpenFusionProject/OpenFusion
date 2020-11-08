@@ -270,6 +270,14 @@ void unsummonWCommand(std::string full, std::vector<std::string>& args, CNSocket
         return;
     }
 
+    if (TableData::RunningEggs.find(npc->appearanceData.iNPC_ID) != TableData::RunningEggs.end()) {
+        ChatManager::sendServerMessage(sock, "/unsummonW: removed egg with type: " + std::to_string(npc->appearanceData.iNPCType) +
+            ", id: " + std::to_string(npc->appearanceData.iNPC_ID));
+        TableData::RunningEggs.erase(npc->appearanceData.iNPC_ID);
+        NPCManager::destroyNPC(npc->appearanceData.iNPC_ID);
+        return;
+    }
+
     if (TableData::RunningMobs.find(npc->appearanceData.iNPC_ID) == TableData::RunningMobs.end()) {
         ChatManager::sendServerMessage(sock, "/unsummonW: Closest NPC is not a gruntwork mob.");
         return;
@@ -436,6 +444,63 @@ void tasksCommand(std::string full, std::vector<std::string>& args, CNSocket* so
     }
 }
 
+void buffCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    if (args.size() < 3) {
+        ChatManager::sendServerMessage(sock, "/buff: no skill Id and duration time specified");
+        return;
+    }
+
+    char* tmp;
+    int  skillId = std::strtol(args[1].c_str(), &tmp, 10);
+    if (*tmp)
+        return;
+    int  duration = std::strtol(args[2].c_str(), &tmp, 10);
+    if (*tmp)
+        return;
+
+    if (NPCManager::eggBuffPlayer(sock, skillId, duration)<0)
+        ChatManager::sendServerMessage(sock, "/buff: unknown skill Id");
+    
+}
+
+void eggCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    if (args.size() < 2) {
+        ChatManager::sendServerMessage(sock, "/egg: no egg type specified");
+        return;
+    }
+
+    char* tmp;
+    int  eggType = std::strtol(args[1].c_str(), &tmp, 10);
+    if (*tmp)
+        return;
+
+    if (NPCManager::EggTypes.find(eggType) == NPCManager::EggTypes.end()) {
+        ChatManager::sendServerMessage(sock, "/egg: Unknown egg type");
+        return;
+    }
+
+    assert(NPCManager::nextId < INT32_MAX);
+    int id = NPCManager::nextId++;
+
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    if (plr == nullptr)
+        return;
+
+    // some math to place egg nicely in front of the player
+    // temporarly disabled for sake of gruntwork
+    int addX = 0; //-500.0f * sin(plr->angle / 180.0f * M_PI);
+    int addY = 0;  //-500.0f * cos(plr->angle / 180.0f * M_PI);
+
+    Egg* egg = new Egg(plr->x + addX, plr->y + addY, plr->z, plr->instanceID, eggType, id, false); // change last arg to true after gruntwork
+    NPCManager::NPCs[id] = egg;
+    NPCManager::Eggs[id] = egg;
+    NPCManager::updateNPCPosition(id, plr->x + addX, plr->y + addY, plr->z, plr->instanceID);
+
+    // add to template
+    TableData::RunningEggs[id] = egg;
+}
+
 void notifyCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player *plr = PlayerManager::getPlayer(sock);
 
@@ -478,6 +543,8 @@ void ChatManager::init() {
     registerCommand("population", 100, populationCommand, "check how many players are online");
     registerCommand("refresh", 100, refreshCommand, "teleport yourself to your current location");
     registerCommand("minfo", 30, minfoCommand, "show details of the current mission and task.");
+    registerCommand("buff", 50, buffCommand, "give yourself a buff effect");
+    registerCommand("egg", 30, eggCommand, "summon a coco egg");
     registerCommand("tasks", 30, tasksCommand, "list all active missions and their respective task ids.");
     registerCommand("notify", 30, notifyCommand, "receive a message whenever a player joins the server");
     registerCommand("players", 30, playersCommand, "print all players on the server");

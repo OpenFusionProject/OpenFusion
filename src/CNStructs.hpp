@@ -50,3 +50,5 @@ void terminate(int);
 #else
     #error Invalid PROTOCOL_VERSION
 #endif
+
+sSYSTEMTIME timeStampToStruct(uint64_t time);

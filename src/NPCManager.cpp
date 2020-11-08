@@ -4,6 +4,9 @@
 #include "MobManager.hpp"
 #include "MissionManager.hpp"
 #include "ChunkManager.hpp"
+#include "NanoManager.hpp"
+#include "TableData.hpp"
+#include "ChatManager.hpp"
 
 #include <cmath>
 #include <algorithm>
@@ -18,7 +21,13 @@
 std::map<int32_t, BaseNPC*> NPCManager::NPCs;
 std::map<int32_t, WarpLocation> NPCManager::Warps;
 std::vector<WarpLocation> NPCManager::RespawnPoints;
+/// sock, CBFlag -> until
+std::map<std::pair<CNSocket*, int32_t>, time_t> NPCManager::EggBuffs;
+std::unordered_map<int, EggType> NPCManager::EggTypes;
+std::unordered_map<int, Egg*> NPCManager::Eggs;
 nlohmann::json NPCManager::NPCData;
+
+
 
 /*
  * Initialized at the end of TableData::init().
@@ -40,6 +49,9 @@ void NPCManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY, npcVendorBuyback);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_BATTERY_BUY, npcVendorBuyBattery);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_COMBINATION, npcCombineItems);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SHINY_PICKUP, eggPickup);
+
+    REGISTER_SHARD_TIMER(eggStep, 1000);
 }
 
 void NPCManager::removeNPC(std::vector<Chunk*> viewableChunks, int32_t id) {
@@ -55,6 +67,17 @@ void NPCManager::removeNPC(std::vector<Chunk*> viewableChunks, int32_t id) {
             for (CNSocket* sock : chunk->players) {
                 // send to socket
                 sock->sendPacket((void*)&exitBusData, P_FE2CL_TRANSPORTATION_EXIT, sizeof(sP_FE2CL_TRANSPORTATION_EXIT));
+            }
+        }
+        break;
+    case NPC_EGG:
+        INITSTRUCT(sP_FE2CL_SHINY_EXIT, exitEggData);
+        exitEggData.iShinyID = id;
+
+        for (Chunk* chunk : viewableChunks) {
+            for (CNSocket* sock : chunk->players) {
+                // send to socket
+                sock->sendPacket((void*)&exitEggData, P_FE2CL_SHINY_EXIT, sizeof(sP_FE2CL_SHINY_EXIT));
             }
         }
         break;
@@ -86,6 +109,17 @@ void NPCManager::addNPC(std::vector<Chunk*> viewableChunks, int32_t id) {
             for (CNSocket* sock : chunk->players) {
                 // send to socket
                 sock->sendPacket((void*)&enterBusData, P_FE2CL_TRANSPORTATION_ENTER, sizeof(sP_FE2CL_TRANSPORTATION_ENTER));
+            }
+        }
+        break;
+    case NPC_EGG:
+        INITSTRUCT(sP_FE2CL_SHINY_ENTER, enterEggData);
+        npcDataToEggData(&npc->appearanceData, &enterEggData.ShinyAppearanceData);
+
+        for (Chunk* chunk : viewableChunks) {
+            for (CNSocket* sock : chunk->players) {
+                // send to socket
+                sock->sendPacket((void*)&enterEggData, P_FE2CL_SHINY_ENTER, sizeof(sP_FE2CL_SHINY_ENTER));
             }
         }
         break;
@@ -130,6 +164,10 @@ void NPCManager::destroyNPC(int32_t id) {
     if (MobManager::Mobs.find(id) != MobManager::Mobs.end())
         MobManager::Mobs.erase(id);
 
+    // remove from eggs
+    if (Eggs.find(id) != Eggs.end())
+        Eggs.erase(id);
+
     // finally, remove it from the map and free it
     NPCs.erase(id);
     delete entity;
@@ -146,6 +184,7 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
     npc->appearanceData.iX = X;
     npc->appearanceData.iY = Y;
     npc->appearanceData.iZ = Z;
+
     std::tuple<int, int, uint64_t> newPos = ChunkManager::grabChunk(X, Y, npc->instanceID);
 
     // nothing to be done (but we should also update currentChunks to add/remove stale chunks)
@@ -154,6 +193,7 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
         return;
     }
 
+    ChunkManager::addNPC(X, Y, npc->instanceID, id);
     std::vector<Chunk*> allChunks = ChunkManager::grabChunks(newPos);
 
     // send npc exit to stale chunks
@@ -171,7 +211,7 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
         allChunks.erase(std::remove(allChunks.begin(), allChunks.end(), chunk), allChunks.end());
     }
 
-    ChunkManager::addNPC(X, Y, npc->instanceID, id);
+    
 
     npc->chunkPos = newPos;
     npc->currentChunks = allChunks;
@@ -647,4 +687,338 @@ BaseNPC* NPCManager::getNearestNPC(std::vector<Chunk*> chunks, int X, int Y, int
         }
     }
     return npc;
+}
+
+int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int duration) {
+
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    int32_t CBFlag = -1, iValue = 0, CSTB, EST;
+
+    // damage and heal have to be set by hand
+    if (skillId == 183) {
+        // damage
+        CBFlag = CSB_BIT_INFECTION;
+        CSTB = ECSB_INFECTION;
+        EST = EST_INFECTIONDAMAGE;
+    }
+    else if (skillId == 150) {
+        // heal
+        CBFlag = CSB_BIT_HEAL;
+        CSTB = ECSB_HEAL;
+        EST = EST_HEAL_HP;
+    }
+    else {
+        // find the right passive power data  
+        int type = NanoManager::SkillTable[skillId].skillType;
+
+        for (auto& pwr : NanoManager::NanoPowers) {
+            if (pwr.skillType == type) {
+                CBFlag = pwr.bitFlag;
+                CSTB = pwr.timeBuffID;
+                EST = pwr.skillType;
+                iValue = NanoManager::SkillTable[skillId].powerIntensity[0];
+                break;
+            }
+        }
+    }
+
+    if (CBFlag < 0)
+        return -1;
+
+    std::pair<CNSocket*, int32_t> key = std::make_pair(sock, CBFlag);
+
+    // if player doesn't have this buff yet
+    if (EggBuffs.find(key) == EggBuffs.end())
+    {
+        // save new cbflag serverside
+        plr->iConditionBitFlag |= CBFlag;
+
+        // send buff update package
+        INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, updatePacket);
+        updatePacket.eCSTB = CSTB; // eCharStatusTimeBuffID
+        updatePacket.eTBU = 1; // eTimeBuffUpdate 1 means Add
+        updatePacket.eTBT = 3; // eTimeBuffType 3 means egg
+        updatePacket.TimeBuff.iValue = iValue;
+        updatePacket.iConditionBitFlag = plr->iConditionBitFlag;
+
+        sock->sendPacket((void*)&updatePacket, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+    }
+
+    // save the buff serverside;
+    // if you get the same buff again, new duration will override the previous one
+    time_t until = getTime() + (time_t)duration * 1000;
+    EggBuffs[key] = until;
+    
+    /*
+     * to give player a visual effect (eg. blue particles for run or wings for jump)
+     * we have to send him NANO_SKILL_USE packet with nano Id set to 0
+     * yes, this is utterly stupid and disgusting
+     */
+
+    const size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE) + sizeof(sSkillResult_Buff);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+    // we know it's only one trailing struct, so we can skip full validation
+
+    uint8_t respbuf[resplen]; // not a variable length array, don't worry
+    sP_FE2CL_NANO_SKILL_USE* skillUse = (sP_FE2CL_NANO_SKILL_USE*)respbuf;
+    sSkillResult_Buff* skill = (sSkillResult_Buff*)(respbuf + sizeof(sP_FE2CL_NANO_SKILL_USE));
+
+    memset(respbuf, 0, resplen);
+
+    skillUse->iPC_ID = plr->iID;
+    skillUse->iSkillID = skillId;
+    skillUse->iNanoID = plr->activeNano;
+    skillUse->iNanoStamina = plr->activeNano < 1 ? 0 : plr->Nanos[plr->activeNano].iStamina;
+    skillUse->eST = EST;
+    skillUse->iTargetCnt = 1;
+
+    skill->eCT = 1;
+    skill->iID = plr->iID;
+    skill->iConditionBitFlag = CBFlag;
+
+    sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
+    PlayerManager::sendToViewable(sock, (void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
+
+    return 0;
+}
+
+void NPCManager::eggStep(CNServer* serv, time_t currTime) {
+    // tick buffs
+    time_t timeStamp = currTime;
+    auto it = EggBuffs.begin();
+    while (it != EggBuffs.end()) {
+        // check remaining time
+        if (it->second > timeStamp)
+            it++;
+
+        // if time reached 0
+        else {
+            CNSocket* sock = it->first.first;
+            Player* plr = PlayerManager::getPlayer(sock);
+           
+            // if player is still on the server
+            if (plr != nullptr) {
+
+                int32_t CBFlag = it->first.second;
+                int32_t CSTB = -1, iValue = 0;
+
+                // find CSTB Value
+                if (CBFlag == CSB_BIT_INFECTION)
+                    CSTB = ECSB_INFECTION;           
+
+                else if (CBFlag == CSB_BIT_HEAL)
+                    CSTB = ECSB_HEAL;
+
+                else {
+                    for (auto& pwr : NanoManager::NanoPowers) {
+                        if (pwr.bitFlag == CBFlag) {
+                            CSTB = pwr.timeBuffID;
+                            iValue = 500;
+                            break;
+                        }
+                    }
+                }
+
+                if (CSTB > 0) {
+                    Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
+                    if (otherPlr == nullptr)
+                        return;
+                    // update CBFlag serverside
+                    plr->iConditionBitFlag = plr->iConditionBitFlag & ~CBFlag | plr->iSelfConditionBitFlag;
+                    // send buff update packet
+                    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, updatePacket);
+                    updatePacket.eCSTB = CSTB; // eCharStatusTimeBuffID
+                    updatePacket.eTBU = 2; // eTimeBuffUpdate 2 means remove
+                    updatePacket.eTBT = 3; // eTimeBuffType 3 means egg
+                    updatePacket.iConditionBitFlag = plr->iConditionBitFlag;
+                    updatePacket.TimeBuff.iValue = iValue;
+                    sock->sendPacket((void*)&updatePacket, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+                }
+            }
+            // remove buff from the map
+            it = EggBuffs.erase(it);
+        }
+    }
+
+    // check dead eggs and eggs in inactive chunks
+    for (auto egg : Eggs) {
+        if (!egg.second->dead || !ChunkManager::inPopulatedChunks(egg.second->appearanceData.iX, egg.second->appearanceData.iY, egg.second->instanceID))
+            continue;
+        if (egg.second->deadUntil <= timeStamp) {
+            // respawn it
+            egg.second->dead = false;
+            egg.second->deadUntil = 0;
+            egg.second->appearanceData.iHP = 400;
+            addNPC(egg.second->currentChunks, egg.first);
+        }
+    }
+
+}
+
+void NPCManager::npcDataToEggData(sNPCAppearanceData* npc, sShinyAppearanceData* egg) {
+    egg->iX = npc->iX;
+    egg->iY = npc->iY;
+    egg->iZ = npc->iZ;
+    // client doesn't care about egg->iMapNum
+    egg->iShinyType = npc->iNPCType;
+    egg->iShiny_ID = npc->iNPC_ID;
+}
+
+void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_SHINY_PICKUP))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_SHINY_PICKUP* pickup = (sP_CL2FE_REQ_SHINY_PICKUP*)data->buf;
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    int eggId = pickup->iShinyID;
+
+    if (Eggs.find(eggId) == Eggs.end()) {
+        std::cout << "[WARN] Player tried to open non existing egg?!" << std::endl;
+        return;
+    }
+    Egg* egg = Eggs[eggId];
+
+    if (egg->dead) {
+        std::cout << "[WARN] Player tried to open a dead egg?!" << std::endl;
+        return;
+    }
+
+    if (abs(egg->appearanceData.iX - plr->x)>500 || abs(egg->appearanceData.iY - plr->y) > 500) {
+        std::cout << "[WARN] Player tried to open an egg from the other chunk?!" << std::endl;
+        return;
+    }
+
+    int typeId = egg->appearanceData.iNPCType;
+    if (EggTypes.find(typeId) == EggTypes.end()) {
+        if (egg->npcClass != NPCClass::NPC_EGG) {
+            std::cout << "[WARN] Egg Type " << typeId << " not found!" << std::endl;
+            return;
+        }
+    }
+    EggType* type = &EggTypes[typeId];
+
+    // buff the player
+    if (type->effectId != 0)
+        eggBuffPlayer(sock, type->effectId, type->duration);
+
+    // damage egg
+    if (type->effectId == 183) {
+        size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_Damage);
+        assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+        uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+
+        memset(respbuf, 0, resplen);
+
+        sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK* pkt = (sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK*)respbuf;
+        sSkillResult_Damage* dmg = (sSkillResult_Damage*)(respbuf + sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
+
+        dmg->iDamage = PC_MAXHEALTH(plr->level) * 6 / 10;
+
+        plr->HP -= dmg->iDamage;
+
+        pkt->iID = plr->iID;
+        pkt->eCT = 1; // player
+        pkt->iTB_ID = 19;
+        dmg->iHP = plr->HP;
+
+        sock->sendPacket((void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
+        PlayerManager::sendToViewable(sock, (void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
+    }
+    // heal egg
+    else if (type->effectId == 150) {
+        size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_Heal_HP);
+        assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+        uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+
+        memset(respbuf, 0, resplen);
+
+        sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK* pkt = (sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK*)respbuf;
+        sSkillResult_Heal_HP* heal = (sSkillResult_Heal_HP*)(respbuf + sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
+
+        heal->iHealHP = PC_MAXHEALTH(plr->level) * 35 / 100;
+        plr->HP += heal->iHealHP;
+        if (plr->HP > PC_MAXHEALTH(plr->level))
+            plr->HP = PC_MAXHEALTH(plr->level);
+
+        heal->iHP = plr->HP;
+        heal->iID = plr->iID;
+        heal->eCT = 1;
+
+        pkt->iID = plr->iID;
+        pkt->eCT = 1; // player
+        pkt->iTB_ID = ECSB_HEAL;
+
+        sock->sendPacket((void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
+        PlayerManager::sendToViewable(sock, (void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
+    }
+
+    /*
+     * SHINY_PICKUP_SUCC is only causing a GUI effect in the client
+     * (buff icon pops up in the bottom of the screen)
+     * so we don't send it for non-effect
+     */
+
+    if (type->effectId != 0)
+    {
+        INITSTRUCT(sP_FE2CL_REP_SHINY_PICKUP_SUCC, resp);
+        resp.iSkillID = type->effectId;
+
+        // in general client finds correct icon on it's own,
+        // but for damage we have to supply correct CSTB
+        if (resp.iSkillID == 183)
+            resp.eCSTB = ECSB_INFECTION;
+
+        sock->sendPacket((void*)&resp, P_FE2CL_REP_SHINY_PICKUP_SUCC, sizeof(sP_FE2CL_REP_SHINY_PICKUP_SUCC));
+    }
+
+    // drop
+    if (type->dropCrateId != 0) {
+        const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
+        assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+        // we know it's only one trailing struct, so we can skip full validation
+
+        uint8_t respbuf[resplen]; // not a variable length array, don't worry
+        sP_FE2CL_REP_REWARD_ITEM* reward = (sP_FE2CL_REP_REWARD_ITEM*)respbuf;
+        sItemReward* item = (sItemReward*)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
+
+        // don't forget to zero the buffer!
+        memset(respbuf, 0, resplen);
+
+        // send back player's stats
+        reward->m_iCandy = plr->money;
+        reward->m_iFusionMatter = plr->fusionmatter;
+        reward->m_iBatteryN = plr->batteryN;
+        reward->m_iBatteryW = plr->batteryW;
+        reward->iFatigue = 100; // prevents warning message
+        reward->iFatigue_Level = 1;
+        reward->iItemCnt = 1; // remember to update resplen if you change this
+
+        int slot = ItemManager::findFreeSlot(plr);
+
+        // no space for drop
+        if (slot != -1) {
+
+            // item reward
+            item->sItem.iType = 9;
+            item->sItem.iOpt = 1;
+            item->sItem.iID = type->dropCrateId;
+            item->iSlotNum = slot;
+            item->eIL = 1; // Inventory Location. 1 means player inventory.
+
+            // update player
+            plr->Inven[slot] = item->sItem;
+            sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
+        }
+    }
+
+    if (egg->summoned)
+        destroyNPC(eggId);
+    else {
+        removeNPC(egg->currentChunks, eggId);
+        egg->dead = true;
+        egg->deadUntil = getTime() + (time_t)type->regen * 1000;
+        egg->appearanceData.iHP = 0;
+    }
 }

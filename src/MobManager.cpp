@@ -191,6 +191,11 @@ void MobManager::giveReward(CNSocket *sock, Mob* mob) {
         if (rand() % 3 == 0)
             plr->batteryW += drop.boosts;
     }
+    // caps
+    if (plr->batteryW > 9999)
+        plr->batteryW = 9999;
+    if (plr->batteryN > 9999)
+        plr->batteryN = 9999;
 
     // simple rewards
     reward->m_iCandy = plr->money;
@@ -475,6 +480,10 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
         drainMobHP(mob, mob->maxHealth / 20); // lose 5% every second
         mob->lastDrainTime = currTime;
     }
+
+    // if drain killed the mob, return early
+    if (mob->appearanceData.iHP <= 0)
+        return;
 
     // unbuffing
     std::unordered_map<int32_t, time_t>::iterator it = mob->unbuffTimes.begin();

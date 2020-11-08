@@ -93,6 +93,34 @@ auto db = make_storage("database.db",
         make_column("RemainingNPCCount1", &Database::DbQuest::RemainingNPCCount1),
         make_column("RemainingNPCCount2", &Database::DbQuest::RemainingNPCCount2),
         make_column("RemainingNPCCount3", &Database::DbQuest::RemainingNPCCount3)
+    ),
+    make_table("Buddyships",
+        make_column("PlayerAId", &Database::Buddyship::PlayerAId),
+        make_column("PlayerBId", &Database::Buddyship::PlayerBId),
+        make_column("Status", &Database::Buddyship::Status)
+    ),
+    make_table("EmailData",
+        make_column("PlayerId", &Database::EmailData::PlayerId),
+        make_column("MsgIndex", &Database::EmailData::MsgIndex),
+        make_column("ReadFlag", &Database::EmailData::ReadFlag),
+        make_column("ItemFlag", &Database::EmailData::ItemFlag),
+        make_column("SenderId", &Database::EmailData::SenderId),
+        make_column("SenderFirstName", &Database::EmailData::SenderFirstName, collate_nocase()),
+        make_column("SenderLastName", &Database::EmailData::SenderLastName, collate_nocase()),
+        make_column("SubjectLine", &Database::EmailData::SubjectLine),
+        make_column("MsgBody", &Database::EmailData::MsgBody),
+        make_column("Taros", &Database::EmailData::Taros),
+        make_column("SendTime", &Database::EmailData::SendTime),
+        make_column("DeleteTime", &Database::EmailData::DeleteTime)
+    ),
+    make_table("EmailItems",
+        make_column("PlayerId", &Database::EmailItem::PlayerId),
+        make_column("MsgIndex", &Database::EmailItem::MsgIndex),
+        make_column("Slot", &Database::EmailItem::Slot),
+        make_column("Id", &Database::EmailItem::Id),
+        make_column("Type", &Database::EmailItem::Type),
+        make_column("Opt", &Database::EmailItem::Opt),
+        make_column("TimeLimit", &Database::EmailItem::TimeLimit)
     )
 );
 
@@ -463,6 +491,7 @@ Player Database::DbToPlayer(DbPlayer player) {
     Database::removeExpiredVehicles(&result);
     Database::getNanos(&result);
     Database::getQuests(&result);
+    Database::getBuddies(&result);
 
     // load completed quests
     memcpy(&result.aQuestFlag, player.QuestFlag.data(), std::min(sizeof(result.aQuestFlag), player.QuestFlag.size()));
@@ -471,7 +500,18 @@ Player Database::DbToPlayer(DbPlayer player) {
 }
 
 Database::DbPlayer Database::getDbPlayerById(int id) {
-    return db.get_all<DbPlayer>(where(c(&DbPlayer::PlayerID) == id)).front();
+    auto player = db.get_all<DbPlayer>(where(c(&DbPlayer::PlayerID) == id));
+    if (player.size() < 1) {
+        // garbage collection
+        db.remove_all<Inventory>(where(c(&Inventory::playerId) == id));
+        db.remove_all<Nano>(where(c(&Nano::playerId) == id));
+        db.remove_all<DbQuest>(where(c(&DbQuest::PlayerId) == id));
+        db.remove_all<Buddyship>(where(c(&Buddyship::PlayerAId) == id || c(&Buddyship::PlayerBId) == id));
+        db.remove_all<EmailData>(where(c(&EmailData::PlayerId) == id));
+        db.remove_all<EmailItem>(where(c(&EmailItem::PlayerId) == id));
+        return DbPlayer{ -1 };
+    }
+    return player.front();
 }
 
 Player Database::getPlayer(int id) {
@@ -492,6 +532,7 @@ void Database::updatePlayer(Player *player) {
     updateInventory(player);
     updateNanos(player);
     updateQuests(player);
+    //updateBuddies(player); we add/remove buddies explicitly now
 }
 
 void Database::updateInventory(Player *player){
@@ -604,6 +645,28 @@ void Database::updateQuests(Player* player) {
     db.commit();
 }
 
+// note: do not use. explicitly add/remove records instead.
+void Database::updateBuddies(Player* player) {
+    db.begin_transaction();
+
+    db.remove_all<Buddyship>( // remove all buddyships with this player involved
+        where(c(&Buddyship::PlayerAId) == player->iID || c(&Buddyship::PlayerBId) == player->iID)
+        );
+
+    // iterate through player's buddies and add records for each non-zero entry
+    for (int i = 0; i < 50; i++) {
+        if (player->buddyIDs[i] != 0) {
+            Buddyship record;
+            record.PlayerAId = player->iID;
+            record.PlayerBId = player->buddyIDs[i];
+            record.Status = 0; // still not sure how we'll handle blocking
+            db.insert(record);
+        }
+    }
+
+    db.commit();
+}
+
 void Database::getInventory(Player* player) {
     // get items from DB
     auto items = db.get_all<Inventory>(
@@ -689,6 +752,213 @@ void Database::getQuests(Player* player) {
         player->RemainingNPCCount[i][2] = current.RemainingNPCCount3;
         i++;
     }
+}
+
+void Database::getBuddies(Player* player) {
+    auto buddies = db.get_all<Buddyship>( // player can be on either side
+        where(c(&Buddyship::PlayerAId) == player->iID || c(&Buddyship::PlayerBId) == player->iID)
+        );
+
+    // there should never be more than 50 buddyships per player, but just in case
+    for (int i = 0; i < 50 && i < buddies.size(); i++) {
+        // if the player is player A, then the buddy is player B, and vice versa
+        player->buddyIDs[i] = player->iID == buddies.at(i).PlayerAId
+            ? buddies.at(i).PlayerBId : buddies.at(i).PlayerAId;
+    }
+}
+
+int Database::getNumBuddies(Player* player) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    auto buddies = db.get_all<Buddyship>( // player can be on either side
+        where(c(&Buddyship::PlayerAId) == player->iID || c(&Buddyship::PlayerBId) == player->iID)
+        );
+
+    // again, for peace of mind
+    return buddies.size() > 50 ? 50 : buddies.size();
+}
+
+// buddies
+void Database::addBuddyship(int playerA, int playerB) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    db.begin_transaction();
+
+    Buddyship record;
+    record.PlayerAId = playerA;
+    record.PlayerBId = playerB;
+    record.Status = 0; // blocking ???
+    db.insert(record);
+
+    db.commit();
+}
+
+void Database::removeBuddyship(int playerA, int playerB) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    db.begin_transaction();
+
+    db.remove_all<Buddyship>(
+        where(c(&Buddyship::PlayerAId) == playerA && c(&Buddyship::PlayerBId) == playerB)
+        );
+
+    db.remove_all<Buddyship>( // the pair could be in either position
+        where(c(&Buddyship::PlayerAId) == playerB && c(&Buddyship::PlayerBId) == playerA)
+        );
+
+    db.commit();
+}
+
+// email
+int Database::getUnreadEmailCount(int playerID) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    auto emailData = db.get_all<Database::EmailData>(
+        where(c(&Database::EmailData::PlayerId) == playerID && c(&Database::EmailData::ReadFlag) == 0)
+        );
+
+    return emailData.size();
+}
+
+std::vector<Database::EmailData> Database::getEmails(int playerID, int page) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+    
+    std::vector<Database::EmailData> emails;
+
+    auto emailData = db.get_all<Database::EmailData>(
+        where(c(&Database::EmailData::PlayerId) == playerID),
+        order_by(&Database::EmailData::MsgIndex).desc(),
+        limit(5 * (page - 1), 5)
+        );
+
+    int i = 0;
+    for (Database::EmailData email : emailData) {
+        emails.push_back(email);
+        i++;
+    }
+
+    return emails;
+}
+
+Database::EmailData Database::getEmail(int playerID, int index) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    auto emailData = db.get_all<Database::EmailData>(
+        where(c(&Database::EmailData::PlayerId) == playerID && c(&Database::EmailData::MsgIndex) == index)
+        );
+
+    if (emailData.size() > 1)
+        std::cout << "[WARN] Duplicate emails detected (player " << playerID << ", index " << index << ")" << std::endl;
+
+    return emailData.at(0);
+}
+
+sItemBase* Database::getEmailAttachments(int playerID, int index) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    sItemBase* items = new sItemBase[4];
+    for (int i = 0; i < 4; i++)
+        items[i] = { 0, 0, 0, 0 }; // zero out items
+
+    auto attachments = db.get_all<Database::EmailItem>(
+        where(c(&Database::EmailItem::PlayerId) == playerID && c(&Database::EmailItem::MsgIndex) == index)
+        );
+
+    if (attachments.size() > 4)
+        std::cout << "[WARN] Email has too many attachments (player " << playerID << ", index " << index << ")" << std::endl;
+
+    for (Database::EmailItem& item : attachments) {
+        items[item.Slot - 1] = { item.Type, item.Id, item.Opt, item.TimeLimit };
+    }
+
+    return items;
+}
+
+void Database::updateEmailContent(EmailData* data) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    db.begin_transaction();
+
+    auto attachments = db.get_all<Database::EmailItem>(
+        where(c(&Database::EmailItem::PlayerId) == data->PlayerId && c(&Database::EmailItem::MsgIndex) == data->MsgIndex)
+        );
+    data->ItemFlag = (data->Taros > 0 || attachments.size() > 0) ? 1 : 0; // set attachment flag dynamically
+
+    db.remove_all<Database::EmailData>(
+        where(c(&Database::EmailData::PlayerId) == data->PlayerId && c(&Database::EmailData::MsgIndex) == data->MsgIndex)
+        );
+    db.insert(*data);
+
+    db.commit();
+}
+
+void Database::deleteEmailAttachments(int playerID, int index, int slot) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    db.begin_transaction();
+
+    if (slot == -1) { // delete all
+        db.remove_all<Database::EmailItem>(
+            where(c(&Database::EmailItem::PlayerId) == playerID && c(&Database::EmailItem::MsgIndex) == index)
+            );
+    } else { // delete single by comparing slot num
+        db.remove_all<Database::EmailItem>(
+            where(c(&Database::EmailItem::PlayerId) == playerID && c(&Database::EmailItem::MsgIndex) == index
+                && c(&Database::EmailItem::Slot) == slot)
+            );
+    }
+
+    db.commit();
+}
+
+void Database::deleteEmails(int playerID, int64_t* indices) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    db.begin_transaction();
+
+    for (int i = 0; i < 5; i++) {
+        db.remove_all<Database::EmailData>(
+            where(c(&Database::EmailData::PlayerId) == playerID && c(&Database::EmailData::MsgIndex) == indices[i])
+            ); // no need to check if the index is 0, since an email will never have index < 1
+    }
+
+    db.commit();
+}
+
+int Database::getNextEmailIndex(int playerID) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    auto emailData = db.get_all<Database::EmailData>(
+        where(c(&Database::EmailData::PlayerId) == playerID),
+        order_by(&Database::EmailData::MsgIndex).desc(),
+        limit(1)
+        );
+
+    return (emailData.size() > 0 ? emailData.at(0).MsgIndex + 1 : 1);
+}
+
+void Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    db.begin_transaction();
+
+    db.insert(*data); // add email data to db
+    // add email attachments to db email inventory
+    int slot = 1;
+    for (sItemBase item : attachments) {
+        EmailItem dbItem = {
+            data->PlayerId,
+            data->MsgIndex,
+            slot++,
+            item.iType,
+            item.iID,
+            item.iOpt,
+            item.iTimeLimit
+        };
+        db.insert(dbItem);
+    }
+
+    db.commit();
 }
 
 #pragma endregion ShardServer

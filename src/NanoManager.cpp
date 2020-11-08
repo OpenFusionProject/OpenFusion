@@ -148,8 +148,10 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
         plr->Nanos[plr->activeNano].iStamina = 0;
 
     for (auto& pwr : NanoPowers)
-        if (pwr.skillType == SkillTable[skillID].skillType)
+        if (pwr.skillType == SkillTable[skillID].skillType) {
             pwr.handle(sock, targetData, nanoID, skillID, SkillTable[skillID].durationTime[boost], SkillTable[skillID].powerIntensity[boost]);
+            break;
+        }
 }
 
 void NanoManager::nanoSkillSetHandler(CNSocket* sock, CNPacketData* data) {
@@ -312,8 +314,10 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
                     boost = 1;
 
         for (auto& pwr : NanoPowers)
-            if (pwr.skillType == SkillTable[skillID].skillType)
+            if (pwr.skillType == SkillTable[skillID].skillType) {
                 nanoUnbuff(sock, targetData, pwr.bitFlag, pwr.timeBuffID, SkillTable[skillID].powerIntensity[boost],(SkillTable[skillID].targetType == 3));
+                break;
+            }
     }
 
     int16_t nanoID = slot == -1 ? 0 : plr->equippedNanos[slot];
@@ -341,6 +345,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
                 plr->nanoDrainRate = SkillTable[skillID].batteryUse[boost*3];
                 
                 pwr.handle(sock, targetData, nanoID, skillID, 0, SkillTable[skillID].powerIntensity[boost]);
+                break;
             }
         }
     }
@@ -479,9 +484,9 @@ void NanoManager::nanoUnbuff(CNSocket* sock, int targetData[], int32_t bitFlag, 
     }
 }
 
-void NanoManager::applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags) {
-    if (SkillTable[skillID].drainType != 2)
-        return;
+int NanoManager::applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags) {
+    if (SkillTable[skillID].drainType == 1)
+        return 0;
 
     for (auto& pwr : NanoPowers) {
         if (pwr.skillType == SkillTable[skillID].skillType) {
@@ -495,9 +500,12 @@ void NanoManager::applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int
                 resp.TimeBuff.iValue = SkillTable[skillID].powerIntensity[0];
 
                 sock->sendPacket((void*)&resp, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+                return pwr.bitFlag;
             }
         }
     }
+
+    return 0;
 }
 
 // 0=A 1=B 2=C -1=Not found
@@ -876,7 +884,8 @@ std::vector<NanoPower> NanoPowers = {
     NanoPower(EST_RECALL,           CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Move,                     doMove>),
     NanoPower(EST_RECALL_GROUP,     CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Move,                     doMove>),
     NanoPower(EST_RETROROCKET_SELF, CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Buff,                     doBuff>),
-    NanoPower(EST_PHOENIX_GROUP,    CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Resurrect,           doResurrect>)
+    NanoPower(EST_PHOENIX_GROUP,    CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Resurrect,           doResurrect>),
+    NanoPower(EST_INFECTIONDAMAGE,  CSB_BIT_NONE,              ECSB_INFECTION,         nanoPower<sSkillResult_Buff,                     doBuff>)
 };
 
 }; // namespace
