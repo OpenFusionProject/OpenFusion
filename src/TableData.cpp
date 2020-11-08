@@ -613,7 +613,6 @@ void TableData::loadGruntwork(int32_t *nextId) {
             NPCManager::Eggs[id] = addEgg;
             NPCManager::updateNPCPosition(id, egg["iX"], egg["iY"], egg["iZ"], egg["iMapNum"]);
             TableData::RunningEggs[id] = addEgg;
-            std::cout << id << "   " << addEgg->currentChunks.size() << std::endl;
         }
 
 
