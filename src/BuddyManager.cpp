@@ -301,7 +301,10 @@ void BuddyManager::reqBuddyFreechat(CNSocket* sock, CNPacketData* data) {
     resp.iFromPCUID = plr->PCStyle.iPC_UID;
     resp.iToPCUID = pkt->iBuddyPCUID;
     resp.iEmoteCode = pkt->iEmoteCode;
-    memcpy(resp.szFreeChat, pkt->szFreeChat, sizeof(resp.szFreeChat));
+
+    std::string fullChat = ChatManager::sanitizeText(U16toU8(pkt->szFreeChat));
+    U8toU16(fullChat, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
+
     sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC)); // confirm send to sender
     otherSock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC)); // broadcast send to receiver
 }
@@ -324,7 +327,10 @@ void BuddyManager::reqBuddyMenuchat(CNSocket* sock, CNPacketData* data) {
     resp.iFromPCUID = plr->PCStyle.iPC_UID;
     resp.iToPCUID = pkt->iBuddyPCUID;
     resp.iEmoteCode = pkt->iEmoteCode;
-    memcpy(resp.szFreeChat, pkt->szFreeChat, sizeof(resp.szFreeChat));
+    
+    std::string fullChat = ChatManager::sanitizeText(U16toU8(pkt->szFreeChat));
+    U8toU16(fullChat, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
+
     sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC)); // confirm send to sender
     otherSock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC)); // broadcast send to receiver
 }
