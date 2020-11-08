@@ -2,7 +2,6 @@
 
 #include <string>
 #include <cstring>
-#include <unordered_map>
 
 #include "CNProtocol.hpp"
 #include "CNStructs.hpp"
