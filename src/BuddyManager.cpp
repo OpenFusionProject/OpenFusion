@@ -32,10 +32,7 @@ void BuddyManager::requestBuddy(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(req->iBuddyID);
 
-    if (plr == nullptr || otherPlr == nullptr)
-        return;
-
-    if (plr->buddyCnt >= 50 || otherPlr->buddyCnt >= 50)
+    if (getAvailableBuddySlot(plr) == -1 || getAvailableBuddySlot(otherPlr) == -1)
     {
         INITSTRUCT(sP_FE2CL_REP_REQUEST_MAKE_BUDDY_FAIL, failResp);
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_REQUEST_MAKE_BUDDY_FAIL, sizeof(sP_FE2CL_REP_REQUEST_MAKE_BUDDY_FAIL));
@@ -43,9 +40,6 @@ void BuddyManager::requestBuddy(CNSocket* sock, CNPacketData* data) {
     }
 
     CNSocket* otherSock = PlayerManager::getSockFromID(otherPlr->iID);
-
-    if (otherSock == nullptr)
-        return;
 
     INITSTRUCT(sP_FE2CL_REP_REQUEST_MAKE_BUDDY_SUCC, resp);
     INITSTRUCT(sP_FE2CL_REP_REQUEST_MAKE_BUDDY_SUCC_TO_ACCEPTER, otherResp);
@@ -74,9 +68,6 @@ void BuddyManager::reqBuddyByName(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_FIND_NAME_MAKE_BUDDY* pkt = (sP_CL2FE_REQ_PC_FIND_NAME_MAKE_BUDDY*)data->buf;
     Player* plrReq = PlayerManager::getPlayer(sock);
-
-    if (plrReq == nullptr)
-        return;
 
     INITSTRUCT(sP_FE2CL_REP_PC_FIND_NAME_MAKE_BUDDY_SUCC, resp);
 
@@ -112,49 +103,46 @@ void BuddyManager::reqAcceptBuddy(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(req->iBuddyID);
 
-    if (plr == nullptr || otherPlr == nullptr)
-        return;
-
-    INITSTRUCT(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, resp);
-
     CNSocket* otherSock = PlayerManager::getSockFromID(otherPlr->iID);
 
-    resp.iBuddySlot = plr->buddyCnt;
-    resp.BuddyInfo.iID = otherPlr->iID;
-    resp.BuddyInfo.iPCUID = otherPlr->PCStyle.iPC_UID;
-    resp.BuddyInfo.iPCState = 1; //to show whether the other player is online or offline (hardcoded for now)
-    resp.BuddyInfo.bBlocked = 0; //to show whether the other player is blocked (hardcoded for now)
-    resp.BuddyInfo.iGender = otherPlr->PCStyle.iGender; //shows the other player's gender
-    resp.BuddyInfo.bFreeChat = 1; //shows whether or not the other player has freechat on (hardcoded for now)
-    resp.BuddyInfo.iNameCheckFlag = otherPlr->PCStyle.iNameCheck;
-    memcpy(resp.BuddyInfo.szFirstName, otherPlr->PCStyle.szFirstName, sizeof(otherPlr->PCStyle.szFirstName));
-    memcpy(resp.BuddyInfo.szLastName, otherPlr->PCStyle.szLastName, sizeof(otherPlr->PCStyle.szLastName));
+    int slotA = getAvailableBuddySlot(plr);
+    int slotB = getAvailableBuddySlot(otherPlr);
+    if (slotA == -1 || slotB == -1)
+        return; // sanity check
 
-    if (req->iAcceptFlag == 1) 
+    if (req->iAcceptFlag == 1 && plr->iID != otherPlr->iID) 
     {
+        INITSTRUCT(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, resp);
+
+        // A to B
+        resp.iBuddySlot = slotA;
+        resp.BuddyInfo.iID = otherPlr->iID;
+        resp.BuddyInfo.iPCUID = otherPlr->PCStyle.iPC_UID;
+        resp.BuddyInfo.iPCState = 1; // assumed to be online
+        resp.BuddyInfo.bBlocked = 0; // not blocked by default
+        resp.BuddyInfo.iGender = otherPlr->PCStyle.iGender; // shows the other player's gender
+        resp.BuddyInfo.bFreeChat = 1; // shows whether or not the other player has freechat on (hardcoded for now)
+        resp.BuddyInfo.iNameCheckFlag = otherPlr->PCStyle.iNameCheck;
+        memcpy(resp.BuddyInfo.szFirstName, otherPlr->PCStyle.szFirstName, sizeof(resp.BuddyInfo.szFirstName));
+        memcpy(resp.BuddyInfo.szLastName, otherPlr->PCStyle.szLastName, sizeof(resp.BuddyInfo.szLastName));
         sock->sendPacket((void*)&resp, P_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC));
-        plr->buddyIDs[plr->buddyCnt] = otherPlr->PCStyle.iPC_UID;
-        std::cout << "Buddy's ID: " << plr->buddyIDs[plr->buddyCnt] << std::endl;
-        plr->buddyCnt++;
-
-
-        if (plr->iID != otherPlr->iID) 
-        {
-            resp.iBuddySlot = otherPlr->buddyCnt;
-            resp.BuddyInfo.iID = plr->iID;
-            resp.BuddyInfo.iPCUID = plr->PCStyle.iPC_UID;
-            resp.BuddyInfo.iPCState = 1; //to show whether the other player is online or offline (hardcoded for now)
-            resp.BuddyInfo.bBlocked = 0; //to show whether the other player is blocked (hardcoded for now)
-            resp.BuddyInfo.iGender = plr->PCStyle.iGender; //shows the other player's gender
-            resp.BuddyInfo.bFreeChat = 1; //shows whether or not the other player has freechat on (hardcoded for now)
-            resp.BuddyInfo.iNameCheckFlag = plr->PCStyle.iNameCheck;
-            memcpy(resp.BuddyInfo.szFirstName, plr->PCStyle.szFirstName, sizeof(plr->PCStyle.szFirstName));
-            memcpy(resp.BuddyInfo.szLastName, plr->PCStyle.szLastName, sizeof(plr->PCStyle.szLastName));
-            otherSock->sendPacket((void*)&resp, P_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC));
-            otherPlr->buddyIDs[otherPlr->buddyCnt] = plr->PCStyle.iPC_UID;
-            std::cout << "Buddy's ID: " << plr->buddyIDs[plr->buddyCnt] << std::endl;
-            otherPlr->buddyCnt++;
-        }
+        plr->buddyIDs[slotA] = otherPlr->PCStyle.iPC_UID;
+        //std::cout << "Buddy's ID: " << plr->buddyIDs[slotA] << std::endl;
+        
+        // B to A, using the same struct
+        resp.iBuddySlot = slotB;
+        resp.BuddyInfo.iID = plr->iID;
+        resp.BuddyInfo.iPCUID = plr->PCStyle.iPC_UID;
+        resp.BuddyInfo.iPCState = 1;
+        resp.BuddyInfo.bBlocked = 0;
+        resp.BuddyInfo.iGender = plr->PCStyle.iGender;
+        resp.BuddyInfo.bFreeChat = 1;
+        resp.BuddyInfo.iNameCheckFlag = plr->PCStyle.iNameCheck;
+        memcpy(resp.BuddyInfo.szFirstName, plr->PCStyle.szFirstName, sizeof(resp.BuddyInfo.szFirstName));
+        memcpy(resp.BuddyInfo.szLastName, plr->PCStyle.szLastName, sizeof(resp.BuddyInfo.szLastName));
+        otherSock->sendPacket((void*)&resp, P_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC));
+        otherPlr->buddyIDs[slotB] = plr->PCStyle.iPC_UID;
+        //std::cout << "Buddy's ID: " << plr->buddyIDs[slotB] << std::endl;
     }
     else
     {
@@ -176,10 +164,8 @@ void BuddyManager::reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
     }
 
     sP_CL2FE_REQ_PC_FIND_NAME_ACCEPT_BUDDY* pkt = (sP_CL2FE_REQ_PC_FIND_NAME_ACCEPT_BUDDY*)data->buf;
-    Player* plrReq = PlayerManager::getPlayer(sock);
 
-    if (plrReq == nullptr)
-        return;
+    Player* plr = PlayerManager::getPlayer(sock);
 
     INITSTRUCT(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, resp);
 
@@ -197,48 +183,46 @@ void BuddyManager::reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
         }
     }
 
-    PlayerView& plr = PlayerManager::players[otherSock];
+    Player* otherPlr = PlayerManager::getPlayer(otherSock);
 
+    int slotA = getAvailableBuddySlot(plr);
+    int slotB = getAvailableBuddySlot(otherPlr);
+    if (slotA == -1 || slotB == -1)
+        return; // sanity check
 
-    resp.iBuddySlot = plrReq->buddyCnt;
-    resp.BuddyInfo.iID = plr.plr->iID;
-    resp.BuddyInfo.iPCUID = pkt->iBuddyPCUID;
-    resp.BuddyInfo.iNameCheckFlag = plr.plr->PCStyle.iNameCheck;
-    resp.BuddyInfo.iPCState = 1;
-    resp.BuddyInfo.iGender = plr.plr->PCStyle.iGender;
-    resp.BuddyInfo.bBlocked = 0;
-    resp.BuddyInfo.bFreeChat = 1;
+    if (pkt->iAcceptFlag == 1 && plr->iID != otherPlr->iID) {
+        INITSTRUCT(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, resp);
 
-    memcpy(resp.BuddyInfo.szFirstName, plr.plr->PCStyle.szFirstName, sizeof(plr.plr->PCStyle.szFirstName));
-    memcpy(resp.BuddyInfo.szLastName, plr.plr->PCStyle.szLastName, sizeof(plr.plr->PCStyle.szLastName));
-
-    if (pkt->iAcceptFlag == 1) 
-    {
-
+        // A to B
+        resp.iBuddySlot = slotA;
+        resp.BuddyInfo.iID = otherPlr->iID;
+        resp.BuddyInfo.iPCUID = otherPlr->PCStyle.iPC_UID;
+        resp.BuddyInfo.iPCState = 1; // assumed to be online
+        resp.BuddyInfo.bBlocked = 0; // not blocked by default
+        resp.BuddyInfo.iGender = otherPlr->PCStyle.iGender; // shows the other player's gender
+        resp.BuddyInfo.bFreeChat = 1; // shows whether or not the other player has freechat on (hardcoded for now)
+        resp.BuddyInfo.iNameCheckFlag = otherPlr->PCStyle.iNameCheck;
+        memcpy(resp.BuddyInfo.szFirstName, otherPlr->PCStyle.szFirstName, sizeof(resp.BuddyInfo.szFirstName));
+        memcpy(resp.BuddyInfo.szLastName, otherPlr->PCStyle.szLastName, sizeof(resp.BuddyInfo.szLastName));
         sock->sendPacket((void*)&resp, P_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC));
-        plrReq->buddyIDs[plrReq->buddyCnt] = plr.plr->PCStyle.iPC_UID;
-        plrReq->buddyCnt++;
+        plr->buddyIDs[slotA] = otherPlr->PCStyle.iPC_UID;
+        //std::cout << "Buddy's ID: " << plr->buddyIDs[slotA] << std::endl;
 
-        if (plr.plr->PCStyle.iPC_UID == pkt->iBuddyPCUID) 
-        {
-            resp.iBuddySlot = plr.plr->buddyCnt;
-            resp.BuddyInfo.iID = plrReq->iID;
-            resp.BuddyInfo.iPCUID = plrReq->PCStyle.iPC_UID;
-            resp.BuddyInfo.iNameCheckFlag = plrReq->PCStyle.iNameCheck;
-            resp.BuddyInfo.iPCState = 1;
-            resp.BuddyInfo.iGender = plrReq->PCStyle.iGender;
-            resp.BuddyInfo.bBlocked = 0;
-            resp.BuddyInfo.bFreeChat = 1;
-
-            memcpy(resp.BuddyInfo.szFirstName, plrReq->PCStyle.szFirstName, sizeof(plrReq->PCStyle.szFirstName));
-            memcpy(resp.BuddyInfo.szLastName, plrReq->PCStyle.szLastName, sizeof(plrReq->PCStyle.szLastName));
-
-            otherSock->sendPacket((void*)&resp, P_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC));
-            plr.plr->buddyIDs[plr.plr->buddyCnt] = plrReq->PCStyle.iPC_UID;
-            plr.plr->buddyCnt++;
-        
-        }
-    } 
+        // B to A, using the same struct
+        resp.iBuddySlot = slotB;
+        resp.BuddyInfo.iID = plr->iID;
+        resp.BuddyInfo.iPCUID = plr->PCStyle.iPC_UID;
+        resp.BuddyInfo.iPCState = 1;
+        resp.BuddyInfo.bBlocked = 0;
+        resp.BuddyInfo.iGender = plr->PCStyle.iGender;
+        resp.BuddyInfo.bFreeChat = 1;
+        resp.BuddyInfo.iNameCheckFlag = plr->PCStyle.iNameCheck;
+        memcpy(resp.BuddyInfo.szFirstName, plr->PCStyle.szFirstName, sizeof(resp.BuddyInfo.szFirstName));
+        memcpy(resp.BuddyInfo.szLastName, plr->PCStyle.szLastName, sizeof(resp.BuddyInfo.szLastName));
+        otherSock->sendPacket((void*)&resp, P_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC));
+        otherPlr->buddyIDs[slotB] = plr->PCStyle.iPC_UID;
+        //std::cout << "Buddy's ID: " << plr->buddyIDs[slotB] << std::endl;
+    }
     else 
     {
         INITSTRUCT(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_FAIL, declineResp);
@@ -258,27 +242,19 @@ void BuddyManager::reqBuddyFreechat(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE* pkt = (sP_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr)
-        return;
-
     INITSTRUCT(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, resp);
 
-    CNSocket* otherSock = sock;
+    CNSocket* otherSock = PlayerManager::getSockFromID(pkt->iBuddyPCUID);
+
+    if (otherSock == nullptr)
+        return; // buddy offline
 
     resp.iFromPCUID = plr->PCStyle.iPC_UID;
     resp.iToPCUID = pkt->iBuddyPCUID;
     resp.iEmoteCode = pkt->iEmoteCode;
-    memcpy(resp.szFreeChat, pkt->szFreeChat, sizeof(pkt->szFreeChat));
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC)); // shows the player that they sent the message to their buddy
-
-    for (auto pair : PlayerManager::players) {
-        if (pair.second.plr->PCStyle.iPC_UID != plr->PCStyle.iPC_UID) {
-            otherSock = pair.first;
-            otherSock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC)); // sends the message to the buddy.
-        }
-    }
-
-
+    memcpy(resp.szFreeChat, pkt->szFreeChat, sizeof(resp.szFreeChat));
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC)); // confirm send to sender
+    otherSock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC)); // broadcast send to receiver
 }
 
 // Buddy menuchat
@@ -289,25 +265,19 @@ void BuddyManager::reqBuddyMenuchat(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE* pkt = (sP_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr)
-        return;
-
     INITSTRUCT(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, resp);
 
-    CNSocket* otherSock = sock;
+    CNSocket* otherSock = PlayerManager::getSockFromID(pkt->iBuddyPCUID);
+
+    if (otherSock == nullptr)
+        return; // buddy offline
 
     resp.iFromPCUID = plr->PCStyle.iPC_UID;
     resp.iToPCUID = pkt->iBuddyPCUID;
     resp.iEmoteCode = pkt->iEmoteCode;
-    memcpy(resp.szFreeChat, pkt->szFreeChat, sizeof(pkt->szFreeChat));
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC)); // shows the player that they sent the message to their buddy
-
-    for (auto pair : PlayerManager::players) {
-        if (pair.second.plr->PCStyle.iPC_UID != plr->PCStyle.iPC_UID) {
-            otherSock = pair.first;
-            otherSock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC)); // sends the message to the buddy.
-        }
-    }
+    memcpy(resp.szFreeChat, pkt->szFreeChat, sizeof(resp.szFreeChat));
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC)); // confirm send to sender
+    otherSock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC)); // broadcast send to receiver
 }
 
 // Getting buddy state
@@ -316,11 +286,12 @@ void BuddyManager::reqPktGetBuddyState(CNSocket* sock, CNPacketData* data) {
     
     INITSTRUCT(sP_FE2CL_REP_GET_BUDDY_STATE_SUCC, resp);
     
-    for (int BuddySlot = 0; BuddySlot < 50; BuddySlot++) {
-        //resp.aBuddyState[plr->buddyCnt] = 1; // this sets every buddy to online. Will get the pcstate right directly from the DB.
-        resp.aBuddyID[BuddySlot] = plr->buddyIDs[BuddySlot];
-        sock->sendPacket((void*)&resp, P_FE2CL_REP_GET_BUDDY_STATE_SUCC, sizeof(sP_FE2CL_REP_GET_BUDDY_STATE_SUCC));
+    for (int slot = 0; slot < 50; slot++) {
+        resp.aBuddyState[slot] = PlayerManager::getPlayerFromID(plr->buddyIDs[slot]) != nullptr ? 1 : 0;
+        resp.aBuddyID[slot] = plr->buddyIDs[slot];
     }
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_GET_BUDDY_STATE_SUCC, sizeof(sP_FE2CL_REP_GET_BUDDY_STATE_SUCC));
 }
 
 // Blocking the buddy
@@ -335,6 +306,8 @@ void BuddyManager::reqBuddyBlock(CNSocket* sock, CNPacketData* data) {
     resp.iBuddyPCUID = pkt->iBuddyPCUID;
     resp.iBuddySlot = pkt->iBuddySlot;
 
+    // TODO: handle this?
+
     sock->sendPacket((void*)&resp, P_FE2CL_REP_SET_BUDDY_BLOCK_SUCC, sizeof(sP_FE2CL_REP_SET_BUDDY_BLOCK_SUCC));
 
 }
@@ -348,16 +321,15 @@ void BuddyManager::reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
 
     Player* plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr)
-        return;
-
     INITSTRUCT(sP_FE2CL_REP_REMOVE_BUDDY_SUCC, resp);
 
     resp.iBuddyPCUID = pkt->iBuddyPCUID;
     resp.iBuddySlot = pkt->iBuddySlot;
 
-    plr->buddyIDs[resp.iBuddySlot] -= resp.iBuddyPCUID;
-    plr->buddyCnt--;
+    if (pkt->iBuddySlot < 0 || pkt->iBuddySlot >= 50)
+        return; // sanity check
+
+    plr->buddyIDs[resp.iBuddySlot] = 0;
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_REMOVE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_REMOVE_BUDDY_SUCC));
 }
@@ -366,6 +338,15 @@ void BuddyManager::reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
 void BuddyManager::reqBuddyWarp(CNSocket* sock, CNPacketData* data) {} // stub
 
 #pragma region Helper methods
+
+int BuddyManager::getAvailableBuddySlot(Player* plr) {
+    int slot = -1;
+    for (int i = 0; i < 50; i++) {
+        if (plr->buddyIDs[i] == 0)
+            return i;
+    }
+    return slot;
+}
 
 bool BuddyManager::NameCheck(char16_t reqName[], char16_t resName[], int sizeOfLNReq, int sizeOfLNRes) {
     // If lengths of array are not equal means

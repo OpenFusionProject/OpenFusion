@@ -71,6 +71,5 @@ struct Player {
 
     bool notify;
 
-    int buddyCnt;
     int64_t buddyIDs[50];
 };
