@@ -35,10 +35,12 @@ struct Player {
     int32_t iWarpLocationFlag;
     int64_t aSkywayLocationFlag[2];
     int32_t iConditionBitFlag;
+    int32_t iSelfConditionBitFlag;
     int8_t iSpecialState;
 
     int x, y, z, angle;
     int lastX, lastY, lastZ, lastAngle;
+    int recallX, recallY, recallZ, recallInstance;
     uint64_t instanceID;
     sItemBase Equip[AEQUIP_COUNT];
     sItemBase Inven[AINVEN_COUNT];
@@ -49,7 +51,7 @@ struct Player {
     bool isTradeConfirm;
 
     bool inCombat;
-    bool passiveNanoOut;
+    int nanoDrainRate = 0;
     int healCooldown;
 
     int pointDamage;

@@ -5,22 +5,25 @@
 
 #include "CNShardServer.hpp"
 
-typedef void (*ActivePowerHandler)(CNSocket*, CNPacketData*, int16_t, int16_t, int16_t, int32_t, int32_t);
+struct TargetData {
+    int targetID[4];
+};
+
+typedef void (*PowerHandler)(CNSocket*, TargetData, int16_t, int16_t, int16_t, int16_t, int16_t, int32_t, int16_t);
 
 struct ActivePower {
-    std::set<int> powers;
-    ActivePowerHandler handler;
-    int16_t eSkillType;
-    int32_t flag;
-    int32_t amount;
+    int16_t skillType;
+    int32_t bitFlag;
+    int16_t timeBuffID;
+    PowerHandler handler;
 
-    ActivePower(std::set<int> p, ActivePowerHandler h, int16_t t, int32_t f, int32_t a) : powers(p), handler(h), eSkillType(t), flag(f), amount(a) {}
+    ActivePower(int16_t s, int32_t b, int16_t t, PowerHandler h) : skillType(s), bitFlag(b), timeBuffID(t), handler(h) {}
 
-    void handle(CNSocket *sock, CNPacketData *data, int16_t nanoId, int16_t skillId) {
+    void handle(CNSocket *sock, TargetData targetData, int16_t nanoID, int16_t skillID, int16_t duration, int16_t amount) {
         if (handler == nullptr)
             return;
 
-        handler(sock, data, nanoId, skillId, eSkillType, flag, amount);
+        handler(sock, targetData, nanoID, skillID, duration, amount, skillType, bitFlag, timeBuffID);
     }
 };
 
@@ -47,6 +50,7 @@ struct NanoTuning {
 struct SkillData {
     int skillType;
     int targetType;
+    int drainType;
     int batteryUse[4];
     int durationTime[4];
     int powerIntensity[4];
@@ -67,19 +71,16 @@ namespace NanoManager {
     void nanoSkillUseHandler(CNSocket* sock, CNPacketData* data);
     void nanoSkillSetHandler(CNSocket* sock, CNPacketData* data);
     void nanoSkillSetGMHandler(CNSocket* sock, CNPacketData* data);
+    void nanoRecallRegisterHandler(CNSocket* sock, CNPacketData* data);
     void nanoRecallHandler(CNSocket* sock, CNPacketData* data);
     void nanoPotionHandler(CNSocket* sock, CNPacketData* data);
 
     // Helper methods
-    void addNano(CNSocket* sock, int16_t nanoId, int16_t slot, bool spendfm=false);
+    void addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spendfm=false);
     void summonNano(CNSocket* sock, int slot);
     void setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill);
-    void resetNanoSkill(CNSocket* sock, int16_t nanoId);
-
-    void nanoBuff(CNSocket* sock, int16_t nanoId, int skillId, int16_t eSkillType, int32_t iCBFlag, int16_t eCharStatusTimeBuffID, int16_t iValue = 0, bool groupPower = false);
-    void nanoUnbuff(CNSocket* sock, int32_t iCBFlag, int16_t eCharStatusTimeBuffID, int16_t iValue = 0, bool groupPower = false);
-
-    int nanoStyle(int nanoId);
-    void revivePlayer(Player* plr);
-    void nanoChangeBuff(CNSocket* sock, Player* plr, int32_t cbFrom, int32_t cbTo);
+    void resetNanoSkill(CNSocket* sock, int16_t nanoID);
+    void nanoUnbuff(CNSocket* sock, TargetData targetData, int32_t bitFlag, int16_t timeBuffID, int16_t amount, bool groupPower);
+    void applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags);
+    int nanoStyle(int nanoID);
 }
