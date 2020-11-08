@@ -270,6 +270,14 @@ void unsummonWCommand(std::string full, std::vector<std::string>& args, CNSocket
         return;
     }
 
+    if (TableData::RunningEggs.find(npc->appearanceData.iNPC_ID) != TableData::RunningEggs.end()) {
+        ChatManager::sendServerMessage(sock, "/unsummonW: removed egg with type: " + std::to_string(npc->appearanceData.iNPCType) +
+            ", id: " + std::to_string(npc->appearanceData.iNPC_ID));
+        TableData::RunningEggs.erase(npc->appearanceData.iNPC_ID);
+        NPCManager::destroyNPC(npc->appearanceData.iNPC_ID);
+        return;
+    }
+
     if (TableData::RunningMobs.find(npc->appearanceData.iNPC_ID) == TableData::RunningMobs.end()) {
         ChatManager::sendServerMessage(sock, "/unsummonW: Closest NPC is not a gruntwork mob.");
         return;

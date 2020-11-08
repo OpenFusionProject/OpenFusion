@@ -5,6 +5,8 @@
 #include "MissionManager.hpp"
 #include "ChunkManager.hpp"
 #include "NanoManager.hpp"
+#include "TableData.hpp"
+#include "ChatManager.hpp"
 
 #include <cmath>
 #define M_PI 3.14159265358979323846
@@ -25,6 +27,8 @@ std::map<std::pair<CNSocket*, int32_t>, time_t> NPCManager::EggBuffs;
 std::unordered_map<int, EggType> NPCManager::EggTypes;
 std::unordered_map<int, Egg*> NPCManager::Eggs;
 nlohmann::json NPCManager::NPCData;
+
+
 
 /*
  * Initialized at the end of TableData::init().
@@ -182,6 +186,7 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
     npc->appearanceData.iX = X;
     npc->appearanceData.iY = Y;
     npc->appearanceData.iZ = Z;
+
     std::tuple<int, int, uint64_t> newPos = ChunkManager::grabChunk(X, Y, npc->instanceID);
 
     // nothing to be done (but we should also update currentChunks to add/remove stale chunks)
@@ -872,14 +877,17 @@ void NPCManager::eggSummon(CNSocket* sock, CNPacketData* data) {
      * instead we're using some math to place the egg right in front of the player
      */
 
-    int addX = -500.0f * sin(plr->angle / 180.0f * M_PI);
-    int addY = -500.0f * cos(plr->angle / 180.0f * M_PI);
+    // temporarly disabled for sake of gruntwork
+    int addX = 0; //-500.0f * sin(plr->angle / 180.0f * M_PI);
+    int addY = 0;  //-500.0f * cos(plr->angle / 180.0f * M_PI);
 
-    Egg* egg = new Egg (plr->x + addX, plr->y + addY, plr->z, plr->instanceID, summon->iShinyType, id, true);
+    Egg* egg = new Egg (plr->x + addX, plr->y + addY, plr->z, plr->instanceID, summon->iShinyType, id, false); // change last arg to true after gruntwork
     NPCManager::NPCs[id] = egg;
     NPCManager::Eggs[id] = egg;
     NPCManager::updateNPCPosition(id, plr->x + addX, plr->y + addY, plr->z, plr->instanceID);
 
+    // add to template
+    TableData::RunningEggs[id] = egg;
 }
 
 void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
