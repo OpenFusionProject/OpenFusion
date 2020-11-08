@@ -836,6 +836,11 @@ void Database::updateEmailContent(EmailData* data) {
 
     db.begin_transaction();
 
+    auto attachments = db.get_all<Database::EmailItem>(
+        where(c(&Database::EmailItem::PlayerId) == data->PlayerId && c(&Database::EmailItem::MsgIndex) == data->MsgIndex)
+        );
+    data->ItemFlag = (data->Taros > 0 || attachments.size() > 0) ? 1 : 0; // set attachment flag dynamically
+
     db.remove_all<Database::EmailData>(
         where(c(&Database::EmailData::PlayerId) == data->PlayerId && c(&Database::EmailData::MsgIndex) == data->MsgIndex)
         );
@@ -901,7 +906,7 @@ void Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
         EmailItem dbItem = {
             data->PlayerId,
             data->MsgIndex,
-            slot,
+            slot++,
             item.iType,
             item.iID,
             item.iOpt,
