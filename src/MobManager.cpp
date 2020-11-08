@@ -191,6 +191,11 @@ void MobManager::giveReward(CNSocket *sock, Mob* mob) {
         if (rand() % 3 == 0)
             plr->batteryW += drop.boosts;
     }
+    // caps
+    if (plr->batteryW > 9999)
+        plr->batteryW = 9999;
+    if (plr->batteryN > 9999)
+        plr->batteryN = 9999;
 
     // simple rewards
     reward->m_iCandy = plr->money;

@@ -746,9 +746,15 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
         break;
     case 2:
         plr->batteryW = setData->iSetValue;
+        // caps
+        if (plr->batteryW > 9999)
+            plr->batteryW = 9999;
         break;
     case 3:
         plr->batteryN = setData->iSetValue;
+        // caps
+        if (plr->batteryN > 9999)
+            plr->batteryN = 9999;
         break;
     case 4:
         plr->fusionmatter = setData->iSetValue;
