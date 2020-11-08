@@ -16,6 +16,7 @@ std::map<int32_t, std::vector<WarpLocation>> TableData::RunningSkywayRoutes;
 std::map<int32_t, int> TableData::RunningNPCRotations;
 std::map<int32_t, int> TableData::RunningNPCMapNumbers;
 std::map<int32_t, BaseNPC*> TableData::RunningMobs;
+std::map<int32_t, BaseNPC*> TableData::RunningEggs;
 
 class TableException : public std::exception {
 public:
@@ -615,6 +616,19 @@ void TableData::loadGruntwork(int32_t *nextId) {
             NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, mob["iX"], mob["iY"], mob["iZ"]);
         }
 
+        auto eggs = gruntwork["eggs"];
+        for (auto _egg = eggs.begin(); _egg != eggs.end(); _egg++) {
+            auto egg = _egg.value();
+            int id = (*nextId)++;
+            Egg* addEgg = new Egg(egg["iX"], egg["iY"], egg["iZ"], egg["iMapNum"], egg["iType"], id, false);
+            NPCManager::NPCs[id] = addEgg;
+            NPCManager::Eggs[id] = addEgg;
+            NPCManager::updateNPCPosition(id, egg["iX"], egg["iY"], egg["iZ"], egg["iMapNum"]);
+            TableData::RunningEggs[id] = addEgg;
+            std::cout << id << "   " << addEgg->currentChunks.size() << std::endl;
+        }
+
+
         std::cout << "[INFO] Loaded gruntwork.json" << std::endl;
     }
     catch (const std::exception& err) {
@@ -699,6 +713,21 @@ void TableData::flush() {
 
         // it's called mobs, but really it's everything
         gruntwork["mobs"].push_back(mob);
+    }
+
+    for (auto& pair : RunningEggs) {
+        nlohmann::json egg;
+        BaseNPC* npc = pair.second;
+
+        if (NPCManager::Eggs.find(pair.first) == NPCManager::Eggs.end())
+            continue;
+        egg["iX"] = npc->appearanceData.iX;
+        egg["iY"] = npc->appearanceData.iY;
+        egg["iZ"] = npc->appearanceData.iZ;
+        egg["iMapNum"] = MAPNUM(npc->instanceID);
+        egg["iType"] = npc->appearanceData.iNPCType;
+
+        gruntwork["eggs"].push_back(egg);
     }
 
     file << gruntwork << std::endl;
