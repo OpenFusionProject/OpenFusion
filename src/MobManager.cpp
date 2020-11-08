@@ -505,7 +505,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
 
     // drain
     if ((mob->lastDrainTime == 0 || currTime - mob->lastDrainTime >= 1000) && mob->appearanceData.iConditionBitFlag & CSB_BIT_BOUNDINGBALL) {
-        drainMobHP(mob, mob->maxHealth / 15); // lose 6.67% every second
+        drainMobHP(mob, mob->maxHealth / 20); // lose 5% every second
         mob->lastDrainTime = currTime;
     }
 
@@ -934,10 +934,7 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
 
         for (int i = 0; i < 3; i++) {
             if (plr->activeNano != 0 && plr->equippedNanos[i] == plr->activeNano) { // spend stamina
-                plr->Nanos[plr->activeNano].iStamina -= 1;
-
-                if (plr->passiveNanoOut)
-                   plr->Nanos[plr->activeNano].iStamina -= 1;
+                plr->Nanos[plr->activeNano].iStamina -= 1 + plr->nanoDrainRate * 2 / 5;
 
                 if (plr->Nanos[plr->activeNano].iStamina <= 0) {
                     plr->Nanos[plr->activeNano].iStamina = 0;

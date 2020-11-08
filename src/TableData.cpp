@@ -195,7 +195,7 @@ void TableData::init() {
 
         for (nlohmann::json::iterator _skills = skills.begin(); _skills != skills.end(); _skills++) {
             auto skills = _skills.value();
-            SkillData skillData = {skills["m_iSkillType"], skills["m_iTargetType"]};
+            SkillData skillData = {skills["m_iSkillType"], skills["m_iTargetType"], skills["m_iBatteryDrainType"]};
             for (int i = 0; i < 4; i++) {
                 skillData.batteryUse[i] = skills["m_iBatteryDrainUse"][i];
                 skillData.durationTime[i] = skills["m_iDurationTime"][i];

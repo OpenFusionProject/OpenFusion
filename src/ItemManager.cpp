@@ -263,25 +263,44 @@ void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {
     if (gumball.iOpt == 0)
         gumball = {};
 
-    INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_SUCC, response);
-    response.iPC_ID = player->iID;
-    response.eIL = 1;
-    response.iSlotNum = request->iSlotNum;
-    response.RemainItem = gumball;
-    // response.iTargetCnt = ?
-    // response.eST = ?
-    // response.iSkillID = ?
+    size_t resplen = sizeof(sP_FE2CL_REP_PC_ITEM_USE_SUCC) + sizeof(sSkillResult_Buff);
 
-    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_ITEM_USE_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_USE_SUCC));
-    // update inventory serverside
-    player->Inven[response.iSlotNum] = response.RemainItem;
+        // validate response packet
+    if (!validOutVarPacket(sizeof(sP_FE2CL_REP_PC_ITEM_USE_SUCC), 1, sizeof(sSkillResult_Buff))) {
+        std::cout << "[WARN] bad sP_FE2CL_REP_PC_ITEM_USE_SUCC packet size" << std::endl;
+        return;
+    }
 
-    // this is a temporary way of calling buff efect
-    // TODO: send buff data via response packet
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    memset(respbuf, 0, resplen);
+
+    sP_FE2CL_REP_PC_ITEM_USE_SUCC *resp = (sP_FE2CL_REP_PC_ITEM_USE_SUCC*)respbuf;
+    sSkillResult_Buff *respdata = (sSkillResult_Buff*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC));
+    resp->iPC_ID = player->iID;
+    resp->eIL = 1;
+    resp->iSlotNum = request->iSlotNum;
+    resp->RemainItem = gumball;
+    resp->iTargetCnt = 1;
+    resp->eST = EST_NANOSTIMPAK;
+    resp->iSkillID = 144;
+
     int value1 = CSB_BIT_STIMPAKSLOT1 << request->iNanoSlot;
     int value2 = ECSB_STIMPAKSLOT1 + request->iNanoSlot;
 
-    NanoManager::nanoBuff(sock, nano.iID, 144, EST_NANOSTIMPAK, value1, value2, 0);
+    respdata->eCT = 1;
+    respdata->iID = player->iID;
+    respdata->iConditionBitFlag = value1;
+
+    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt);
+    pkt.eCSTB = value2; // eCharStatusTimeBuffID
+    pkt.eTBU = 1; // eTimeBuffUpdate
+    pkt.eTBT = 1; // eTimeBuffType 1 means nano
+    pkt.iConditionBitFlag = player->iConditionBitFlag |= value1;
+    sock->sendPacket((void*)&pkt, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+
+    sock->sendPacket((void*)&respbuf, P_FE2CL_REP_PC_ITEM_USE_SUCC, resplen);
+    // update inventory serverside
+    player->Inven[resp->iSlotNum] = resp->RemainItem;
 }
 
 void ItemManager::itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {

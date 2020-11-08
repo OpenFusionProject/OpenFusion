@@ -712,10 +712,16 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
 
     bool move = false;
 
-    if (reviveData->iRegenType == 3 && plr->iConditionBitFlag & CSB_BIT_PHOENIX) {
+    if (reviveData->iRegenType == 3 && plr->iConditionBitFlag & CSB_BIT_PHOENIX || reviveData->iRegenType == 4) {
         // nano revive
         plr->Nanos[plr->activeNano].iStamina = 0;
-        NanoManager::nanoUnbuff(sock, CSB_BIT_PHOENIX, ECSB_PHOENIX, 0, false);
+
+        INITSTRUCT(TargetData, targetData);
+        targetData.targetID[0] = plr->iID;
+        for (int i = 1; i < 4; i++)
+            targetData.targetID[i] = -1;
+        NanoManager::nanoUnbuff(sock, targetData, CSB_BIT_PHOENIX, ECSB_PHOENIX, 0, false);
+
         plr->HP = PC_MAXHEALTH(plr->level);
     } else {
         move = true;
