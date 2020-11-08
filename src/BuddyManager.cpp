@@ -664,8 +664,8 @@ void BuddyManager::emailSend(CNSocket* sock, CNPacketData* data) {
         plr->iID, // SenderID
         U16toU8(plr->PCStyle.szFirstName), // SenderFirstName
         U16toU8(plr->PCStyle.szLastName), // SenderLastName
-        U16toU8(pkt->szSubject), // SubjectLine
-        U16toU8(pkt->szContent), // MsgBody
+        ChatManager::sanitizeText(U16toU8(pkt->szSubject)), // SubjectLine
+        ChatManager::sanitizeText(U16toU8(pkt->szContent)), // MsgBody
         pkt->iCash, // Taros
         (uint64_t)getTimestamp(), // SendTime
         0 // DeleteTime (unimplemented)
