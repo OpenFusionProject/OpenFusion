@@ -71,5 +71,6 @@ struct Player {
 
     bool notify;
 
+    bool buddiesSynced;
     int64_t buddyIDs[50];
 };

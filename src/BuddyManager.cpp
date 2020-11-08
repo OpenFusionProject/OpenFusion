@@ -338,6 +338,15 @@ void BuddyManager::reqBuddyMenuchat(CNSocket* sock, CNPacketData* data) {
 // Getting buddy state
 void BuddyManager::reqPktGetBuddyState(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
+
+    /*
+     * If the buddy list wasn't synced a second time yet, sync it.
+     * Not sure why we have to do it again for the client not to trip up.
+     */
+    if (!plr->buddiesSynced) {
+        refreshBuddyList(sock);
+        plr->buddiesSynced = true;
+    }
     
     INITSTRUCT(sP_FE2CL_REP_GET_BUDDY_STATE_SUCC, resp);
     

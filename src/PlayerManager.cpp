@@ -404,7 +404,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     MissionManager::failInstancedMissions(sock);
 
-    // send over buddy list
+    // initial buddy sync
     BuddyManager::refreshBuddyList(sock);
 
     for (auto& pair : PlayerManager::players)
