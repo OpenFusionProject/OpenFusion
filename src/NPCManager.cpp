@@ -9,7 +9,6 @@
 #include "ChatManager.hpp"
 
 #include <cmath>
-#define M_PI 3.14159265358979323846
 #include <algorithm>
 #include <list>
 #include <fstream>
@@ -50,7 +49,6 @@ void NPCManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY, npcVendorBuyback);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_BATTERY_BUY, npcVendorBuyBattery);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_COMBINATION, npcCombineItems);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SHINY_SUMMON, eggSummon);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SHINY_PICKUP, eggPickup);
 
     REGISTER_SHARD_TIMER(eggStep, 1000);
@@ -861,38 +859,6 @@ void NPCManager::npcDataToEggData(sNPCAppearanceData* npc, sShinyAppearanceData*
     // client doesn't care about egg->iMapNum
     egg->iShinyType = npc->iNPCType;
     egg->iShiny_ID = npc->iNPC_ID;
-}
-
-void NPCManager::eggSummon(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_SHINY_SUMMON))
-        return; // malformed packet
-
-    sP_CL2FE_REQ_SHINY_SUMMON* summon = (sP_CL2FE_REQ_SHINY_SUMMON*)data->buf;
-
-    assert(NPCManager::nextId < INT32_MAX);
-    int id = NPCManager::nextId++;
-
-    Player* plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
-
-    /*
-     * the packet sends us player position with a random offset,
-     * instead we're using some math to place the egg right in front of the player
-     */
-
-    // temporarly disabled for sake of gruntwork
-    int addX = 0; //-500.0f * sin(plr->angle / 180.0f * M_PI);
-    int addY = 0;  //-500.0f * cos(plr->angle / 180.0f * M_PI);
-
-    Egg* egg = new Egg (plr->x + addX, plr->y + addY, plr->z, plr->instanceID, summon->iShinyType, id, false); // change last arg to true after gruntwork
-    NPCManager::NPCs[id] = egg;
-    NPCManager::Eggs[id] = egg;
-    NPCManager::updateNPCPosition(id, plr->x + addX, plr->y + addY, plr->z, plr->instanceID);
-
-    // add to template
-    TableData::RunningEggs[id] = egg;
 }
 
 void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
