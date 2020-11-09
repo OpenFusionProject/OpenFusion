@@ -195,6 +195,7 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
         return;
     }
 
+    ChunkManager::addNPC(X, Y, npc->instanceID, id);
     std::vector<Chunk*> allChunks = ChunkManager::grabChunks(newPos);
 
     // send npc exit to stale chunks
@@ -212,7 +213,7 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
         allChunks.erase(std::remove(allChunks.begin(), allChunks.end(), chunk), allChunks.end());
     }
 
-    ChunkManager::addNPC(X, Y, npc->instanceID, id);
+    
 
     npc->chunkPos = newPos;
     npc->currentChunks = allChunks;
