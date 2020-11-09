@@ -162,6 +162,10 @@ namespace Database {
     void appendBlob(std::vector<char>*blob, int64_t input);
     int64_t blobToInt64(std::vector<char>::iterator it);
 
+    // buddies
+    void addBuddyship(int playerA, int playerB);
+    void removeBuddyship(int playerA, int playerB);
+
     // email
     int getUnreadEmailCount(int playerID);
     std::vector<EmailData> getEmails(int playerID, int page);

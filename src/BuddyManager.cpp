@@ -203,6 +203,9 @@ void BuddyManager::reqAcceptBuddy(CNSocket* sock, CNPacketData* data) {
         otherSock->sendPacket((void*)&resp, P_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC));
         otherPlr->buddyIDs[slotB] = plr->PCStyle.iPC_UID;
         //std::cout << "Buddy's ID: " << plr->buddyIDs[slotB] << std::endl;
+
+        // add record to db
+        Database::addBuddyship(plr->iID, otherPlr->iID);
     }
     else
     {
@@ -282,6 +285,9 @@ void BuddyManager::reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
         otherSock->sendPacket((void*)&resp, P_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC));
         otherPlr->buddyIDs[slotB] = plr->PCStyle.iPC_UID;
         //std::cout << "Buddy's ID: " << plr->buddyIDs[slotB] << std::endl;
+
+        // add record to db
+        Database::addBuddyship(plr->iID, otherPlr->iID);
     }
     else 
     {
@@ -404,6 +410,9 @@ void BuddyManager::reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
         return; // sanity check
     plr->buddyIDs[resp.iBuddySlot] = 0;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_REMOVE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_REMOVE_BUDDY_SUCC));
+
+    // remove record from db
+    Database::removeBuddyship(plr->PCStyle.iPC_UID, pkt->iBuddyPCUID);
 
     // remove buddy on their side, reusing the struct
     CNSocket* otherSock = PlayerManager::getSockFromID(pkt->iBuddyPCUID);

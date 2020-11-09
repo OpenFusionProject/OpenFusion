@@ -521,7 +521,7 @@ void Database::updatePlayer(Player *player) {
     updateInventory(player);
     updateNanos(player);
     updateQuests(player);
-    updateBuddies(player);
+    //updateBuddies(player); we add/remove buddies explicitly now
 }
 
 void Database::updateInventory(Player *player){
@@ -634,6 +634,7 @@ void Database::updateQuests(Player* player) {
     db.commit();
 }
 
+// note: do not use. explicitly add/remove records instead.
 void Database::updateBuddies(Player* player) {
     db.begin_transaction();
 
@@ -764,6 +765,37 @@ int Database::getNumBuddies(Player* player) {
 
     // again, for peace of mind
     return buddies.size() > 50 ? 50 : buddies.size();
+}
+
+// buddies
+void Database::addBuddyship(int playerA, int playerB) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    db.begin_transaction();
+
+    Buddyship record;
+    record.PlayerAId = playerA;
+    record.PlayerBId = playerB;
+    record.Status = 0; // blocking ???
+    db.insert(record);
+
+    db.commit();
+}
+
+void Database::removeBuddyship(int playerA, int playerB) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    db.begin_transaction();
+
+    db.remove_all<Buddyship>(
+        where(c(&Buddyship::PlayerAId) == playerA && c(&Buddyship::PlayerBId) == playerB)
+        );
+
+    db.remove_all<Buddyship>( // the pair could be in either position
+        where(c(&Buddyship::PlayerAId) == playerB && c(&Buddyship::PlayerBId) == playerA)
+        );
+
+    db.commit();
 }
 
 // email
