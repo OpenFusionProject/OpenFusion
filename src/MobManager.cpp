@@ -792,7 +792,7 @@ void MobManager::dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
     pkt1.eCSTB = ECSB_INFECTION; // eCharStatusTimeBuffID
     pkt1.eTBU = 1; // eTimeBuffUpdate
     pkt1.eTBT = 0; // eTimeBuffType 1 means nano
-    pkt1.iConditionBitFlag = plr->iConditionBitFlag;
+    pkt1.iConditionBitFlag = plr->iConditionBitFlag | plr->iGroupConditionBitFlag | plr->iEggConditionBitFlag;
 
     sock->sendPacket((void*)&pkt1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
 }
