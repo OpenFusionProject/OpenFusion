@@ -837,9 +837,9 @@ void NPCManager::eggStep(CNServer* serv, time_t currTime) {
         }
     }
 
-    // check dead eggs
+    // check dead eggs and eggs in inactive chunks
     for (auto egg : Eggs) {
-        if (!egg.second->dead)
+        if (!egg.second->dead || !ChunkManager::inPopulatedChunks(egg.second->appearanceData.iX, egg.second->appearanceData.iY, egg.second->instanceID))
             continue;
         if (egg.second->deadUntil <= timeStamp) {
             // respawn it
@@ -954,7 +954,7 @@ void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
     }
 
     /*
-     * SHINY_PIKUP_SUCC is only causing a GUI effect in the client
+     * SHINY_PICKUP_SUCC is only causing a GUI effect in the client
      * (buff icon pops up in the bottom of the screen)
      * so we don't send it for non-effect
      */
