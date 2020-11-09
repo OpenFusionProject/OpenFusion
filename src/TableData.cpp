@@ -224,7 +224,7 @@ void TableData::init() {
 
     loadDrops();
 
-    loadEggs();
+    loadEggs(&nextId);
 
     loadPaths(&nextId); // load paths
 
@@ -436,7 +436,7 @@ void TableData::loadDrops() {
     }
 }
 
-void TableData::loadEggs() {
+void TableData::loadEggs(int32_t* nextId) {
     try {
         std::ifstream inFile(settings::EGGSJSON);
         nlohmann::json eggData;
@@ -456,7 +456,20 @@ void TableData::loadEggs() {
             NPCManager::EggTypes[(int)eggType["Id"]] = toAdd;
         }
 
-        std::cout << "[INFO] Loaded Egg Data" <<std::endl;
+        // Egg instances
+        auto eggs = eggData["Eggs"];
+        for (auto _egg = eggs.begin(); _egg != eggs.end(); _egg++) {
+            auto egg = _egg.value();
+            int id = (*nextId)++;
+            uint64_t instanceID = egg.find("iMapNum") == egg.end() ? INSTANCE_OVERWORLD : (int)egg["iMapNum"];
+
+            Egg* addEgg = new Egg((int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, (int)egg["iType"], id, false);
+            NPCManager::NPCs[id] = addEgg;
+            NPCManager::Eggs[id] = addEgg;
+            NPCManager::updateNPCPosition(id, (int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID);
+        }
+
+        std::cout << "[INFO] Loaded " <<NPCManager::Eggs.size()<<" eggs" <<std::endl;
 
     }
     catch (const std::exception& err) {
@@ -620,10 +633,12 @@ void TableData::loadGruntwork(int32_t *nextId) {
         for (auto _egg = eggs.begin(); _egg != eggs.end(); _egg++) {
             auto egg = _egg.value();
             int id = (*nextId)++;
-            Egg* addEgg = new Egg(egg["iX"], egg["iY"], egg["iZ"], egg["iMapNum"], egg["iType"], id, false);
+            uint64_t instanceID = egg.find("iMapNum") == egg.end() ? INSTANCE_OVERWORLD : (int)egg["iMapNum"];
+
+            Egg* addEgg = new Egg((int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, (int)egg["iType"], id, false);
             NPCManager::NPCs[id] = addEgg;
             NPCManager::Eggs[id] = addEgg;
-            NPCManager::updateNPCPosition(id, egg["iX"], egg["iY"], egg["iZ"], egg["iMapNum"]);
+            NPCManager::updateNPCPosition(id, (int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID);
             TableData::RunningEggs[id] = addEgg;
         }
 
@@ -723,7 +738,9 @@ void TableData::flush() {
         egg["iX"] = npc->appearanceData.iX;
         egg["iY"] = npc->appearanceData.iY;
         egg["iZ"] = npc->appearanceData.iZ;
-        egg["iMapNum"] = MAPNUM(npc->instanceID);
+        int mapnum = MAPNUM(npc->instanceID);
+        if (mapnum != 0)
+            egg["iMapNum"] = mapnum;
         egg["iType"] = npc->appearanceData.iNPCType;
 
         gruntwork["eggs"].push_back(egg);
