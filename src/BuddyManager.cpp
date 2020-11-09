@@ -170,7 +170,7 @@ void BuddyManager::reqAcceptBuddy(CNSocket* sock, CNPacketData* data) {
     if (slotA == -1 || slotB == -1)
         return; // sanity check
 
-    if (req->iAcceptFlag == 1 && plr->iID != otherPlr->iID) 
+    if (req->iAcceptFlag == 1 && plr->iID != otherPlr->iID && !playerHasBuddyWithID(plr, otherPlr->iID))
     {
         INITSTRUCT(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, resp);
 
@@ -250,7 +250,7 @@ void BuddyManager::reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
     if (slotA == -1 || slotB == -1)
         return; // sanity check
 
-    if (pkt->iAcceptFlag == 1 && plr->iID != otherPlr->iID) {
+    if (pkt->iAcceptFlag == 1 && plr->iID != otherPlr->iID && !playerHasBuddyWithID(plr, otherPlr->iID)) {
         INITSTRUCT(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, resp);
 
         // A to B
@@ -714,6 +714,14 @@ bool BuddyManager::NameCheck(char16_t reqName[], char16_t resName[], int sizeOfL
 
     // If all elements were same.
     return true;
+}
+
+bool BuddyManager::playerHasBuddyWithID(Player* plr, int buddyID) {
+    for (int i = 0; i < 50; i++) {
+        if (plr->buddyIDs[i] == buddyID)
+            return true;
+    }
+    return false;
 }
 
 #pragma endregion
