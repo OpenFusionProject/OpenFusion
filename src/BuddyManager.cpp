@@ -65,6 +65,8 @@ void BuddyManager::refreshBuddyList(CNSocket* sock) {
         if (buddyID != 0) {
             sBuddyBaseInfo buddyInfo = {};
             Database::DbPlayer buddyPlayerData = Database::getDbPlayerById(buddyID);
+            if (buddyPlayerData.PlayerID == -1)
+                continue;
             buddyInfo.bBlocked = 0;
             buddyInfo.bFreeChat = 1;
             buddyInfo.iGender = buddyPlayerData.Gender;

@@ -500,7 +500,10 @@ Player Database::DbToPlayer(DbPlayer player) {
 }
 
 Database::DbPlayer Database::getDbPlayerById(int id) {
-    return db.get_all<DbPlayer>(where(c(&DbPlayer::PlayerID) == id)).front();
+    auto player = db.get_all<DbPlayer>(where(c(&DbPlayer::PlayerID) == id));
+    if (player.size() < 1)
+        return DbPlayer{ -1 };
+    return player.front();
 }
 
 Player Database::getPlayer(int id) {
