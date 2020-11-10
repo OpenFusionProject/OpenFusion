@@ -654,13 +654,12 @@ void BuddyManager::emailSend(CNSocket* sock, CNPacketData* data) {
     for (int i = 0; i < 4; i++) {
         sEmailItemInfoFromCL attachment = pkt->aItem[i];
         resp.aItem[i] = attachment;
-        if (attachment.ItemInven.iID > 0 && attachment.ItemInven.iType > 0) {
-            if (attachment.iSlotNum < 0 || attachment.iSlotNum >= AINVEN_COUNT)
-                continue; // sanity check
-            attachments.push_back(attachment.ItemInven);
-            // delete item
-            plr->Inven[attachment.iSlotNum] = { 0, 0, 0, 0 };
-        }
+        if (attachment.iSlotNum < 0 || attachment.iSlotNum >= AINVEN_COUNT
+            || attachment.ItemInven.iID <= 0 || attachment.ItemInven.iType < 0)
+            continue; // sanity check
+        attachments.push_back(attachment.ItemInven);
+        // delete item
+        plr->Inven[attachment.iSlotNum] = { 0, 0, 0, 0 };
     }
 
     int cost = pkt->iCash + 50 + 20 * attachments.size(); // attached taros + postage
