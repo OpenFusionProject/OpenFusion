@@ -524,12 +524,22 @@ void ItemManager::itemTradeConfirmHandler(CNSocket* sock, CNPacketData* data) {
         // ^^ this is a must have or else the player won't accept a succ packet for some reason
 
         for (int i = 0; i < freeSlotsNeeded; i++) {
+            // first check whether it is a stacked item with amount greater than that offered, otherwise delete the item.
+            if (plr.plr->Inven[plr.plr->Trade[i].iInvenNum].iOpt > plr.plr->Trade[i].iOpt) {
+                plr.plr->Inven[plr.plr->Trade[i].iInvenNum].iOpt -= plr.plr->Trade[i].iOpt;
+                break;
+            }
             plr.plr->Inven[plr.plr->Trade[i].iInvenNum].iID = 0;
             plr.plr->Inven[plr.plr->Trade[i].iInvenNum].iType = 0;
             plr.plr->Inven[plr.plr->Trade[i].iInvenNum].iOpt = 0;
         }
 
         for (int i = 0; i < freeSlotsNeeded2; i++) {
+            // first check whether it is a stacked item with amount greater than that offered, otherwise delete the item.
+            if (plr2.plr->Inven[plr.plr->Trade[i].iInvenNum].iOpt > plr2.plr->Trade[i].iOpt) {
+                plr2.plr->Inven[plr.plr->Trade[i].iInvenNum].iOpt -= plr2.plr->Trade[i].iOpt;
+                break;
+            }
             plr2.plr->Inven[plr2.plr->Trade[i].iInvenNum].iID = 0;
             plr2.plr->Inven[plr2.plr->Trade[i].iInvenNum].iType = 0;
             plr2.plr->Inven[plr2.plr->Trade[i].iInvenNum].iOpt = 0;
