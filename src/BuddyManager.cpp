@@ -133,19 +133,20 @@ void BuddyManager::reqBuddyByName(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_REP_PC_FIND_NAME_MAKE_BUDDY_SUCC, resp);
 
-    CNSocket* otherSock = sock;
+    CNSocket* otherSock = nullptr;
 
-    int sizeOfRes = sizeof(pkt->szFirstName) / 9; // Maximum size of a player's first name
-    int sizeOfLNRes = sizeof(pkt->szLastName) / 17; // Maximum size of a player's last name
-
-    for (auto pair : PlayerManager::players) {
-        int sizeOfReq = sizeof(pair.second.plr->PCStyle.szFirstName) / 9;
-        int sizeOfLNReq = sizeof(pair.second.plr->PCStyle.szLastName) / 17;
-        if (BuddyManager::NameCheck(pair.second.plr->PCStyle.szFirstName, pkt->szFirstName, sizeOfReq, sizeOfRes) == true && BuddyManager::NameCheck(pair.second.plr->PCStyle.szLastName, pkt->szLastName, sizeOfLNReq, sizeOfLNRes) == true) { // This long line of gorgeous parameters is to check if the player's name matches :eyes:
+    for (auto& pair : PlayerManager::players) {
+        Player* plr = pair.second.plr;
+        if (strcmp(U16toU8(plr->PCStyle.szFirstName).c_str(), U16toU8(pkt->szFirstName).c_str()) == 0
+            && strcmp(U16toU8(plr->PCStyle.szLastName).c_str(), U16toU8(pkt->szLastName).c_str()) == 0
+            && !playerHasBuddyWithID(plrReq, plr->iID)) {
             otherSock = pair.first;
             break;
         }
     }
+
+    if (otherSock == nullptr)
+        return; // no player found
 
     resp.iPCUID = plrReq->PCStyle.iPC_UID;
     resp.iNameCheckFlag = plrReq->PCStyle.iNameCheck;
@@ -230,32 +231,23 @@ void BuddyManager::reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_FIND_NAME_ACCEPT_BUDDY* pkt = (sP_CL2FE_REQ_PC_FIND_NAME_ACCEPT_BUDDY*)data->buf;
 
-    Player* plr = PlayerManager::getPlayer(sock);
+    Player* plrReq = PlayerManager::getPlayer(sock);
 
     INITSTRUCT(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, resp);
 
-    CNSocket* otherSock = sock;
+    Player* otherPlr = PlayerManager::getPlayerFromID(pkt->iBuddyPCUID);
 
-    int sizeOfRes = sizeof(pkt->szFirstName) / 9;
-    int sizeOfLNRes = sizeof(pkt->szLastName) / 17;
+    if (otherPlr == nullptr)
+        return;
 
-    for (auto pair : PlayerManager::players) {
-        int sizeOfReq = sizeof(pair.second.plr->PCStyle.szFirstName) / 9;
-        int sizeOfLNReq = sizeof(pair.second.plr->PCStyle.szLastName) / 17;
-        if (BuddyManager::NameCheck(pair.second.plr->PCStyle.szFirstName, pkt->szFirstName, sizeOfReq, sizeOfRes) == true && BuddyManager::NameCheck(pair.second.plr->PCStyle.szLastName, pkt->szLastName, sizeOfLNReq, sizeOfLNRes) == true) {
-            otherSock = pair.first;
-            break;
-        }
-    }
+    CNSocket* otherSock = PlayerManager::getSockFromID(pkt->iBuddyPCUID);
 
-    Player* otherPlr = PlayerManager::getPlayer(otherSock);
-
-    int slotA = getAvailableBuddySlot(plr);
+    int slotA = getAvailableBuddySlot(plrReq);
     int slotB = getAvailableBuddySlot(otherPlr);
     if (slotA == -1 || slotB == -1)
         return; // sanity check
 
-    if (pkt->iAcceptFlag == 1 && plr->iID != otherPlr->iID && !playerHasBuddyWithID(plr, otherPlr->iID)) {
+    if (pkt->iAcceptFlag == 1 && plrReq->iID != otherPlr->iID && !playerHasBuddyWithID(plrReq, otherPlr->iID)) {
         INITSTRUCT(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, resp);
 
         // A to B
@@ -270,26 +262,26 @@ void BuddyManager::reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
         memcpy(resp.BuddyInfo.szFirstName, otherPlr->PCStyle.szFirstName, sizeof(resp.BuddyInfo.szFirstName));
         memcpy(resp.BuddyInfo.szLastName, otherPlr->PCStyle.szLastName, sizeof(resp.BuddyInfo.szLastName));
         sock->sendPacket((void*)&resp, P_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC));
-        plr->buddyIDs[slotA] = otherPlr->PCStyle.iPC_UID;
+        plrReq->buddyIDs[slotA] = otherPlr->PCStyle.iPC_UID;
         //std::cout << "Buddy's ID: " << plr->buddyIDs[slotA] << std::endl;
 
         // B to A, using the same struct
         resp.iBuddySlot = slotB;
-        resp.BuddyInfo.iID = plr->iID;
-        resp.BuddyInfo.iPCUID = plr->PCStyle.iPC_UID;
+        resp.BuddyInfo.iID = plrReq->iID;
+        resp.BuddyInfo.iPCUID = plrReq->PCStyle.iPC_UID;
         resp.BuddyInfo.iPCState = 1;
         resp.BuddyInfo.bBlocked = 0;
-        resp.BuddyInfo.iGender = plr->PCStyle.iGender;
+        resp.BuddyInfo.iGender = plrReq->PCStyle.iGender;
         resp.BuddyInfo.bFreeChat = 1;
-        resp.BuddyInfo.iNameCheckFlag = plr->PCStyle.iNameCheck;
-        memcpy(resp.BuddyInfo.szFirstName, plr->PCStyle.szFirstName, sizeof(resp.BuddyInfo.szFirstName));
-        memcpy(resp.BuddyInfo.szLastName, plr->PCStyle.szLastName, sizeof(resp.BuddyInfo.szLastName));
+        resp.BuddyInfo.iNameCheckFlag = plrReq->PCStyle.iNameCheck;
+        memcpy(resp.BuddyInfo.szFirstName, plrReq->PCStyle.szFirstName, sizeof(resp.BuddyInfo.szFirstName));
+        memcpy(resp.BuddyInfo.szLastName, plrReq->PCStyle.szLastName, sizeof(resp.BuddyInfo.szLastName));
         otherSock->sendPacket((void*)&resp, P_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC));
-        otherPlr->buddyIDs[slotB] = plr->PCStyle.iPC_UID;
+        otherPlr->buddyIDs[slotB] = plrReq->PCStyle.iPC_UID;
         //std::cout << "Buddy's ID: " << plr->buddyIDs[slotB] << std::endl;
 
         // add record to db
-        Database::addBuddyship(plr->iID, otherPlr->iID);
+        Database::addBuddyship(plrReq->iID, otherPlr->iID);
     }
     else 
     {
@@ -705,25 +697,6 @@ int BuddyManager::getAvailableBuddySlot(Player* plr) {
             return i;
     }
     return slot;
-}
-
-bool BuddyManager::NameCheck(char16_t reqName[], char16_t resName[], int sizeOfLNReq, int sizeOfLNRes) {
-    // If lengths of array are not equal means
-    // array are not equal
-    if (sizeOfLNReq != sizeOfLNRes)
-        return false;
-
-    // Sort both arrays
-    std::sort(reqName, reqName + sizeOfLNReq);
-    std::sort(resName, resName + sizeOfLNRes);
-
-    // Linearly compare elements
-    for (int i = 0; i < sizeOfLNReq; i++)
-        if (reqName[i] != resName[i])
-            return false;
-
-    // If all elements were same.
-    return true;
 }
 
 bool BuddyManager::playerHasBuddyWithID(Player* plr, int buddyID) {

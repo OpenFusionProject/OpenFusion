@@ -50,6 +50,5 @@ namespace BuddyManager {
 	
 	// Name checks
 	int getAvailableBuddySlot(Player* plr);
-	bool NameCheck(char16_t reqName[], char16_t resName[], int sizeOfReq, int sizeOfRes); // checks if the request and requested player's names match
 	bool playerHasBuddyWithID(Player* plr, int buddyID);
 }
