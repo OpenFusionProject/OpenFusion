@@ -481,6 +481,10 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
         mob->lastDrainTime = currTime;
     }
 
+    // if drain killed the mob, return early
+    if (mob->appearanceData.iHP <= 0)
+        return;
+
     // unbuffing
     std::unordered_map<int32_t, time_t>::iterator it = mob->unbuffTimes.begin();
     while (it != mob->unbuffTimes.end()) {
