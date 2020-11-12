@@ -1255,7 +1255,7 @@ int8_t MobManager::addBullet(Player* plr, bool isGrenade) {
     toAdd.bulletType = isGrenade ? 1 : plr->Equip[0].iID;
 
     // temp solution Jade fix plz
-    toAdd.weaponBoost = plr->batteryW >= 0;
+    toAdd.weaponBoost = plr->batteryW > 0;
     if (toAdd.weaponBoost) {
         int boostCost = rand() % 11 + 20;
         plr->batteryW = boostCost > plr->batteryW ? 0 : plr->batteryW - boostCost;
