@@ -7,44 +7,6 @@
 #include "MissionManager.hpp"
 #include "GroupManager.hpp"
 
-namespace NanoManager {
-
-// active powers
-std::set<int> StunPowers = {1, 13, 42, 59, 78, 103};
-std::set<int> HealPowers = {7, 12, 38, 53, 92, 98};
-std::set<int> GroupHealPowers = {2, 61, 82};
-std::set<int> RecallPowers = {5, 25, 66, 69, 75, 87};
-std::set<int> DrainPowers = {10, 34, 37, 56, 93, 97};
-std::set<int> SnarePowers = {17, 18, 27, 41, 43, 47, 90, 96, 106};
-std::set<int> DamagePowers = {19, 21, 33, 45, 46, 52, 101, 105, 108};
-std::set<int> GroupRevivePowers = {20, 63, 91};
-std::set<int> LeechPowers = {24, 51, 89};
-std::set<int> SleepPowers = {28, 30, 32, 49, 70, 71, 81, 85, 94};
-
-// passive powers
-std::set<int> ScavengePowers = {3, 50, 99};
-std::set<int> RunPowers = {4, 68, 86};
-std::set<int> GroupRunPowers = {8, 62, 73};
-std::set<int> BonusPowers = {6, 54, 104};
-std::set<int> GuardPowers = {9, 57, 76};
-std::set<int> RadarPowers = {11, 67, 95};
-std::set<int> AntidotePowers = {14, 58, 102};
-std::set<int> FreedomPowers = {31, 39, 107};
-std::set<int> GroupFreedomPowers = {15, 55, 77};
-std::set<int> JumpPowers = {16, 44, 88};
-std::set<int> GroupJumpPowers = {35, 60, 100};
-std::set<int> SelfRevivePowers = {22, 48, 84};
-std::set<int> SneakPowers = {29, 72, 80};
-std::set<int> GroupSneakPowers = {23, 65, 83};
-std::set<int> TreasureFinderPowers = {26, 40, 74};
-
-/*
- * The active nano power table is down below activePower<>() and its
- * worker functions so we don't have to have unsightly function declarations.
- */
-
-}; // namespace
-
 std::map<int32_t, NanoData> NanoManager::NanoTable;
 std::map<int32_t, NanoTuning> NanoManager::NanoTunings;
 std::map<int32_t, SkillData> NanoManager::SkillTable;
@@ -173,55 +135,7 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
         std::cout << PlayerManager::getPlayerName(plr) << " requested to summon nano skill " << std::endl;
     )
 
-    sP_CL2FE_REQ_NANO_SKILL_USE* pkt = (sP_CL2FE_REQ_NANO_SKILL_USE*)data->buf;
-
-    // validate request check
-    if (!validInVarPacket(sizeof(sP_CL2FE_REQ_NANO_SKILL_USE), pkt->iTargetCnt, sizeof(int32_t), data->size)) {
-        std::cout << "[WARN] bad sP_CL2FE_REQ_NANO_SKILL_USE packet size" << std::endl;
-        return;
-    }
-
-    int32_t *pktdata = (int32_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_NANO_SKILL_USE));
-
-    int count = 0;
-    INITSTRUCT(TargetData, targetData);
-
-    // this chunky logic chain is responsible for picking all targets of the skill.
-    if (SkillTable[skillID].targetType == 1) { // client gives us the targets
-        for (int i = 0; i < 4; i++) {
-            if (i >= pkt->iTargetCnt)
-                targetData.targetID[i] = -1;
-            else {
-                targetData.targetID[i] = pktdata[i];
-                count += 1;
-            }
-        }
-    } else if (SkillTable[skillID].targetType == 2) { // self target only
-        targetData.targetID[0] = plr->iID;
-        count = 1;
-
-        for (int i = 1; i < 4; i++)
-            targetData.targetID[i] = -1;
-    } else if (SkillTable[skillID].targetType == 3) { // entire group as target
-        Player *otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
-
-        if (otherPlr == nullptr)
-            return;
-
-        for (int i = 0; i < 4; i++) {
-            if (i >= otherPlr->groupCnt)
-                targetData.targetID[i] = -1;
-            else {
-                targetData.targetID[i] = otherPlr->groupIDs[i];
-                count += 1;
-            }
-        }
-    }
-
-    if (count == 0) {
-        std::cout << "[WARN] bad power target count" << std::endl;
-        count = 1;
-    }
+    int *targetData = findTargets(plr, skillID, data);
 
     int boost = 0;
     for (int i = 0; i < 3; i++) 
@@ -233,12 +147,9 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
     if (plr->Nanos[plr->activeNano].iStamina < 0)
         plr->Nanos[plr->activeNano].iStamina = 0;
 
-    if (count == 4)
-        boost = 0;
-
-    for (auto& pwr : ActivePowers)
+    for (auto& pwr : NanoPowers)
         if (pwr.skillType == SkillTable[skillID].skillType)
-            pwr.handle(sock, targetData, nanoID, skillID, SkillTable[skillID].durationTime[count-1+boost]/count, SkillTable[skillID].powerIntensity[count-1+boost]/count);
+            pwr.handle(sock, targetData, nanoID, skillID, SkillTable[skillID].durationTime[boost], SkillTable[skillID].powerIntensity[boost]);
 }
 
 void NanoManager::nanoSkillSetHandler(CNSocket* sock, CNPacketData* data) {
@@ -389,31 +300,10 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
 
     plr->nanoDrainRate = 0;
     int16_t skillID = plr->Nanos[plr->activeNano].iSkillID;
-    INITSTRUCT(TargetData, targetData);
 
     // passive nano unbuffing
     if (SkillTable[skillID].drainType == 2) {
-        if (SkillTable[skillID].targetType == 1) {
-            std::cout << "[WARN] bad power target type" << std::endl;
-            return;
-        } else if (SkillTable[skillID].targetType == 2) {
-            targetData.targetID[0] = plr->iID;
-
-            for (int i = 1; i < 4; i++)
-                targetData.targetID[i] = -1;
-        } else if (SkillTable[skillID].targetType == 3) {
-            Player *otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
-
-            if (otherPlr == nullptr)
-                return;
-
-            for (int i = 0; i < 4; i++) {
-                if (i >= otherPlr->groupCnt)
-                    targetData.targetID[i] = -1;
-                else
-                    targetData.targetID[i] = otherPlr->groupIDs[i];
-            }
-        }
+        int *targetData = findTargets(plr, skillID);
 
         int boost = 0;
         for (int i = 0; i < 3; i++)
@@ -421,7 +311,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
                 if (plr->iConditionBitFlag & (CSB_BIT_STIMPAKSLOT1 << i))
                     boost = 1;
 
-        for (auto& pwr : ActivePowers)
+        for (auto& pwr : NanoPowers)
             if (pwr.skillType == SkillTable[skillID].skillType)
                 nanoUnbuff(sock, targetData, pwr.bitFlag, pwr.timeBuffID, SkillTable[skillID].powerIntensity[boost],(SkillTable[skillID].targetType == 3));
     }
@@ -437,27 +327,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
 
     // passive nano buffing
     if (SkillTable[skillID].drainType == 2) {
-        if (SkillTable[skillID].targetType == 1) {
-            std::cout << "[WARN] bad power target type" << std::endl;
-            return;
-        } else if (SkillTable[skillID].targetType == 2) {
-            targetData.targetID[0] = plr->iID;
-
-            for (int i = 1; i < 4; i++)
-                targetData.targetID[i] = -1;
-        } else if (SkillTable[skillID].targetType == 3) {
-            Player *otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
-
-            if (otherPlr == nullptr)
-                return;
-
-            for (int i = 0; i < 4; i++) {
-                if (i >= otherPlr->groupCnt)
-                    targetData.targetID[i] = -1;
-                else
-                    targetData.targetID[i] = otherPlr->groupIDs[i];
-            }
-        }
+        int *targetData = findTargets(plr, skillID);
 
         int boost = 0;
         for (int i = 0; i < 3; i++)
@@ -465,10 +335,11 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
                 if (plr->iConditionBitFlag & (CSB_BIT_STIMPAKSLOT1 << i))
                     boost = 1;
 
-        for (auto& pwr : ActivePowers) {
+        for (auto& pwr : NanoPowers) {
             if (pwr.skillType == SkillTable[skillID].skillType) {
                 resp.eCSTB___Add = 1; // the part that makes nano go ZOOMAZOOM
                 plr->nanoDrainRate = SkillTable[skillID].batteryUse[boost*3];
+                
                 pwr.handle(sock, targetData, nanoID, skillID, 0, SkillTable[skillID].powerIntensity[boost]);
             }
         }
@@ -573,22 +444,10 @@ void NanoManager::resetNanoSkill(CNSocket* sock, int16_t nanoID) {
     plr->Nanos[nanoID] = nano;
 }
 
-void NanoManager::nanoUnbuff(CNSocket* sock, TargetData targetData, int32_t bitFlag, int16_t timeBuffID, int16_t amount, bool groupPower) {
+void NanoManager::nanoUnbuff(CNSocket* sock, int targetData[], int32_t bitFlag, int16_t timeBuffID, int16_t amount, bool groupPower) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     if (plr == nullptr)
-        return;
-
-    int count = 0;
-
-    for (int i = 0; i < 4; i++) {
-        if (targetData.targetID[i] <= 0) {
-            count = i;
-            break;
-        }
-    }
-
-    if (count == 0)
         return;
 
     plr->iSelfConditionBitFlag &= ~bitFlag;
@@ -601,10 +460,10 @@ void NanoManager::nanoUnbuff(CNSocket* sock, TargetData targetData, int32_t bitF
             groupFlags = GroupManager::getGroupFlags(leader);
     }
 
-    for (int i = 0; i < count; i++) {
-        Player* varPlr = PlayerManager::getPlayerFromID(targetData.targetID[i]);
+    for (int i = 0; i < targetData[0]; i++) {
+        Player* varPlr = PlayerManager::getPlayerFromID(targetData[i+1]);
         if (!((groupFlags | varPlr->iSelfConditionBitFlag) & bitFlag)) {
-            CNSocket* sockTo = PlayerManager::getSockFromID(targetData.targetID[i]);
+            CNSocket* sockTo = PlayerManager::getSockFromID(targetData[i+1]);
 
             INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, resp);
             resp.eCSTB = timeBuffID; // eCharStatusTimeBuffID
@@ -624,7 +483,7 @@ void NanoManager::applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int
     if (SkillTable[skillID].drainType != 2)
         return;
 
-    for (auto& pwr : ActivePowers) {
+    for (auto& pwr : NanoPowers) {
         if (pwr.skillType == SkillTable[skillID].skillType) {
             Player *plr = PlayerManager::getPlayer(sock);
             if (eTBU == 1 || !((groupFlags | plr->iSelfConditionBitFlag) & pwr.bitFlag)) {
@@ -647,9 +506,44 @@ int NanoManager::nanoStyle(int nanoID) {
         return -1;
     return NanoTable[nanoID].style;
 }
+
+int* NanoManager::findTargets(Player* plr, int skillID, CNPacketData* data) {
+    static int tD[5] = {0, 0, 0, 0, 0};
+    tD[0] = 0;
+
+    if (SkillTable[skillID].targetType == 1 && data != nullptr) { // client gives us the targets
+        sP_CL2FE_REQ_NANO_SKILL_USE* pkt = (sP_CL2FE_REQ_NANO_SKILL_USE*)data->buf;
+
+        // validate request check
+        if (!validInVarPacket(sizeof(sP_CL2FE_REQ_NANO_SKILL_USE), pkt->iTargetCnt, sizeof(int32_t), data->size)) {
+            std::cout << "[WARN] bad sP_CL2FE_REQ_NANO_SKILL_USE packet size" << std::endl;
+            return tD;
+        }
+
+        int32_t *pktdata = (int32_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_NANO_SKILL_USE));
+        tD[0] = pkt->iTargetCnt;
+
+        for (int i = 0; i < pkt->iTargetCnt; i++)
+            tD[i+1] = pktdata[i];
+    } else if (SkillTable[skillID].targetType == 2) { // self target only
+        tD[0] = 1;
+        tD[1] = plr->iID;
+    } else if (SkillTable[skillID].targetType == 3) { // entire group as target
+        Player *otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
+
+        if (otherPlr == nullptr)
+            return tD;
+
+        tD[0] = otherPlr->groupCnt;
+        for (int i = 0; i < otherPlr->groupCnt; i++)
+            tD[i+1] = otherPlr->groupIDs[i];
+    }
+    
+    return tD;
+}
 #pragma endregion
 
-#pragma region Active Powers
+#pragma region Nano Powers
 namespace NanoManager {
 
 bool doDebuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
@@ -687,13 +581,6 @@ bool doBuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t targetID
         return false;
     }
 
-    Player *leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
-
-    if (leader == nullptr) {
-        std::cout << "[WARN] doBuff: player ID not found" << std::endl;
-        return false;
-    }
-
     respdata[i].eCT = 1;
     respdata[i].iID = plr->iID;
     respdata[i].iConditionBitFlag = bitFlag;
@@ -702,7 +589,7 @@ bool doBuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t targetID
     pkt.eCSTB = timeBuffID; // eCharStatusTimeBuffID
     pkt.eTBU = 1; // eTimeBuffUpdate
     pkt.eTBT = 1; // eTimeBuffType 1 means nano
-    pkt.iConditionBitFlag = plr->iConditionBitFlag = GroupManager::getGroupFlags(leader) | plr->iSelfConditionBitFlag;
+    pkt.iConditionBitFlag = plr->iConditionBitFlag |= bitFlag;
 
     if (amount > 0)
         pkt.TimeBuff.iValue = amount;
@@ -795,7 +682,7 @@ bool doDamage(CNSocket *sock, sSkillResult_Damage *respdata, int i, int32_t targ
 /*
  * NOTE: Leech is specially encoded.
  *
- * It manages to fit inside the activePower<>() mold with only a slight hack,
+ * It manages to fit inside the nanoPower<>() mold with only a slight hack,
  * but it really is it's own thing. There is a hard assumption that players
  * will only every leech a single mob, and the sanity check that enforces that
  * assumption is critical.
@@ -814,7 +701,7 @@ bool doLeech(CNSocket *sock, sSkillResult_Heal_HP *healdata, int i, int32_t targ
     if (plr == nullptr)
         return false;
 
-    int healedAmount = PC_MAXHEALTH(plr->level) * amount / 2000;
+    int healedAmount = amount;
 
     plr->HP += healedAmount;
 
@@ -833,7 +720,7 @@ bool doLeech(CNSocket *sock, sSkillResult_Heal_HP *healdata, int i, int32_t targ
     }
     Mob* mob = MobManager::Mobs[targetID];
 
-    int damage = MobManager::hitMob(sock, mob, PC_MAXHEALTH(plr->level) * amount / 1000);
+    int damage = MobManager::hitMob(sock, mob, amount * 2);
 
     damagedata->eCT = 4;
     damagedata->iDamage = damage;
@@ -857,13 +744,6 @@ bool doResurrect(CNSocket *sock, sSkillResult_Resurrect *respdata, int i, int32_
 
     // player not found
     if (plr == nullptr) {
-        std::cout << "[WARN] doResurrect: player ID not found" << std::endl;
-        return false;
-    }
-
-    Player *leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
-
-    if (leader == nullptr) {
         std::cout << "[WARN] doResurrect: player ID not found" << std::endl;
         return false;
     }
@@ -903,7 +783,7 @@ bool doMove(CNSocket *sock, sSkillResult_Move *respdata, int i, int32_t targetID
 
 template<class sPAYLOAD,
          bool (*work)(CNSocket*,sPAYLOAD*,int,int32_t,int32_t,int16_t,int16_t,int16_t)>
-void activePower(CNSocket *sock, TargetData targetData, 
+void nanoPower(CNSocket *sock, int targetData[], 
                 int16_t nanoID, int16_t skillID, int16_t duration, int16_t amount, 
                 int16_t skillType, int32_t bitFlag, int16_t timeBuffID) {
     Player *plr = PlayerManager::getPlayer(sock);
@@ -911,29 +791,18 @@ void activePower(CNSocket *sock, TargetData targetData,
     if (plr == nullptr)
         return;
 
-    int count = 0;
-
-    for (int i = 0; i < 4; i++)
-        if (targetData.targetID[i] <= 0) {
-            count = i;
-            break;
-        }
-
-    if (count == 0)
-        return;
-
     if (skillType == EST_RETROROCKET_SELF || skillType == EST_RECALL) // rocket and self recall does not need any trailing structs
-        count = 0;
+        targetData[0] = 0;
 
     size_t resplen;
     // special case since leech is atypically encoded
     if (skillType == EST_BLOODSUCKING)
         resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) + sizeof(sSkillResult_Heal_HP) + sizeof(sSkillResult_Damage);
     else
-        resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) + count * sizeof(sPAYLOAD);
+        resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) + targetData[0] * sizeof(sPAYLOAD);
 
     // validate response packet
-    if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC), count, sizeof(sPAYLOAD))) {
+    if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC), targetData[0], sizeof(sPAYLOAD))) {
         std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size" << std::endl;
         return;
     }
@@ -949,7 +818,7 @@ void activePower(CNSocket *sock, TargetData targetData,
     resp->iNanoID = nanoID;
     resp->iNanoStamina = plr->Nanos[plr->activeNano].iStamina;
     resp->eST = skillType;
-    resp->iTargetCnt = count;
+    resp->iTargetCnt = targetData[0];
 
     if (SkillTable[skillID].drainType == 2) {
         if (SkillTable[skillID].targetType >= 2)
@@ -960,16 +829,17 @@ void activePower(CNSocket *sock, TargetData targetData,
 
     CNSocket *workSock = sock;
 
-    for (int i = 0; i < count; i++) {
+    for (int i = 0; i < targetData[0]; i++) {
         if (SkillTable[skillID].targetType == 3)
-            workSock = PlayerManager::getSockFromID(targetData.targetID[i]);
+            workSock = PlayerManager::getSockFromID(targetData[i+1]);
         if (skillType == EST_RECALL || skillType == EST_RECALL_GROUP)
-            targetData.targetID[i] = plr->iID;
-        if (!work(workSock, respdata, i, targetData.targetID[i], bitFlag, timeBuffID, duration, amount))
+            targetData[i+1] = plr->iID;
+        if (!work(workSock, respdata, i, targetData[i+1], bitFlag, timeBuffID, duration, amount))
             return;
     }
 
     sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
+    assert(sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) == sizeof(sP_FE2CL_NANO_SKILL_USE));
     PlayerManager::sendToViewable(sock, (void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
 
     // Warping on recall
@@ -983,30 +853,30 @@ void activePower(CNSocket *sock, TargetData targetData,
     }
 }
 
-// active nano power dispatch table
-std::vector<ActivePower> ActivePowers = {
-    ActivePower(EST_STUN,             CSB_BIT_STUN,              ECSB_STUN,              activePower<sSkillResult_Damage_N_Debuff, doDamageNDebuff>),
-    ActivePower(EST_HEAL_HP,          CSB_BIT_NONE,              ECSB_NONE,              activePower<sSkillResult_Heal_HP,                  doHeal>),
-    ActivePower(EST_BOUNDINGBALL,     CSB_BIT_BOUNDINGBALL,      ECSB_BOUNDINGBALL,      activePower<sSkillResult_Buff,                   doDebuff>),
-    ActivePower(EST_SNARE,            CSB_BIT_DN_MOVE_SPEED,     ECSB_DN_MOVE_SPEED,     activePower<sSkillResult_Damage_N_Debuff, doDamageNDebuff>),
-    ActivePower(EST_DAMAGE,           CSB_BIT_NONE,              ECSB_NONE,              activePower<sSkillResult_Damage,                 doDamage>),
-    ActivePower(EST_BLOODSUCKING,     CSB_BIT_NONE,              ECSB_NONE,              activePower<sSkillResult_Heal_HP,                 doLeech>),
-    ActivePower(EST_SLEEP,            CSB_BIT_MEZ,               ECSB_MEZ,               activePower<sSkillResult_Damage_N_Debuff, doDamageNDebuff>),
-    ActivePower(EST_REWARDBLOB,       CSB_BIT_REWARD_BLOB,       ECSB_REWARD_BLOB,       activePower<sSkillResult_Buff,                     doBuff>),
-    ActivePower(EST_RUN,              CSB_BIT_UP_MOVE_SPEED,     ECSB_UP_MOVE_SPEED,     activePower<sSkillResult_Buff,                     doBuff>),
-    ActivePower(EST_REWARDCASH,       CSB_BIT_REWARD_CASH,       ECSB_REWARD_CASH,       activePower<sSkillResult_Buff,                     doBuff>),
-    ActivePower(EST_PROTECTBATTERY,   CSB_BIT_PROTECT_BATTERY,   ECSB_PROTECT_BATTERY,   activePower<sSkillResult_Buff,                     doBuff>),
-    ActivePower(EST_MINIMAPENEMY,     CSB_BIT_MINIMAP_ENEMY,     ECSB_MINIMAP_ENEMY,     activePower<sSkillResult_Buff,                     doBuff>),
-    ActivePower(EST_PROTECTINFECTION, CSB_BIT_PROTECT_INFECTION, ECSB_PROTECT_INFECTION, activePower<sSkillResult_Buff,                     doBuff>),
-    ActivePower(EST_JUMP,             CSB_BIT_UP_JUMP_HEIGHT,    ECSB_UP_JUMP_HEIGHT,    activePower<sSkillResult_Buff,                     doBuff>),
-    ActivePower(EST_FREEDOM,          CSB_BIT_FREEDOM,           ECSB_FREEDOM,           activePower<sSkillResult_Buff,                     doBuff>),
-    ActivePower(EST_PHOENIX,          CSB_BIT_PHOENIX,           ECSB_PHOENIX,           activePower<sSkillResult_Buff,                     doBuff>),
-    ActivePower(EST_STEALTH,          CSB_BIT_UP_STEALTH,        ECSB_UP_STEALTH,        activePower<sSkillResult_Buff,                     doBuff>),
-    ActivePower(EST_MINIMAPTRESURE,   CSB_BIT_MINIMAP_TRESURE,   ECSB_MINIMAP_TRESURE,   activePower<sSkillResult_Buff,                     doBuff>),
-    ActivePower(EST_RECALL,           CSB_BIT_NONE,              ECSB_NONE,              activePower<sSkillResult_Move,                     doMove>),
-    ActivePower(EST_RECALL_GROUP,     CSB_BIT_NONE,              ECSB_NONE,              activePower<sSkillResult_Move,                     doMove>),
-    ActivePower(EST_RETROROCKET_SELF, CSB_BIT_NONE,              ECSB_NONE,              activePower<sSkillResult_Buff,                     doBuff>),
-    ActivePower(EST_PHOENIX_GROUP,    CSB_BIT_NONE,              ECSB_NONE,              activePower<sSkillResult_Resurrect,           doResurrect>)
+// nano power dispatch table
+std::vector<NanoPower> NanoPowers = {
+    NanoPower(EST_STUN,             CSB_BIT_STUN,              ECSB_STUN,              nanoPower<sSkillResult_Damage_N_Debuff, doDamageNDebuff>),
+    NanoPower(EST_HEAL_HP,          CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Heal_HP,                  doHeal>),
+    NanoPower(EST_BOUNDINGBALL,     CSB_BIT_BOUNDINGBALL,      ECSB_BOUNDINGBALL,      nanoPower<sSkillResult_Buff,                   doDebuff>),
+    NanoPower(EST_SNARE,            CSB_BIT_DN_MOVE_SPEED,     ECSB_DN_MOVE_SPEED,     nanoPower<sSkillResult_Damage_N_Debuff, doDamageNDebuff>),
+    NanoPower(EST_DAMAGE,           CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Damage,                 doDamage>),
+    NanoPower(EST_BLOODSUCKING,     CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Heal_HP,                 doLeech>),
+    NanoPower(EST_SLEEP,            CSB_BIT_MEZ,               ECSB_MEZ,               nanoPower<sSkillResult_Damage_N_Debuff, doDamageNDebuff>),
+    NanoPower(EST_REWARDBLOB,       CSB_BIT_REWARD_BLOB,       ECSB_REWARD_BLOB,       nanoPower<sSkillResult_Buff,                     doBuff>),
+    NanoPower(EST_RUN,              CSB_BIT_UP_MOVE_SPEED,     ECSB_UP_MOVE_SPEED,     nanoPower<sSkillResult_Buff,                     doBuff>),
+    NanoPower(EST_REWARDCASH,       CSB_BIT_REWARD_CASH,       ECSB_REWARD_CASH,       nanoPower<sSkillResult_Buff,                     doBuff>),
+    NanoPower(EST_PROTECTBATTERY,   CSB_BIT_PROTECT_BATTERY,   ECSB_PROTECT_BATTERY,   nanoPower<sSkillResult_Buff,                     doBuff>),
+    NanoPower(EST_MINIMAPENEMY,     CSB_BIT_MINIMAP_ENEMY,     ECSB_MINIMAP_ENEMY,     nanoPower<sSkillResult_Buff,                     doBuff>),
+    NanoPower(EST_PROTECTINFECTION, CSB_BIT_PROTECT_INFECTION, ECSB_PROTECT_INFECTION, nanoPower<sSkillResult_Buff,                     doBuff>),
+    NanoPower(EST_JUMP,             CSB_BIT_UP_JUMP_HEIGHT,    ECSB_UP_JUMP_HEIGHT,    nanoPower<sSkillResult_Buff,                     doBuff>),
+    NanoPower(EST_FREEDOM,          CSB_BIT_FREEDOM,           ECSB_FREEDOM,           nanoPower<sSkillResult_Buff,                     doBuff>),
+    NanoPower(EST_PHOENIX,          CSB_BIT_PHOENIX,           ECSB_PHOENIX,           nanoPower<sSkillResult_Buff,                     doBuff>),
+    NanoPower(EST_STEALTH,          CSB_BIT_UP_STEALTH,        ECSB_UP_STEALTH,        nanoPower<sSkillResult_Buff,                     doBuff>),
+    NanoPower(EST_MINIMAPTRESURE,   CSB_BIT_MINIMAP_TRESURE,   ECSB_MINIMAP_TRESURE,   nanoPower<sSkillResult_Buff,                     doBuff>),
+    NanoPower(EST_RECALL,           CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Move,                     doMove>),
+    NanoPower(EST_RECALL_GROUP,     CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Move,                     doMove>),
+    NanoPower(EST_RETROROCKET_SELF, CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Buff,                     doBuff>),
+    NanoPower(EST_PHOENIX_GROUP,    CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Resurrect,           doResurrect>)
 };
 
 }; // namespace
