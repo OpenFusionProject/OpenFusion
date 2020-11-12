@@ -10,6 +10,7 @@
 #include "ChatManager.hpp"
 #include "Database.hpp"
 #include "BuddyManager.hpp"
+#include "MobManager.hpp"
 
 #include "settings.hpp"
 
@@ -97,6 +98,9 @@ void PlayerManager::removePlayer(CNSocket* key) {
         else
             it++;
     }
+
+    // remove player's bullets
+    MobManager::Bullets.erase(view.plr->iID);
 
     std::cout << players.size() << " players" << std::endl;
 }
