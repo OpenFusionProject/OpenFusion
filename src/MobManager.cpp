@@ -1298,7 +1298,11 @@ void MobManager::projectileHit(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    // initialize response struct
+    /*
+     * initialize response struct
+     * rocket style hit doesn't work properly, so we're always sending this one
+     */
+    
     size_t resplen = sizeof(sP_FE2CL_PC_GRENADE_STYLE_HIT) + pkt->iTargetCnt * sizeof(sAttackResult);
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
 
