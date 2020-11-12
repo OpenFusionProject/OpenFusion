@@ -16,8 +16,12 @@ std::queue<int32_t> MobManager::RemovalQueue;
 
 std::map<int32_t, MobDropChance> MobManager::MobDropChances;
 std::map<int32_t, MobDrop> MobManager::MobDrops;
+/// Player Id -> Bullet Id -> Bullet
+std::map<int32_t, std::map<int8_t, Bullet>> MobManager::Bullets;
 
 bool MobManager::simulateMobs;
+
+
 
 void MobManager::init() {
     REGISTER_SHARD_TIMER(step, 200);
@@ -29,6 +33,11 @@ void MobManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_COMBAT_END, combatEnd);
     REGISTER_SHARD_PACKET(P_CL2FE_DOT_DAMAGE_ONOFF, dotDamageOnOff);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ATTACK_CHARs, pcAttackChars);
+
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GRENADE_STYLE_FIRE, grenadeFire);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ROCKET_STYLE_FIRE, rocketFire);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ROCKET_STYLE_HIT, projectileHit);
+
 
     simulateMobs = settings::SIMULATEMOBS;
 }
@@ -1163,4 +1172,176 @@ void MobManager::clearDebuff(Mob *mob) {
     pkt1.iID = mob->appearanceData.iNPC_ID;
     pkt1.iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
     NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
+}
+
+void MobManager::grenadeFire(CNSocket* sock, CNPacketData* data) {
+    sP_CL2FE_REQ_PC_GRENADE_STYLE_FIRE* grenade = (sP_CL2FE_REQ_PC_GRENADE_STYLE_FIRE*)data->buf;
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    INITSTRUCT(sP_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC, resp);
+    resp.iToX = grenade->iToX;
+    resp.iToY = grenade->iToY;
+    resp.iToZ = grenade->iToZ;
+
+    resp.iBulletID = addBullet(plr, true);
+    resp.iBatteryW = plr->batteryW;
+
+    // 1 means grenade
+    resp.Bullet.iID = 1;
+    sock->sendPacket(&resp, P_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC, sizeof(sP_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC));
+
+    // send packet to nearby players
+    INITSTRUCT(sP_FE2CL_PC_GRENADE_STYLE_FIRE, toOthers);
+    toOthers.iPC_ID = plr->iID;
+    toOthers.iToX = resp.iToX;
+    toOthers.iToY = resp.iToY;
+    toOthers.iToZ = resp.iToZ;
+    toOthers.iBulletID = resp.iBulletID;
+    toOthers.Bullet.iID = resp.Bullet.iID;
+
+    PlayerManager::sendToViewable(sock, &toOthers, P_FE2CL_PC_GRENADE_STYLE_FIRE, sizeof(sP_FE2CL_PC_GRENADE_STYLE_FIRE));
+}
+
+void MobManager::rocketFire(CNSocket* sock, CNPacketData* data) {
+    sP_CL2FE_REQ_PC_ROCKET_STYLE_FIRE* rocket = (sP_CL2FE_REQ_PC_ROCKET_STYLE_FIRE*)data->buf;
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    // We should be sending back rocket succ packet, but it doesn't work, and this one works
+    INITSTRUCT(sP_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC, resp);
+    resp.iToX = rocket->iToX;
+    resp.iToY = rocket->iToY;
+    // rocket->iToZ is broken, this seems like a good height
+    resp.iToZ = plr->z + 100;
+
+    resp.iBulletID = addBullet(plr, false);
+    // we have to send it weapon id
+    resp.Bullet.iID = plr->Equip[0].iID;
+    resp.iBatteryW = plr->batteryW;
+
+    sock->sendPacket(&resp, P_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC, sizeof(sP_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC));
+
+    // send packet to nearby players
+    INITSTRUCT(sP_FE2CL_PC_GRENADE_STYLE_FIRE, toOthers);
+    toOthers.iPC_ID = plr->iID;
+    toOthers.iToX = resp.iToX;
+    toOthers.iToY = resp.iToY;
+    toOthers.iToZ = resp.iToZ;
+    toOthers.iBulletID = resp.iBulletID;
+    toOthers.Bullet.iID = resp.Bullet.iID;
+
+    PlayerManager::sendToViewable(sock, &toOthers, P_FE2CL_PC_GRENADE_STYLE_FIRE, sizeof(sP_FE2CL_PC_GRENADE_STYLE_FIRE));
+}
+
+int8_t MobManager::addBullet(Player* plr, bool isGrenade) {
+
+    int8_t findId = 0;
+    if (Bullets.find(plr->iID) != Bullets.end()) {
+        // find first free id
+        for (; findId < 127; findId++)
+            if (Bullets[plr->iID].find(findId) == Bullets[plr->iID].end())
+                break;
+    }
+
+    // sanity check
+    if (findId == 127) {
+        std::cout << "[WARN] Player has more than 127 active projectiles?!" << std::endl;
+        findId = 0;
+    }
+
+    Bullet toAdd;
+    toAdd.pointDamage = plr->pointDamage;
+    toAdd.groupDamage = plr->groupDamage;
+    // for grenade we need to send 1, for rocket - weapon id
+    toAdd.bulletType = isGrenade ? 1 : plr->Equip[0].iID;
+
+    // temp solution Jade fix plz
+    toAdd.weaponBoost = plr->batteryW >= 0;
+    if (toAdd.weaponBoost) {
+        int boostCost = rand() % 11 + 20;
+        plr->batteryW = boostCost > plr->batteryW ? 0 : plr->batteryW - boostCost;
+    }
+
+    Bullets[plr->iID][findId] = toAdd;
+    return findId;
+}
+
+void MobManager::projectileHit(CNSocket* sock, CNPacketData* data) {
+    sP_CL2FE_REQ_PC_ROCKET_STYLE_HIT* pkt = (sP_CL2FE_REQ_PC_ROCKET_STYLE_HIT*)data->buf;
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    if (plr == nullptr)
+        return;
+
+    if (pkt->iTargetCnt == 0) {
+        Bullets[plr->iID].erase(pkt->iBulletID);
+        // no targets hit, don't send response
+        return;
+    }
+
+    // sanity check
+    if (!validInVarPacket(sizeof(sP_CL2FE_REQ_PC_ROCKET_STYLE_HIT), pkt->iTargetCnt, sizeof(int64_t), data->size)) {
+        std::cout << "[WARN] bad sP_CL2FE_REQ_PC_ROCKET_STYLE_HIT packet size\n";
+        return;
+    }
+
+    // client sends us 8 byters, where last 4 bytes are mob ID,
+    // we use int64 pointer to move around but have to remember to cast it to int32
+    int64_t* pktdata = (int64_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_PC_ROCKET_STYLE_HIT));
+
+    /*
+     * Due to the possibility of multiplication overflow (and regular buffer overflow),
+     * both incoming and outgoing variable-length packets must be validated, at least if
+     * the number of trailing structs isn't well known (ie. it's from the client).
+     */
+    if (!validOutVarPacket(sizeof(sP_FE2CL_PC_GRENADE_STYLE_HIT), pkt->iTargetCnt, sizeof(sAttackResult))) {
+        std::cout << "[WARN] bad sP_FE2CL_PC_GRENADE_STYLE_HIT packet size\n";
+        return;
+    }
+
+    // initialize response struct
+    size_t resplen = sizeof(sP_FE2CL_PC_GRENADE_STYLE_HIT) + pkt->iTargetCnt * sizeof(sAttackResult);
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+
+    memset(respbuf, 0, resplen);
+
+    sP_FE2CL_PC_GRENADE_STYLE_HIT* resp = (sP_FE2CL_PC_GRENADE_STYLE_HIT*)respbuf;
+    sAttackResult* respdata = (sAttackResult*)(respbuf + sizeof(sP_FE2CL_PC_GRENADE_STYLE_HIT));
+
+    resp->iTargetCnt = pkt->iTargetCnt;
+    if (Bullets.find(plr->iID) == Bullets.end() || Bullets[plr->iID].find(pkt->iBulletID) == Bullets[plr->iID].end()) {
+        std::cout << "[WARN] projectileHit: bullet not found" << std::endl;
+        return;
+    }
+    Bullet* bullet = &Bullets[plr->iID][pkt->iBulletID];
+
+    for (int i = 0; i < pkt->iTargetCnt; i++) {
+        if (Mobs.find(pktdata[i]) == Mobs.end()) {
+            // not sure how to best handle this
+            std::cout << "[WARN] projectileHit: mob ID not found" << std::endl;
+            return;
+        }        
+
+        Mob* mob = Mobs[pktdata[i]];
+        std::pair<int, int> damage;
+
+        damage.first = pkt->iTargetCnt > 1 ? bullet->groupDamage : bullet->pointDamage;
+
+        int difficulty = (int)mob->data["m_iNpcLevel"];
+        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, bullet->weaponBoost, NanoManager::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
+
+        damage.first = hitMob(sock, mob, damage.first);
+
+        respdata[i].iID = mob->appearanceData.iNPC_ID;
+        respdata[i].iDamage = damage.first;
+        respdata[i].iHP = mob->appearanceData.iHP;
+        respdata[i].iHitFlag = damage.second;
+    }
+
+    resp->iPC_ID = plr->iID;
+    resp->iBulletID = pkt->iBulletID;
+    resp->Bullet.iID = bullet->bulletType;
+    sock->sendPacket((void*)respbuf, P_FE2CL_PC_GRENADE_STYLE_HIT, resplen);
+    PlayerManager::sendToViewable(sock, (void*)respbuf, P_FE2CL_PC_GRENADE_STYLE_HIT, resplen);
+   
+    Bullets[plr->iID].erase(resp->iBulletID);
 }

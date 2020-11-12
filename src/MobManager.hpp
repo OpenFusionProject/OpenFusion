@@ -106,11 +106,19 @@ struct MobDrop {
     int boosts;
 };
 
+struct Bullet {
+    int pointDamage;
+    int groupDamage;
+    bool weaponBoost;
+    int bulletType;
+};
+
 namespace MobManager {
     extern std::map<int32_t, Mob*> Mobs;
     extern std::queue<int32_t> RemovalQueue;
     extern std::map<int32_t, MobDropChance> MobDropChances;
     extern std::map<int32_t, MobDrop> MobDrops;
+    extern std::map<int32_t, std::map<int8_t, Bullet>> Bullets;
     extern bool simulateMobs;
 
     void init();
@@ -143,4 +151,11 @@ namespace MobManager {
     void incNextMovement(Mob *mob, time_t currTime=0);
     bool aggroCheck(Mob *mob, time_t currTime);
     void clearDebuff(Mob *mob);
+
+    void grenadeFire(CNSocket* sock, CNPacketData* data);
+    void rocketFire(CNSocket* sock, CNPacketData* data);
+    void projectileHit(CNSocket* sock, CNPacketData* data);
+    /// returns bullet id
+    int8_t addBullet(Player* plr, bool isGrenade);
+
 }
