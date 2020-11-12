@@ -692,8 +692,6 @@ BaseNPC* NPCManager::getNearestNPC(std::vector<Chunk*> chunks, int X, int Y, int
 int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int duration) {
 
     Player* plr = PlayerManager::getPlayer(sock);
-    if (plr == nullptr)
-        return -1;
 
     int32_t CBFlag = -1, iValue = 0, CSTB, EST;
 
@@ -767,8 +765,8 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int duration) {
 
     skillUse->iPC_ID = plr->iID;
     skillUse->iSkillID = skillId;
-    skillUse->iNanoID = 0;
-    skillUse->iNanoStamina = 150;
+    skillUse->iNanoID = plr->activeNano;
+    skillUse->iNanoStamina = plr->activeNano < 1 ? 0 : plr->Nanos[plr->activeNano].iStamina;
     skillUse->eST = EST;
     skillUse->iTargetCnt = 1;
 
@@ -784,7 +782,7 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int duration) {
 
 void NPCManager::eggStep(CNServer* serv, time_t currTime) {
     // tick buffs
-    time_t timeStamp = getTimestamp();
+    time_t timeStamp = currTime / 1000;
     auto it = EggBuffs.begin();
     while (it != EggBuffs.end()) {
         // check remaining time
@@ -837,9 +835,9 @@ void NPCManager::eggStep(CNServer* serv, time_t currTime) {
         }
     }
 
-    // check dead eggs
+    // check dead eggs and eggs in inactive chunks
     for (auto egg : Eggs) {
-        if (!egg.second->dead)
+        if (!egg.second->dead || !ChunkManager::inPopulatedChunks(egg.second->appearanceData.iX, egg.second->appearanceData.iY, egg.second->instanceID))
             continue;
         if (egg.second->deadUntil <= timeStamp) {
             // respawn it
@@ -868,9 +866,6 @@ void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_SHINY_PICKUP* pickup = (sP_CL2FE_REQ_SHINY_PICKUP*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr)
-        return;
-
     int eggId = pickup->iShinyID;
 
     if (Eggs.find(eggId) == Eggs.end()) {
@@ -884,7 +879,7 @@ void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    if (egg->chunkPos != ChunkManager::grabChunk(plr->x, plr->y, plr->instanceID)) {
+    if (abs(egg->appearanceData.iX - plr->x)>500 || abs(egg->appearanceData.iY - plr->y) > 500) {
         std::cout << "[WARN] Player tried to open an egg from the other chunk?!" << std::endl;
         return;
     }
@@ -954,22 +949,22 @@ void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
     }
 
     /*
-     * SHINY_PIKUP_SUCC is only causing a GUI effect in the client
+     * SHINY_PICKUP_SUCC is only causing a GUI effect in the client
      * (buff icon pops up in the bottom of the screen)
      * so we don't send it for non-effect
      */
 
     if (type->effectId != 0)
     {
-    INITSTRUCT(sP_FE2CL_REP_SHINY_PICKUP_SUCC, resp);
-    resp.iSkillID = type->effectId;
+        INITSTRUCT(sP_FE2CL_REP_SHINY_PICKUP_SUCC, resp);
+        resp.iSkillID = type->effectId;
 
-    // in general client finds correct icon on it's own,
-    // but for damage we have to supply correct CSTB
-    if (resp.iSkillID == 183)
-        resp.eCSTB = ECSB_INFECTION;
+        // in general client finds correct icon on it's own,
+        // but for damage we have to supply correct CSTB
+        if (resp.iSkillID == 183)
+            resp.eCSTB = ECSB_INFECTION;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_SHINY_PICKUP_SUCC, sizeof(sP_FE2CL_REP_SHINY_PICKUP_SUCC));
+        sock->sendPacket((void*)&resp, P_FE2CL_REP_SHINY_PICKUP_SUCC, sizeof(sP_FE2CL_REP_SHINY_PICKUP_SUCC));
     }
 
     // drop
