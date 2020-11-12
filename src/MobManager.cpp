@@ -21,8 +21,6 @@ std::map<int32_t, std::map<int8_t, Bullet>> MobManager::Bullets;
 
 bool MobManager::simulateMobs;
 
-
-
 void MobManager::init() {
     REGISTER_SHARD_TIMER(step, 200);
     REGISTER_SHARD_TIMER(playerTick, 2000);
@@ -37,7 +35,6 @@ void MobManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GRENADE_STYLE_FIRE, grenadeFire);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ROCKET_STYLE_FIRE, rocketFire);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ROCKET_STYLE_HIT, projectileHit);
-
 
     simulateMobs = settings::SIMULATEMOBS;
 }
