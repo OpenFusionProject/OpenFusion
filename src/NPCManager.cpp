@@ -744,7 +744,7 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int duration) {
 
     // save the buff serverside;
     // if you get the same buff again, new duration will override the previous one
-    time_t until = getTimestamp() + duration;
+    time_t until = getTime() + (time_t)duration * 1000;
     EggBuffs[key] = until;
     
     /*
@@ -782,7 +782,7 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int duration) {
 
 void NPCManager::eggStep(CNServer* serv, time_t currTime) {
     // tick buffs
-    time_t timeStamp = currTime / 1000;
+    time_t timeStamp = currTime;
     auto it = EggBuffs.begin();
     while (it != EggBuffs.end()) {
         // check remaining time
@@ -1012,7 +1012,7 @@ void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
     else {
         removeNPC(egg->currentChunks, eggId);
         egg->dead = true;
-        egg->deadUntil = getTimestamp() + type->regen;
+        egg->deadUntil = getTime() + (time_t)type->regen * 1000;
         egg->appearanceData.iHP = 0;
     }
 }
