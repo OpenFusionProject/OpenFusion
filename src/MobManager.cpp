@@ -847,7 +847,7 @@ void MobManager::dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
     pkt1.eCSTB = ECSB_INFECTION; // eCharStatusTimeBuffID
     pkt1.eTBU = 1; // eTimeBuffUpdate
     pkt1.eTBT = 0; // eTimeBuffType 1 means nano
-    pkt1.iConditionBitFlag = plr->iConditionBitFlag | plr->iGroupConditionBitFlag | plr->iEggConditionBitFlag;
+    pkt1.iConditionBitFlag = plr->iConditionBitFlag;
 
     sock->sendPacket((void*)&pkt1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
 }
@@ -895,7 +895,7 @@ void MobManager::dealGooDamage(CNSocket *sock, int amount) {
     dmg->iID = plr->iID;
     dmg->iDamage = amount;
     dmg->iHP = plr->HP;
-    dmg->iConditionBitFlag = plr->iConditionBitFlag | plr->iGroupConditionBitFlag | plr->iEggConditionBitFlag;
+    dmg->iConditionBitFlag = plr->iConditionBitFlag;
 
     sock->sendPacket((void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
     PlayerManager::sendToViewable(sock, (void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);

@@ -65,7 +65,7 @@ namespace NanoManager {
     void setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill);
     void resetNanoSkill(CNSocket* sock, int16_t nanoID);
     void nanoUnbuff(CNSocket* sock, int* targetData, int32_t bitFlag, int16_t timeBuffID, int16_t amount, bool groupPower);
-    void applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags);
+    bool applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags, bool eggBuff=false);
     int nanoStyle(int nanoID);
     int* findTargets(Player* plr, int skillID, CNPacketData* data = nullptr);
 }
