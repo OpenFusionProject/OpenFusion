@@ -3,6 +3,7 @@
 #include "ItemManager.hpp"
 #include "PlayerManager.hpp"
 #include "NanoManager.hpp"
+#include "NPCManager.hpp"
 #include "Player.hpp"
 
 #include <string.h> // for memset()
@@ -271,6 +272,9 @@ void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
+    if (gumball.iOpt == 0)
+        gumball = {};
+
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
     memset(respbuf, 0, resplen);
 
@@ -282,7 +286,13 @@ void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {
     resp->RemainItem = gumball;
     resp->iTargetCnt = 1;
     resp->eST = EST_NANOSTIMPAK;
-    resp->iSkillID = 144;
+
+    if (request->iNanoSlot == 1)
+        resp->iSkillID = 191;
+    else if (request->iNanoSlot == 2)
+        resp->iSkillID = 197;
+    else
+        resp->iSkillID = 144;
 
     int value1 = CSB_BIT_STIMPAKSLOT1 << request->iNanoSlot;
     int value2 = ECSB_STIMPAKSLOT1 + request->iNanoSlot;
@@ -301,6 +311,10 @@ void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&respbuf, P_FE2CL_REP_PC_ITEM_USE_SUCC, resplen);
     // update inventory serverside
     player->Inven[resp->iSlotNum] = resp->RemainItem;
+
+    std::pair<CNSocket*, int32_t> key = std::make_pair(sock, resp->iSkillID);
+    time_t until = getTime() + (time_t)NanoManager::SkillTable[resp->iSkillID].durationTime[0] * 10;
+    NPCManager::EggBuffs[key] = until;
 }
 
 void ItemManager::itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {

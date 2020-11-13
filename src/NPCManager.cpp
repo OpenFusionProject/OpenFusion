@@ -582,7 +582,7 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int eggId) {
     int bitFlag = GroupManager::getGroupFlags(otherPlr);
 
     if (EggBuffs.find(key) == EggBuffs.end())
-        if (!NanoManager::applyBuff(sock, skillId, 1, 3, bitFlag, true))
+        if (!NanoManager::applyBuff(sock, skillId, 1, 3, bitFlag))
             return -1;
 
     // save the buff serverside;
@@ -719,7 +719,7 @@ void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
         sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK* pkt = (sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK*)respbuf;
         sSkillResult_Damage* dmg = (sSkillResult_Damage*)(respbuf + sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
 
-        dmg->iDamage = PC_MAXHEALTH(plr->level) * 6 / 10;
+        dmg->iDamage = PC_MAXHEALTH(plr->level) * 73 / 100;
 
         plr->HP -= dmg->iDamage;
 

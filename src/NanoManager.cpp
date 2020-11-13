@@ -469,7 +469,8 @@ void NanoManager::nanoUnbuff(CNSocket* sock, int targetData[], int32_t bitFlag, 
             resp.eCSTB = timeBuffID; // eCharStatusTimeBuffID
             resp.eTBU = 2; // eTimeBuffUpdate
             resp.eTBT = 1; // eTimeBuffType 1 means nano
-            resp.iConditionBitFlag = varPlr->iConditionBitFlag = groupFlags | varPlr->iSelfConditionBitFlag;
+            varPlr->iConditionBitFlag &= ~bitFlag;
+            resp.iConditionBitFlag = varPlr->iConditionBitFlag |= groupFlags | varPlr->iSelfConditionBitFlag;
 
             if (amount > 0)
                 resp.TimeBuff.iValue = amount;
@@ -479,7 +480,7 @@ void NanoManager::nanoUnbuff(CNSocket* sock, int targetData[], int32_t bitFlag, 
     }
 }
 
-bool NanoManager::applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags, bool eggBuff) {
+bool NanoManager::applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags) {
     if (SkillTable[skillID].drainType == 1)
         return false;
 
@@ -494,9 +495,22 @@ bool NanoManager::applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int
                 resp.eCSTB = pwr.timeBuffID;
                 resp.eTBU = eTBU;
                 resp.eTBT = eTBT;
-                resp.iConditionBitFlag = plr->iConditionBitFlag = groupFlags | plr->iSelfConditionBitFlag;
-                if (eggBuff)
-                    resp.iConditionBitFlag = plr->iConditionBitFlag |= bitFlag;
+
+                if (skillID == 191) { // dealing with gumballs
+                    resp.eCSTB = pwr.timeBuffID + 1;
+                    bitFlag = bitFlag << 1;
+                } else if (skillID == 197) {
+                    resp.eCSTB = pwr.timeBuffID + 2;
+                    bitFlag = bitFlag << 2;
+                }
+
+                if (eTBU == 1)
+                    plr->iConditionBitFlag |= bitFlag;
+                else
+                    plr->iConditionBitFlag &= ~bitFlag;
+
+                resp.iConditionBitFlag = plr->iConditionBitFlag |= groupFlags | plr->iSelfConditionBitFlag;
+
                 resp.TimeBuff.iValue = SkillTable[skillID].powerIntensity[0];
 
                 sock->sendPacket((void*)&resp, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
@@ -864,7 +878,7 @@ void nanoPower(CNSocket *sock, int targetData[],
 // nano power dispatch table
 std::vector<NanoPower> NanoPowers = {
     NanoPower(EST_STUN,             CSB_BIT_STUN,              ECSB_STUN,              nanoPower<sSkillResult_Damage_N_Debuff, doDamageNDebuff>),
-    NanoPower(EST_HEAL_HP,          CSB_BIT_HEAL,              ECSB_HEAL,              nanoPower<sSkillResult_Heal_HP,                  doHeal>),
+    NanoPower(EST_HEAL_HP,          CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Heal_HP,                  doHeal>),
     NanoPower(EST_BOUNDINGBALL,     CSB_BIT_BOUNDINGBALL,      ECSB_BOUNDINGBALL,      nanoPower<sSkillResult_Buff,                   doDebuff>),
     NanoPower(EST_SNARE,            CSB_BIT_DN_MOVE_SPEED,     ECSB_DN_MOVE_SPEED,     nanoPower<sSkillResult_Damage_N_Debuff, doDamageNDebuff>),
     NanoPower(EST_DAMAGE,           CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Damage,                 doDamage>),
@@ -884,7 +898,8 @@ std::vector<NanoPower> NanoPowers = {
     NanoPower(EST_RECALL,           CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Move,                     doMove>),
     NanoPower(EST_RECALL_GROUP,     CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Move,                     doMove>),
     NanoPower(EST_RETROROCKET_SELF, CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Buff,                     doBuff>),
-    NanoPower(EST_PHOENIX_GROUP,    CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Resurrect,           doResurrect>)
+    NanoPower(EST_PHOENIX_GROUP,    CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Resurrect,           doResurrect>),
+    NanoPower(EST_NANOSTIMPAK,      CSB_BIT_STIMPAKSLOT1,      ECSB_STIMPAKSLOT1,      nanoPower<sSkillResult_Buff,                     doBuff>)
 };
 
 }; // namespace
