@@ -986,7 +986,11 @@ std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool
 
     // Adaptium/Blastons/Cosmix
     if (attackerStyle != -1 && defenderStyle != -1 && attackerStyle != defenderStyle) {
-        if (attackerStyle < defenderStyle || attackerStyle - defenderStyle == 2) 
+        if (attackerStyle - defenderStyle == 2)
+            defenderStyle += 3;
+        if (defenderStyle - attackerStyle == 2)
+            defenderStyle -= 3;
+        if (attackerStyle < defenderStyle) 
             damage = damage * 3 / 2;
         else
             damage = damage * 2 / 3;
