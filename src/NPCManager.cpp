@@ -7,6 +7,7 @@
 #include "NanoManager.hpp"
 #include "TableData.hpp"
 #include "ChatManager.hpp"
+#include "GroupManager.hpp"
 
 #include <cmath>
 #include <algorithm>
@@ -570,93 +571,48 @@ BaseNPC* NPCManager::getNearestNPC(std::set<Chunk*>* chunks, int X, int Y, int Z
     return npc;
 }
 
-int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int duration) {
-
+int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int eggId) {
     Player* plr = PlayerManager::getPlayer(sock);
+    Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
-    int32_t CBFlag = -1, iValue = 0, CSTB, EST;
-
-    // damage and heal have to be set by hand
-    if (skillId == 183) {
-        // damage
-        CBFlag = CSB_BIT_INFECTION;
-        CSTB = ECSB_INFECTION;
-        EST = EST_INFECTIONDAMAGE;
-    }
-    else if (skillId == 150) {
-        // heal
-        CBFlag = CSB_BIT_HEAL;
-        CSTB = ECSB_HEAL;
-        EST = EST_HEAL_HP;
-    }
-    else {
-        // find the right passive power data  
-        for (auto& pwr : NanoManager::PassivePowers)
-            if (pwr.powers.count(skillId)) {
-                CBFlag = pwr.iCBFlag;
-                CSTB = pwr.eCharStatusTimeBuffID;
-                EST = pwr.eSkillType;
-                iValue = pwr.iValue;
-            }
-    }
-
-    if (CBFlag < 0)
+    if (otherPlr == nullptr)
         return -1;
 
-    std::pair<CNSocket*, int32_t> key = std::make_pair(sock, CBFlag);
+    std::pair<CNSocket*, int32_t> key = std::make_pair(sock, skillId);
+    int bitFlag = GroupManager::getGroupFlags(otherPlr);
 
-    // if player doesn't have this buff yet
     if (EggBuffs.find(key) == EggBuffs.end())
-    {
-        // save new cbflag serverside
-        plr->iEggConditionBitFlag |= CBFlag;
-
-        // send buff update package
-        INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, updatePacket);
-        updatePacket.eCSTB = CSTB; // eCharStatusTimeBuffID
-        updatePacket.eTBU = 1; // eTimeBuffUpdate 1 means Add
-        updatePacket.eTBT = 3; // eTimeBuffType 3 means egg
-        updatePacket.TimeBuff.iValue = iValue;
-        int32_t updatedFlag = plr->iConditionBitFlag | plr->iGroupConditionBitFlag | plr->iEggConditionBitFlag;
-        updatePacket.iConditionBitFlag = updatedFlag;
-
-        sock->sendPacket((void*)&updatePacket, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
-    }
+        if (!NanoManager::applyBuff(sock, skillId, 1, 3, bitFlag, true))
+            return -1;
 
     // save the buff serverside;
     // if you get the same buff again, new duration will override the previous one
-    time_t until = getTime() + (time_t)duration * 1000;
+    time_t until = getTime() + (time_t)NanoManager::SkillTable[skillId].durationTime[0] * 10;
     EggBuffs[key] = until;
-    
-    /*
-     * to give player a visual effect (eg. blue particles for run or wings for jump)
-     * we have to send him NANO_SKILL_USE packet with nano Id set to 0
-     * yes, this is utterly stupid and disgusting
-     */
 
-    const size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE) + sizeof(sSkillResult_Buff);
+    const size_t resplen = sizeof(sP_FE2CL_NPC_SKILL_HIT) + sizeof(sSkillResult_Buff);
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
     // we know it's only one trailing struct, so we can skip full validation
 
     uint8_t respbuf[resplen]; // not a variable length array, don't worry
-    sP_FE2CL_NANO_SKILL_USE* skillUse = (sP_FE2CL_NANO_SKILL_USE*)respbuf;
-    sSkillResult_Buff* skill = (sSkillResult_Buff*)(respbuf + sizeof(sP_FE2CL_NANO_SKILL_USE));
+    sP_FE2CL_NPC_SKILL_HIT* skillUse = (sP_FE2CL_NPC_SKILL_HIT*)respbuf;
+    sSkillResult_Buff* skill = (sSkillResult_Buff*)(respbuf + sizeof(sP_FE2CL_NPC_SKILL_HIT));
 
     memset(respbuf, 0, resplen);
-
-    skillUse->iPC_ID = plr->iID;
+    skillUse->iNPC_ID = eggId;
     skillUse->iSkillID = skillId;
-    skillUse->iNanoID = plr->activeNano;
-    skillUse->iNanoStamina = plr->activeNano < 1 ? 0 : plr->Nanos[plr->activeNano].iStamina;
-    skillUse->eST = EST;
+    if (skillId == 183) // The only exception
+        skillUse->eST = EST_INFECTIONDAMAGE;
+    else
+        skillUse->eST = NanoManager::SkillTable[skillId].skillType;
     skillUse->iTargetCnt = 1;
 
     skill->eCT = 1;
     skill->iID = plr->iID;
-    skill->iConditionBitFlag = plr->iConditionBitFlag | plr->iGroupConditionBitFlag | plr->iEggConditionBitFlag;
+    skill->iConditionBitFlag = plr->iConditionBitFlag;
 
-    sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
-    PlayerManager::sendToViewable(sock, (void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
+    sock->sendPacket((void*)&respbuf, P_FE2CL_NPC_SKILL_HIT, resplen);
+    PlayerManager::sendToViewable(sock, (void*)&respbuf, P_FE2CL_NPC_SKILL_HIT, resplen);
 
     return 0;
 }
@@ -673,44 +629,15 @@ void NPCManager::eggStep(CNServer* serv, time_t currTime) {
         // if time reached 0
         else {
             CNSocket* sock = it->first.first;
+            int32_t skillId = it->first.second;
             Player* plr = PlayerManager::getPlayer(sock);
-           
-            // if player is still on the server
-            if (plr != nullptr) {
+            Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
-                int32_t CBFlag = it->first.second;
-                int32_t CSTB = -1, iValue = 0;
+            if (otherPlr == nullptr)
+                return;
 
-                // find CSTB Value
-                if (CBFlag == CSB_BIT_INFECTION)
-                    CSTB = ECSB_INFECTION;           
-
-                else if (CBFlag == CSB_BIT_HEAL)
-                    CSTB = ECSB_HEAL;
-
-                else {
-                    for (auto pwr : NanoManager::PassivePowers) {
-                        if (pwr.iCBFlag == CBFlag) {
-                            CSTB = pwr.eCharStatusTimeBuffID;
-                            iValue = pwr.iValue;
-                            break;
-                        }
-                    }
-                }
-
-                if (CSTB > 0) {
-                    // update CBFlag serverside
-                    plr->iEggConditionBitFlag &= ~CBFlag;
-                    // send buff update packet
-                    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, updatePacket);
-                    updatePacket.eCSTB = CSTB; // eCharStatusTimeBuffID
-                    updatePacket.eTBU = 2; // eTimeBuffUpdate 2 means remove
-                    updatePacket.eTBT = 3; // eTimeBuffType 3 means egg
-                    updatePacket.iConditionBitFlag = plr->iConditionBitFlag | plr->iGroupConditionBitFlag | plr->iEggConditionBitFlag;
-                    updatePacket.TimeBuff.iValue = iValue;
-                    sock->sendPacket((void*)&updatePacket, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
-                }
-            }
+            int bitFlag = GroupManager::getGroupFlags(otherPlr);
+            NanoManager::applyBuff(sock, skillId, 2, 3, bitFlag);
             // remove buff from the map
             it = EggBuffs.erase(it);
         }
@@ -779,7 +706,7 @@ void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
 
     // buff the player
     if (type->effectId != 0)
-        eggBuffPlayer(sock, type->effectId, type->duration);
+        eggBuffPlayer(sock, type->effectId, eggId);
 
     // damage egg
     if (type->effectId == 183) {
