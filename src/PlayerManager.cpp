@@ -175,6 +175,9 @@ void PlayerManager::addPlayerToChunks(std::vector<Chunk*> chunks, CNSocket* sock
 
         // add players
         for (CNSocket* otherSock : chunk->players) {
+            if (sock == otherSock)
+                continue;
+
             Player *otherPlr = players[otherSock].plr;
             Player *plr = players[sock].plr;
 
@@ -226,13 +229,14 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
 
 void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y, uint64_t instanceID) {
     PlayerView& view = players[sock];
-    std::tuple<int, int, uint64_t> newPos = ChunkManager::grabChunk(X, Y, view.plr->instanceID);
+    CHUNKPOS newPos = ChunkManager::grabChunk(X, Y, view.plr->instanceID);
 
     // nothing to be done
     if (newPos == view.chunkPos)
         return;
 
     // add player to chunk
+    ChunkManager::addPlayer(X, Y, view.plr->instanceID, sock);
     std::vector<Chunk*> allChunks = ChunkManager::grabChunks(newPos);
 
     Chunk *chunk = nullptr;
@@ -249,7 +253,6 @@ void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y, uint64_t ins
 
     view.chunkPos = newPos;
     view.currentChunks = allChunks;
-    ChunkManager::addPlayer(X, Y, view.plr->instanceID, sock); // takes care of adding the player to the chunk if it exists or not
 }
 
 void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I) {
