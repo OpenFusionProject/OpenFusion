@@ -201,16 +201,50 @@ void TableData::init() {
 
         // read file into json
         inFile >> npcData;
+        int leaderMob = -1;
+        int leaderMobFollowers = 0;
 
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
             auto td = NPCManager::NPCData[(int)npc["iNPCType"]];
             uint64_t instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
+
             Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], npc["iHP"], td, nextId);
 
             NPCManager::NPCs[nextId] = tmp;
             MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
             NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
+
+            // handling groups
+            if (npc.find("iOffsetX") != npc.end() && MobManager::Mobs.find(nextId) != MobManager::Mobs.end()) {
+                Mob* currNpc = MobManager::Mobs[nextId];
+
+                if (leaderMob == -1) {
+                    if (MobManager::Mobs.find(nextId-1) != MobManager::Mobs.end()) {
+                        Mob* leadNpc = MobManager::Mobs[nextId-1];
+                        leaderMob = nextId-1;
+                        leadNpc->groupMember[leaderMobFollowers] = nextId;
+                        leaderMobFollowers++;
+                        currNpc->groupLeader = nextId-1;
+                        leadNpc->groupLeader = nextId-1;
+                    }
+                } else {
+                    if (MobManager::Mobs.find(leaderMob) != MobManager::Mobs.end()) {
+                        Mob* leadNpc = MobManager::Mobs[leaderMob];
+                        leaderMob = leaderMob;
+                        leadNpc->groupMember[leaderMobFollowers] = nextId;
+                        leaderMobFollowers++;
+                        currNpc->groupLeader = leaderMob;
+                    }
+                }
+
+                currNpc->offsetX = (int)npc["iOffsetX"];
+                currNpc->offsetY = npc.find("iOffsetY") == npc.end() ? 0 : (int)npc["iOffsetY"];
+                std::cout << "[INFO] Added group NPC " << nextId << " to ID " << currNpc->groupLeader << std::endl;
+            } else {
+                leaderMob = -1;
+                leaderMobFollowers = 0;
+            }
 
             nextId++;
         }
