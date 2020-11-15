@@ -519,6 +519,119 @@ void playersCommand(std::string full, std::vector<std::string>& args, CNSocket* 
         ChatManager::sendServerMessage(sock, PlayerManager::getPlayerName(pair.second.plr));
 }
 
+void summonGroupWCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    if (args.size() < 4) {
+        ChatManager::sendServerMessage(sock, "/summonGroupW <leadermob> <mob> <number> [distance]");
+        return;
+    }
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    char *rest;
+    int type = std::strtol(args[1].c_str(), &rest, 10);
+    int type2 = std::strtol(args[2].c_str(), &rest, 10);
+    int count = std::strtol(args[3].c_str(), &rest, 10);
+    int distance = 150;
+    if (args.size() > 4)
+        distance = std::strtol(args[4].c_str(), &rest, 10);
+
+    if (*rest) {
+        ChatManager::sendServerMessage(sock, "Invalid NPC number: " + args[1]);
+        return;
+    }
+
+    // permission & sanity check
+    if (plr == nullptr || type >= 3314 || type2 >= 3314 || count > 5)
+        return;
+
+    Mob* leadNpc = nullptr;
+
+    for (int i = 0; i < count; i++) {
+        int team = NPCManager::NPCData[type]["m_iTeam"];
+        assert(NPCManager::nextId < INT32_MAX);
+
+
+#define EXTRA_HEIGHT 200
+        BaseNPC *npc = nullptr;
+        int id = NPCManager::nextId++;
+
+        int x = plr->x;
+        int y = plr->y;
+        int z = plr->z;
+        if (i > 0) {
+            int angle = 360.0f / (count-1) * (i-1);
+            if (count == 3)
+                angle = 90 + 60 * i;
+
+            angle += (plr->angle + 180) % 360;
+
+            x += -1.0f * sin(angle / 180.0f * M_PI) * distance;
+            y += -1.0f * cos(angle / 180.0f * M_PI) * distance;
+            z = plr->z;
+        }
+
+        if (team == 2) {
+            npc = new Mob(x, y, z + EXTRA_HEIGHT, plr->instanceID, type, NPCManager::NPCData[type], id);
+            MobManager::Mobs[npc->appearanceData.iNPC_ID] = (Mob*)npc;
+
+            if (i > 0) {
+                leadNpc->groupMember[i-1] = npc->appearanceData.iNPC_ID;
+                Mob* mob = MobManager::Mobs[npc->appearanceData.iNPC_ID];
+                mob->groupLeader = leadNpc->appearanceData.iNPC_ID;
+                mob->offsetX = x - plr->x;
+                mob->offsetY = y - plr->y;
+            }
+
+            // re-enable respawning
+            ((Mob*)npc)->summoned = false;
+        } else {
+            npc = new BaseNPC(x, y, z + EXTRA_HEIGHT, 0, plr->instanceID, type, id);
+        }
+
+        npc->appearanceData.iAngle = (plr->angle + 180) % 360;
+        NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
+
+        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, x, y, z);
+
+        // if we're in a lair, we need to spawn the NPC in both the private instance and the template
+        if (PLAYERID(plr->instanceID) != 0) {
+            id = NPCManager::nextId++;
+
+            if (team == 2) {
+                npc = new Mob(x, y, z + EXTRA_HEIGHT, MAPNUM(plr->instanceID), type, NPCManager::NPCData[type], id);
+
+                MobManager::Mobs[npc->appearanceData.iNPC_ID] = (Mob*)npc;
+
+                if (i > 0) {
+                    leadNpc->groupMember[i-1] = npc->appearanceData.iNPC_ID;
+                    Mob* mob = MobManager::Mobs[npc->appearanceData.iNPC_ID];
+                    mob->groupLeader = leadNpc->appearanceData.iNPC_ID;
+                    mob->offsetX = x - plr->x;
+                    mob->offsetY = y - plr->y;
+                }
+
+                ((Mob*)npc)->summoned = false;
+            } else {
+                npc = new BaseNPC(x, y, z + EXTRA_HEIGHT, 0, MAPNUM(plr->instanceID), type, id);
+            }
+
+            npc->appearanceData.iAngle = (plr->angle + 180) % 360;
+            NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
+
+            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, x, y, z);
+        }
+
+        ChatManager::sendServerMessage(sock, "/summonGroupW: placed mob with type: " + std::to_string(type) +
+            ", id: " + std::to_string(npc->appearanceData.iNPC_ID));
+        TableData::RunningMobs[npc->appearanceData.iNPC_ID] = npc; // only record the one in the template
+
+        if (i == 0 && team == 2) {
+            type = type2;
+            leadNpc = MobManager::Mobs[npc->appearanceData.iNPC_ID];
+            leadNpc->groupLeader = leadNpc->appearanceData.iNPC_ID;
+        }
+    }
+}
+
 void flushCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     TableData::flush();
     ChatManager::sendServerMessage(sock, "Wrote gruntwork to " + settings::GRUNTWORKJSON);
@@ -548,6 +661,7 @@ void ChatManager::init() {
     registerCommand("tasks", 30, tasksCommand, "list all active missions and their respective task ids.");
     registerCommand("notify", 30, notifyCommand, "receive a message whenever a player joins the server");
     registerCommand("players", 30, playersCommand, "print all players on the server");
+    registerCommand("summonGroupW", 30, summonGroupWCommand, "permanently summon group NPCs");
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {
