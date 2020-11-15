@@ -641,6 +641,8 @@ void TableData::loadGruntwork(int32_t *nextId) {
 
         // mobs
         auto mobs = gruntwork["mobs"];
+        int leaderMob = -1;
+        int leaderMobFollowers = 0;
         for (auto _mob = mobs.begin(); _mob != mobs.end(); _mob++) {
             auto mob = _mob.value();
             BaseNPC *npc;
@@ -655,6 +657,37 @@ void TableData::loadGruntwork(int32_t *nextId) {
                 ((Mob*)npc)->summoned = false;
 
                 MobManager::Mobs[npc->appearanceData.iNPC_ID] = (Mob*)npc;
+
+                // handling groups
+                if (mob.find("iOffsetX") != mob.end() && MobManager::Mobs.find(id) != MobManager::Mobs.end()) {
+                    Mob* currNpc = MobManager::Mobs[id];
+
+                    if (leaderMob == -1) {
+                        if (MobManager::Mobs.find(id-1) != MobManager::Mobs.end()) {
+                            Mob* leadNpc = MobManager::Mobs[id-1];
+                            leaderMob = id-1;
+                            leadNpc->groupMember[leaderMobFollowers] = id;
+                            leaderMobFollowers++;
+                            currNpc->groupLeader = id-1;
+                            leadNpc->groupLeader = id-1;
+                        }
+                    } else {
+                        if (MobManager::Mobs.find(leaderMob) != MobManager::Mobs.end()) {
+                            Mob* leadNpc = MobManager::Mobs[leaderMob];
+                            leaderMob = leaderMob;
+                            leadNpc->groupMember[leaderMobFollowers] = id;
+                            leaderMobFollowers++;
+                            currNpc->groupLeader = leaderMob;
+                        }
+                    }
+
+                    currNpc->offsetX = (int)mob["iOffsetX"];
+                    currNpc->offsetY = mob.find("iOffsetY") == mob.end() ? 0 : (int)mob["iOffsetY"];
+                } else {
+                    leaderMob = -1;
+                    leaderMobFollowers = 0;
+                }
+
             } else {
                 npc = new BaseNPC(mob["iX"], mob["iY"], mob["iZ"], mob["iAngle"], instanceID, mob["iNPCType"], id);
             }
@@ -737,12 +770,19 @@ void TableData::flush() {
             continue;
 
         int x, y, z, hp;
+        int offsetX = 0;
+        int offsetY = 0;
         if (npc->npcClass == NPC_MOB) {
             Mob *m = (Mob*)npc;
             x = m->spawnX;
             y = m->spawnY;
             z = m->spawnZ;
             hp = m->maxHealth;
+            // handling groups
+            if (m->groupLeader != 0 && m->groupLeader != m->appearanceData.iNPC_ID) {
+                offsetX = m->offsetX;
+                offsetY = m->offsetY;
+            }
         } else {
             x = npc->appearanceData.iX;
             y = npc->appearanceData.iY;
@@ -759,6 +799,12 @@ void TableData::flush() {
         mob["iMapNum"] = MAPNUM(npc->instanceID);
         // this is a bit imperfect, since this is a live angle, not a spawn angle so it'll change often, but eh
         mob["iAngle"] = npc->appearanceData.iAngle;
+
+        // there is an assumption that group mobs will never have an offset of (0,0)
+        if (offsetX != 0 || offsetY != 0) {
+            mob["iOffsetX"] = offsetX;
+            mob["iOffsetY"] = offsetY;
+        }
 
         // it's called mobs, but really it's everything
         gruntwork["mobs"].push_back(mob);
