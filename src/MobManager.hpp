@@ -51,6 +51,11 @@ struct Mob : public BaseNPC {
     // drop
     int dropType;
 
+    // group
+    int groupLeader = 0;
+    int offsetX, offsetY;
+    int groupMember[4] = {0, 0, 0, 0};
+
     // temporary; until we're sure what's what
     nlohmann::json data;
 
