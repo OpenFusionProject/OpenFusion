@@ -25,20 +25,20 @@ namespace ChunkManager {
     void init();
     void cleanup();
 
-    extern std::map<CHUNKPOS, Chunk*> chunks;
+    extern std::map<ChunkPos, Chunk*> chunks;
 
-    void newChunk(CHUNKPOS pos);
-    void populateNewChunk(Chunk* chunk, CHUNKPOS pos);
+    void newChunk(ChunkPos pos);
+    void populateNewChunk(Chunk* chunk, ChunkPos pos);
     void addNPC(int posX, int posY, uint64_t instanceID, int32_t id);
     void addPlayer(int posX, int posY, uint64_t instanceID, CNSocket* sock);
-    bool removePlayer(CHUNKPOS chunkPos, CNSocket* sock);
-    bool removeNPC(CHUNKPOS chunkPos, int32_t id);
-    bool checkChunk(CHUNKPOS chunk);
-    void destroyChunk(CHUNKPOS chunkPos);
-    CHUNKPOS grabChunk(int posX, int posY, uint64_t instanceID);
-    std::vector<Chunk*> grabChunks(CHUNKPOS chunkPos);
+    bool removePlayer(ChunkPos chunkPos, CNSocket* sock);
+    bool removeNPC(ChunkPos chunkPos, int32_t id);
+    bool checkChunk(ChunkPos chunk);
+    void destroyChunk(ChunkPos chunkPos);
+    ChunkPos grabChunk(int posX, int posY, uint64_t instanceID);
+    std::vector<Chunk*> grabChunks(ChunkPos chunkPos);
     std::vector<Chunk*> getDeltaChunks(std::vector<Chunk*> from, std::vector<Chunk*> to);
-    std::vector<CHUNKPOS> getChunksInMap(uint64_t mapNum);
+    std::vector<ChunkPos> getChunksInMap(uint64_t mapNum);
     bool inPopulatedChunks(int posX, int posY, uint64_t instanceID);
 
     void createInstance(uint64_t);

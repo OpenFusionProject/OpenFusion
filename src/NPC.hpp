@@ -8,7 +8,7 @@ public:
     sNPCAppearanceData appearanceData;
     NPCClass npcClass;
     uint64_t instanceID;
-    CHUNKPOS chunkPos;
+    ChunkPos chunkPos;
     std::vector<Chunk*> currentChunks;
 
     BaseNPC() {};

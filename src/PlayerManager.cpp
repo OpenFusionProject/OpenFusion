@@ -229,7 +229,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
 
 void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y, uint64_t instanceID) {
     PlayerView& view = players[sock];
-    CHUNKPOS newPos = ChunkManager::grabChunk(X, Y, view.plr->instanceID);
+    ChunkPos newPos = ChunkManager::grabChunk(X, Y, view.plr->instanceID);
 
     // nothing to be done
     if (newPos == view.chunkPos)

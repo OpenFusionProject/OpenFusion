@@ -185,7 +185,7 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z) {
     npc->appearanceData.iY = Y;
     npc->appearanceData.iZ = Z;
 
-    CHUNKPOS newPos = ChunkManager::grabChunk(X, Y, npc->instanceID);
+    ChunkPos newPos = ChunkManager::grabChunk(X, Y, npc->instanceID);
 
     // nothing to be done (but we should also update currentChunks to add/remove stale chunks)
     if (newPos == npc->chunkPos) {
