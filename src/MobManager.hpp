@@ -163,4 +163,6 @@ namespace MobManager {
     /// returns bullet id
     int8_t addBullet(Player* plr, bool isGrenade);
 
+    void followToCombat(Mob *mob);
+
 }

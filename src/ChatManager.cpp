@@ -284,6 +284,22 @@ void unsummonWCommand(std::string full, std::vector<std::string>& args, CNSocket
         return;
     }
 
+    int leadId = ((Mob*)npc)->groupLeader;
+    if (leadId != 0) {
+        Mob* leadNpc = MobManager::Mobs[leadId];
+        for (int i = 0; i < 4; i++) {
+            if (leadNpc->groupMember[i] == 0)
+                break;
+
+            TableData::RunningMobs.erase(leadNpc->groupMember[i]);
+            NPCManager::destroyNPC(leadNpc->groupMember[i]);
+        }
+        TableData::RunningMobs.erase(leadId);
+        NPCManager::destroyNPC(leadId);
+        ChatManager::sendServerMessage(sock, "/unsummonW: Mob group destroyed.");
+        return;
+    }
+
     ChatManager::sendServerMessage(sock, "/unsummonW: removed mob with type: " + std::to_string(npc->appearanceData.iNPCType) +
         ", id: " + std::to_string(npc->appearanceData.iNPC_ID));
 
@@ -509,11 +525,11 @@ void notifyCommand(std::string full, std::vector<std::string>& args, CNSocket* s
     Player *plr = PlayerManager::getPlayer(sock);
 
     if (plr->notify) {
-	    plr->notify = false;
-	    ChatManager::sendServerMessage(sock, "[ADMIN] No longer receiving join notifications");
+        plr->notify = false;
+        ChatManager::sendServerMessage(sock, "[ADMIN] No longer receiving join notifications");
     } else {
-	    plr->notify = true;
-	    ChatManager::sendServerMessage(sock, "[ADMIN] Receiving join notifications");
+        plr->notify = true;
+        ChatManager::sendServerMessage(sock, "[ADMIN] Receiving join notifications");
     }
 }
 
@@ -523,14 +539,16 @@ void playersCommand(std::string full, std::vector<std::string>& args, CNSocket* 
         ChatManager::sendServerMessage(sock, PlayerManager::getPlayerName(pair.second));
 }
 
-void summonGroupWCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+void summonGroupCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     if (args.size() < 4) {
-        ChatManager::sendServerMessage(sock, "/summonGroupW <leadermob> <mob> <number> [distance]");
+        ChatManager::sendServerMessage(sock, "/summonGroup(W) <leadermob> <mob> <number> [distance]");
         return;
     }
     Player* plr = PlayerManager::getPlayer(sock);
 
     char *rest;
+    
+    bool wCommand = (args[0] == "/summonGroupW");
     int type = std::strtol(args[1].c_str(), &rest, 10);
     int type2 = std::strtol(args[2].c_str(), &rest, 10);
     int count = std::strtol(args[3].c_str(), &rest, 10);
@@ -586,7 +604,8 @@ void summonGroupWCommand(std::string full, std::vector<std::string>& args, CNSoc
             }
 
             // re-enable respawning
-            ((Mob*)npc)->summoned = false;
+            if (wCommand)
+                ((Mob*)npc)->summoned = false;
         } else {
             npc = new BaseNPC(x, y, z + EXTRA_HEIGHT, 0, plr->instanceID, type, id);
         }
@@ -612,8 +631,8 @@ void summonGroupWCommand(std::string full, std::vector<std::string>& args, CNSoc
                     mob->offsetX = x - plr->x;
                     mob->offsetY = y - plr->y;
                 }
-
-                ((Mob*)npc)->summoned = false;
+                if (wCommand)
+                    ((Mob*)npc)->summoned = false;
             } else {
                 npc = new BaseNPC(x, y, z + EXTRA_HEIGHT, 0, MAPNUM(plr->instanceID), type, id);
             }
@@ -624,9 +643,10 @@ void summonGroupWCommand(std::string full, std::vector<std::string>& args, CNSoc
             NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, x, y, z);
         }
 
-        ChatManager::sendServerMessage(sock, "/summonGroupW: placed mob with type: " + std::to_string(type) +
+        ChatManager::sendServerMessage(sock, "/summonGroup(W): placed mob with type: " + std::to_string(type) +
             ", id: " + std::to_string(npc->appearanceData.iNPC_ID));
-        TableData::RunningMobs[npc->appearanceData.iNPC_ID] = npc; // only record the one in the template
+        if (wCommand)
+            TableData::RunningMobs[npc->appearanceData.iNPC_ID] = npc; // only record the one in the template
 
         if (i == 0 && team == 2) {
             type = type2;
@@ -666,7 +686,8 @@ void ChatManager::init() {
     registerCommand("tasks", 30, tasksCommand, "list all active missions and their respective task ids.");
     registerCommand("notify", 30, notifyCommand, "receive a message whenever a player joins the server");
     registerCommand("players", 30, playersCommand, "print all players on the server");
-    registerCommand("summonGroupW", 30, summonGroupWCommand, "permanently summon group NPCs");
+    registerCommand("summonGroup", 30, summonGroupCommand, "summon group NPCs");
+    registerCommand("summonGroupW", 30, summonGroupCommand, "permanently summon group NPCs");
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {
