@@ -578,12 +578,14 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int eggId) {
     if (otherPlr == nullptr)
         return -1;
 
-    std::pair<CNSocket*, int32_t> key = std::make_pair(sock, skillId);
+    int CBFlag = 0;
     int bitFlag = GroupManager::getGroupFlags(otherPlr);
 
-    if (EggBuffs.find(key) == EggBuffs.end())
-        if (!NanoManager::applyBuff(sock, skillId, 1, 3, bitFlag))
-            return -1;
+    CBFlag = NanoManager::applyBuff(sock, skillId, 1, 3, bitFlag);
+    if (CBFlag == 0)
+        return -1;
+
+    std::pair<CNSocket*, int32_t> key = std::make_pair(sock, CBFlag);
 
     // save the buff serverside;
     // if you get the same buff again, new duration will override the previous one
@@ -629,15 +631,25 @@ void NPCManager::eggStep(CNServer* serv, time_t currTime) {
         // if time reached 0
         else {
             CNSocket* sock = it->first.first;
-            int32_t skillId = it->first.second;
+            int32_t CBFlag = it->first.second;
             Player* plr = PlayerManager::getPlayer(sock);
             Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
             if (otherPlr == nullptr)
-                return;
+                continue;
 
-            int bitFlag = GroupManager::getGroupFlags(otherPlr);
-            NanoManager::applyBuff(sock, skillId, 2, 3, bitFlag);
+            int groupFlags = GroupManager::getGroupFlags(otherPlr);
+            for (auto& pwr : NanoManager::NanoPowers) {
+                if (pwr.bitFlag == CBFlag) {
+                    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, resp);
+                    resp.eCSTB = pwr.timeBuffID;
+                    resp.eTBU = 2;
+                    resp.eTBT = 3; // for egg buffs
+                    plr->iConditionBitFlag &= ~CBFlag;
+                    resp.iConditionBitFlag = plr->iConditionBitFlag |= groupFlags | plr->iSelfConditionBitFlag;
+                    sock->sendPacket((void*)&resp, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+                }
+            }
             // remove buff from the map
             it = EggBuffs.erase(it);
         }

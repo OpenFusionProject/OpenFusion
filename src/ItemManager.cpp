@@ -286,13 +286,7 @@ void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {
     resp->RemainItem = gumball;
     resp->iTargetCnt = 1;
     resp->eST = EST_NANOSTIMPAK;
-
-    if (request->iNanoSlot == 1)
-        resp->iSkillID = 191;
-    else if (request->iNanoSlot == 2)
-        resp->iSkillID = 197;
-    else
-        resp->iSkillID = 144;
+    resp->iSkillID = 144;
 
     int value1 = CSB_BIT_STIMPAKSLOT1 << request->iNanoSlot;
     int value2 = ECSB_STIMPAKSLOT1 + request->iNanoSlot;
@@ -312,8 +306,8 @@ void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {
     // update inventory serverside
     player->Inven[resp->iSlotNum] = resp->RemainItem;
 
-    std::pair<CNSocket*, int32_t> key = std::make_pair(sock, resp->iSkillID);
-    time_t until = getTime() + (time_t)NanoManager::SkillTable[resp->iSkillID].durationTime[0] * 10;
+    std::pair<CNSocket*, int32_t> key = std::make_pair(sock, value1);
+    time_t until = getTime() + (time_t)NanoManager::SkillTable[144].durationTime[0] * 10;
     NPCManager::EggBuffs[key] = until;
 }
 
