@@ -139,7 +139,6 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
     plr->money -= route.cost;
 
     TransportLocation target;
-    PlayerView& plrv = PlayerManager::players[sock];
     switch (route.type) {
     case 1: // S.C.A.M.P.E.R.
         target = Locations[route.end];
@@ -150,9 +149,9 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
          * Not strictly necessary since there isn't a valid SCAMPER that puts you in the
          * same map tile you were already in, but we might as well force an NPC reload.
          */
-        PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
-        plrv.currentChunks.clear();
-        plrv.chunkPos = std::make_tuple(0, 0, plrv.plr->instanceID);
+        PlayerManager::removePlayerFromChunks(*plr->currentChunks, sock);
+        plr->currentChunks->clear();
+        plr->chunkPos = std::make_tuple(0, 0, plr->instanceID);
         break;
     case 2: // Monkey Skyway
         if (SkywayPaths.find(route.mssRouteNum) != SkywayPaths.end()) { // check if route exists

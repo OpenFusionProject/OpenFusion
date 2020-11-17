@@ -20,7 +20,7 @@
 #include <vector>
 #include <cmath>
 
-std::map<CNSocket*, PlayerView> PlayerManager::players;
+std::map<CNSocket*, Player*> PlayerManager::players;
 
 void PlayerManager::init() {
     // register packet types
@@ -52,11 +52,10 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
 
     memcpy(p, &plr, sizeof(Player));
 
-    players[key] = PlayerView();
-    players[key].chunkPos = std::make_tuple(0, 0, 0);
-    players[key].currentChunks = std::vector<Chunk*>();
-    players[key].plr = p;
-    players[key].lastHeartbeat = 0;
+    players[key] = p;
+    p->chunkPos = std::make_tuple(0, 0, 0);
+    p->currentChunks = new std::vector<Chunk*>();
+    p->lastHeartbeat = 0;
 
     key->plr = p;
 
@@ -65,28 +64,28 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
 }
 
 void PlayerManager::removePlayer(CNSocket* key) {
-    PlayerView& view = players[key];
-    uint64_t fromInstance = view.plr->instanceID;
+    Player* plr = getPlayer(key);
+    uint64_t fromInstance = plr->instanceID;
 
-    GroupManager::groupKickPlayer(view.plr);
+    GroupManager::groupKickPlayer(plr);
 
     // remove player's bullets
-    MobManager::Bullets.erase(view.plr->iID);
+    MobManager::Bullets.erase(plr->iID);
 
     // save player to DB
-    Database::updatePlayer(view.plr);
+    Database::updatePlayer(plr);
 
     // remove players from all chunks
-    removePlayerFromChunks(view.currentChunks, key);
+    removePlayerFromChunks(*plr->currentChunks, key);
 
     // remove from chunk
-    if (ChunkManager::chunks.find(view.chunkPos) != ChunkManager::chunks.end())
-        ChunkManager::chunks[view.chunkPos]->players.erase(key);
+    if (ChunkManager::chunks.find(plr->chunkPos) != ChunkManager::chunks.end())
+        ChunkManager::chunks[plr->chunkPos]->players.erase(key);
 
     std::cout << getPlayerName(key->plr) << " has left!" << std::endl;
 
     key->plr = nullptr;
-    delete view.plr;
+    delete plr;
     players.erase(key);
 
     // if the player was in a lair, clean it up
@@ -136,15 +135,15 @@ bool PlayerManager::removePlayerFromChunks(std::vector<Chunk*> chunks, CNSocket*
 
         // remove players from eachother
         for (CNSocket* otherSock : chunk->players) {
-            exitPlayer.iID = players[sock].plr->iID;
+            exitPlayer.iID = getPlayer(sock)->iID;
             otherSock->sendPacket((void*)&exitPlayer, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT));
-            exitPlayer.iID = players[otherSock].plr->iID;
+            exitPlayer.iID = getPlayer(otherSock)->iID;
             sock->sendPacket((void*)&exitPlayer, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT));
         }
     }
 
     // remove us from that old stinky chunk
-    return ChunkManager::removePlayer(players[sock].chunkPos, sock);
+    return ChunkManager::removePlayer(getPlayer(sock)->chunkPos, sock);
 }
 
 void PlayerManager::addPlayerToChunks(std::vector<Chunk*> chunks, CNSocket* sock) {
@@ -182,8 +181,8 @@ void PlayerManager::addPlayerToChunks(std::vector<Chunk*> chunks, CNSocket* sock
             if (sock == otherSock)
                 continue;
 
-            Player *otherPlr = players[otherSock].plr;
-            Player *plr = players[sock].plr;
+            Player *otherPlr = getPlayer(otherSock);
+            Player *plr = getPlayer(sock);
 
             newPlayer.PCAppearanceData.iID = plr->iID;
             newPlayer.PCAppearanceData.iHP = plr->HP;
@@ -219,61 +218,63 @@ void PlayerManager::addPlayerToChunks(std::vector<Chunk*> chunks, CNSocket* sock
 }
 
 void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, int angle) {
-    players[sock].plr->angle = angle;
+    getPlayer(sock)->angle = angle;
     updatePlayerPosition(sock, X, Y, Z);
 }
 
 void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z) {
-    PlayerView& view = players[sock];
-    view.plr->x = X;
-    view.plr->y = Y;
-    view.plr->z = Z;
-    updatePlayerChunk(sock, X, Y, view.plr->instanceID);
+    Player* plr = getPlayer(sock);
+    plr->x = X;
+    plr->y = Y;
+    plr->z = Z;
+    updatePlayerChunk(sock, X, Y, plr->instanceID);
 }
 
 void PlayerManager::updatePlayerChunk(CNSocket* sock, int X, int Y, uint64_t instanceID) {
-    PlayerView& view = players[sock];
-    ChunkPos newPos = ChunkManager::grabChunk(X, Y, view.plr->instanceID);
+    Player* plr = getPlayer(sock);
+    ChunkPos newPos = ChunkManager::grabChunk(X, Y, plr->instanceID);
 
     // nothing to be done
-    if (newPos == view.chunkPos)
+    if (newPos == plr->chunkPos)
         return;
 
     // add player to chunk
-    ChunkManager::addPlayer(X, Y, view.plr->instanceID, sock);
+    ChunkManager::addPlayer(X, Y, plr->instanceID, sock);
     std::vector<Chunk*> allChunks = ChunkManager::grabChunks(newPos);
 
     Chunk *chunk = nullptr;
-    if (ChunkManager::checkChunk(view.chunkPos))
-        chunk = ChunkManager::chunks[view.chunkPos];
+    if (ChunkManager::checkChunk(plr->chunkPos))
+        chunk = ChunkManager::chunks[plr->chunkPos];
 
     // first, remove all the old npcs & players from the old chunks
-    if (removePlayerFromChunks(ChunkManager::getDeltaChunks(view.currentChunks, allChunks), sock)) {
+    if (removePlayerFromChunks(ChunkManager::getDeltaChunks(*plr->currentChunks, allChunks), sock)) {
         allChunks.erase(std::remove(allChunks.begin(), allChunks.end(), chunk), allChunks.end());
     }
 
     // now, add all the new npcs & players!
-    addPlayerToChunks(ChunkManager::getDeltaChunks(allChunks, view.currentChunks), sock);
+    addPlayerToChunks(ChunkManager::getDeltaChunks(allChunks, *plr->currentChunks), sock);
 
-    view.chunkPos = newPos;
-    view.currentChunks = allChunks;
+    plr->chunkPos = newPos;
+    plr->currentChunks->clear();
+    for (Chunk* c : allChunks) {
+        plr->currentChunks->push_back(c);
+    }
 }
 
 void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I) {
-    PlayerView& plrv = PlayerManager::players[sock];
-    Player* plr = plrv.plr;
+    Player* plr = getPlayer(sock);
 
-    if (plrv.plr->instanceID == 0) {
+    if (plr->instanceID == 0) {
         // save last uninstanced coords
-        plrv.plr->lastX = plrv.plr->x;
-        plrv.plr->lastY = plrv.plr->y;
-        plrv.plr->lastZ = plrv.plr->z;
-        plrv.plr->lastAngle = plrv.plr->angle;
+        plr->lastX = plr->x;
+        plr->lastY = plr->y;
+        plr->lastZ = plr->z;
+        plr->lastAngle = plr->angle;
     }
 
     MissionManager::failInstancedMissions(sock); // fail any instanced missions
 
-    uint64_t fromInstance = plrv.plr->instanceID; // pre-warp instance, saved for post-warp
+    uint64_t fromInstance = plr->instanceID; // pre-warp instance, saved for post-warp
 
     plr->instanceID = I;
     if (I != INSTANCE_OVERWORLD) {
@@ -288,10 +289,10 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
         resp.iX = X;
         resp.iY = Y;
         resp.iZ = Z;
-        resp.iCandy = plrv.plr->money;
+        resp.iCandy = plr->money;
         resp.eIL = 4; // do not take away any items
-        PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
-        plrv.currentChunks.clear();
+        PlayerManager::removePlayerFromChunks(*plr->currentChunks, sock);
+        plr->currentChunks->clear();
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
         updatePlayerPosition(sock, X, Y, Z);
     }
@@ -308,10 +309,10 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z) {
     pkt.iZ = Z;
 
     // force player & NPC reload
-    PlayerView& plrv = players[sock];
-    PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
-    plrv.currentChunks.clear();
-    plrv.chunkPos = std::make_tuple(0, 0, plrv.plr->instanceID);
+    Player* plr = getPlayer(sock);
+    PlayerManager::removePlayerFromChunks(*plr->currentChunks, sock);
+    plr->currentChunks->clear();
+    plr->chunkPos = std::make_tuple(0, 0, plr->instanceID);
     sock->sendPacket((void*)&pkt, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
 }
 
@@ -439,12 +440,12 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     BuddyManager::refreshBuddyList(sock);
 
     for (auto& pair : PlayerManager::players)
-        if (pair.second.plr->notify)
+        if (pair.second->notify)
             ChatManager::sendServerMessage(pair.first, "[ADMIN]" + getPlayerName(&plr) + " has joined.");
 }
 
 void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size) {
-    for (Chunk* chunk : players[sock].currentChunks) {
+    for (Chunk* chunk : *getPlayer(sock)->currentChunks) {
         for (CNSocket* otherSock : chunk->players) {
             if (otherSock == sock)
                 continue;
@@ -482,12 +483,14 @@ void PlayerManager::movePlayer(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_MOVE* moveData = (sP_CL2FE_REQ_PC_MOVE*)data->buf;
     updatePlayerPosition(sock, moveData->iX, moveData->iY, moveData->iZ, moveData->iAngle);
 
-    players[sock].plr->angle = moveData->iAngle;
+    Player* plr = getPlayer(sock);
+
+    plr->angle = moveData->iAngle;
     uint64_t tm = getTime();
 
     INITSTRUCT(sP_FE2CL_PC_MOVE, moveResponse);
 
-    moveResponse.iID = players[sock].plr->iID;
+    moveResponse.iID = plr->iID;
     moveResponse.cKeyValue = moveData->cKeyValue;
 
     moveResponse.iX = moveData->iX;
@@ -516,7 +519,7 @@ void PlayerManager::stopPlayer(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_PC_STOP, stopResponse);
 
-    stopResponse.iID = players[sock].plr->iID;
+    stopResponse.iID = getPlayer(sock)->iID;
 
     stopResponse.iX = stopData->iX;
     stopResponse.iY = stopData->iY;
@@ -539,7 +542,7 @@ void PlayerManager::jumpPlayer(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_PC_JUMP, jumpResponse);
 
-    jumpResponse.iID = players[sock].plr->iID;
+    jumpResponse.iID = getPlayer(sock)->iID;
     jumpResponse.cKeyValue = jumpData->cKeyValue;
 
     jumpResponse.iX = jumpData->iX;
@@ -568,7 +571,7 @@ void PlayerManager::jumppadPlayer(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_PC_JUMPPAD, jumppadResponse);
 
-    jumppadResponse.iPC_ID = players[sock].plr->iID;
+    jumppadResponse.iPC_ID = getPlayer(sock)->iID;
     jumppadResponse.cKeyValue = jumppadData->cKeyValue;
 
     jumppadResponse.iX = jumppadData->iX;
@@ -595,7 +598,7 @@ void PlayerManager::launchPlayer(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_PC_LAUNCHER, launchResponse);
 
-    launchResponse.iPC_ID = players[sock].plr->iID;
+    launchResponse.iPC_ID = getPlayer(sock)->iID;
 
     launchResponse.iX = launchData->iX;
     launchResponse.iY = launchData->iY;
@@ -623,7 +626,7 @@ void PlayerManager::ziplinePlayer(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_PC_ZIPLINE, ziplineResponse);
 
-    ziplineResponse.iPC_ID = players[sock].plr->iID;
+    ziplineResponse.iPC_ID = getPlayer(sock)->iID;
     ziplineResponse.iCliTime = ziplineData->iCliTime;
     ziplineResponse.iSvrTime = tm;
     ziplineResponse.iX = ziplineData->iX;
@@ -658,7 +661,7 @@ void PlayerManager::movePlatformPlayer(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_PC_MOVEPLATFORM, platResponse);
 
-    platResponse.iPC_ID = players[sock].plr->iID;
+    platResponse.iPC_ID = getPlayer(sock)->iID;
     platResponse.iCliTime = platformData->iCliTime;
     platResponse.iSvrTime = tm;
     platResponse.iX = platformData->iX;
@@ -690,7 +693,7 @@ void PlayerManager::moveSliderPlayer(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_PC_MOVETRANSPORTATION, sliderResponse);
 
-    sliderResponse.iPC_ID = players[sock].plr->iID;
+    sliderResponse.iPC_ID = getPlayer(sock)->iID;
     sliderResponse.iCliTime = sliderData->iCliTime;
     sliderResponse.iSvrTime = tm;
     sliderResponse.iX = sliderData->iX;
@@ -721,7 +724,7 @@ void PlayerManager::moveSlopePlayer(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_PC_SLOPE, slopeResponse);
 
-    slopeResponse.iPC_ID = players[sock].plr->iID;
+    slopeResponse.iPC_ID = getPlayer(sock)->iID;
     slopeResponse.iCliTime = slopeData->iCliTime;
     slopeResponse.iSvrTime = tm;
     slopeResponse.iX = slopeData->iX;
@@ -809,7 +812,7 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::heartbeatPlayer(CNSocket* sock, CNPacketData* data) {
-    players[sock].lastHeartbeat = getTime();
+    getPlayer(sock)->lastHeartbeat = getTime();
 }
 
 void PlayerManager::exitGame(CNSocket* sock, CNPacketData* data) {
@@ -893,48 +896,44 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
-    PlayerView& plr = PlayerManager::players[sock];
+    Player* plr = getPlayer(sock);
 
-    if (plr.plr->Equip[8].iID > 0 && plr.plr->Equip[8].iTimeLimit>getTimestamp()) {
+    if (plr->Equip[8].iID > 0 && plr->Equip[8].iTimeLimit>getTimestamp()) {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_SUCC, response);
         sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_ON_SUCC));
 
         // send to other players
-        plr.plr->iPCState |= 8;
+        plr->iPCState |= 8;
         INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
-        response2.iPC_ID = plr.plr->iID;
-        response2.iState = plr.plr->iPCState;
+        response2.iPC_ID = plr->iID;
+        response2.iState = plr->iPCState;
+        sendToViewable(sock, (void*)&response2, P_FE2CL_PC_STATE_CHANGE, sizeof(sP_FE2CL_PC_STATE_CHANGE));
 
-        for (Chunk* chunk : players[sock].currentChunks) {
-            for (CNSocket* otherSock : chunk->players) {
-                otherSock->sendPacket((void*)&response2, P_FE2CL_PC_STATE_CHANGE, sizeof(sP_FE2CL_PC_STATE_CHANGE));
-            }
-        }
     } else {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_FAIL, response);
         sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_FAIL, sizeof(sP_FE2CL_PC_VEHICLE_ON_FAIL));
 
         // check if vehicle didn't expire
-        if (plr.plr->Equip[8].iTimeLimit < getTimestamp()) {
-            plr.plr->toRemoveVehicle.eIL = 0;
-            plr.plr->toRemoveVehicle.iSlotNum = 8;
-            ItemManager::checkItemExpire(sock, plr.plr);
+        if (plr->Equip[8].iTimeLimit < getTimestamp()) {
+            plr->toRemoveVehicle.eIL = 0;
+            plr->toRemoveVehicle.iSlotNum = 8;
+            ItemManager::checkItemExpire(sock, plr);
         }
     }
 }
 
 void PlayerManager::exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
-    PlayerView plr = PlayerManager::players[sock];
+    Player* plr = getPlayer(sock);
 
-    if (plr.plr->iPCState & 8) {
+    if (plr->iPCState & 8) {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
         sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_OFF_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_OFF_SUCC));
 
         // send to other players
-        plr.plr->iPCState &= ~8;
+        plr->iPCState &= ~8;
         INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
-        response2.iPC_ID = plr.plr->iID;
-        response2.iState = plr.plr->iPCState;
+        response2.iPC_ID = plr->iID;
+        response2.iState = plr->iPCState;
 
         sendToViewable(sock, (void*)&response2, P_FE2CL_PC_STATE_CHANGE, sizeof(sP_FE2CL_PC_STATE_CHANGE));
     }
@@ -985,7 +984,7 @@ void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
 #pragma region Helper methods
 Player *PlayerManager::getPlayer(CNSocket* key) {
     if (players.find(key) != players.end())
-        return players[key].plr;
+        return players[key];
 
     return nullptr;
 }
@@ -1019,20 +1018,20 @@ WarpLocation PlayerManager::getRespawnPoint(Player *plr) {
 }
 
 bool PlayerManager::isAccountInUse(int accountId) {
-    std::map<CNSocket*, PlayerView>::iterator it;
+    std::map<CNSocket*, Player*>::iterator it;
     for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++) {
-        if (it->second.plr->accountId == accountId)
+        if (it->second->accountId == accountId)
             return true;
     }
     return false;
 }
 
 void PlayerManager::exitDuplicate(int accountId) {
-    std::map<CNSocket*, PlayerView>::iterator it;
+    std::map<CNSocket*, Player*>::iterator it;
 
     // disconnect any duplicate players
     for (it = players.begin(); it != players.end(); it++) {
-        if (it->second.plr->accountId == accountId) {
+        if (it->second->accountId == accountId) {
             CNSocket* sock = it->first;
 
             INITSTRUCT(sP_FE2CL_REP_PC_EXIT_DUPLICATE, resp);
@@ -1074,15 +1073,15 @@ void PlayerManager::setSpecialState(CNSocket* sock, CNPacketData* data) {
 
 Player *PlayerManager::getPlayerFromID(int32_t iID) {
     for (auto& pair : PlayerManager::players)
-        if (pair.second.plr->iID == iID)
-            return pair.second.plr;
+        if (pair.second->iID == iID)
+            return pair.second;
 
     return nullptr;
 }
 
 CNSocket *PlayerManager::getSockFromID(int32_t iID) {
     for (auto& pair : PlayerManager::players)
-        if (pair.second.plr->iID == iID)
+        if (pair.second->iID == iID)
             return pair.first;
 
     return nullptr;

@@ -136,7 +136,7 @@ void BuddyManager::reqBuddyByName(CNSocket* sock, CNPacketData* data) {
     CNSocket* otherSock = nullptr;
 
     for (auto& pair : PlayerManager::players) {
-        Player* plr = pair.second.plr;
+        Player* plr = pair.second;
         if (strcmp(U16toU8(plr->PCStyle.szFirstName).c_str(), U16toU8(pkt->szFirstName).c_str()) == 0
             && strcmp(U16toU8(plr->PCStyle.szLastName).c_str(), U16toU8(pkt->szLastName).c_str()) == 0
             && !playerHasBuddyWithID(plrReq, plr->iID)) {

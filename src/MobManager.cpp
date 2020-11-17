@@ -861,7 +861,7 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
 
     for (auto& pair : PlayerManager::players) {
         CNSocket *sock = pair.first;
-        Player *plr = pair.second.plr;
+        Player *plr = pair.second;
         bool transmit = false;
 
         // group ticks
@@ -1001,8 +1001,8 @@ void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
             Player *target = nullptr;
 
             for (auto& pair : PlayerManager::players) {
-                if (pair.second.plr->iID == pktdata[i*2]) {
-                    target = pair.second.plr;
+                if (pair.second->iID == pktdata[i*2]) {
+                    target = pair.second;
                     break;
                 }
             }

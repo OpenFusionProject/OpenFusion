@@ -5,6 +5,7 @@
 
 #include "CNProtocol.hpp"
 #include "CNStructs.hpp"
+#include "ChunkManager.hpp"
 
 #define ACTIVE_MISSION_COUNT 6
 
@@ -75,4 +76,8 @@ struct Player {
 
     bool buddiesSynced;
     int64_t buddyIDs[50];
+
+    ChunkPos chunkPos;
+    std::vector<Chunk*>* currentChunks;
+    time_t lastHeartbeat;
 };

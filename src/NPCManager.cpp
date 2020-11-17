@@ -622,7 +622,7 @@ void NPCManager::npcWarpTimeMachine(CNSocket* sock, CNPacketData* data) {
 }
 
 void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
-    PlayerView& plrv = PlayerManager::players[sock];
+    Player* plr = PlayerManager::getPlayer(sock);
     // sanity check
     if (Warps.find(warpId) == Warps.end())
         return;
@@ -633,14 +633,14 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
 
         // if warp requires you to be on a mission, it's gotta be a unique instance
         if (Warps[warpId].limitTaskID != 0 || instanceID == 14) { // 14 is a special case for the Time Lab
-            instanceID += ((uint64_t)plrv.plr->iIDGroup << 32); // upper 32 bits are leader ID
+            instanceID += ((uint64_t)plr->iIDGroup << 32); // upper 32 bits are leader ID
             ChunkManager::createInstance(instanceID);
         }
 
-        if (plrv.plr->iID == plrv.plr->iIDGroup && plrv.plr->groupCnt == 1)
+        if (plr->iID == plr->iIDGroup && plr->groupCnt == 1)
             PlayerManager::sendPlayerTo(sock, Warps[warpId].x, Warps[warpId].y, Warps[warpId].z, instanceID);
         else {
-            Player* leaderPlr = PlayerManager::getPlayerFromID(plrv.plr->iIDGroup);
+            Player* leaderPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
             for (int i = 0; i < leaderPlr->groupCnt; i++) {
                 Player* otherPlr = PlayerManager::getPlayerFromID(leaderPlr->groupIDs[i]);
@@ -659,11 +659,11 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
         resp.iX = Warps[warpId].x;
         resp.iY = Warps[warpId].y;
         resp.iZ = Warps[warpId].z;
-        resp.iCandy = plrv.plr->money;
+        resp.iCandy = plr->money;
         resp.eIL = 4; // do not take away any items
-        PlayerManager::removePlayerFromChunks(plrv.currentChunks, sock);
-        plrv.currentChunks.clear();
-        plrv.plr->instanceID = INSTANCE_OVERWORLD;
+        PlayerManager::removePlayerFromChunks(*plr->currentChunks, sock);
+        plr->currentChunks->clear();
+        plr->instanceID = INSTANCE_OVERWORLD;
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
     }
 }

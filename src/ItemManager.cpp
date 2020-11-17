@@ -44,17 +44,17 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_ITEM_MOVE* itemmove = (sP_CL2FE_REQ_ITEM_MOVE*)data->buf;
     INITSTRUCT(sP_FE2CL_PC_ITEM_MOVE_SUCC, resp);
 
-    PlayerView& plr = PlayerManager::players[sock];
+    Player* plr = PlayerManager::getPlayer(sock);
 
     // sanity check
-    if (plr.plr->Equip[itemmove->iFromSlotNum].iType != 0 && itemmove->eFrom == 0 && itemmove->eTo == 0) {
+    if (plr->Equip[itemmove->iFromSlotNum].iType != 0 && itemmove->eFrom == 0 && itemmove->eTo == 0) {
         // this packet should never happen unless it is a weapon, tell the client to do nothing and do nothing ourself
         resp.eTo = itemmove->eFrom;
         resp.iToSlotNum = itemmove->iFromSlotNum;
-        resp.ToSlotItem = plr.plr->Equip[itemmove->iToSlotNum];
+        resp.ToSlotItem = plr->Equip[itemmove->iToSlotNum];
         resp.eFrom = itemmove->eTo;
         resp.iFromSlotNum = itemmove->iToSlotNum;
-        resp.FromSlotItem = plr.plr->Equip[itemmove->iFromSlotNum];
+        resp.FromSlotItem = plr->Equip[itemmove->iFromSlotNum];
 
         sock->sendPacket((void*)&resp, P_FE2CL_PC_ITEM_MOVE_SUCC, sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC));
         return;
@@ -68,13 +68,13 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     sItemBase *fromItem;
     switch ((SlotType)itemmove->eFrom) {
         case SlotType::EQUIP:
-            fromItem = &plr.plr->Equip[itemmove->iFromSlotNum];
+            fromItem = &plr->Equip[itemmove->iFromSlotNum];
             break;
         case SlotType::INVENTORY:
-            fromItem = &plr.plr->Inven[itemmove->iFromSlotNum];
+            fromItem = &plr->Inven[itemmove->iFromSlotNum];
             break;
         case SlotType::BANK:
-            fromItem = &plr.plr->Bank[itemmove->iFromSlotNum];
+            fromItem = &plr->Bank[itemmove->iFromSlotNum];
             break;
         default:
             std::cout << "[WARN] MoveItem submitted unknown Item Type?! " << itemmove->eFrom << std::endl;
@@ -85,13 +85,13 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     sItemBase* toItem;
     switch ((SlotType)itemmove->eTo) {
     case SlotType::EQUIP:
-        toItem = &plr.plr->Equip[itemmove->iToSlotNum];
+        toItem = &plr->Equip[itemmove->iToSlotNum];
         break;
     case SlotType::INVENTORY:
-        toItem = &plr.plr->Inven[itemmove->iToSlotNum];
+        toItem = &plr->Inven[itemmove->iToSlotNum];
         break;
     case SlotType::BANK:
-        toItem = &plr.plr->Bank[itemmove->iToSlotNum];
+        toItem = &plr->Bank[itemmove->iToSlotNum];
         break;
     default:
         std::cout << "[WARN] MoveItem submitted unknown Item Type?! " << itemmove->eTo << std::endl;
@@ -139,7 +139,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     if (itemmove->eFrom == (int)SlotType::EQUIP || itemmove->eTo == (int)SlotType::EQUIP) {
         INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, equipChange);
 
-        equipChange.iPC_ID = plr.plr->iID;
+        equipChange.iPC_ID = plr->iID;
         if (itemmove->eTo == (int)SlotType::EQUIP) {
             equipChange.iEquipSlotNum = itemmove->iToSlotNum;
             equipChange.EquipSlotItem = resp.FromSlotItem;
@@ -149,14 +149,14 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         }
 
         // unequip vehicle if equip slot 8 is 0
-        if (plr.plr->Equip[8].iID == 0)
-            plr.plr->iPCState = 0;
+        if (plr->Equip[8].iID == 0)
+            plr->iPCState = 0;
 
         // send equip event to other players
         PlayerManager::sendToViewable(sock, (void*)&equipChange, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
 
         // set equipment stats serverside
-        setItemStats(plr.plr);
+        setItemStats(plr);
     }
 
     // send response
@@ -174,15 +174,15 @@ void ItemManager::itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_ITEM_DELETE* itemdel = (sP_CL2FE_REQ_PC_ITEM_DELETE*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC, resp);
 
-    PlayerView& plr = PlayerManager::players[sock];
+    Player* plr = PlayerManager::getPlayer(sock);
 
     resp.eIL = itemdel->eIL;
     resp.iSlotNum = itemdel->iSlotNum;
 
     // so, im not sure what this eIL thing does since you always delete items in inventory and not equips
-    plr.plr->Inven[itemdel->iSlotNum].iID = 0;
-    plr.plr->Inven[itemdel->iSlotNum].iType = 0;
-    plr.plr->Inven[itemdel->iSlotNum].iOpt = 0;
+    plr->Inven[itemdel->iSlotNum].iID = 0;
+    plr->Inven[itemdel->iSlotNum].iType = 0;
+    plr->Inven[itemdel->iSlotNum].iOpt = 0;
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_ITEM_DELETE_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC));
 }
@@ -192,9 +192,9 @@ void ItemManager::itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_REQ_PC_GIVE_ITEM* itemreq = (sP_CL2FE_REQ_PC_GIVE_ITEM*)data->buf;
-    PlayerView& plr = PlayerManager::players[sock];
+    Player* plr = PlayerManager::getPlayer(sock);
 
-    if (plr.plr->accountLevel > 50) {
+    if (plr->accountLevel > 50) {
     	// TODO: send fail packet
         return;
     }
@@ -221,7 +221,7 @@ void ItemManager::itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
         }
         resp.Item = itemreq->Item;
 
-        plr.plr->Inven[itemreq->iSlotNum] = itemreq->Item;
+        plr->Inven[itemreq->iSlotNum] = itemreq->Item;
 
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_GIVE_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC));
     }
@@ -288,10 +288,12 @@ void ItemManager::itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_BANK_OPEN))
         return; // ignore the malformed packet
 
+    Player* plr = PlayerManager::getPlayer(sock);
+
     // just send bank inventory
     INITSTRUCT(sP_FE2CL_REP_PC_BANK_OPEN_SUCC, resp);
     for (int i = 0; i < ABANK_COUNT; i++) {
-        resp.aBank[i] = PlayerManager::players[sock].plr->Bank[i];
+        resp.aBank[i] = plr->Bank[i];
     }
     resp.iExtraBank = 1;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BANK_OPEN_SUCC, sizeof(sP_FE2CL_REP_PC_BANK_OPEN_SUCC));
@@ -314,15 +316,15 @@ void ItemManager::itemTradeOfferHandler(CNSocket* sock, CNPacketData* data) {
     CNSocket* otherSock = sock;
 
     for (auto& pair : PlayerManager::players) {
-        if (pair.second.plr->iID == iID_Check) {
+        if (pair.second->iID == iID_Check) {
             otherSock = pair.first;
             break;
         }
     }
 
-    PlayerView& plr = PlayerManager::players[otherSock];
+    Player* plr = PlayerManager::getPlayer(sock);
 
-    if (plr.plr->isTrading) {
+    if (plr->isTrading) {
         INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, resp);
 
         resp.iID_Request = pacdat->iID_To;
@@ -360,7 +362,7 @@ void ItemManager::itemTradeOfferAcceptHandler(CNSocket* sock, CNPacketData* data
     CNSocket* otherSock = sock;
 
     for (auto& pair : PlayerManager::players) {
-        if (pair.second.plr->iID == iID_Check) {
+        if (pair.second->iID == iID_Check) {
             otherSock = pair.first;
             break;
         }
@@ -374,10 +376,10 @@ void ItemManager::itemTradeOfferAcceptHandler(CNSocket* sock, CNPacketData* data
 
     // Clearing up trade slots
 
-    PlayerView& plr = PlayerManager::players[sock];
-    PlayerView& plr2 = PlayerManager::players[otherSock];
+    Player* plr = PlayerManager::getPlayer(sock);
+    Player* plr2 = PlayerManager::getPlayer(otherSock);
 
-    if (plr2.plr->isTrading) {
+    if (plr2->isTrading) {
         INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, resp);
 
         resp.iID_Request = pacdat->iID_To;
@@ -389,13 +391,13 @@ void ItemManager::itemTradeOfferAcceptHandler(CNSocket* sock, CNPacketData* data
         return; // prevent trading with a player already trading
     }
 
-    plr.plr->isTrading = true;
-    plr2.plr->isTrading = true;
-    plr.plr->isTradeConfirm = false;
-    plr2.plr->isTradeConfirm = false;
+    plr->isTrading = true;
+    plr2->isTrading = true;
+    plr->isTradeConfirm = false;
+    plr2->isTradeConfirm = false;
 
-    memset(&plr.plr->Trade, 0, sizeof(plr.plr->Trade));
-    memset(&plr2.plr->Trade, 0, sizeof(plr2.plr->Trade));
+    memset(&plr->Trade, 0, sizeof(plr->Trade));
+    memset(&plr2->Trade, 0, sizeof(plr2->Trade));
 
     otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER_SUCC));
 }
@@ -422,7 +424,7 @@ void ItemManager::itemTradeOfferRefusalHandler(CNSocket* sock, CNPacketData* dat
     CNSocket* otherSock = sock;
 
     for (auto& pair : PlayerManager::players) {
-        if (pair.second.plr->iID == iID_Check) {
+        if (pair.second->iID == iID_Check) {
             otherSock = pair.first;
             break;
         }
@@ -448,21 +450,21 @@ void ItemManager::itemTradeConfirmHandler(CNSocket* sock, CNPacketData* data) {
     CNSocket* otherSock = sock;
 
     for (auto& pair : PlayerManager::players) {
-        if (pair.second.plr->iID == iID_Check) {
+        if (pair.second->iID == iID_Check) {
             otherSock = pair.first;
             break;
         }
     }
 
-    PlayerView& plr = PlayerManager::players[sock];
-    PlayerView& plr2 = PlayerManager::players[otherSock];
+    Player* plr = PlayerManager::getPlayer(sock);
+    Player* plr2 = PlayerManager::getPlayer(otherSock);
 
-    if (plr2.plr->isTradeConfirm) {
+    if (plr2->isTradeConfirm) {
 
-        plr.plr->isTrading = false;
-        plr2.plr->isTrading = false;
-        plr.plr->isTradeConfirm = false;
-        plr2.plr->isTradeConfirm = false;
+        plr->isTrading = false;
+        plr2->isTrading = false;
+        plr->isTradeConfirm = false;
+        plr2->isTradeConfirm = false;
 
         // Check if we have enough free slots
         int freeSlots = 0;
@@ -471,22 +473,22 @@ void ItemManager::itemTradeConfirmHandler(CNSocket* sock, CNPacketData* data) {
         int freeSlotsNeeded2 = 0;
 
         for (int i = 0; i < AINVEN_COUNT; i++) {
-            if (plr.plr->Inven[i].iID == 0)
+            if (plr->Inven[i].iID == 0)
                 freeSlots++;
         }
 
         for (int i = 0; i < 5; i++) {
-            if (plr.plr->Trade[i].iID != 0)
+            if (plr->Trade[i].iID != 0)
                 freeSlotsNeeded++;
         }
 
         for (int i = 0; i < AINVEN_COUNT; i++) {
-            if (plr2.plr->Inven[i].iID == 0)
+            if (plr2->Inven[i].iID == 0)
                 freeSlots2++;
         }
 
         for (int i = 0; i < 5; i++) {
-            if (plr2.plr->Trade[i].iID != 0)
+            if (plr2->Trade[i].iID != 0)
                 freeSlotsNeeded2++;
         }
 
@@ -524,27 +526,27 @@ void ItemManager::itemTradeConfirmHandler(CNSocket* sock, CNPacketData* data) {
         // ^^ this is a must have or else the player won't accept a succ packet for some reason
 
         for (int i = 0; i < freeSlotsNeeded; i++) {
-            plr.plr->Inven[plr.plr->Trade[i].iInvenNum].iID = 0;
-            plr.plr->Inven[plr.plr->Trade[i].iInvenNum].iType = 0;
-            plr.plr->Inven[plr.plr->Trade[i].iInvenNum].iOpt = 0;
+            plr->Inven[plr->Trade[i].iInvenNum].iID = 0;
+            plr->Inven[plr->Trade[i].iInvenNum].iType = 0;
+            plr->Inven[plr->Trade[i].iInvenNum].iOpt = 0;
         }
 
         for (int i = 0; i < freeSlotsNeeded2; i++) {
-            plr2.plr->Inven[plr2.plr->Trade[i].iInvenNum].iID = 0;
-            plr2.plr->Inven[plr2.plr->Trade[i].iInvenNum].iType = 0;
-            plr2.plr->Inven[plr2.plr->Trade[i].iInvenNum].iOpt = 0;
+            plr2->Inven[plr2->Trade[i].iInvenNum].iID = 0;
+            plr2->Inven[plr2->Trade[i].iInvenNum].iType = 0;
+            plr2->Inven[plr2->Trade[i].iInvenNum].iOpt = 0;
         }
 
         for (int i = 0; i < AINVEN_COUNT; i++) {
             if (freeSlotsNeeded <= 0)
                     break;
 
-            if (plr2.plr->Inven[i].iID == 0) {
+            if (plr2->Inven[i].iID == 0) {
 
-                plr2.plr->Inven[i].iID = plr.plr->Trade[freeSlotsNeeded - 1].iID;
-                plr2.plr->Inven[i].iType = plr.plr->Trade[freeSlotsNeeded - 1].iType;
-                plr2.plr->Inven[i].iOpt = plr.plr->Trade[freeSlotsNeeded - 1].iOpt;
-                plr.plr->Trade[freeSlotsNeeded - 1].iInvenNum = i;
+                plr2->Inven[i].iID = plr->Trade[freeSlotsNeeded - 1].iID;
+                plr2->Inven[i].iType = plr->Trade[freeSlotsNeeded - 1].iType;
+                plr2->Inven[i].iOpt = plr->Trade[freeSlotsNeeded - 1].iOpt;
+                plr->Trade[freeSlotsNeeded - 1].iInvenNum = i;
                 freeSlotsNeeded--;
             }
         }
@@ -553,12 +555,12 @@ void ItemManager::itemTradeConfirmHandler(CNSocket* sock, CNPacketData* data) {
             if (freeSlotsNeeded2 <= 0)
                 break;
 
-            if (plr.plr->Inven[i].iID == 0) {
+            if (plr->Inven[i].iID == 0) {
 
-                plr.plr->Inven[i].iID = plr2.plr->Trade[freeSlotsNeeded2 - 1].iID;
-                plr.plr->Inven[i].iType = plr2.plr->Trade[freeSlotsNeeded2 - 1].iType;
-                plr.plr->Inven[i].iOpt = plr2.plr->Trade[freeSlotsNeeded2 - 1].iOpt;
-                plr2.plr->Trade[freeSlotsNeeded2 - 1].iInvenNum = i;
+                plr->Inven[i].iID = plr2->Trade[freeSlotsNeeded2 - 1].iID;
+                plr->Inven[i].iType = plr2->Trade[freeSlotsNeeded2 - 1].iType;
+                plr->Inven[i].iOpt = plr2->Trade[freeSlotsNeeded2 - 1].iOpt;
+                plr2->Trade[freeSlotsNeeded2 - 1].iInvenNum = i;
                 freeSlotsNeeded2--;
             }
         }
@@ -569,19 +571,19 @@ void ItemManager::itemTradeConfirmHandler(CNSocket* sock, CNPacketData* data) {
         resp2.iID_From = pacdat->iID_From;
         resp2.iID_To = pacdat->iID_To;
 
-        plr.plr->money = plr.plr->money + plr2.plr->moneyInTrade - plr.plr->moneyInTrade;
-        resp2.iCandy = plr.plr->money;
+        plr->money = plr->money + plr2->moneyInTrade - plr->moneyInTrade;
+        resp2.iCandy = plr->money;
 
-        memcpy(resp2.Item, plr2.plr->Trade, sizeof(plr2.plr->Trade));
-        memcpy(resp2.ItemStay, plr.plr->Trade, sizeof(plr.plr->Trade));
+        memcpy(resp2.Item, plr2->Trade, sizeof(plr2->Trade));
+        memcpy(resp2.ItemStay, plr->Trade, sizeof(plr->Trade));
 
         sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_TRADE_CONFIRM_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_SUCC));
 
-        plr2.plr->money = plr2.plr->money + plr.plr->moneyInTrade - plr2.plr->moneyInTrade;
-        resp2.iCandy = plr2.plr->money;
+        plr2->money = plr2->money + plr->moneyInTrade - plr2->moneyInTrade;
+        resp2.iCandy = plr2->money;
 
-        memcpy(resp2.Item, plr.plr->Trade, sizeof(plr.plr->Trade));
-        memcpy(resp2.ItemStay, plr2.plr->Trade, sizeof(plr2.plr->Trade));
+        memcpy(resp2.Item, plr->Trade, sizeof(plr->Trade));
+        memcpy(resp2.ItemStay, plr2->Trade, sizeof(plr2->Trade));
 
         otherSock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_TRADE_CONFIRM_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_SUCC));
     } else {
@@ -592,7 +594,7 @@ void ItemManager::itemTradeConfirmHandler(CNSocket* sock, CNPacketData* data) {
         resp.iID_From = pacdat->iID_From;
         resp.iID_To = pacdat->iID_To;
 
-        plr.plr->isTradeConfirm = true;
+        plr->isTradeConfirm = true;
 
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM));
         otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM));
@@ -621,18 +623,18 @@ void ItemManager::itemTradeConfirmCancelHandler(CNSocket* sock, CNPacketData* da
     CNSocket* otherSock = sock;
 
     for (auto pair : PlayerManager::players) {
-        if (pair.second.plr->iID == iID_Check) {
+        if (pair.second->iID == iID_Check) {
             otherSock = pair.first;
         }
     }
 
-    PlayerView& plr = PlayerManager::players[sock];
-    PlayerView& plr2 = PlayerManager::players[otherSock];
+    Player* plr = PlayerManager::getPlayer(sock);
+    Player* plr2 = PlayerManager::getPlayer(otherSock);
 
-    plr.plr->isTrading = false;
-    plr.plr->isTradeConfirm = false;
-    plr2.plr->isTrading = false;
-    plr2.plr->isTradeConfirm = false;
+    plr->isTrading = false;
+    plr->isTradeConfirm = false;
+    plr2->isTrading = false;
+    plr2->isTradeConfirm = false;
 
     otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL));
 }
@@ -665,14 +667,14 @@ void ItemManager::itemTradeRegisterItemHandler(CNSocket* sock, CNPacketData* dat
     CNSocket* otherSock = sock;
 
     for (auto pair : PlayerManager::players) {
-        if (pair.second.plr->iID == iID_Check) {
+        if (pair.second->iID == iID_Check) {
             otherSock = pair.first;
         }
     }
 
-    PlayerView& plr = PlayerManager::players[sock];
-    plr.plr->Trade[pacdat->Item.iSlotNum] = pacdat->Item;
-    plr.plr->isTradeConfirm = false;
+    Player* plr = PlayerManager::getPlayer(sock);
+    plr->Trade[pacdat->Item.iSlotNum] = pacdat->Item;
+    plr->isTradeConfirm = false;
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_ITEM_REGISTER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_ITEM_REGISTER_SUCC));
     otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_ITEM_REGISTER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_ITEM_REGISTER_SUCC));
@@ -690,9 +692,9 @@ void ItemManager::itemTradeUnregisterItemHandler(CNSocket* sock, CNPacketData* d
     resp.iID_To = pacdat->iID_To;
     resp.TradeItem = pacdat->Item;
 
-    PlayerView& plr = PlayerManager::players[sock];
-    resp.InvenItem = plr.plr->Trade[pacdat->Item.iSlotNum];
-    plr.plr->isTradeConfirm = false;
+    Player* plr = PlayerManager::getPlayer(sock);
+    resp.InvenItem = plr->Trade[pacdat->Item.iSlotNum];
+    plr->isTradeConfirm = false;
 
     int iID_Check;
 
@@ -705,7 +707,7 @@ void ItemManager::itemTradeUnregisterItemHandler(CNSocket* sock, CNPacketData* d
     CNSocket* otherSock = sock;
 
     for (auto pair : PlayerManager::players) {
-        if (pair.second.plr->iID == iID_Check) {
+        if (pair.second->iID == iID_Check) {
             otherSock = pair.first;
         }
     }
@@ -713,11 +715,11 @@ void ItemManager::itemTradeUnregisterItemHandler(CNSocket* sock, CNPacketData* d
     int temp_num = pacdat->Item.iSlotNum;
 
     if (temp_num >= 0 && temp_num <= 4) {
-        plr.plr->Trade[temp_num].iID = 0;
-        plr.plr->Trade[temp_num].iType = 0;
-        plr.plr->Trade[temp_num].iOpt = 0;
-        plr.plr->Trade[temp_num].iInvenNum = 0;
-        plr.plr->Trade[temp_num].iSlotNum = 0;
+        plr->Trade[temp_num].iID = 0;
+        plr->Trade[temp_num].iType = 0;
+        plr->Trade[temp_num].iOpt = 0;
+        plr->Trade[temp_num].iInvenNum = 0;
+        plr->Trade[temp_num].iSlotNum = 0;
     }
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_ITEM_UNREGISTER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_ITEM_UNREGISTER_SUCC));
@@ -730,9 +732,9 @@ void ItemManager::itemTradeRegisterCashHandler(CNSocket* sock, CNPacketData* dat
 
     sP_CL2FE_REQ_PC_TRADE_CASH_REGISTER* pacdat = (sP_CL2FE_REQ_PC_TRADE_CASH_REGISTER*)data->buf;
 
-    PlayerView& plr = PlayerManager::players[sock];
+    Player* plr = PlayerManager::getPlayer(sock);
 
-    if (pacdat->iCandy < 0 || pacdat->iCandy > plr.plr->money)
+    if (pacdat->iCandy < 0 || pacdat->iCandy > plr->money)
        return; // famous glitch, begone
 
     INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC, resp);
@@ -753,13 +755,13 @@ void ItemManager::itemTradeRegisterCashHandler(CNSocket* sock, CNPacketData* dat
     CNSocket* otherSock = sock;
 
     for (auto pair : PlayerManager::players) {
-        if (pair.second.plr->iID == iID_Check) {
+        if (pair.second->iID == iID_Check) {
             otherSock = pair.first;
         }
     }
 
-    plr.plr->moneyInTrade = pacdat->iCandy;
-    plr.plr->isTradeConfirm = false;
+    plr->moneyInTrade = pacdat->iCandy;
+    plr->isTradeConfirm = false;
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC));
     otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC));
@@ -791,7 +793,7 @@ void ItemManager::itemTradeChatHandler(CNSocket* sock, CNPacketData* data) {
     CNSocket* otherSock = sock;
 
     for (auto pair : PlayerManager::players) {
-        if (pair.second.plr->iID == iID_Check) {
+        if (pair.second->iID == iID_Check) {
             otherSock = pair.first;
         }
     }

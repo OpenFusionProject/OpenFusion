@@ -32,15 +32,15 @@ void CNShardServer::handlePacket(CNSocket* sock, CNPacketData* data) {
         std::cerr << "OpenFusion: SHARD UNIMPLM ERR. PacketType: " << Defines::p2str(CL2FE, data->type) << " (" << data->type << ")" << std::endl;
 
     if (PlayerManager::players.find(sock) != PlayerManager::players.end())
-        PlayerManager::players[sock].lastHeartbeat = getTime();
+        PlayerManager::players[sock]->lastHeartbeat = getTime();
 }
 
 void CNShardServer::keepAliveTimer(CNServer* serv, time_t currTime) {
     for (auto& pair : PlayerManager::players) {
-        if (pair.second.lastHeartbeat != 0 && currTime - pair.second.lastHeartbeat > settings::TIMEOUT) {
+        if (pair.second->lastHeartbeat != 0 && currTime - pair.second->lastHeartbeat > settings::TIMEOUT) {
             // if the client hasn't responded in 60 seconds, its a dead connection so throw it out
             pair.first->kill();
-        } else if (pair.second.lastHeartbeat != 0 && currTime - pair.second.lastHeartbeat > settings::TIMEOUT/2) {
+        } else if (pair.second->lastHeartbeat != 0 && currTime - pair.second->lastHeartbeat > settings::TIMEOUT/2) {
             // if the player hasn't responded in 30 seconds, send a live check
             INITSTRUCT(sP_FE2CL_REQ_LIVE_CHECK, data);
             pair.first->sendPacket((void*)&data, P_FE2CL_REQ_LIVE_CHECK, sizeof(sP_FE2CL_REQ_LIVE_CHECK));
@@ -55,7 +55,7 @@ void CNShardServer::periodicSaveTimer(CNServer* serv, time_t currTime) {
     std::cout << "[INFO] Saving " << PlayerManager::players.size() << " players to DB..." << std::endl;
 
     for (auto& pair : PlayerManager::players) {
-        Database::updatePlayer(pair.second.plr);
+        Database::updatePlayer(pair.second);
     }
 
     TableData::flush();

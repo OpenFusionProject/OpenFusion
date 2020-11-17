@@ -23,7 +23,7 @@ void ChunkManager::populateNewChunk(Chunk* chunk, ChunkPos pos) {// add the new 
             continue;
 
         for (CNSocket *s : c->players)
-            PlayerManager::players[s].currentChunks.push_back(chunk);
+            PlayerManager::getPlayer(s)->currentChunks->push_back(chunk);
 
         for (int32_t id : c->NPCs)
             NPCManager::NPCs[id]->currentChunks.push_back(chunk);
@@ -67,7 +67,7 @@ void ChunkManager::addPlayer(int posX, int posY, uint64_t instanceID, CNSocket* 
     Chunk* chunk = chunks[pos];
 
     if (newChunkUsed)
-        PlayerManager::players[sock].currentChunks.push_back(chunk);
+        PlayerManager::getPlayer(sock)->currentChunks->push_back(chunk);
 
     chunk->players.insert(sock);
 
@@ -142,9 +142,9 @@ void ChunkManager::destroyChunk(ChunkPos chunkPos) {
 
         // remove from players
         for (CNSocket* sock : otherChunk->players) {
-            PlayerView* plyr = &PlayerManager::players[sock];
-            if (std::find(plyr->currentChunks.begin(), plyr->currentChunks.end(), chunk) != plyr->currentChunks.end()) {
-                plyr->currentChunks.erase(std::remove(plyr->currentChunks.begin(), plyr->currentChunks.end(), chunk), plyr->currentChunks.end());
+            Player* plr = PlayerManager::getPlayer(sock);
+            if (std::find(plr->currentChunks->begin(), plr->currentChunks->end(), chunk) != plr->currentChunks->end()) {
+                plr->currentChunks->erase(std::remove(plr->currentChunks->begin(), plr->currentChunks->end(), chunk), plr->currentChunks->end());
             }
         }
     }

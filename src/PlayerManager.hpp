@@ -12,16 +12,8 @@
 
 struct WarpLocation;
 
-struct PlayerView {
-    ChunkPos chunkPos;
-    std::vector<Chunk*> currentChunks;
-    Player *plr;
-    time_t lastHeartbeat;
-};
-
-
 namespace PlayerManager {
-    extern std::map<CNSocket*, PlayerView> players;
+    extern std::map<CNSocket*, Player*> players;
     void init();
 
     void addPlayer(CNSocket* key, Player plr);

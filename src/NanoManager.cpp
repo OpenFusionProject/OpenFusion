@@ -488,8 +488,8 @@ bool doHeal(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *respdata, in
     Player *plr = nullptr;
 
     for (auto& pair : PlayerManager::players) {
-        if (pair.second.plr->iID == pktdata[i]) {
-            plr = pair.second.plr;
+        if (pair.second->iID == pktdata[i]) {
+            plr = pair.second;
             break;
         }
     }
@@ -519,8 +519,8 @@ bool doGroupHeal(CNSocket *sock, int32_t *pktdata, sSkillResult_Heal_HP *respdat
     Player *plr = nullptr;
 
     for (auto& pair : PlayerManager::players) {
-        if (pair.second.plr->iID == pktdata[0]) {
-            plr = pair.second.plr;
+        if (pair.second->iID == pktdata[0]) {
+            plr = pair.second;
             break;
         }
     }
