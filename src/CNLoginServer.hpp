@@ -46,6 +46,7 @@ private:
     static bool isPasswordCorrect(std::string actualPassword, std::string tryPassword);
     static bool isAccountInUse(int accountId);
     static bool isCharacterNameGood(std::string Firstname, std::string Lastname);
+    static void newAccount(CNSocket* sock, std::string userLogin, std::string userPassword, int32_t clientVerC);
     // returns true if success
     static bool exitDuplicate(int accountId);
 public:
