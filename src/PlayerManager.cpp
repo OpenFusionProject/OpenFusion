@@ -70,6 +70,9 @@ void PlayerManager::removePlayer(CNSocket* key) {
 
     GroupManager::groupKickPlayer(view.plr);
 
+    // remove player's bullets
+    MobManager::Bullets.erase(view.plr->iID);
+
     // save player to DB
     Database::updatePlayer(view.plr);
 
@@ -98,9 +101,6 @@ void PlayerManager::removePlayer(CNSocket* key) {
         else
             it++;
     }
-
-    // remove player's bullets
-    MobManager::Bullets.erase(view.plr->iID);
 
     std::cout << players.size() << " players" << std::endl;
 }
