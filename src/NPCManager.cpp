@@ -879,10 +879,12 @@ void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
+    /* this has some issues with position desync, leaving it out for now
     if (abs(egg->appearanceData.iX - plr->x)>500 || abs(egg->appearanceData.iY - plr->y) > 500) {
         std::cout << "[WARN] Player tried to open an egg from the other chunk?!" << std::endl;
         return;
     }
+    */
 
     int typeId = egg->appearanceData.iNPCType;
     if (EggTypes.find(typeId) == EggTypes.end()) {
