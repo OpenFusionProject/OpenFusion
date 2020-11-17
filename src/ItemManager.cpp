@@ -832,6 +832,8 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     reward->iFatigue = 100; // prevents warning message
     reward->iFatigue_Level = 1;
     reward->iItemCnt = 1; // remember to update resplen if you change this
+    reward->m_iBatteryN = plr->batteryN;
+    reward->m_iBatteryW = plr->batteryW;
 
     item->iSlotNum = chest->iSlotNum;
     item->eIL = chest->eIL;
