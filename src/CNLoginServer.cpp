@@ -84,6 +84,11 @@ void loginFail(LoginError errorCode, std::string userLogin, CNSocket* sock) {
     U8toU16(userLogin, resp.szID, sizeof(resp.szID));
     resp.iErrorCode = (int)errorCode;
     sock->sendPacket((void*)&resp, P_LS2CL_REP_LOGIN_FAIL, sizeof(sP_LS2CL_REP_LOGIN_FAIL));
+
+    DEBUGLOG(
+        std::cout << "Login Server: Login fail. Error code " << (int)errorCode << std::endl;
+    )
+
     return;
 }
 
@@ -183,6 +188,10 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
 
         sock->sendPacket((void*)&charInfo, P_LS2CL_REP_CHAR_INFO, sizeof(sP_LS2CL_REP_CHAR_INFO));
     }
+
+    DEBUGLOG(
+        std::cout << "Login Server: Login success. Welcome " << userLogin << " [" << loginSessions[sock].userID << "]" << std::endl;
+    )
 }
 
 void CNLoginServer::newAccount(CNSocket* sock, std::string userLogin, std::string userPassword, int32_t clientVerC) {   
@@ -206,6 +215,10 @@ void CNLoginServer::newAccount(CNSocket* sock, std::string userLogin, std::strin
     // update keys
     sock->setEKey(CNSocketEncryption::createNewKey(resp.uiSvrTime, resp.iCharCount + 1, resp.iSlotNum + 1));
     sock->setFEKey(CNSocketEncryption::createNewKey((uint64_t)(*(uint64_t*)&CNSocketEncryption::defaultKey[0]), clientVerC, 1));
+
+    DEBUGLOG(
+        std::cout << "Login Server: New account. Welcome " << userLogin << " [" << loginSessions[sock].userID << "]" << std::endl;
+    )
 }
 
 void CNLoginServer::nameCheck(CNSocket* sock, CNPacketData* data) {
