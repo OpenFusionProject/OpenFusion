@@ -255,7 +255,7 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
     std::cout << "\tName: " << U16toU8(save->szFirstName) << " " << U16toU8(save->szLastName) << std::endl;
     )
 
-        resp.iSlotNum = save->iSlotNum;
+    resp.iSlotNum = save->iSlotNum;
     resp.iGender = save->iGender;
     resp.iPC_UID = Database::createCharacter(save, loginSessions[sock].userID);
     memcpy(resp.szFirstName, save->szFirstName, sizeof(char16_t) * 9);
@@ -273,6 +273,15 @@ void CNLoginServer::characterCreate(CNSocket* sock, CNPacketData* data) {
         return;
 
     sP_CL2LS_REQ_CHAR_CREATE* character = (sP_CL2LS_REQ_CHAR_CREATE*)data->buf;
+
+    if (!(Database::validateCharacter(character->PCStyle.iPC_UID, loginSessions[sock].userID) ||
+        loginSessions[sock].characters.find(character->PCStyle.iPC_UID) == loginSessions[sock].characters.end())) {
+        INITSTRUCT(sP_LS2CL_REP_SHARD_SELECT_FAIL, fail);
+        fail.iErrorCode = 2;
+        sock->sendPacket((void*)&fail, P_LS2CL_REP_SHARD_SELECT_FAIL, sizeof(sP_LS2CL_REP_SHARD_SELECT_FAIL));
+        return;
+    }
+
     Database::finishCharacter(character);
 
     DEBUGLOG(
@@ -294,7 +303,7 @@ void CNLoginServer::characterCreate(CNSocket* sock, CNPacketData* data) {
     std::cout << "\tiEquipFootID: " << (int)character->sOn_Item.iEquipFootID << std::endl;
     )
 
-        Player player = Database::getPlayer(character->PCStyle.iPC_UID);
+    Player player = Database::getPlayer(character->PCStyle.iPC_UID);
     int64_t UID = player.iID;
 
     INITSTRUCT(sP_LS2CL_REP_CHAR_CREATE_SUCC, resp);
@@ -310,7 +319,7 @@ void CNLoginServer::characterCreate(CNSocket* sock, CNPacketData* data) {
     loginSessions[sock].lastHeartbeat = getTime();
 
     sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_CREATE_SUCC, sizeof(sP_LS2CL_REP_CHAR_CREATE_SUCC));
-    Database::updateSelected(loginSessions[sock].userID, player.slot);
+    Database::updateSelected(loginSessions[sock].userID, player.slot);   
 }
 
 void CNLoginServer::characterDelete(CNSocket* sock, CNPacketData* data) {
@@ -324,6 +333,7 @@ void CNLoginServer::characterDelete(CNSocket* sock, CNPacketData* data) {
     resp.iSlotNum = operationResult;
     sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_DELETE_SUCC, sizeof(sP_LS2CL_REP_CHAR_DELETE_SUCC));
     loginSessions[sock].lastHeartbeat = getTime();
+    loginSessions[sock].characters.erase(del->iPC_UID);
 }
 
 void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
@@ -331,18 +341,26 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
         return;
 
     // character selected
-    sP_CL2LS_REQ_CHAR_SELECT* chararacter = (sP_CL2LS_REQ_CHAR_SELECT*)data->buf;
+    sP_CL2LS_REQ_CHAR_SELECT* character = (sP_CL2LS_REQ_CHAR_SELECT*)data->buf;
     INITSTRUCT(sP_LS2CL_REP_CHAR_SELECT_SUCC, resp);
 
+    if (!(Database::validateCharacter(character->iPC_UID, loginSessions[sock].userID) ||
+        loginSessions[sock].characters.find(character->iPC_UID) == loginSessions[sock].characters.end())) {
+        INITSTRUCT(sP_LS2CL_REP_SHARD_SELECT_FAIL, fail);
+        fail.iErrorCode = 2;
+        sock->sendPacket((void*)&fail, P_LS2CL_REP_SHARD_SELECT_FAIL, sizeof(sP_LS2CL_REP_SHARD_SELECT_FAIL));
+        return;
+    }
+
     DEBUGLOG(
-        std::cout << "P_CL2LS_REQ_CHAR_SELECT:" << std::endl;
-    std::cout << "\tPC_UID: " << chararacter->iPC_UID << std::endl;
+    std::cout << "P_CL2LS_REQ_CHAR_SELECT:" << std::endl;
+    std::cout << "\tPC_UID: " << character->iPC_UID << std::endl;
     )
 
-        loginSessions[sock].lastHeartbeat = getTime();
+    loginSessions[sock].lastHeartbeat = getTime();
 
-    loginSessions[sock].selectedChar = chararacter->iPC_UID;
-    Database::updateSelected(loginSessions[sock].userID, loginSessions[sock].characters[chararacter->iPC_UID].slot);
+    loginSessions[sock].selectedChar = character->iPC_UID;
+    Database::updateSelected(loginSessions[sock].userID, loginSessions[sock].characters[character->iPC_UID].slot);
     sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_SELECT_SUCC, sizeof(sP_LS2CL_REP_CHAR_SELECT_SUCC));
 }
 
