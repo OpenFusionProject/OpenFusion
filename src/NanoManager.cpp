@@ -305,15 +305,9 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
     if (SkillTable[skillID].drainType == 2) {
         int *targetData = findTargets(plr, skillID);
 
-        int boost = 0;
-        for (int i = 0; i < 3; i++)
-            if (plr->equippedNanos[i] == plr->activeNano)
-                if (plr->iConditionBitFlag & (CSB_BIT_STIMPAKSLOT1 << i))
-                    boost = 1;
-
-        for (auto& pwr : NanoPowers)
-            if (pwr.skillType == SkillTable[skillID].skillType)
-                nanoUnbuff(sock, targetData, pwr.bitFlag, pwr.timeBuffID, SkillTable[skillID].powerIntensity[boost],(SkillTable[skillID].targetType == 3));
+    for (auto& pwr : NanoPowers)
+        if (pwr.skillType == SkillTable[skillID].skillType)
+            nanoUnbuff(sock, targetData, pwr.bitFlag, pwr.timeBuffID, 0,(SkillTable[skillID].targetType == 3));
     }
 
     int16_t nanoID = slot == -1 ? 0 : plr->equippedNanos[slot];
@@ -480,9 +474,9 @@ void NanoManager::nanoUnbuff(CNSocket* sock, int targetData[], int32_t bitFlag, 
     }
 }
 
-bool NanoManager::applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags) {
+int NanoManager::applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags) {
     if (SkillTable[skillID].drainType == 1)
-        return false;
+        return 0;
 
     int32_t bitFlag = 0;
 
@@ -496,30 +490,20 @@ bool NanoManager::applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int
                 resp.eTBU = eTBU;
                 resp.eTBT = eTBT;
 
-                if (skillID == 191) { // dealing with gumballs
-                    resp.eCSTB = pwr.timeBuffID + 1;
-                    bitFlag = bitFlag << 1;
-                } else if (skillID == 197) {
-                    resp.eCSTB = pwr.timeBuffID + 2;
-                    bitFlag = bitFlag << 2;
-                }
-
                 if (eTBU == 1)
                     plr->iConditionBitFlag |= bitFlag;
                 else
                     plr->iConditionBitFlag &= ~bitFlag;
 
                 resp.iConditionBitFlag = plr->iConditionBitFlag |= groupFlags | plr->iSelfConditionBitFlag;
-
                 resp.TimeBuff.iValue = SkillTable[skillID].powerIntensity[0];
-
                 sock->sendPacket((void*)&resp, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
             }
-            return true;
+            return bitFlag;
         }
     }
 
-    return false;
+    return 0;
 }
 
 // 0=A 1=B 2=C -1=Not found
