@@ -31,6 +31,17 @@ private:
     static void handlePacket(CNSocket* sock, CNPacketData* data);
     static std::map<CNSocket*, CNLoginData> loginSessions;
 
+    static void login(CNSocket* sock, CNPacketData* data);
+    static void nameCheck(CNSocket* sock, CNPacketData* data);
+    static void nameSave(CNSocket* sock, CNPacketData* data);
+    static void characterCreate(CNSocket* sock, CNPacketData* data);
+    static void characterDelete(CNSocket* sock, CNPacketData* data);
+    static void characterSelect(CNSocket* sock, CNPacketData* data);
+    static void shardSelect(CNSocket* sock, CNPacketData* data);
+    static void finishTutorial(CNSocket* sock, CNPacketData* data);
+    static void changeName(CNSocket* sock, CNPacketData* data);
+    static void duplicateExit(CNSocket* sock, CNPacketData* data);
+
     static bool isLoginDataGood(std::string login, std::string password);
     static bool isPasswordCorrect(std::string actualPassword, std::string tryPassword);
     static bool isAccountInUse(int accountId);
