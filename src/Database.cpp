@@ -191,6 +191,12 @@ std::unique_ptr<Database::Account> Database::findAccount(std::string login) {
         std::unique_ptr<Account>(new Account(find.front()));
 }
 
+bool Database::validateCharacter(int characterID, int userID) {
+    return db.select(&DbPlayer::PlayerID,
+        where((c(&DbPlayer::PlayerID) == characterID) && (c(&DbPlayer::AccountID) == userID)))
+        .size() > 0;
+}
+
 bool Database::isNameFree(sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
