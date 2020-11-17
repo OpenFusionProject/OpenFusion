@@ -166,6 +166,7 @@ int Database::addAccount(std::string login, std::string password) {
     account.Password = password;
     account.Selected = 1;
     account.Created = getTimestamp();
+    account.LastLogin = account.Created;
     return db.insert(account);
 }
 
