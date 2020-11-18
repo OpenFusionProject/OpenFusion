@@ -322,10 +322,14 @@ void CNLoginServer::characterDelete(CNSocket* sock, CNPacketData* data) {
         return;
 
     sP_CL2LS_REQ_CHAR_DELETE* del = (sP_CL2LS_REQ_CHAR_DELETE*)data->buf;
-    int operationResult = Database::deleteCharacter(del->iPC_UID, loginSessions[sock].userID);
+
+    if (!Database::validateCharacter(del->iPC_UID, loginSessions[sock].userID))
+        return invalidCharacter(sock);
+
+    int removedSlot = Database::deleteCharacter(del->iPC_UID, loginSessions[sock].userID);
 
     INITSTRUCT(sP_LS2CL_REP_CHAR_DELETE_SUCC, resp);
-    resp.iSlotNum = operationResult;
+    resp.iSlotNum = removedSlot;
     sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_DELETE_SUCC, sizeof(sP_LS2CL_REP_CHAR_DELETE_SUCC));
     loginSessions[sock].lastHeartbeat = getTime();
 }
