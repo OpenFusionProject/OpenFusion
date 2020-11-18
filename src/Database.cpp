@@ -364,6 +364,56 @@ std::vector <Player> Database::getCharacters(int UserID) {
     return result;
 }
 
+std::vector <sP_LS2CL_REP_CHAR_INFO> Database::getCharInfo(int userID) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    std::vector<DbPlayer>characters =
+        db.get_all<DbPlayer>(where
+        (c(&DbPlayer::AccountID) == userID));
+
+    std::vector<sP_LS2CL_REP_CHAR_INFO> result = std::vector<sP_LS2CL_REP_CHAR_INFO>();
+    for (auto& character : characters) {
+        sP_LS2CL_REP_CHAR_INFO toAdd = {};
+        toAdd.iX = character.x_coordinates;
+        toAdd.iY = character.y_coordinates;
+        toAdd.iZ = character.z_coordinates;
+        toAdd.iLevel = character.Level;
+        toAdd.iSlot =  character.slot;
+        toAdd.sPC_Style.iBody =      character.Body;
+        toAdd.sPC_Style.iClass =     character.Class;
+        toAdd.sPC_Style.iEyeColor =  character.EyeColor;
+        toAdd.sPC_Style.iFaceStyle = character.FaceStyle;
+        toAdd.sPC_Style.iGender =    character.Gender;
+        toAdd.sPC_Style.iHairColor = character.HairColor;
+        toAdd.sPC_Style.iHairStyle = character.HairStyle;
+        toAdd.sPC_Style.iHeight =    character.Height;
+        toAdd.sPC_Style.iNameCheck = character.NameCheck;
+        toAdd.sPC_Style.iPC_UID =    character.PlayerID;
+        toAdd.sPC_Style.iSkinColor = character.SkinColor;
+        U8toU16(character.FirstName, toAdd.sPC_Style.szFirstName, sizeof(toAdd.sPC_Style.szFirstName));
+        U8toU16(character.LastName,  toAdd.sPC_Style.szLastName,  sizeof(toAdd.sPC_Style.szLastName));
+        toAdd.sPC_Style2.iAppearanceFlag = character.AppearanceFlag;
+        toAdd.sPC_Style2.iPayzoneFlag =    character.PayZoneFlag;
+        toAdd.sPC_Style2.iTutorialFlag =   character.TutorialFlag;
+
+        //get equipment
+        auto items = db.get_all<Inventory>(
+            where(c(&Inventory::playerId) == character.PlayerID && c(&Inventory::slot) < AEQUIP_COUNT));
+
+        for (auto& item : items) {
+            sItemBase addItem = {};
+            addItem.iID = item.id;
+            addItem.iType = item.Type;
+            addItem.iOpt = item.Opt;
+            addItem.iTimeLimit = item.TimeLimit;
+            toAdd.aEquip[item.slot] = addItem;
+        }
+
+        result.push_back(toAdd);
+    }
+    return result;
+}
+
 // XXX: This is never called?
 void Database::evaluateCustomName(int characterID, CustomName decision) {
     std::lock_guard<std::mutex> lock(dbCrit);
