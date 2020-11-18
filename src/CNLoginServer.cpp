@@ -66,6 +66,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
             break;
         /*
          * Unimplemented CL2LS packets:
+         *  P_CL2LS_REQ_SHARD_SELECT - we skip it in char select
          *  P_CL2LS_CHECK_NAME_LIST - unused by the client
          *  P_CL2LS_REQ_SERVER_SELECT
          *  P_CL2LS_REQ_SHARD_LIST_INFO - dev commands, useless as we only run 1 server
@@ -87,7 +88,6 @@ void loginFail(LoginError errorCode, std::string userLogin, CNSocket* sock) {
 
     return;
 }
-
 
 void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2LS_REQ_LOGIN))
@@ -260,18 +260,26 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
     Database::updateSelected(loginSessions[sock].userID, save->iSlotNum);
 }
 
+void invalidCharacter(CNSocket* sock) {
+    INITSTRUCT(sP_LS2CL_REP_SHARD_SELECT_FAIL, fail);
+    fail.iErrorCode = 2;
+    sock->sendPacket((void*)&fail, P_LS2CL_REP_SHARD_SELECT_FAIL, sizeof(sP_LS2CL_REP_SHARD_SELECT_FAIL));
+    return;
+
+    DEBUGLOG(
+        std::cout << "Login Server: Selected character error" << std::endl;
+    )
+
+}
+
 void CNLoginServer::characterCreate(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2LS_REQ_CHAR_CREATE))
         return;
 
     sP_CL2LS_REQ_CHAR_CREATE* character = (sP_CL2LS_REQ_CHAR_CREATE*)data->buf;
 
-    if (!Database::validateCharacter(character->PCStyle.iPC_UID, loginSessions[sock].userID)) {
-        INITSTRUCT(sP_LS2CL_REP_SHARD_SELECT_FAIL, fail);
-        fail.iErrorCode = 2;
-        sock->sendPacket((void*)&fail, P_LS2CL_REP_SHARD_SELECT_FAIL, sizeof(sP_LS2CL_REP_SHARD_SELECT_FAIL));
-        return;
-    }
+    if (!Database::validateCharacter(character->PCStyle.iPC_UID, loginSessions[sock].userID))
+        return invalidCharacter(sock);
 
     Database::finishCharacter(character);
 
@@ -330,12 +338,8 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
     // we're doing a small hack and immediately send SHARD_SELECT_SUCC
     INITSTRUCT(sP_LS2CL_REP_SHARD_SELECT_SUCC, resp);
 
-    if (!Database::validateCharacter(selection->iPC_UID, loginSessions[sock].userID)) {
-        INITSTRUCT(sP_LS2CL_REP_SHARD_SELECT_FAIL, fail);
-        fail.iErrorCode = 2;
-        sock->sendPacket((void*)&fail, P_LS2CL_REP_SHARD_SELECT_FAIL, sizeof(sP_LS2CL_REP_SHARD_SELECT_FAIL));
-        return;
-    }
+    if (!Database::validateCharacter(selection->iPC_UID, loginSessions[sock].userID))
+        return invalidCharacter(sock);
 
     DEBUGLOG(
     std::cout << "P_CL2LS_REQ_CHAR_SELECT:" << std::endl;
