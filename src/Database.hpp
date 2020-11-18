@@ -130,6 +130,7 @@ namespace Database {
     // returns slot number
     int deleteCharacter(int characterID, int userID);
     std::vector <Player> getCharacters(int userID);
+    std::vector <sP_LS2CL_REP_CHAR_INFO> getCharInfo(int userID);
     // accepting/declining custom name
     enum class CustomName {
         APPROVE = 1,

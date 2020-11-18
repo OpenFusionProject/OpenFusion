@@ -7,9 +7,7 @@
 #include <map>
 
 struct CNLoginData {
-    std::map<int64_t, Player> characters;
-    int64_t selectedChar;
-    int userID; int slot;
+    int userID;
     time_t lastHeartbeat;
 };
 
@@ -37,7 +35,6 @@ private:
     static void characterCreate(CNSocket* sock, CNPacketData* data);
     static void characterDelete(CNSocket* sock, CNPacketData* data);
     static void characterSelect(CNSocket* sock, CNPacketData* data);
-    static void shardSelect(CNSocket* sock, CNPacketData* data);
     static void finishTutorial(CNSocket* sock, CNPacketData* data);
     static void changeName(CNSocket* sock, CNPacketData* data);
     static void duplicateExit(CNSocket* sock, CNPacketData* data);
