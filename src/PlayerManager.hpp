@@ -19,12 +19,7 @@ namespace PlayerManager {
     void addPlayer(CNSocket* key, Player plr);
     void removePlayer(CNSocket* key);
 
-    bool removePlayerFromChunks(std::vector<Chunk*> chunks, CNSocket* sock);
-    void addPlayerToChunks(std::vector<Chunk*> chunks, CNSocket* sock);
-
-    void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z);
-    void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, int angle);
-    void updatePlayerChunk(CNSocket* sock, int X, int Y, uint64_t instanceID);
+    void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, uint64_t I, int angle);
 
     void sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I);
     void sendPlayerTo(CNSocket* sock, int X, int Y, int Z);

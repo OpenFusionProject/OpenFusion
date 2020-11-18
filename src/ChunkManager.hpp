@@ -4,10 +4,10 @@
 #include "CNStructs.hpp"
 
 #include <utility>
-#include <vector>
 #include <set>
 #include <map>
 #include <tuple>
+#include <algorithm>
 
 class Chunk {
 public:
@@ -28,19 +28,27 @@ namespace ChunkManager {
     extern std::map<ChunkPos, Chunk*> chunks;
 
     void newChunk(ChunkPos pos);
-    void populateNewChunk(Chunk* chunk, ChunkPos pos);
-    void addNPC(int posX, int posY, uint64_t instanceID, int32_t id);
-    void addPlayer(int posX, int posY, uint64_t instanceID, CNSocket* sock);
-    bool removePlayer(ChunkPos chunkPos, CNSocket* sock);
-    bool removeNPC(ChunkPos chunkPos, int32_t id);
-    bool checkChunk(ChunkPos chunk);
-    void destroyChunk(ChunkPos chunkPos);
-    ChunkPos grabChunk(int posX, int posY, uint64_t instanceID);
-    std::vector<Chunk*> grabChunks(ChunkPos chunkPos);
-    std::vector<Chunk*> getDeltaChunks(std::vector<Chunk*> from, std::vector<Chunk*> to);
+
+    void updatePlayerChunk(CNSocket* sock, ChunkPos from, ChunkPos to);
+    void updateNPCChunk(int32_t id, ChunkPos from, ChunkPos to);
+
+    void trackPlayer(ChunkPos chunkPos, CNSocket* sock);
+    void trackNPC(ChunkPos chunkPos, int32_t id);
+    void untrackPlayer(ChunkPos chunkPos, CNSocket* sock);
+    void untrackNPC(ChunkPos chunkPos, int32_t id);
+
+    void addPlayerToChunks(std::set<Chunk*> chnks, CNSocket* sock);
+    void addNPCToChunks(std::set<Chunk*> chnks, int32_t id);
+    void removePlayerFromChunks(std::set<Chunk*> chnks, CNSocket* sock);
+    void removeNPCFromChunks(std::set<Chunk*> chnks, int32_t id);
+
+    bool chunkExists(ChunkPos chunk);
+    void emptyChunk(ChunkPos chunkPos);
+    ChunkPos chunkPosAt(int posX, int posY, uint64_t instanceID);
+    std::set<Chunk*> getViewableChunks(ChunkPos chunkPos);
+
     std::vector<ChunkPos> getChunksInMap(uint64_t mapNum);
     bool inPopulatedChunks(int posX, int posY, uint64_t instanceID);
-
     void createInstance(uint64_t);
     void destroyInstance(uint64_t);
     void destroyInstanceIfEmpty(uint64_t);

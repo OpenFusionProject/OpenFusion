@@ -232,7 +232,7 @@ void summonWCommand(std::string full, std::vector<std::string>& args, CNSocket* 
     npc->appearanceData.iAngle = (plr->angle + 180) % 360;
     NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
 
-    NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z);
+    NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z, plr->instanceID, npc->appearanceData.iAngle);
 
     // if we're in a lair, we need to spawn the NPC in both the private instance and the template
     if (PLAYERID(plr->instanceID) != 0) {
@@ -251,7 +251,7 @@ void summonWCommand(std::string full, std::vector<std::string>& args, CNSocket* 
         npc->appearanceData.iAngle = (plr->angle + 180) % 360;
         NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
 
-        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z);
+        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z, npc->instanceID, npc->appearanceData.iAngle);
     }
 
     ChatManager::sendServerMessage(sock, "/summonW: placed mob with type: " + std::to_string(type) +
@@ -262,7 +262,8 @@ void summonWCommand(std::string full, std::vector<std::string>& args, CNSocket* 
 void unsummonWCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
 
-    BaseNPC* npc = NPCManager::getNearestNPC(*plr->currentChunks, plr->x, plr->y, plr->z);
+    std::vector<Chunk*> chunks; // TODO
+    BaseNPC* npc = NPCManager::getNearestNPC(chunks, plr->x, plr->y, plr->z);
 
     if (npc == nullptr) {
         ChatManager::sendServerMessage(sock, "/unsummonW: No NPCs found nearby");
@@ -318,7 +319,8 @@ void toggleAiCommand(std::string full, std::vector<std::string>& args, CNSocket*
 void npcRotateCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
 
-    BaseNPC* npc = NPCManager::getNearestNPC(*plr->currentChunks, plr->x, plr->y, plr->z);
+    std::vector<Chunk*> chunks; // TODO
+    BaseNPC* npc = NPCManager::getNearestNPC(chunks, plr->x, plr->y, plr->z);
 
     if (npc == nullptr) {
         ChatManager::sendServerMessage(sock, "[NPCR] No NPCs found nearby");
@@ -326,11 +328,11 @@ void npcRotateCommand(std::string full, std::vector<std::string>& args, CNSocket
     }
 
     int angle = (plr->angle + 180) % 360;
-    NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ, angle);
+    NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ, npc->instanceID, angle);
 
     // if it's a gruntwork NPC, rotate in-place
     if (TableData::RunningMobs.find(npc->appearanceData.iNPC_ID) != TableData::RunningMobs.end()) {
-        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ, angle);
+        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ, npc->instanceID, angle);
 
         ChatManager::sendServerMessage(sock, "[NPCR] Successfully set angle to " + std::to_string(angle) + " for gruntwork NPC "
             + std::to_string(npc->appearanceData.iNPC_ID));
@@ -385,7 +387,8 @@ void npcInstanceCommand(std::string full, std::vector<std::string>& args, CNSock
         return;
     }
 
-    BaseNPC* npc = NPCManager::getNearestNPC(*plr->currentChunks, plr->x, plr->y, plr->z);
+    std::vector<Chunk*> chunks; // TODO
+    BaseNPC* npc = NPCManager::getNearestNPC(chunks, plr->x, plr->y, plr->z);
 
     if (npc == nullptr) {
         ChatManager::sendServerMessage(sock, "[NPCI] No NPCs found nearby");
@@ -402,7 +405,7 @@ void npcInstanceCommand(std::string full, std::vector<std::string>& args, CNSock
 
     ChatManager::sendServerMessage(sock, "[NPCI] Moving NPC with ID " + std::to_string(npc->appearanceData.iNPC_ID) + " to instance " + std::to_string(instance));
     TableData::RunningNPCMapNumbers[npc->appearanceData.iNPC_ID] = instance;
-    NPCManager::updateNPCInstance(npc->appearanceData.iNPC_ID, instance);
+    NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ, instance, npc->appearanceData.iAngle);
 }
 
 void minfoCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
@@ -492,7 +495,7 @@ void eggCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
     Egg* egg = new Egg(plr->x + addX, plr->y + addY, plr->z, plr->instanceID, eggType, id, false); // change last arg to true after gruntwork
     NPCManager::NPCs[id] = egg;
     NPCManager::Eggs[id] = egg;
-    NPCManager::updateNPCPosition(id, plr->x + addX, plr->y + addY, plr->z, plr->instanceID);
+    NPCManager::updateNPCPosition(id, plr->x + addX, plr->y + addY, plr->z, plr->instanceID, plr->angle);
 
     // add to template
     TableData::RunningEggs[id] = egg;

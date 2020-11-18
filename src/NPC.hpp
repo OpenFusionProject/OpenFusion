@@ -24,8 +24,6 @@ public:
         appearanceData.iNPC_ID = id;
 
         instanceID = iID;
-
-        chunkPos = std::make_tuple(0, 0, instanceID);
     };
     BaseNPC(int x, int y, int z, int angle, uint64_t iID, int type, int id, NPCClass classType) : BaseNPC(x, y, z, angle, iID, type, id) {
         npcClass = classType;

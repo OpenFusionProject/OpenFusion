@@ -554,7 +554,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
 
         auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, mob->target->plr->x, mob->target->plr->y,std::min(distance-(int)mob->data["m_iAtkRange"]+1, speed*2/5));
 
-        NPCManager::updateNPCPosition(mob->appearanceData.iNPC_ID, targ.first, targ.second, mob->appearanceData.iZ);
+        NPCManager::updateNPCPosition(mob->appearanceData.iNPC_ID, targ.first, targ.second, mob->appearanceData.iZ, mob->instanceID, mob->appearanceData.iAngle);
 
         INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
 
@@ -1115,7 +1115,8 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
     CNSocket *closest = nullptr;
     int closestDistance = INT_MAX;
 
-    for (Chunk *chunk : mob->currentChunks) {
+    std::set<Chunk*> chunks = ChunkManager::getViewableChunks(ChunkManager::chunkPosAt(mob->appearanceData.iX, mob->appearanceData.iY, mob->instanceID));
+    for (Chunk *chunk : chunks) {
         for (CNSocket *s : chunk->players) {
             Player *plr = s->plr;
 

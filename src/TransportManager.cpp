@@ -142,16 +142,7 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
     switch (route.type) {
     case 1: // S.C.A.M.P.E.R.
         target = Locations[route.end];
-        plr->x = target.x;
-        plr->y = target.y;
-        plr->z = target.z;
-        /*
-         * Not strictly necessary since there isn't a valid SCAMPER that puts you in the
-         * same map tile you were already in, but we might as well force an NPC reload.
-         */
-        PlayerManager::removePlayerFromChunks(*plr->currentChunks, sock);
-        plr->currentChunks->clear();
-        plr->chunkPos = std::make_tuple(0, 0, plr->instanceID);
+        PlayerManager::updatePlayerPosition(sock, target.x, target.y, target.z, INSTANCE_OVERWORLD, plr->angle);
         break;
     case 2: // Monkey Skyway
         if (SkywayPaths.find(route.mssRouteNum) != SkywayPaths.end()) { // check if route exists
@@ -254,7 +245,7 @@ void TransportManager::stepSkywaySystem() {
             bmstk.iToZ = point.z;
             it->first->sendPacket((void*)&bmstk, P_FE2CL_PC_BROOMSTICK_MOVE, sizeof(sP_FE2CL_PC_BROOMSTICK_MOVE));
             // set player location to point to update viewables
-            PlayerManager::updatePlayerChunk(it->first, point.x, point.y, plr->instanceID);
+            PlayerManager::updatePlayerPosition(it->first, point.x, point.y, point.z, plr->instanceID, plr->angle);
             // send packet to players in view
             PlayerManager::sendToViewable(it->first, (void*)&bmstk, P_FE2CL_PC_BROOMSTICK_MOVE, sizeof(sP_FE2CL_PC_BROOMSTICK_MOVE));
 
@@ -301,7 +292,7 @@ void TransportManager::stepNPCPathing() {
         int distanceBetween = hypot(dXY, point.z - npc->appearanceData.iZ); // total distance
 
         // update NPC location to update viewables
-        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, point.x, point.y, point.z);
+        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, point.x, point.y, point.z, npc->instanceID, npc->appearanceData.iAngle);
 
         switch (npc->npcClass) {
         case NPC_BUS:

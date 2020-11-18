@@ -77,7 +77,7 @@ struct Player {
     bool buddiesSynced;
     int64_t buddyIDs[50];
 
-    ChunkPos chunkPos;
-    std::vector<Chunk*>* currentChunks;
+    //ChunkPos chunkPos;
+    std::set<Chunk*>* currentChunks;
     time_t lastHeartbeat;
 };

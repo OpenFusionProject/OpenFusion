@@ -43,7 +43,8 @@ void TableData::init() {
             BaseNPC *tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], npc["angle"], instanceID, npc["id"], nextId);
 
             NPCManager::NPCs[nextId] = tmp;
-            NPCManager::updateNPCPosition(nextId, npc["x"], npc["y"], npc["z"]);
+            NPCManager::updateNPCPosition(nextId, npc["x"], npc["y"], npc["z"], instanceID, npc["angle"]);
+            ChunkManager::updateNPCChunk(nextId, {0, 0, 0}, ChunkManager::chunkPosAt(npc["x"], npc["y"], instanceID));
             nextId++;
 
             if (npc["id"] == 641 || npc["id"] == 642)
@@ -210,7 +211,8 @@ void TableData::init() {
 
             NPCManager::NPCs[nextId] = tmp;
             MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
-            NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"]);
+            NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
+            ChunkManager::updateNPCChunk(nextId, { 0, 0, 0 }, ChunkManager::chunkPosAt(npc["iX"], npc["iY"], instanceID));
 
             nextId++;
         }
@@ -282,7 +284,7 @@ void TableData::loadPaths(int* nextId) {
                 // spawn a slider
                 BaseNPC* slider = new BaseNPC(sliderPoint["iX"], sliderPoint["iY"], sliderPoint["iZ"], 0, INSTANCE_OVERWORLD, 1, (*nextId)++, NPC_BUS);
                 NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
-                NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->appearanceData.iX, slider->appearanceData.iY, slider->appearanceData.iZ);
+                NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->appearanceData.iX, slider->appearanceData.iY, slider->appearanceData.iZ, INSTANCE_OVERWORLD, 0);
                 // set slider path to a rotation of the circuit
                 constructPathSlider(pathDataSlider, pos, slider->appearanceData.iNPC_ID);
 
@@ -466,7 +468,7 @@ void TableData::loadEggs(int32_t* nextId) {
             Egg* addEgg = new Egg((int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, (int)egg["iType"], id, false);
             NPCManager::NPCs[id] = addEgg;
             NPCManager::Eggs[id] = addEgg;
-            NPCManager::updateNPCPosition(id, (int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID);
+            NPCManager::updateNPCPosition(id, (int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, 0);
         }
 
         std::cout << "[INFO] Loaded " <<NPCManager::Eggs.size()<<" eggs" <<std::endl;
@@ -599,7 +601,8 @@ void TableData::loadGruntwork(int32_t *nextId) {
             if (NPCManager::NPCs.find(npcID) == NPCManager::NPCs.end())
                 continue; // NPC not found
             BaseNPC* npc = NPCManager::NPCs[npcID];
-            NPCManager::updateNPCInstance(npc->appearanceData.iNPC_ID, instanceID);
+            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->appearanceData.iX, npc->appearanceData.iY,
+                npc->appearanceData.iZ, instanceID, npc->appearanceData.iAngle);
 
             RunningNPCMapNumbers[npcID] = instanceID;
         }
@@ -626,7 +629,7 @@ void TableData::loadGruntwork(int32_t *nextId) {
 
             NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
             TableData::RunningMobs[npc->appearanceData.iNPC_ID] = npc;
-            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, mob["iX"], mob["iY"], mob["iZ"]);
+            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, mob["iX"], mob["iY"], mob["iZ"], instanceID, mob["iAngle"]);
         }
 
         auto eggs = gruntwork["eggs"];
@@ -638,7 +641,7 @@ void TableData::loadGruntwork(int32_t *nextId) {
             Egg* addEgg = new Egg((int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, (int)egg["iType"], id, false);
             NPCManager::NPCs[id] = addEgg;
             NPCManager::Eggs[id] = addEgg;
-            NPCManager::updateNPCPosition(id, (int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID);
+            NPCManager::updateNPCPosition(id, (int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, 0);
             TableData::RunningEggs[id] = addEgg;
         }
 
