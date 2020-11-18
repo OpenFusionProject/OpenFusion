@@ -199,39 +199,37 @@ void CNLoginServer::nameCheck(CNSocket* sock, CNPacketData* data) {
         return;
 
     sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck = (sP_CL2LS_REQ_CHECK_CHAR_NAME*)data->buf;
-    bool success = true;
-    int errorcode = 0;
-
-    // check regex
+    int errorCode = 0;
     if (!CNLoginServer::isCharacterNameGood(U16toU8(nameCheck->szFirstName), U16toU8(nameCheck->szLastName))) {
-        success = false;
-        errorcode = 4;
+        errorCode = 4;
     }
-    else if (!Database::isNameFree(nameCheck)) { // check if name isn't already occupied
-        success = false;
-        errorcode = 1;
+    else if (!Database::isNameFree(nameCheck)) {
+        errorCode = 1;
     }
 
-    loginSessions[sock].lastHeartbeat = getTime();
-
-    if (success) {
-        INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC, resp);
+    if (errorCode != 0) {
+        INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL, resp);
+        resp.iErrorCode = errorCode;
+        sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_FAIL, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL));
 
         DEBUGLOG(
-            std::cout << "P_CL2LS_REQ_CHECK_CHAR_NAME:" << std::endl;
-        std::cout << "\tFirstName: " << U16toU8(nameCheck->szFirstName) << " LastName: " << U16toU8(nameCheck->szLastName) << std::endl;
+        std::cout << "Login Server: name check fail. Error code " << errorCode << std::endl;
         )
 
-            memcpy(resp.szFirstName, nameCheck->szFirstName, sizeof(char16_t) * 9);
-        memcpy(resp.szLastName, nameCheck->szLastName, sizeof(char16_t) * 17);
+        return;
+    }
+    loginSessions[sock].lastHeartbeat = getTime();
 
-        sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC));
-    }
-    else {
-        INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL, resp);
-        resp.iErrorCode = errorcode;
-        sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_FAIL, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL));
-    }
+    INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC, resp);
+    memcpy(resp.szFirstName, nameCheck->szFirstName, sizeof(char16_t) * 9);
+    memcpy(resp.szLastName, nameCheck->szLastName, sizeof(char16_t) * 17);
+
+    sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC));
+
+    DEBUGLOG(
+    std::cout << "Login Server: name check success" << std::endl;
+    std::cout << "\tFirstName: " << U16toU8(nameCheck->szFirstName) << " LastName: " << U16toU8(nameCheck->szLastName) << std::endl;
+    )
 }
 
 void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
@@ -240,12 +238,6 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2LS_REQ_SAVE_CHAR_NAME* save = (sP_CL2LS_REQ_SAVE_CHAR_NAME*)data->buf;
     INITSTRUCT(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC, resp);
-
-    DEBUGLOG(
-        std::cout << "P_CL2LS_REQ_SAVE_CHAR_NAME:" << std::endl;
-    std::cout << "\tSlot: " << (int)save->iSlotNum << std::endl;
-    std::cout << "\tName: " << U16toU8(save->szFirstName) << " " << U16toU8(save->szLastName) << std::endl;
-    )
 
     resp.iSlotNum = save->iSlotNum;
     resp.iGender = save->iGender;
@@ -258,18 +250,23 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_LS2CL_REP_SAVE_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC));
 
     Database::updateSelected(loginSessions[sock].userID, save->iSlotNum);
+
+    DEBUGLOG(
+    std::cout << "Login Server: new character created" << std::endl;
+    std::cout << "\tSlot: " << (int)save->iSlotNum << std::endl;
+    std::cout << "\tName: " << U16toU8(save->szFirstName) << " " << U16toU8(save->szLastName) << std::endl;
+    )
 }
 
 void invalidCharacter(CNSocket* sock) {
     INITSTRUCT(sP_LS2CL_REP_SHARD_SELECT_FAIL, fail);
     fail.iErrorCode = 2;
-    sock->sendPacket((void*)&fail, P_LS2CL_REP_SHARD_SELECT_FAIL, sizeof(sP_LS2CL_REP_SHARD_SELECT_FAIL));
-    return;
+    sock->sendPacket((void*)&fail, P_LS2CL_REP_SHARD_SELECT_FAIL, sizeof(sP_LS2CL_REP_SHARD_SELECT_FAIL));   
 
     DEBUGLOG(
         std::cout << "Login Server: Selected character error" << std::endl;
     )
-
+    return;
 }
 
 void CNLoginServer::characterCreate(CNSocket* sock, CNPacketData* data) {
@@ -283,8 +280,22 @@ void CNLoginServer::characterCreate(CNSocket* sock, CNPacketData* data) {
 
     Database::finishCharacter(character);
 
+    Player player = Database::getPlayer(character->PCStyle.iPC_UID);
+    int64_t UID = player.iID;
+
+    INITSTRUCT(sP_LS2CL_REP_CHAR_CREATE_SUCC, resp);
+    resp.sPC_Style = player.PCStyle;
+    resp.sPC_Style2 = player.PCStyle2;
+    resp.iLevel = player.level;
+    resp.sOn_Item = character->sOn_Item;
+
+    loginSessions[sock].lastHeartbeat = getTime();
+
+    sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_CREATE_SUCC, sizeof(sP_LS2CL_REP_CHAR_CREATE_SUCC));
+    Database::updateSelected(loginSessions[sock].userID, player.slot);   
+
     DEBUGLOG(
-        std::cout << "P_CL2LS_REQ_CHAR_CREATE:" << std::endl;
+    std::cout << "Login Server: Character creation completed" << std::endl;
     std::cout << "\tPC_UID: " << character->PCStyle.iPC_UID << std::endl;
     std::cout << "\tNameCheck: " << (int)character->PCStyle.iNameCheck << std::endl;
     std::cout << "\tName: " << U16toU8(character->PCStyle.szFirstName) << " " << U16toU8(character->PCStyle.szLastName) << std::endl;
@@ -301,20 +312,6 @@ void CNLoginServer::characterCreate(CNSocket* sock, CNPacketData* data) {
     std::cout << "\tiEquipLBID: " << (int)character->sOn_Item.iEquipLBID << std::endl;
     std::cout << "\tiEquipFootID: " << (int)character->sOn_Item.iEquipFootID << std::endl;
     )
-
-    Player player = Database::getPlayer(character->PCStyle.iPC_UID);
-    int64_t UID = player.iID;
-
-    INITSTRUCT(sP_LS2CL_REP_CHAR_CREATE_SUCC, resp);
-    resp.sPC_Style = player.PCStyle;
-    resp.sPC_Style2 = player.PCStyle2;
-    resp.iLevel = player.level;
-    resp.sOn_Item = character->sOn_Item;
-
-    loginSessions[sock].lastHeartbeat = getTime();
-
-    sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_CREATE_SUCC, sizeof(sP_LS2CL_REP_CHAR_CREATE_SUCC));
-    Database::updateSelected(loginSessions[sock].userID, player.slot);   
 }
 
 void CNLoginServer::characterDelete(CNSocket* sock, CNPacketData* data) {
@@ -322,12 +319,20 @@ void CNLoginServer::characterDelete(CNSocket* sock, CNPacketData* data) {
         return;
 
     sP_CL2LS_REQ_CHAR_DELETE* del = (sP_CL2LS_REQ_CHAR_DELETE*)data->buf;
-    int operationResult = Database::deleteCharacter(del->iPC_UID, loginSessions[sock].userID);
+
+    if (!Database::validateCharacter(del->iPC_UID, loginSessions[sock].userID))
+        return invalidCharacter(sock);
+
+    int removedSlot = Database::deleteCharacter(del->iPC_UID, loginSessions[sock].userID);
 
     INITSTRUCT(sP_LS2CL_REP_CHAR_DELETE_SUCC, resp);
-    resp.iSlotNum = operationResult;
+    resp.iSlotNum = removedSlot;
     sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_DELETE_SUCC, sizeof(sP_LS2CL_REP_CHAR_DELETE_SUCC));
     loginSessions[sock].lastHeartbeat = getTime();
+
+    DEBUGLOG(
+        std::cout << "Login Server: Character [" << del->iPC_UID << "] deleted" << std::endl;
+    )
 }
 
 void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
@@ -342,8 +347,8 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
         return invalidCharacter(sock);
 
     DEBUGLOG(
-    std::cout << "P_CL2LS_REQ_CHAR_SELECT:" << std::endl;
-    std::cout << "\tPC_UID: " << selection->iPC_UID << std::endl;
+    std::cout << "Login Server: Selected character [" << selection->iPC_UID << "]" << std::endl;
+    std::cout << "Connecting to shard server" << std::endl;
     )
   
     // copy IP to resp (this struct uses ASCII encoding so we don't have to goof around converting encodings)
@@ -359,10 +364,9 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
     CNSharedData::setPlayer(resp.iEnterSerialKey, passPlayer);
 
     sock->sendPacket((void*)&resp, P_LS2CL_REP_SHARD_SELECT_SUCC, sizeof(sP_LS2CL_REP_SHARD_SELECT_SUCC));
-
+    
     // update current slot in DB
     Database::updateSelected(loginSessions[sock].userID, passPlayer.slot);
-
 }
 
 void CNLoginServer::finishTutorial(CNSocket* sock, CNPacketData* data) {
@@ -372,6 +376,10 @@ void CNLoginServer::finishTutorial(CNSocket* sock, CNPacketData* data) {
     Database::finishTutorial(save->iPC_UID);
     loginSessions[sock].lastHeartbeat = getTime();
     // no response here
+
+    DEBUGLOG(
+        std::cout << "Login Server: Character [" << save->iPC_UID << "] completed tutorial" << std::endl;
+    )
 }
 
 void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
@@ -390,6 +398,11 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
     loginSessions[sock].lastHeartbeat = getTime();
 
     sock->sendPacket((void*)&resp, P_LS2CL_REP_CHANGE_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHANGE_CHAR_NAME_SUCC));
+
+    DEBUGLOG(
+        std::cout << "Login Server: Name check success for character [" << save->iPCUID << "]" << std::endl;
+        std::cout << "\tNew name: " << U16toU8(save->szFirstName) << " " << U16toU8(save->szLastName) << std::endl;     
+    )
 }
 
 void CNLoginServer::duplicateExit(CNSocket* sock, CNPacketData* data) {
@@ -415,6 +428,9 @@ void CNLoginServer::newConnection(CNSocket* cns) {
 }
 
 void CNLoginServer::killConnection(CNSocket* cns) {
+    DEBUGLOG(
+        std::cout << "Login Server: Account [" << loginSessions[cns].userID << "] disconnected from login server" << std::endl;
+    )
     loginSessions.erase(cns);
 }
 
