@@ -28,6 +28,7 @@ namespace ChunkManager {
     extern std::map<ChunkPos, Chunk*> chunks;
 
     void newChunk(ChunkPos pos);
+    void deleteChunk(ChunkPos pos);
 
     void updatePlayerChunk(CNSocket* sock, ChunkPos from, ChunkPos to);
     void updateNPCChunk(int32_t id, ChunkPos from, ChunkPos to);
@@ -48,7 +49,7 @@ namespace ChunkManager {
     std::set<Chunk*> getViewableChunks(ChunkPos chunkPos);
 
     std::vector<ChunkPos> getChunksInMap(uint64_t mapNum);
-    bool inPopulatedChunks(int posX, int posY, uint64_t instanceID);
+    bool inPopulatedChunks(std::set<Chunk*>* chnks);
     void createInstance(uint64_t);
     void destroyInstance(uint64_t);
     void destroyInstanceIfEmpty(uint64_t);

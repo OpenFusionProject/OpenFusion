@@ -689,11 +689,9 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
 
 void MobManager::step(CNServer *serv, time_t currTime) {
     for (auto& pair : Mobs) {
-        int x = pair.second->appearanceData.iX;
-        int y = pair.second->appearanceData.iY;
 
         // skip chunks without players
-        if (!ChunkManager::inPopulatedChunks(x, y, pair.second->instanceID))
+        if (!ChunkManager::inPopulatedChunks(pair.second->viewableChunks))
             continue;
 
         // skip mob movement and combat if disabled
@@ -1115,8 +1113,8 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
     CNSocket *closest = nullptr;
     int closestDistance = INT_MAX;
 
-    std::set<Chunk*> chunks = ChunkManager::getViewableChunks(mob->chunkPos);
-    for (Chunk *chunk : chunks) {
+    for (auto it = mob->viewableChunks->begin(); it != mob->viewableChunks->end(); it++) {
+        Chunk* chunk = *it;
         for (CNSocket *s : chunk->players) {
             Player *plr = s->plr;
 

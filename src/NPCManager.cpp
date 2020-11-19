@@ -103,8 +103,8 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z, uint64_t I, 
 }
 
 void NPCManager::sendToViewable(BaseNPC *npc, void *buf, uint32_t type, size_t size) {
-    std::set<Chunk*> chunks = ChunkManager::getViewableChunks(npc->chunkPos);
-    for (Chunk *chunk : chunks) {
+    for (auto it = npc->viewableChunks->begin(); it != npc->viewableChunks->end(); it++) {
+        Chunk* chunk = *it;
         for (CNSocket *s : chunk->players) {
             s->sendPacket(buf, type, size);
         }
@@ -718,7 +718,7 @@ void NPCManager::eggStep(CNServer* serv, time_t currTime) {
 
     // check dead eggs and eggs in inactive chunks
     for (auto egg : Eggs) {
-        if (!egg.second->dead || !ChunkManager::inPopulatedChunks(egg.second->appearanceData.iX, egg.second->appearanceData.iY, egg.second->instanceID))
+        if (!egg.second->dead || !ChunkManager::inPopulatedChunks(egg.second->viewableChunks))
             continue;
         if (egg.second->deadUntil <= timeStamp) {
             // respawn it

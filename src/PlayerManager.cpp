@@ -54,6 +54,7 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
 
     players[key] = p;
     p->chunkPos = std::make_tuple(0, 0, 0);
+    p->viewableChunks = new std::set<Chunk*>();
     p->lastHeartbeat = 0;
 
     key->plr = p;
@@ -291,8 +292,8 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
 void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size) {
     Player* plr = getPlayer(sock);
-    std::set<Chunk*> chunks = ChunkManager::getViewableChunks(plr->chunkPos);
-    for (Chunk* chunk : chunks) {
+    for (auto it = plr->viewableChunks->begin(); it != plr->viewableChunks->end(); it++) {
+        Chunk* chunk = *it;
         for (CNSocket* otherSock : chunk->players) {
             if (otherSock == sock)
                 continue;

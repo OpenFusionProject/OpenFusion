@@ -20,6 +20,37 @@ void ChunkManager::newChunk(ChunkPos pos) {
     chunk->NPCs = std::set<int32_t>();
 
     chunks[pos] = chunk;
+
+    // add the chunk to the cache of all players and NPCs in the surrounding chunks
+    std::set<Chunk*> surroundings = getViewableChunks(pos);
+    for (Chunk* c : surroundings) {
+        for (CNSocket* sock : c->players)
+            PlayerManager::getPlayer(sock)->viewableChunks->insert(chunk);
+        for (int32_t id : c->NPCs)
+            NPCManager::NPCs[id]->viewableChunks->insert(chunk);
+    }
+}
+
+void ChunkManager::deleteChunk(ChunkPos pos) {
+    if (!chunkExists(pos)) {
+        std::cout << "[WARN] Tried to delete a chunk that doesn't exist\n";
+        return;
+    }
+
+    Chunk* chunk = chunks[pos];
+
+    // remove the chunk from the cache of all players and NPCs in the surrounding chunks
+    std::set<Chunk*> surroundings = getViewableChunks(pos);
+    for(Chunk* c : surroundings)
+    {
+        for (CNSocket* sock : c->players)
+            PlayerManager::getPlayer(sock)->viewableChunks->erase(chunk);
+        for (int32_t id : c->NPCs)
+            NPCManager::NPCs[id]->viewableChunks->erase(chunk);
+    }
+
+    chunks.erase(pos); // remove from map
+    delete chunk; // free from memory
 }
 
 void ChunkManager::updatePlayerChunk(CNSocket* sock, ChunkPos from, ChunkPos to) {
@@ -53,6 +84,9 @@ void ChunkManager::updatePlayerChunk(CNSocket* sock, ChunkPos from, ChunkPos to)
     addPlayerToChunks(toEnter, sock);
 
     plr->chunkPos = to; // update cached chunk position
+    // updated cached viewable chunks
+    plr->viewableChunks->clear();
+    plr->viewableChunks->insert(newViewables.begin(), newViewables.end());
 }
 
 void ChunkManager::updateNPCChunk(int32_t id, ChunkPos from, ChunkPos to) {
@@ -85,7 +119,10 @@ void ChunkManager::updateNPCChunk(int32_t id, ChunkPos from, ChunkPos to) {
     removeNPCFromChunks(toExit, id);
     addNPCToChunks(toEnter, id);
 
-    npc->chunkPos = to;
+    npc->chunkPos = to; // update cached chunk position
+    // updated cached viewable chunks
+    npc->viewableChunks->clear();
+    npc->viewableChunks->insert(newViewables.begin(), newViewables.end());
 }
 
 void ChunkManager::trackPlayer(ChunkPos chunkPos, CNSocket* sock) {
@@ -111,10 +148,8 @@ void ChunkManager::untrackPlayer(ChunkPos chunkPos, CNSocket* sock) {
     chunk->players.erase(sock); // gone
 
     // if chunk is empty, free it
-    if (chunk->NPCs.size() == 0 && chunk->players.size() == 0) {
-        chunks.erase(chunkPos); // remove from map
-        delete chunk; // free from memory
-    }
+    if (chunk->NPCs.size() == 0 && chunk->players.size() == 0)
+        deleteChunk(chunkPos);
 }
 
 void ChunkManager::untrackNPC(ChunkPos chunkPos, int32_t id) {
@@ -126,10 +161,8 @@ void ChunkManager::untrackNPC(ChunkPos chunkPos, int32_t id) {
     chunk->NPCs.erase(id); // gone
 
     // if chunk is empty, free it
-    if (chunk->NPCs.size() == 0 && chunk->players.size() == 0) {
-        chunks.erase(chunkPos); // remove from map
-        delete chunk; // free from memory
-    }
+    if (chunk->NPCs.size() == 0 && chunk->players.size() == 0)
+        deleteChunk(chunkPos);
 }
 
 void ChunkManager::addPlayerToChunks(std::set<Chunk*> chnks, CNSocket* sock) {
@@ -394,11 +427,10 @@ std::vector<ChunkPos> ChunkManager::getChunksInMap(uint64_t mapNum) {
     return chnks;
 }
 
-bool ChunkManager::inPopulatedChunks(int posX, int posY, uint64_t instanceID) {
-    auto nearbyChunks = ChunkManager::getViewableChunks(chunkPosAt(posX, posY, instanceID));
+bool ChunkManager::inPopulatedChunks(std::set<Chunk*>* chnks) {
 
-    for (Chunk *c: nearbyChunks) {
-        if (!c->players.empty())
+    for (auto it = chnks->begin(); it != chnks->end(); it++) {
+        if (!(*it)->players.empty())
             return true;
     }
 

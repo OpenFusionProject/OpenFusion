@@ -78,5 +78,6 @@ struct Player {
     int64_t buddyIDs[50];
 
     ChunkPos chunkPos;
+    std::set<Chunk*>* viewableChunks;
     time_t lastHeartbeat;
 };
