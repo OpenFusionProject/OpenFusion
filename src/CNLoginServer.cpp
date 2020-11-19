@@ -136,7 +136,7 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
     std::vector<sP_LS2CL_REP_CHAR_INFO> characters = Database::getCharInfo(loginSessions[sock].userID);
 
     INITSTRUCT(sP_LS2CL_REP_LOGIN_SUCC, resp);
-    memcpy(resp.szID, login->szID, sizeof(char16_t) * 33);
+    memcpy(resp.szID, login->szID, sizeof(login->szID));
 
     resp.iCharCount = characters.size();
     resp.iSlotNum = findUser->Selected;
@@ -221,8 +221,8 @@ void CNLoginServer::nameCheck(CNSocket* sock, CNPacketData* data) {
     loginSessions[sock].lastHeartbeat = getTime();
 
     INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC, resp);
-    memcpy(resp.szFirstName, nameCheck->szFirstName, sizeof(char16_t) * 9);
-    memcpy(resp.szLastName, nameCheck->szLastName, sizeof(char16_t) * 17);
+    memcpy(resp.szFirstName, nameCheck->szFirstName, sizeof(nameCheck->szFirstName));
+    memcpy(resp.szLastName, nameCheck->szLastName, sizeof(nameCheck->szLastName));
 
     sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC));
 
@@ -242,8 +242,8 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
     resp.iSlotNum = save->iSlotNum;
     resp.iGender = save->iGender;
     resp.iPC_UID = Database::createCharacter(save, loginSessions[sock].userID);
-    memcpy(resp.szFirstName, save->szFirstName, sizeof(char16_t) * 9);
-    memcpy(resp.szLastName, save->szLastName, sizeof(char16_t) * 17);
+    memcpy(resp.szFirstName, save->szFirstName, sizeof(save->szFirstName));
+    memcpy(resp.szLastName, save->szLastName, sizeof(save->szLastName));
 
     loginSessions[sock].lastHeartbeat = getTime();
 
@@ -399,8 +399,8 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_LS2CL_REP_CHANGE_CHAR_NAME_SUCC, resp);
     resp.iPC_UID = save->iPCUID;
-    memcpy(resp.szFirstName, save->szFirstName, sizeof(char16_t) * 9);
-    memcpy(resp.szLastName, save->szLastName, sizeof(char16_t) * 17);
+    memcpy(resp.szFirstName, save->szFirstName, sizeof(save->szFirstName));
+    memcpy(resp.szLastName, save->szLastName, sizeof(save->szLastName));
     resp.iSlotNum = save->iSlotNum;
 
     loginSessions[sock].lastHeartbeat = getTime();
