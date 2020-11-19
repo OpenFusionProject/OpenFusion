@@ -62,19 +62,18 @@ void NPCManager::destroyNPC(int32_t id) {
     }
 
     BaseNPC* entity = NPCs[id];
-    ChunkPos chunkPos = ChunkManager::chunkPosAt(entity->appearanceData.iX, entity->appearanceData.iY, entity->instanceID);
 
     // sanity check
-    if (!ChunkManager::chunkExists(chunkPos)) {
+    if (!ChunkManager::chunkExists(entity->chunkPos)) {
         std::cout << "chunk not found!" << std::endl;
         return;
     }
 
     // remove NPC from the chunk
-    ChunkManager::untrackNPC(chunkPos, id);
+    ChunkManager::untrackNPC(entity->chunkPos, id);
 
     // remove from viewable chunks
-    ChunkManager::removeNPCFromChunks(ChunkManager::getViewableChunks(chunkPos), id);
+    ChunkManager::removeNPCFromChunks(ChunkManager::getViewableChunks(entity->chunkPos), id);
 
     // remove from mob manager
     if (MobManager::Mobs.find(id) != MobManager::Mobs.end())
@@ -92,7 +91,7 @@ void NPCManager::destroyNPC(int32_t id) {
 void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z, uint64_t I, int angle) {
     BaseNPC* npc = NPCs[id];
     npc->appearanceData.iAngle = angle;
-    ChunkPos oldChunk = ChunkManager::chunkPosAt(npc->appearanceData.iX, npc->appearanceData.iY, npc->instanceID);
+    ChunkPos oldChunk = npc->chunkPos;
     ChunkPos newChunk = ChunkManager::chunkPosAt(X, Y, I);
     npc->appearanceData.iX = X;
     npc->appearanceData.iY = Y;
@@ -104,7 +103,7 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z, uint64_t I, 
 }
 
 void NPCManager::sendToViewable(BaseNPC *npc, void *buf, uint32_t type, size_t size) {
-    std::set<Chunk*> chunks = ChunkManager::getViewableChunks(ChunkManager::chunkPosAt(npc->appearanceData.iX, npc->appearanceData.iY, npc->instanceID));
+    std::set<Chunk*> chunks = ChunkManager::getViewableChunks(npc->chunkPos);
     for (Chunk *chunk : chunks) {
         for (CNSocket *s : chunk->players) {
             s->sendPacket(buf, type, size);
@@ -485,7 +484,7 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
 
         updateNPCPosition(id, plr->x, plr->y, plr->z, plr->instanceID, 0);
         // force chunk update
-        ChunkManager::updateNPCChunk(id, { 0, 0, 0 }, ChunkManager::chunkPosAt(plr->x, plr->y, plr->instanceID));
+        ChunkManager::updateNPCChunk(id, std::make_tuple(0, 0, 0), ChunkManager::chunkPosAt(plr->x, plr->y, plr->instanceID));
     }
 }
 
@@ -727,7 +726,7 @@ void NPCManager::eggStep(CNServer* serv, time_t currTime) {
             egg.second->deadUntil = 0;
             egg.second->appearanceData.iHP = 400;
             
-            ChunkManager::addNPCToChunks(ChunkManager::getViewableChunks(ChunkManager::chunkPosAt(egg.second->appearanceData.iX, egg.second->appearanceData.iY, egg.second->instanceID)),
+            ChunkManager::addNPCToChunks(ChunkManager::getViewableChunks(egg.second->chunkPos),
                 egg.first);
         }
     }
@@ -896,8 +895,7 @@ void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
     if (egg->summoned)
         destroyNPC(eggId);
     else {
-        ChunkManager::removeNPCFromChunks(ChunkManager::getViewableChunks(ChunkManager::chunkPosAt(egg->appearanceData.iX, egg->appearanceData.iY, egg->instanceID)),
-            eggId);
+        ChunkManager::removeNPCFromChunks(ChunkManager::getViewableChunks(egg->chunkPos), eggId);
         egg->dead = true;
         egg->deadUntil = getTime() + (time_t)type->regen * 1000;
         egg->appearanceData.iHP = 0;

@@ -9,7 +9,6 @@ public:
     NPCClass npcClass;
     uint64_t instanceID;
     ChunkPos chunkPos;
-    std::vector<Chunk*> currentChunks;
 
     BaseNPC() {};
     BaseNPC(int x, int y, int z, int angle, uint64_t iID, int type, int id) {
@@ -24,6 +23,8 @@ public:
         appearanceData.iNPC_ID = id;
 
         instanceID = iID;
+
+        chunkPos = std::make_tuple(0, 0, 0);
     };
     BaseNPC(int x, int y, int z, int angle, uint64_t iID, int type, int id, NPCClass classType) : BaseNPC(x, y, z, angle, iID, type, id) {
         npcClass = classType;

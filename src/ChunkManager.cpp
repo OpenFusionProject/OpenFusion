@@ -51,6 +51,8 @@ void ChunkManager::updatePlayerChunk(CNSocket* sock, ChunkPos from, ChunkPos to)
     // update views
     removePlayerFromChunks(toExit, sock);
     addPlayerToChunks(toEnter, sock);
+
+    plr->chunkPos = to; // update cached chunk position
 }
 
 void ChunkManager::updateNPCChunk(int32_t id, ChunkPos from, ChunkPos to) {
@@ -82,6 +84,8 @@ void ChunkManager::updateNPCChunk(int32_t id, ChunkPos from, ChunkPos to) {
     // update views
     removeNPCFromChunks(toExit, id);
     addNPCToChunks(toEnter, id);
+
+    npc->chunkPos = to;
 }
 
 void ChunkManager::trackPlayer(ChunkPos chunkPos, CNSocket* sock) {
@@ -424,7 +428,7 @@ void ChunkManager::createInstance(uint64_t instanceID) {
                 NPCManager::updateNPCPosition(newID, baseNPC->appearanceData.iX, baseNPC->appearanceData.iY, baseNPC->appearanceData.iZ,
                     instanceID, baseNPC->appearanceData.iAngle);
                 // force chunk update
-                updateNPCChunk(newID, {0, 0, 0}, chunkPosAt(baseNPC->appearanceData.iX, baseNPC->appearanceData.iY, instanceID));
+                updateNPCChunk(newID, std::make_tuple(0, 0, 0), chunkPosAt(baseNPC->appearanceData.iX, baseNPC->appearanceData.iY, instanceID));
             }
         }
     } else {

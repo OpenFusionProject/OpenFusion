@@ -53,8 +53,7 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
     memcpy(p, &plr, sizeof(Player));
 
     players[key] = p;
-    //p->chunkPos = std::make_tuple(0, 0, 0);
-    p->currentChunks = new std::set<Chunk*>();
+    p->chunkPos = std::make_tuple(0, 0, 0);
     p->lastHeartbeat = 0;
 
     key->plr = p;
@@ -75,11 +74,9 @@ void PlayerManager::removePlayer(CNSocket* key) {
     // save player to DB
     Database::updatePlayer(plr);
 
-    ChunkPos chunkPos = ChunkManager::chunkPosAt(plr->x, plr->y, plr->instanceID);
-
     // remove player visually and untrack
-    ChunkManager::removePlayerFromChunks(ChunkManager::getViewableChunks(chunkPos), key);
-    ChunkManager::untrackPlayer(chunkPos, key);
+    ChunkManager::removePlayerFromChunks(ChunkManager::getViewableChunks(plr->chunkPos), key);
+    ChunkManager::untrackPlayer(plr->chunkPos, key);
 
     std::cout << getPlayerName(key->plr) << " has left!" << std::endl;
 
@@ -106,7 +103,7 @@ void PlayerManager::removePlayer(CNSocket* key) {
 void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, uint64_t I, int angle) {
     Player* plr = getPlayer(sock);
     plr->angle = angle;
-    ChunkPos oldChunk = ChunkManager::chunkPosAt(plr->x, plr->y, plr->instanceID);
+    ChunkPos oldChunk = plr->chunkPos;
     ChunkPos newChunk = ChunkManager::chunkPosAt(X, Y, I);
     plr->x = X;
     plr->y = Y;
@@ -294,7 +291,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
 void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size) {
     Player* plr = getPlayer(sock);
-    std::set<Chunk*> chunks = ChunkManager::getViewableChunks(ChunkManager::chunkPosAt(plr->x, plr->y, plr->instanceID));
+    std::set<Chunk*> chunks = ChunkManager::getViewableChunks(plr->chunkPos);
     for (Chunk* chunk : chunks) {
         for (CNSocket* otherSock : chunk->players) {
             if (otherSock == sock)
@@ -322,7 +319,7 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
 
     // reload players & NPCs
     updatePlayerPosition(sock, plr->x, plr->y, plr->z, plr->instanceID, plr->angle);
-    ChunkManager::updatePlayerChunk(sock, { 0, 0, 0 }, ChunkManager::chunkPosAt(plr->x, plr->y, plr->instanceID));
+    ChunkManager::updatePlayerChunk(sock, std::make_tuple(0, 0, 0), ChunkManager::chunkPosAt(plr->x, plr->y, plr->instanceID));
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC));
 }

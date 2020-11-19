@@ -44,7 +44,7 @@ void TableData::init() {
 
             NPCManager::NPCs[nextId] = tmp;
             NPCManager::updateNPCPosition(nextId, npc["x"], npc["y"], npc["z"], instanceID, npc["angle"]);
-            ChunkManager::updateNPCChunk(nextId, {0, 0, 0}, ChunkManager::chunkPosAt(npc["x"], npc["y"], instanceID));
+            ChunkManager::updateNPCChunk(nextId, std::make_tuple(0, 0, 0), ChunkManager::chunkPosAt(npc["x"], npc["y"], instanceID));
             nextId++;
 
             if (npc["id"] == 641 || npc["id"] == 642)
@@ -212,7 +212,7 @@ void TableData::init() {
             NPCManager::NPCs[nextId] = tmp;
             MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
             NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
-            ChunkManager::updateNPCChunk(nextId, { 0, 0, 0 }, ChunkManager::chunkPosAt(npc["iX"], npc["iY"], instanceID));
+            ChunkManager::updateNPCChunk(nextId, std::make_tuple(0, 0, 0), ChunkManager::chunkPosAt(npc["iX"], npc["iY"], instanceID));
 
             nextId++;
         }

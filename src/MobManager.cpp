@@ -1115,7 +1115,7 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
     CNSocket *closest = nullptr;
     int closestDistance = INT_MAX;
 
-    std::set<Chunk*> chunks = ChunkManager::getViewableChunks(ChunkManager::chunkPosAt(mob->appearanceData.iX, mob->appearanceData.iY, mob->instanceID));
+    std::set<Chunk*> chunks = ChunkManager::getViewableChunks(mob->chunkPos);
     for (Chunk *chunk : chunks) {
         for (CNSocket *s : chunk->players) {
             Player *plr = s->plr;
