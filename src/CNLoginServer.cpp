@@ -373,6 +373,10 @@ void CNLoginServer::finishTutorial(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2LS_REQ_SAVE_CHAR_TUTOR))
         return;
     sP_CL2LS_REQ_SAVE_CHAR_TUTOR* save = (sP_CL2LS_REQ_SAVE_CHAR_TUTOR*)data->buf;
+
+    if (!Database::validateCharacter(save->iPC_UID, loginSessions[sock].userID))
+        return invalidCharacter(sock);
+
     Database::finishTutorial(save->iPC_UID);
     loginSessions[sock].lastHeartbeat = getTime();
     // no response here
@@ -387,6 +391,10 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
         return;
 
     sP_CL2LS_REQ_CHANGE_CHAR_NAME* save = (sP_CL2LS_REQ_CHANGE_CHAR_NAME*)data->buf;
+
+    if (!Database::validateCharacter(save->iPCUID, loginSessions[sock].userID))
+        return invalidCharacter(sock);
+
     Database::changeName(save);
 
     INITSTRUCT(sP_LS2CL_REP_CHANGE_CHAR_NAME_SUCC, resp);
