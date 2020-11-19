@@ -528,6 +528,7 @@ void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_MENUCHAT_MESSAGE, menuChatHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_ANNOUNCE, announcementHandler);
 
     registerCommand("help", 100, helpCommand, "list all unlocked server-side commands");
     registerCommand("access", 100, accessCommand, "print your access level");
@@ -635,6 +636,38 @@ void ChatManager::sendServerMessage(CNSocket* sock, std::string msg) {
 
     // send the packet :)
     sock->sendPacket((void*)&motd, P_FE2CL_PC_MOTD_LOGIN, sizeof(sP_FE2CL_PC_MOTD_LOGIN));
+}
+
+void ChatManager::announcementHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_GM_REQ_PC_ANNOUNCE))
+        return; // ignore malformed packet
+    if (PlayerManager::getPlayer(sock)->accountLevel > 30)
+        return; // only players with account level less than 30 (GM) are allowed to use this command
+    sP_CL2FE_GM_REQ_PC_ANNOUNCE* announcement = (sP_CL2FE_GM_REQ_PC_ANNOUNCE*)data->buf;
+
+    INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
+    msg.iAnnounceType = announcement->iAnnounceType;
+    msg.iDuringTime = announcement->iDuringTime;
+    memcpy(msg.szAnnounceMsg, announcement->szAnnounceMsg, sizeof(msg.szAnnounceMsg));
+    std::map<CNSocket*, PlayerView>::iterator it;
+
+    switch (announcement->iAreaType) {
+    case 0: // area
+        break; // stubbed for now
+    case 1: // shard
+        break; //stubbed for now
+    case 2: // world
+        break; // stubbed for now
+    case 3: // global
+
+        // send announced messqage to ALL players
+        for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++) {
+            CNSocket* allSock = it->first;
+            allSock->sendPacket((void*)&msg, P_FE2CL_GM_REP_PC_ANNOUNCE, sizeof(sP_FE2CL_GM_REP_PC_ANNOUNCE));
+        }
+    default:
+        break;
+    }
 }
 
 // we only allow plain ascii, at least for now

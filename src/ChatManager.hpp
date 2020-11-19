@@ -27,6 +27,7 @@ namespace ChatManager {
     void emoteHandler(CNSocket* sock, CNPacketData* data);
     void menuChatHandler(CNSocket* sock, CNPacketData* data);
     void sendServerMessage(CNSocket* sock, std::string msg); // uses MOTD
+    void announcementHandler(CNSocket* sock, CNPacketData* data);
 
     std::string sanitizeText(std::string text);
 }
