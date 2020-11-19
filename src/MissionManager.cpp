@@ -374,8 +374,15 @@ int MissionManager::giveMissionReward(CNSocket *sock, int task) {
             fail.iErrorCode = 13; // inventory full
 
             sock->sendPacket((void*)&fail, P_FE2CL_REP_PC_TASK_END_FAIL, sizeof(sP_FE2CL_REP_PC_TASK_END_FAIL));
+
+            // delete any temp items we might have set
+            for (int j = 0; j < i; j++) {
+                plr->Inven[slots[j]] = { 0, 0, 0, 0 }; // empty
+            }
             return -1;
         }
+        
+        plr->Inven[slots[i]] = { 999, 999, 999, 0 }; // temp item; overwritten later
     }
 
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
@@ -406,8 +413,8 @@ int MissionManager::giveMissionReward(CNSocket *sock, int task) {
         item[i].iSlotNum = slots[i];
         item[i].eIL = 1;
 
-        // update player
-        plr->Inven[slots[i]] = item->sItem;
+        // update player inventory, overwriting temporary item
+        plr->Inven[slots[i]] = item[i].sItem;
     }
 
     sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
