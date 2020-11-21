@@ -459,8 +459,6 @@ void ChunkManager::createInstance(uint64_t instanceID) {
                 }
                 NPCManager::updateNPCPosition(newID, baseNPC->appearanceData.iX, baseNPC->appearanceData.iY, baseNPC->appearanceData.iZ,
                     instanceID, baseNPC->appearanceData.iAngle);
-                // force chunk update
-                updateNPCChunk(newID, std::make_tuple(0, 0, 0), chunkPosAt(baseNPC->appearanceData.iX, baseNPC->appearanceData.iY, instanceID));
             }
         }
     } else {

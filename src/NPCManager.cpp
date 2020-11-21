@@ -483,8 +483,6 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
             NPCs[id] = new BaseNPC(plr->x, plr->y, plr->z, 0, plr->instanceID, req->iNPCType, id);
 
         updateNPCPosition(id, plr->x, plr->y, plr->z, plr->instanceID, 0);
-        // force chunk update
-        ChunkManager::updateNPCChunk(id, std::make_tuple(0, 0, 0), ChunkManager::chunkPosAt(plr->x, plr->y, plr->instanceID));
     }
 }
 
