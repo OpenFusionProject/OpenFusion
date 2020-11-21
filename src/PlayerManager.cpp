@@ -318,9 +318,7 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
 
     response.iPC_ID = complete->iPC_ID;
 
-    // reload players & NPCs
     updatePlayerPosition(sock, plr->x, plr->y, plr->z, plr->instanceID, plr->angle);
-    ChunkManager::updatePlayerChunk(sock, std::make_tuple(0, 0, 0), ChunkManager::chunkPosAt(plr->x, plr->y, plr->instanceID));
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC));
 }
