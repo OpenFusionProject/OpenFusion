@@ -7,6 +7,7 @@
 #include "NPCManager.hpp"
 #include "MobManager.hpp"
 #include "MissionManager.hpp"
+#include "ChunkManager.hpp"
 
 #include <sstream>
 #include <iterator>
@@ -351,7 +352,10 @@ void npcRotateCommand(std::string full, std::vector<std::string>& args, CNSocket
 
 void refreshCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
-    PlayerManager::sendPlayerTo(sock, plr->x, plr->y, plr->z);
+    ChunkPos currentChunk = plr->chunkPos;
+    ChunkPos nullChunk = std::make_tuple(0, 0, 0);
+    ChunkManager::updatePlayerChunk(sock, currentChunk, nullChunk);
+    ChunkManager::updatePlayerChunk(sock, nullChunk, currentChunk);
 }
 
 void instanceCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
