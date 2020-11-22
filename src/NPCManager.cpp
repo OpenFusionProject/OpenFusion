@@ -769,11 +769,10 @@ void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
 
     int typeId = egg->appearanceData.iNPCType;
     if (EggTypes.find(typeId) == EggTypes.end()) {
-        if (egg->npcClass != NPCClass::NPC_EGG) {
-            std::cout << "[WARN] Egg Type " << typeId << " not found!" << std::endl;
-            return;
-        }
+        std::cout << "[WARN] Egg Type " << typeId << " not found!" << std::endl;
+        return;
     }
+
     EggType* type = &EggTypes[typeId];
 
     // buff the player
