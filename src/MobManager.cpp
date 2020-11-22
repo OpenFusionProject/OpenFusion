@@ -691,8 +691,11 @@ void MobManager::step(CNServer *serv, time_t currTime) {
     for (auto& pair : Mobs) {
 
         // skip chunks without players
-        if (!ChunkManager::inPopulatedChunks(pair.second->viewableChunks))
+        if (pair.second->playersInView == 0) //(!ChunkManager::inPopulatedChunks(pair.second->viewableChunks))
             continue;
+
+        if (pair.second->playersInView < 0)
+            std::cout << "[WARN] Weird playerview value " << pair.second->playersInView << std::endl;
 
         // skip mob movement and combat if disabled
         if (!simulateMobs && pair.second->state != MobState::DEAD

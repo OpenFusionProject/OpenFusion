@@ -172,6 +172,7 @@ void ChunkManager::addPlayerToChunks(std::set<Chunk*> chnks, CNSocket* sock) {
         // add npcs
         for (int32_t id : chunk->NPCs) {
             BaseNPC* npc = NPCManager::NPCs[id];
+            npc->playersInView++;
 
             if (npc->appearanceData.iHP <= 0)
                 continue;
@@ -248,6 +249,7 @@ void ChunkManager::addNPCToChunks(std::set<Chunk*> chnks, int32_t id) {
             for (CNSocket* sock : chunk->players) {
                 // send to socket
                 sock->sendPacket((void*)&enterBusData, P_FE2CL_TRANSPORTATION_ENTER, sizeof(sP_FE2CL_TRANSPORTATION_ENTER));
+                npc->playersInView++;
             }
         }
         break;
@@ -259,6 +261,7 @@ void ChunkManager::addNPCToChunks(std::set<Chunk*> chnks, int32_t id) {
             for (CNSocket* sock : chunk->players) {
                 // send to socket
                 sock->sendPacket((void*)&enterEggData, P_FE2CL_SHINY_ENTER, sizeof(sP_FE2CL_SHINY_ENTER));
+                npc->playersInView++;
             }
         }
         break;
@@ -271,6 +274,7 @@ void ChunkManager::addNPCToChunks(std::set<Chunk*> chnks, int32_t id) {
             for (CNSocket* sock : chunk->players) {
                 // send to socket
                 sock->sendPacket((void*)&enterData, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
+                npc->playersInView++;
             }
         }
         break;
@@ -286,6 +290,8 @@ void ChunkManager::removePlayerFromChunks(std::set<Chunk*> chnks, CNSocket* sock
         // remove NPCs from view
         for (int32_t id : chunk->NPCs) {
             BaseNPC* npc = NPCManager::NPCs[id];
+            npc->playersInView--;
+
             switch (npc->npcClass) {
             case NPC_BUS:
                 INITSTRUCT(sP_FE2CL_TRANSPORTATION_EXIT, exitBusData);
@@ -332,6 +338,7 @@ void ChunkManager::removeNPCFromChunks(std::set<Chunk*> chnks, int32_t id) {
             for (CNSocket* sock : chunk->players) {
                 // send to socket
                 sock->sendPacket((void*)&exitBusData, P_FE2CL_TRANSPORTATION_EXIT, sizeof(sP_FE2CL_TRANSPORTATION_EXIT));
+                npc->playersInView--;
             }
         }
         break;
@@ -343,6 +350,7 @@ void ChunkManager::removeNPCFromChunks(std::set<Chunk*> chnks, int32_t id) {
             for (CNSocket* sock : chunk->players) {
                 // send to socket
                 sock->sendPacket((void*)&exitEggData, P_FE2CL_SHINY_EXIT, sizeof(sP_FE2CL_SHINY_EXIT));
+                npc->playersInView--;
             }
         }
         break;
@@ -356,6 +364,7 @@ void ChunkManager::removeNPCFromChunks(std::set<Chunk*> chnks, int32_t id) {
             for (CNSocket* sock : chunk->players) {
                 // send to socket
                 sock->sendPacket((void*)&exitData, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
+                npc->playersInView--;
             }
         }
         break;
@@ -427,6 +436,9 @@ std::vector<ChunkPos> ChunkManager::getChunksInMap(uint64_t mapNum) {
     return chnks;
 }
 
+/*
+ * Used only for eggs; use npc->playersInView for everything visible
+ */
 bool ChunkManager::inPopulatedChunks(std::set<Chunk*>* chnks) {
 
     for (auto it = chnks->begin(); it != chnks->end(); it++) {
