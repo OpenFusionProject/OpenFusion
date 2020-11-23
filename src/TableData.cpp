@@ -37,6 +37,7 @@ void TableData::init() {
 
         // read file into json
         inFile >> npcData;
+        npcData = npcData["NPCs"];
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
             int instanceID = npc.find("mapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["mapNum"];
@@ -201,6 +202,7 @@ void TableData::init() {
 
         // read file into json
         inFile >> npcData;
+        npcData = npcData["mobs"];
         int leaderMob = -1;
         int leaderMobFollowers = 0;
 
