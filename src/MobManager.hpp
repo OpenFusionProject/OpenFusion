@@ -76,6 +76,9 @@ struct Mob : public BaseNPC {
         roamY = spawnY = appearanceData.iY;
         roamZ = spawnZ = appearanceData.iZ;
 
+        offsetX = 0;
+        offsetY = 0;
+
         appearanceData.iConditionBitFlag = 0;
 
         // NOTE: there appear to be discrepancies in the dump

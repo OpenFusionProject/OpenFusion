@@ -456,16 +456,18 @@ void MobManager::deadStep(Mob *mob, time_t currTime) {
             Mob* leaderMob = Mobs[mob->groupLeader];
             mob->appearanceData.iX = leaderMob->appearanceData.iX + mob->offsetX;
             mob->appearanceData.iY = leaderMob->appearanceData.iY + mob->offsetY;
+            mob->appearanceData.iZ = leaderMob->appearanceData.iZ;
         } else {
             std::cout << "[WARN] deadStep: mob cannot find it's leader!" << std::endl;
             mob->appearanceData.iX = mob->spawnX;
             mob->appearanceData.iY = mob->spawnY;
+            mob->appearanceData.iZ = mob->spawnZ;
         }
     } else {
         mob->appearanceData.iX = mob->spawnX;
         mob->appearanceData.iY = mob->spawnY;
+        mob->appearanceData.iZ = mob->spawnZ;
     }
-    mob->appearanceData.iZ = mob->spawnZ;
 
     INITSTRUCT(sP_FE2CL_NPC_NEW, pkt);
 
@@ -566,8 +568,8 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
         int targetX = mob->target->plr->x;
         int targetY = mob->target->plr->y;
         if (mob->groupLeader != 0) {
-            targetX += mob->offsetX*distance/(mob->sightRange+1);
-            targetY += mob->offsetY*distance/(mob->sightRange+1);
+            targetX += mob->offsetX*distance/(mob->idleRange + 1);
+            targetY += mob->offsetY*distance/(mob->idleRange + 1);
         }
 
         auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, targetX, targetY, std::min(distance-(int)mob->data["m_iAtkRange"]+1, speed*2/5));
@@ -625,17 +627,17 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
     if (mob->staticPath)
         return;
 
-    if (mob->nextMovement != 0 && currTime < mob->nextMovement)
+    if (mob->groupLeader != 0 && mob->groupLeader != mob->appearanceData.iNPC_ID) // don't roam by yourself without group leader
         return;
-    incNextMovement(mob, currTime);
+
     /*
      * mob->nextMovement is also updated whenever the path queue is traversed in
      * TransportManager::stepNPCPathing() (which ticks at a higher frequency than nextMovement),
      * so we don't have to check if there's already entries in the queue since we know there won't be.
      */
-
-    if (mob->groupLeader != 0 && mob->groupLeader != mob->appearanceData.iNPC_ID) // don't roam by yourself without group leader
+    if (mob->nextMovement != 0 && currTime < mob->nextMovement)
         return;
+    incNextMovement(mob, currTime);
 
     int xStart = mob->spawnX - mob->idleRange/2;
     int yStart = mob->spawnY - mob->idleRange/2;
@@ -644,6 +646,10 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
     int farX, farY;
     int distance; // for short walk detection
 
+    /*
+     * We don't want the mob to just take one step and stop, so we make sure
+     * it has walked a half-decent distance.
+     */
     do {
         farX = xStart + rand() % mob->idleRange;
         farY = yStart + rand() % mob->idleRange;

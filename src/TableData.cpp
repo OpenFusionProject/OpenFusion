@@ -216,8 +216,8 @@ void TableData::init() {
             NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
 
             // handling groups
-            if (npc.find("iOffsetX") != npc.end() && MobManager::Mobs.find(nextId) != MobManager::Mobs.end()) {
-                Mob* currNpc = MobManager::Mobs[nextId];
+            if (npc.find("iOffsetX") != npc.end()) {
+                Mob* currNpc = (Mob*)tmp;
 
                 if (leaderMob == -1) {
                     if (MobManager::Mobs.find(nextId-1) != MobManager::Mobs.end()) {
@@ -231,7 +231,6 @@ void TableData::init() {
                 } else {
                     if (MobManager::Mobs.find(leaderMob) != MobManager::Mobs.end()) {
                         Mob* leadNpc = MobManager::Mobs[leaderMob];
-                        leaderMob = leaderMob;
                         leadNpc->groupMember[leaderMobFollowers] = nextId;
                         leaderMobFollowers++;
                         currNpc->groupLeader = leaderMob;
@@ -240,7 +239,7 @@ void TableData::init() {
 
                 currNpc->offsetX = (int)npc["iOffsetX"];
                 currNpc->offsetY = npc.find("iOffsetY") == npc.end() ? 0 : (int)npc["iOffsetY"];
-                std::cout << "[INFO] Added group NPC " << nextId << " to ID " << currNpc->groupLeader << std::endl;
+                std::cout << "[INFO] Added group NPC " << nextId << " to ID " << currNpc->groupLeader << std::endl; // TODO: get rid of this after testing
             } else {
                 leaderMob = -1;
                 leaderMobFollowers = 0;
@@ -674,7 +673,6 @@ void TableData::loadGruntwork(int32_t *nextId) {
                     } else {
                         if (MobManager::Mobs.find(leaderMob) != MobManager::Mobs.end()) {
                             Mob* leadNpc = MobManager::Mobs[leaderMob];
-                            leaderMob = leaderMob;
                             leadNpc->groupMember[leaderMobFollowers] = id;
                             leaderMobFollowers++;
                             currNpc->groupLeader = leaderMob;
