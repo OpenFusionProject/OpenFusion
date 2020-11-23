@@ -146,7 +146,7 @@ void GroupManager::joinGroup(CNSocket* sock, CNPacketData* data) {
         respdata[i].iZ = varPlr->z;
         // client doesnt read nano data here
 
-        if (varPlr != plr) {
+        if (varPlr != plr) { // apply the new member's buffs to the group and the group's buffs to the new member
             NanoManager::applyBuff(sock, varPlr->Nanos[varPlr->activeNano].iSkillID, 1, 1, bitFlag);
             NanoManager::applyBuff(sockTo, plr->Nanos[plr->activeNano].iSkillID, 1, 1, bitFlag);
         }
@@ -340,7 +340,7 @@ void GroupManager::groupKickPlayer(Player* plr) {
         if (varPlr == plr) {
             moveDown = 1;
             otherPlr->groupIDs[i] = 0;
-        } else {
+        } else { // remove the leaving member's buffs from the group and remove the group buffs from the leaving member.
             NanoManager::applyBuff(sock, varPlr->Nanos[varPlr->activeNano].iSkillID, 2, 1, 0);
             NanoManager::applyBuff(sockTo, plr->Nanos[plr->activeNano].iSkillID, 2, 1, bitFlag);
         }
@@ -360,7 +360,7 @@ void GroupManager::groupUnbuff(Player* plr) {
         for (int n = 0; n < plr->groupCnt; n++) {
             if (i == n)
                 continue;
-        
+
             Player* otherPlr = PlayerManager::getPlayerFromID(plr->groupIDs[i]);
             CNSocket* sock = PlayerManager::getSockFromID(plr->groupIDs[n]);
 

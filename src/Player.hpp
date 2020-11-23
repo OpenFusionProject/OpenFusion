@@ -74,8 +74,6 @@ struct Player {
     int32_t groupIDs[4];
     int32_t iGroupConditionBitFlag;
 
-    int32_t iEggConditionBitFlag;
-
     bool notify;
 
     bool buddiesSynced;

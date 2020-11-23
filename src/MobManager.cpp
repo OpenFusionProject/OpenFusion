@@ -181,12 +181,26 @@ void MobManager::giveReward(CNSocket *sock, Mob* mob) {
     MobDrop& drop = MobDrops[mob->dropType];
 
     plr->money += drop.taros;
+    // money nano boost
+    if (plr->iConditionBitFlag & CSB_BIT_REWARD_CASH) {
+        int boost = 0;
+        if (NanoManager::getNanoBoost(plr)) // for gumballs
+            boost = 1;
+        plr->money += drop.taros * (5 + boost) / 25;
+    }
     // formula for scaling FM with player/mob level difference
     // TODO: adjust this better
     int levelDifference = plr->level - mob->level;
     int fm = drop.fm;
     if (levelDifference > 0)
         fm = levelDifference < 10 ? fm - (levelDifference * fm / 10) : 0;
+    // scavenger nano boost
+    if (plr->iConditionBitFlag & CSB_BIT_REWARD_BLOB) {
+        int boost = 0;
+        if (NanoManager::getNanoBoost(plr)) // for gumballs
+            boost = 1;
+        fm += fm * (5 + boost) / 25;
+    }
 
     MissionManager::updateFusionMatter(sock, fm);
 
@@ -870,8 +884,8 @@ void MobManager::dealGooDamage(CNSocket *sock, int amount) {
         amount = -2; // -2 is the magic number for "Protected" to appear as the damage number
         dmg->bProtected = 1;
 
-        // it's hypothetically possible to have the protection bit without a nano
-        if (plr->activeNano != -1)
+        // eggs allow protection without nanos
+        if (plr->activeNano != -1 && (plr->iSelfConditionBitFlag & CSB_BIT_PROTECT_INFECTION))
             plr->Nanos[plr->activeNano].iStamina -= 3;
     } else {
         plr->HP -= amount;
