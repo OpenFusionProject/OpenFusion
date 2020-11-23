@@ -151,6 +151,7 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
     pkt2.iY = Y;
     pkt2.iZ = Z;
     sock->sendPacket((void*)&pkt2, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
+    ChunkManager::updatePlayerChunk(sock, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
     updatePlayerPosition(sock, X, Y, Z, I, plr->angle);
 
     // post-warp: check if the source instance has no more players in it and delete it if so
