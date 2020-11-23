@@ -69,7 +69,7 @@ void NanoManager::nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     // sanity checks
-    if (plr == nullptr || nano->iNanoSlotNum > 2 || nano->iNanoSlotNum < 0)
+    if (plr == nullptr || nano->iNanoSlotNum > 2 || nano->iNanoSlotNum < 0 || nano->iNanoID > 36)
         return;
 
     resp.iNanoID = nano->iNanoID;
