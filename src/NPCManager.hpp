@@ -68,7 +68,7 @@ namespace NPCManager {
 
     void handleWarp(CNSocket* sock, int32_t warpId);
 
-    BaseNPC* getNearestNPC(std::vector<Chunk*> chunks, int X, int Y, int Z);
+    BaseNPC* getNearestNPC(std::set<Chunk*>* chunks, int X, int Y, int Z);
 
     /// returns -1 on fail
     int eggBuffPlayer(CNSocket* sock, int skillId, int duration);

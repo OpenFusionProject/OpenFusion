@@ -550,10 +550,10 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
 /*
  * Helper function to get NPC closest to coordinates in specified chunks
  */
-BaseNPC* NPCManager::getNearestNPC(std::vector<Chunk*> chunks, int X, int Y, int Z) {
+BaseNPC* NPCManager::getNearestNPC(std::set<Chunk*>* chunks, int X, int Y, int Z) {
     BaseNPC* npc = nullptr;
     int lastDist = INT_MAX;
-    for (auto c = chunks.begin(); c != chunks.end(); c++) { // haha get it
+    for (auto c = chunks->begin(); c != chunks->end(); c++) { // haha get it
         Chunk* chunk = *c;
         for (auto _npc = chunk->NPCs.begin(); _npc != chunk->NPCs.end(); _npc++) {
             BaseNPC* npcTemp = NPCs[*_npc];
