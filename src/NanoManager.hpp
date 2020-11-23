@@ -68,4 +68,5 @@ namespace NanoManager {
     int applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags);
     int nanoStyle(int nanoID);
     int* findTargets(Player* plr, int skillID, CNPacketData* data = nullptr);
+    bool getNanoBoost(Player* plr);
 }

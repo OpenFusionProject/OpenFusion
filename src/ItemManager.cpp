@@ -266,7 +266,7 @@ void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {
 
     size_t resplen = sizeof(sP_FE2CL_REP_PC_ITEM_USE_SUCC) + sizeof(sSkillResult_Buff);
 
-        // validate response packet
+    // validate response packet
     if (!validOutVarPacket(sizeof(sP_FE2CL_REP_PC_ITEM_USE_SUCC), 1, sizeof(sSkillResult_Buff))) {
         std::cout << "[WARN] bad sP_FE2CL_REP_PC_ITEM_USE_SUCC packet size" << std::endl;
         return;

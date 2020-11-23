@@ -33,7 +33,7 @@ void NanoManager::nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     // sanity checks
-    if (plr == nullptr || nano->iNanoSlotNum > 2 || nano->iNanoSlotNum < 0 || nano->iNanoID > 36)
+    if (plr == nullptr || nano->iNanoSlotNum > 2 || nano->iNanoSlotNum < 0)
         return;
 
     resp.iNanoID = nano->iNanoID;
@@ -138,10 +138,8 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
     int *targetData = findTargets(plr, skillID, data);
 
     int boost = 0;
-    for (int i = 0; i < 3; i++) 
-        if (plr->equippedNanos[i] == plr->activeNano)
-            if (plr->iConditionBitFlag & (CSB_BIT_STIMPAKSLOT1 << i))
-                boost = 1;
+    if (getNanoBoost(plr))
+        boost = 1;
 
     plr->Nanos[plr->activeNano].iStamina -= SkillTable[skillID].batteryUse[boost*3];
     if (plr->Nanos[plr->activeNano].iStamina < 0)
@@ -323,11 +321,9 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
     if (SkillTable[skillID].drainType == 2) {
         int *targetData = findTargets(plr, skillID);
 
-        int boost = 0;
-        for (int i = 0; i < 3; i++)
-            if (plr->equippedNanos[i] == plr->activeNano)
-                if (plr->iConditionBitFlag & (CSB_BIT_STIMPAKSLOT1 << i))
-                    boost = 1;
+    int boost = 0;
+    if (getNanoBoost(plr))
+        boost = 1;
 
         for (auto& pwr : NanoPowers) {
             if (pwr.skillType == SkillTable[skillID].skillType) {
@@ -547,6 +543,14 @@ int* NanoManager::findTargets(Player* plr, int skillID, CNPacketData* data) {
     
     return tD;
 }
+
+bool NanoManager::getNanoBoost(Player* plr) {
+    for (int i = 0; i < 3; i++) 
+        if (plr->equippedNanos[i] == plr->activeNano)
+            if (plr->iConditionBitFlag & (CSB_BIT_STIMPAKSLOT1 << i))
+                return true;
+    return false;
+}
 #pragma endregion
 
 #pragma region Nano Powers
@@ -575,7 +579,7 @@ bool doBuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t targetID
     Player *plr = nullptr;
 
     for (auto& pair : PlayerManager::players) {
-        if (pair.second->iID == pktdata[i]) {
+        if (pair.second->iID == targetID) {
             plr = pair.second;
             break;
         }
@@ -631,7 +635,7 @@ bool doHeal(CNSocket *sock, sSkillResult_Heal_HP *respdata, int i, int32_t targe
     Player *plr = nullptr;
 
     for (auto& pair : PlayerManager::players) {
-        if (pair.second->iID == pktdata[0]) {
+        if (pair.second->iID == targetID) {
             plr = pair.second;
             break;
         }
@@ -742,8 +746,8 @@ bool doResurrect(CNSocket *sock, sSkillResult_Resurrect *respdata, int i, int32_
     Player *plr = nullptr;
 
     for (auto& pair : PlayerManager::players) {
-        if (pair.second.plr->iID == targetID) {
-            plr = pair.second.plr;
+        if (pair.second->iID == targetID) {
+            plr = pair.second;
             break;
         }
     }
@@ -765,8 +769,8 @@ bool doMove(CNSocket *sock, sSkillResult_Move *respdata, int i, int32_t targetID
     Player *plr = nullptr;
 
     for (auto& pair : PlayerManager::players) {
-        if (pair.second.plr->iID == targetID) {
-            plr = pair.second.plr;
+        if (pair.second->iID == targetID) {
+            plr = pair.second;
             break;
         }
     }

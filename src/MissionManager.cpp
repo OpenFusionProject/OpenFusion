@@ -396,7 +396,20 @@ int MissionManager::giveMissionReward(CNSocket *sock, int task) {
 
     // update player
     plr->money += reward->money;
-    updateFusionMatter(sock, reward->fusionmatter);
+    if (plr->iConditionBitFlag & CSB_BIT_REWARD_CASH) { // nano boost for taros
+        int boost = 0;
+        if (NanoManager::getNanoBoost(plr))
+            boost = 1;
+        plr->money += reward->money * (5 + boost) / 25;
+    }
+
+    if (plr->iConditionBitFlag & CSB_BIT_REWARD_BLOB) { // nano boost for fm
+        int boost = 0;
+        if (NanoManager::getNanoBoost(plr))
+            boost = 1;
+        updateFusionMatter(sock, reward->fusionmatter * (30 + boost) / 25);
+    } else
+        updateFusionMatter(sock, reward->fusionmatter);
 
     // simple rewards
     resp->m_iCandy = plr->money;
