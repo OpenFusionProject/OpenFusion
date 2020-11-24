@@ -457,20 +457,50 @@ void ChunkManager::createInstance(uint64_t instanceID) {
         for (ChunkPos &coords : templateChunks) {
             for (int npcID : chunks[coords]->NPCs) {
                 // make a copy of each NPC in the template chunks and put them in the new instance
-                int newID = NPCManager::nextId++;
                 BaseNPC* baseNPC = NPCManager::NPCs[npcID];
                 if (baseNPC->npcClass == NPC_MOB) {
+                    if (((Mob*)baseNPC)->groupLeader != 0 && ((Mob*)baseNPC)->groupLeader != npcID)
+                        continue; // follower; don't copy individually
+
                     Mob* newMob = new Mob(baseNPC->appearanceData.iX, baseNPC->appearanceData.iY, baseNPC->appearanceData.iZ, baseNPC->appearanceData.iAngle,
-                        instanceID, baseNPC->appearanceData.iNPCType, ((Mob*)baseNPC)->maxHealth, NPCManager::NPCData[baseNPC->appearanceData.iNPCType], newID);
-                    NPCManager::NPCs[newID] = newMob;
-                    MobManager::Mobs[newID] = newMob;
+                        instanceID, baseNPC->appearanceData.iNPCType, ((Mob*)baseNPC)->maxHealth, NPCManager::NPCData[baseNPC->appearanceData.iNPCType], NPCManager::nextId++);
+                    NPCManager::NPCs[newMob->appearanceData.iNPC_ID] = newMob;
+                    MobManager::Mobs[newMob->appearanceData.iNPC_ID] = newMob;
+
+                    // if in a group, copy over group members as well
+                    if (((Mob*)baseNPC)->groupLeader != 0) {
+                        newMob->groupLeader = newMob->appearanceData.iNPC_ID; // set leader ID for new leader
+                        Mob* mobData = (Mob*)baseNPC;
+                        for (int i = 0; i < 4; i++) {
+                            if (mobData->groupMember[i] != 0) {
+                                int followerID = NPCManager::nextId++; // id for follower
+                                BaseNPC* baseFollower = NPCManager::NPCs[mobData->groupMember[i]]; // follower from template
+                                // new follower instance
+                                Mob* newMobFollower = new Mob(baseFollower->appearanceData.iX, baseFollower->appearanceData.iY, baseFollower->appearanceData.iZ, baseFollower->appearanceData.iAngle,
+                                    instanceID, baseFollower->appearanceData.iNPCType, ((Mob*)baseFollower)->maxHealth, NPCManager::NPCData[baseFollower->appearanceData.iNPCType], followerID);
+                                // add follower to NPC maps
+                                NPCManager::NPCs[followerID] = newMobFollower;
+                                MobManager::Mobs[followerID] = newMobFollower;
+                                // set follower-specific properties
+                                newMobFollower->groupLeader = newMob->appearanceData.iNPC_ID;
+                                newMobFollower->offsetX = ((Mob*)baseFollower)->offsetX;
+                                newMobFollower->offsetY = ((Mob*)baseFollower)->offsetY;
+                                // add follower copy to leader copy
+                                newMob->groupMember[i] = followerID;
+                                NPCManager::updateNPCPosition(followerID, baseFollower->appearanceData.iX, baseFollower->appearanceData.iY, baseFollower->appearanceData.iZ,
+                                    instanceID, baseFollower->appearanceData.iAngle);
+                            }
+                        }
+                    }
+                    NPCManager::updateNPCPosition(newMob->appearanceData.iNPC_ID, baseNPC->appearanceData.iX, baseNPC->appearanceData.iY, baseNPC->appearanceData.iZ,
+                        instanceID, baseNPC->appearanceData.iAngle);
                 } else {
                     BaseNPC* newNPC = new BaseNPC(baseNPC->appearanceData.iX, baseNPC->appearanceData.iY, baseNPC->appearanceData.iZ, baseNPC->appearanceData.iAngle,
-                        instanceID, baseNPC->appearanceData.iNPCType, newID);
-                    NPCManager::NPCs[newID] = newNPC;
+                        instanceID, baseNPC->appearanceData.iNPCType, NPCManager::nextId++);
+                    NPCManager::NPCs[newNPC->appearanceData.iNPC_ID] = newNPC;
+                    NPCManager::updateNPCPosition(newNPC->appearanceData.iNPC_ID, baseNPC->appearanceData.iX, baseNPC->appearanceData.iY, baseNPC->appearanceData.iZ,
+                        instanceID, baseNPC->appearanceData.iAngle);
                 }
-                NPCManager::updateNPCPosition(newID, baseNPC->appearanceData.iX, baseNPC->appearanceData.iY, baseNPC->appearanceData.iZ,
-                    instanceID, baseNPC->appearanceData.iAngle);
             }
         }
     } else {
