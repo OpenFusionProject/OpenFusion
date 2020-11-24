@@ -198,14 +198,14 @@ void TableData::init() {
     // load temporary mob dump
     try {
         std::ifstream inFile(settings::MOBJSON);
-        nlohmann::json npcData;
+        nlohmann::json npcData, groupData;
 
         // read file into json
         inFile >> npcData;
+        groupData = npcData["groups"];
         npcData = npcData["mobs"];
-        int leaderMob = -1;
-        int leaderMobFollowers = 0;
 
+        // single mobs
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
             auto td = NPCManager::NPCData[(int)npc["iNPCType"]];
@@ -217,37 +217,48 @@ void TableData::init() {
             MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
             NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
 
-            // handling groups
-            if (npc.find("iOffsetX") != npc.end()) {
-                Mob* currNpc = (Mob*)tmp;
+            nextId++;
+        }
 
-                if (leaderMob == -1) {
-                    if (MobManager::Mobs.find(nextId-1) != MobManager::Mobs.end()) {
-                        Mob* leadNpc = MobManager::Mobs[nextId-1];
-                        leaderMob = nextId-1;
-                        leadNpc->groupMember[leaderMobFollowers] = nextId;
-                        leaderMobFollowers++;
-                        currNpc->groupLeader = nextId-1;
-                        leadNpc->groupLeader = nextId-1;
-                    }
-                } else {
-                    if (MobManager::Mobs.find(leaderMob) != MobManager::Mobs.end()) {
-                        Mob* leadNpc = MobManager::Mobs[leaderMob];
-                        leadNpc->groupMember[leaderMobFollowers] = nextId;
-                        leaderMobFollowers++;
-                        currNpc->groupLeader = leaderMob;
-                    }
-                }
+        // mob groups
+        // single mobs
+        for (nlohmann::json::iterator _group = groupData.begin(); _group != groupData.end(); _group++) {
+            auto leader = _group.value();
+            auto td = NPCManager::NPCData[(int)leader["iNPCType"]];
+            uint64_t instanceID = leader.find("iMapNum") == leader.end() ? INSTANCE_OVERWORLD : (int)leader["iMapNum"];
 
-                currNpc->offsetX = (int)npc["iOffsetX"];
-                currNpc->offsetY = npc.find("iOffsetY") == npc.end() ? 0 : (int)npc["iOffsetY"];
-                std::cout << "[INFO] Added group NPC " << nextId << " to ID " << currNpc->groupLeader << std::endl; // TODO: get rid of this after testing
-            } else {
-                leaderMob = -1;
-                leaderMobFollowers = 0;
-            }
+            Mob* tmp = new Mob(leader["iX"], leader["iY"], leader["iZ"], leader["iAngle"], instanceID, leader["iNPCType"], leader["iHP"], td, nextId);
+
+            NPCManager::NPCs[nextId] = tmp;
+            MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
+            NPCManager::updateNPCPosition(nextId, leader["iX"], leader["iY"], leader["iZ"], instanceID, leader["iAngle"]);
+
+            tmp->groupLeader = nextId;
 
             nextId++;
+
+            auto followers = leader["aFollowers"];
+            if (followers.size() < 5) {
+                int followerCount = 0;
+                for (nlohmann::json::iterator _fol = followers.begin(); _fol != followers.end(); _fol++) {
+                    auto follower = _fol.value();
+                    auto tdFol = NPCManager::NPCData[(int)follower["iNPCType"]];
+                    Mob* tmpFol = new Mob((int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], leader["iAngle"], instanceID, follower["iNPCType"], follower["iHP"], tdFol, nextId);
+
+                    NPCManager::NPCs[nextId] = tmpFol;
+                    MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
+                    NPCManager::updateNPCPosition(nextId, (int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], instanceID, leader["iAngle"]);
+
+                    tmpFol->offsetX = follower.find("iOffsetX") == follower.end() ? 0 : (int)follower["iOffsetX"];
+                    tmpFol->offsetY = follower.find("iOffsetY") == follower.end() ? 0 : (int)follower["iOffsetY"];
+                    tmpFol->groupLeader = tmp->appearanceData.iNPC_ID;
+                    tmp->groupMember[followerCount++] = nextId;
+
+                    nextId++;
+                }
+            } else {
+                std::cout << "[WARN] Mob group leader with ID " << nextId << " has too many followers (" << followers.size() << ")\n";
+            }
         }
 
         std::cout << "[INFO] Populated " << NPCManager::NPCs.size() << " NPCs" << std::endl;
