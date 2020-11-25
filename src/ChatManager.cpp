@@ -278,7 +278,8 @@ void unsummonWCommand(std::string full, std::vector<std::string>& args, CNSocket
         return;
     }
 
-    if (TableData::RunningMobs.find(npc->appearanceData.iNPC_ID) == TableData::RunningMobs.end()) {
+    if (TableData::RunningMobs.find(npc->appearanceData.iNPC_ID) == TableData::RunningMobs.end()
+        && TableData::RunningGroups.find(npc->appearanceData.iNPC_ID) == TableData::RunningGroups.end()) {
         ChatManager::sendServerMessage(sock, "/unsummonW: Closest NPC is not a gruntwork mob.");
         return;
     }
@@ -298,10 +299,9 @@ void unsummonWCommand(std::string full, std::vector<std::string>& args, CNSocket
                 continue;
             }
 
-            TableData::RunningMobs.erase(leadNpc->groupMember[i]);
             NPCManager::destroyNPC(leadNpc->groupMember[i]);
         }
-        TableData::RunningMobs.erase(leadId);
+        TableData::RunningGroups.erase(leadId);
         NPCManager::destroyNPC(leadId);
         ChatManager::sendServerMessage(sock, "/unsummonW: Mob group destroyed.");
         return;
