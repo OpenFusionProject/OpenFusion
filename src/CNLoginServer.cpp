@@ -201,12 +201,31 @@ void CNLoginServer::nameCheck(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2LS_REQ_CHECK_CHAR_NAME))
         return;
 
+    // responding to this packet only makes the client send the next packet (either name save or name change)
+    // so we're always sending SUCC here and actually validating the name when the next packet arrives
+
     sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck = (sP_CL2LS_REQ_CHECK_CHAR_NAME*)data->buf;
+
+    INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC, resp);
+    memcpy(resp.szFirstName, nameCheck->szFirstName, sizeof(nameCheck->szFirstName));
+    memcpy(resp.szLastName, nameCheck->szLastName, sizeof(nameCheck->szLastName));
+    sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC));
+
+    loginSessions[sock].lastHeartbeat = getTime();
+}
+
+void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2LS_REQ_SAVE_CHAR_NAME))
+        return;
+
+    sP_CL2LS_REQ_SAVE_CHAR_NAME* save = (sP_CL2LS_REQ_SAVE_CHAR_NAME*)data->buf;
+    INITSTRUCT(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC, resp);
+
     int errorCode = 0;
-    if (!CNLoginServer::isCharacterNameGood(U16toU8(nameCheck->szFirstName), U16toU8(nameCheck->szLastName))) {
+    if (!CNLoginServer::isCharacterNameGood(U16toU8(save->szFirstName), U16toU8(save->szLastName))) {
         errorCode = 4;
     }
-    else if (!Database::isNameFree(nameCheck)) {
+    else if (!Database::isNameFree(U16toU8(save->szFirstName), U16toU8(save->szLastName))) {
         errorCode = 1;
     }
 
@@ -216,31 +235,11 @@ void CNLoginServer::nameCheck(CNSocket* sock, CNPacketData* data) {
         sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_FAIL, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL));
 
         DEBUGLOG(
-        std::cout << "Login Server: name check fail. Error code " << errorCode << std::endl;
+            std::cout << "Login Server: name check fail. Error code " << errorCode << std::endl;
         )
 
         return;
     }
-    loginSessions[sock].lastHeartbeat = getTime();
-
-    INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC, resp);
-    memcpy(resp.szFirstName, nameCheck->szFirstName, sizeof(nameCheck->szFirstName));
-    memcpy(resp.szLastName, nameCheck->szLastName, sizeof(nameCheck->szLastName));
-
-    sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC));
-
-    DEBUGLOG(
-    std::cout << "Login Server: name check success" << std::endl;
-    std::cout << "\tFirstName: " << U16toU8(nameCheck->szFirstName) << " LastName: " << U16toU8(nameCheck->szLastName) << std::endl;
-    )
-}
-
-void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2LS_REQ_SAVE_CHAR_NAME))
-        return;
-
-    sP_CL2LS_REQ_SAVE_CHAR_NAME* save = (sP_CL2LS_REQ_SAVE_CHAR_NAME*)data->buf;
-    INITSTRUCT(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC, resp);
 
     resp.iSlotNum = save->iSlotNum;
     resp.iGender = save->iGender;
@@ -431,6 +430,26 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
 
     if (!Database::validateCharacter(save->iPCUID, loginSessions[sock].userID))
         return invalidCharacter(sock);
+
+    int errorCode = 0;
+    if (!CNLoginServer::isCharacterNameGood(U16toU8(save->szFirstName), U16toU8(save->szLastName))) {
+        errorCode = 4;
+    }
+    else if (!Database::isNameFree(U16toU8(save->szFirstName), U16toU8(save->szLastName))) {
+        errorCode = 1;
+    }
+
+    if (errorCode != 0) {
+        INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL, resp);
+        resp.iErrorCode = errorCode;
+        sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_FAIL, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL));
+
+        DEBUGLOG(
+            std::cout << "Login Server: name check fail. Error code " << errorCode << std::endl;
+        )
+
+        return;
+    }
 
     Database::changeName(save);
 

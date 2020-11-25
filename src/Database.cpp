@@ -198,15 +198,13 @@ bool Database::validateCharacter(int characterID, int userID) {
         .size() > 0;
 }
 
-bool Database::isNameFree(sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck) {
+bool Database::isNameFree(std::string firstName, std::string lastName) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    std::string First = U16toU8(nameCheck->szFirstName);
-    std::string Last = U16toU8(nameCheck->szLastName);
     return
         (db.get_all<DbPlayer>
-            (where((c(&DbPlayer::FirstName) == First)
-                and (c(&DbPlayer::LastName) == Last)))
+            (where((c(&DbPlayer::FirstName) == firstName)
+                and (c(&DbPlayer::LastName) == lastName)))
             .empty());
 }
 

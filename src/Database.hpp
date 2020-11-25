@@ -120,7 +120,7 @@ namespace Database {
     void updateSelected(int accountId, int playerId);
     std::unique_ptr<Account> findAccount(std::string login);
     bool validateCharacter(int characterID, int userID);
-    bool isNameFree(sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck);
+    bool isNameFree(std::string firstName, std::string lastName);
     // called after chosing name, returns ID
     int createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID);
     // called after finishing creation
