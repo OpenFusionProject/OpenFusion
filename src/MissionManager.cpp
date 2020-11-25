@@ -481,10 +481,7 @@ void MissionManager::mobKilled(CNSocket *sock, int mobid) {
             // acknowledge killing of mission mob...
             if (task["m_iCSUNumToKill"][j] != 0) {
                 missionmob = true;
-                // sanity check
-                if (plr->RemainingNPCCount[i][j] == 0) {
-                    std::cout << "[WARN] RemainingNPCCount tries to go below 0?!" << std::endl;
-                } else {
+                if (plr->RemainingNPCCount[i][j] > 0) {
                     plr->RemainingNPCCount[i][j]--;
                 }
             }
