@@ -708,13 +708,15 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
 
     int activeSlot = -1;
 
+    bool move = false;
+
     if (reviveData->iRegenType == 3 && plr->iConditionBitFlag & CSB_BIT_PHOENIX) {
         // nano revive
         plr->Nanos[plr->activeNano].iStamina = 0;
         NanoManager::nanoUnbuff(sock, CSB_BIT_PHOENIX, ECSB_PHOENIX, 0, false);
         plr->HP = PC_MAXHEALTH(plr->level);
     } else {
-        updatePlayerPosition(sock, target.x, target.y, target.z, plr->instanceID, plr->angle);
+        move = true;
 
         if (reviveData->iRegenType != 5)
             plr->HP = PC_MAXHEALTH(plr->level);
@@ -756,6 +758,12 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     resp2.PCRegenDataForOtherPC.Nano = plr->Nanos[plr->activeNano];
 
     sendToViewable(sock, (void*)&resp2, P_FE2CL_PC_REGEN, sizeof(sP_FE2CL_PC_REGEN));
+
+    if (!move)
+        return;
+
+    ChunkManager::updatePlayerChunk(sock, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
+    updatePlayerPosition(sock, target.x, target.y, target.z, plr->instanceID, plr->angle);
 }
 
 void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
