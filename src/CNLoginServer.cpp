@@ -274,6 +274,9 @@ void invalidCharacter(CNSocket* sock) {
 
 bool validateCharacterCreation(sP_CL2LS_REQ_CHAR_CREATE* character) {
 
+    // all the values have been determined from analyzing client code and xdt
+    // and double checked using cheat engine
+
     // check base parameters
     sPCStyle* style = &character->PCStyle;
     if (!(style->iBody      >= 0 && style->iBody      <= 2   &&
