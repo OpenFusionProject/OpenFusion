@@ -28,7 +28,7 @@ struct Player {
     int32_t batteryN;
     sPCStyle PCStyle;
     sPCStyle2 PCStyle2;
-    sNano Nanos[37]; // acquired nanos
+    sNano Nanos[NANO_COUNT]; // acquired nanos
     int equippedNanos[3];
     int activeNano; // active nano (index into Nanos)
     int8_t iPCState;

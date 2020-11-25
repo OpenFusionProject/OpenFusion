@@ -230,12 +230,15 @@ void NanoManager::nanoPotionHandler(CNSocket* sock, CNPacketData* data) {
 
 #pragma region Helper methods
 void NanoManager::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spendfm) {
-    if (nanoID > 36)
+    if (nanoID > NANO_COUNT)
         return;
 
     Player *plr = PlayerManager::getPlayer(sock);
 
-    int level = nanoID < plr->level ? plr->level : nanoID;
+    int level = plr->level;
+
+#ifndef ACADEMY
+    level = nanoID < plr->level ? plr->level : nanoID;
 
     /*
      * Spend the necessary Fusion Matter.
@@ -246,6 +249,7 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spe
 
     if (spendfm)
         MissionManager::updateFusionMatter(sock, -(int)MissionManager::AvatarGrowth[plr->level-1]["m_iReqBlob_NanoCreate"]);
+#endif
 
     // Send to client
     INITSTRUCT(sP_FE2CL_REP_PC_NANO_CREATE_SUCC, resp);
@@ -304,7 +308,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot, bool silent) {
                 nanoUnbuff(sock, targetData, pwr.bitFlag, pwr.timeBuffID, 0,(SkillTable[skillID].targetType == 3));
     }
 
-    if (nanoID > 36 || nanoID < 0)
+    if (nanoID > NANO_COUNT || nanoID < 0)
         return; // sanity check
 
     plr->activeNano = nanoID;
@@ -339,7 +343,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot, bool silent) {
 }
 
 void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
-    if (skill->iNanoID > 36)
+    if (skill->iNanoID > NANO_COUNT)
         return;
 
     Player *plr = PlayerManager::getPlayer(sock);
@@ -367,8 +371,10 @@ void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
         }
     }
 
+#ifndef ACADEMY
     if (plr->fusionmatter < (int)MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"]) // sanity check
         return;
+#endif
 
     plr->fusionmatter -= (int)MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"];
 
@@ -410,7 +416,7 @@ void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
 }
 
 void NanoManager::resetNanoSkill(CNSocket* sock, int16_t nanoID) {
-    if (nanoID > 36)
+    if (nanoID > NANO_COUNT)
         return;
 
     Player *plr = PlayerManager::getPlayer(sock);

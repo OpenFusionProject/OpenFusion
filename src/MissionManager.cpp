@@ -458,13 +458,15 @@ void MissionManager::updateFusionMatter(CNSocket* sock, int fusion) {
     if (plr->level >= 36)
         return;
 
+    // don't give the Blossom nano mission until the player's in the Past
+    if (plr->level == 4 && plr->PCStyle2.iPayzoneFlag == 0)
+        return;
+
+    // TODO: lower the player's FM immediately on level up in the Academy
+#ifndef ACADEMY
     // check if it is enough for the nano mission
     int fmNano = AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"];
     if (plr->fusionmatter < fmNano)
-        return;
-
-    // don't give the Blossom nano mission until the player's in the Past
-    if (plr->level == 4 && plr->PCStyle2.iPayzoneFlag == 0)
         return;
 
     // check if the nano task is already started
@@ -480,6 +482,7 @@ void MissionManager::updateFusionMatter(CNSocket* sock, int fusion) {
     INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_SUCC, response);
     response.iTaskNum = AvatarGrowth[plr->level]["m_iNanoQuestTaskID"];
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
+#endif
 
     // play the beam animation for other players
     INITSTRUCT(sP_FE2CL_PC_EVENT, bcast);

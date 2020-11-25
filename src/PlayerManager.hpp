@@ -61,4 +61,6 @@ namespace PlayerManager {
     void setSpecialState(CNSocket* sock, CNPacketData* data);
     Player *getPlayerFromID(int32_t iID);
     CNSocket *getSockFromID(int32_t iID);
+
+    void sendNanoBookSubset(CNSocket *sock);
 }

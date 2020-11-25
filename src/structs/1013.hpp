@@ -1,12 +1,14 @@
 /* genstructs.py */
 
+#define ACADEMY
+
 #define AEQUIP_COUNT 12
 #define AINVEN_COUNT 50
 #define AQINVEN_COUNT 50
 #define ABANK_COUNT 200
 
-// includes zeroeth entry
-#define NANO_COUNT 37
+// 56 real nanos, zeroeth entry, Van Kleiss
+#define NANO_COUNT 58
 
 #pragma pack(push)
 
@@ -55,6 +57,13 @@ struct sPCStyle2 {
 };
 
 #pragma pack(4)
+struct sNano {
+	int16_t iID;
+	int16_t iSkillID;
+	int16_t iStamina;
+};
+
+#pragma pack(4)
 struct sItemBase {
 	int16_t iType;
 	int16_t iID;
@@ -79,13 +88,6 @@ struct sEmailItemInfoFromCL {
 };
 
 #pragma pack(4)
-struct sNano {
-	int16_t iID;
-	int16_t iSkillID;
-	int16_t iStamina;
-};
-
-#pragma pack(4)
 struct sTimeBuff {
 	uint64_t iTimeLimit;
 	uint64_t iTimeDuration;
@@ -101,18 +103,6 @@ struct sRunningQuest {
 	int m_aKillNPCCount[3];
 	int m_aNeededItemID[3];
 	int m_aNeededItemCount[3];
-};
-
-#pragma pack(4)
-struct sSYSTEMTIME {
-	uint32_t wYear;
-	uint32_t wMonth;
-	uint32_t wDayOfWeek;
-	uint32_t wDay;
-	uint32_t wHour;
-	uint32_t wMinute;
-	uint32_t wSecond;
-	uint32_t wMilliseconds;
 };
 
 #pragma pack(4)
@@ -138,7 +128,7 @@ struct sPCLoadData2CL {
 	sItemBase aInven[50];
 	sItemBase aQInven[50];
 	sNano aNanoBank[37];
-	short aNanoSlots[3];
+	int16_t aNanoSlots[3];
 	int16_t iActiveNanoSlotNum;
 	int32_t iConditionBitFlag;
 	int32_t eCSTB___Add;
@@ -285,6 +275,18 @@ struct sItemVendor {
 };
 
 #pragma pack(4)
+#pragma pack(4)
+struct sSYSTEMTIME {
+	uint32_t wYear;
+	uint32_t wMonth;
+	uint32_t wDayOfWeek;
+	uint32_t wDay;
+	uint32_t wHour;
+	uint32_t wMinute;
+	uint32_t wSecond;
+	uint32_t wMilliseconds;
+};
+
 struct sEmailInfo {
 	int64_t iEmailIndex;
 	int64_t iFromPCUID;
@@ -1783,6 +1785,15 @@ struct sP_CL2FE_REQ_PERSIST_CHAR {
 #pragma pack(4)
 struct sP_CL2FE_REQ_RELOAD_CHAR {
 	int32_t PCID;
+};
+
+#pragma pack(4)
+struct sP_CL2FE_REQ_AI_SCRIPT {
+	int32_t PCID;
+	int32_t Command;
+	int32_t MobID;
+	int32_t InstanceID;
+	char16_t ScriptName[260];
 };
 
 #pragma pack(4)
@@ -4156,8 +4167,16 @@ struct sP_FE2CL_REP_RELOAD_CHAR {
 	sItemInven aBank[200];
 	sNano aNanoBank[37];
 	sQuickSlot aQuickSlot[8];
-	short aNanoSlots[3];
+	int16_t aNanoSlots[3];
 	int16_t iActiveNanoSlotNum;
+};
+
+#pragma pack(4)
+struct sP_FE2CL_REP_NANO_BOOK_SUBSET {
+	int64_t PCUID;
+	int32_t bookSize;
+	int32_t elementOffset;
+	sNano element[10];
 };
 
 #pragma pack(4)
@@ -4169,6 +4188,7 @@ struct sP_LS2CL_REP_LOGIN_SUCC {
 	uint64_t uiSvrTime;
 	char16_t szID[33];
 	int32_t iOpenBetaFlag;
+	int32_t iChatEnabled;
 };
 
 #pragma pack(4)
@@ -4484,6 +4504,7 @@ static_assert(sizeof(sP_CL2FE_REQ_PC_ITEM_ENCHANT) == 20 || sizeof(sP_CL2FE_REQ_
 static_assert(sizeof(sP_CL2FE_TEXT_MESSAGE) == 256 || sizeof(sP_CL2FE_TEXT_MESSAGE) == 0);
 static_assert(sizeof(sP_CL2FE_REQ_PERSIST_CHAR) == 4 || sizeof(sP_CL2FE_REQ_PERSIST_CHAR) == 0);
 static_assert(sizeof(sP_CL2FE_REQ_RELOAD_CHAR) == 4 || sizeof(sP_CL2FE_REQ_RELOAD_CHAR) == 0);
+static_assert(sizeof(sP_CL2FE_REQ_AI_SCRIPT) == 536 || sizeof(sP_CL2FE_REQ_AI_SCRIPT) == 0);
 static_assert(sizeof(sP_CL2LS_REQ_LOGIN) == 468 || sizeof(sP_CL2LS_REQ_LOGIN) == 0);
 static_assert(sizeof(sP_CL2LS_REQ_CHECK_CHAR_NAME) == 64 || sizeof(sP_CL2LS_REQ_CHECK_CHAR_NAME) == 0);
 static_assert(sizeof(sP_CL2LS_REQ_SAVE_CHAR_NAME) == 68 || sizeof(sP_CL2LS_REQ_SAVE_CHAR_NAME) == 0);
@@ -4808,7 +4829,8 @@ static_assert(sizeof(sP_FE2CL_REP_PC_ITEM_ENCHANT_FAIL) == 24 || sizeof(sP_FE2CL
 static_assert(sizeof(sP_FE2CL_TEXT_MESSAGE) == 256 || sizeof(sP_FE2CL_TEXT_MESSAGE) == 0);
 static_assert(sizeof(sP_FE2CL_REP_PERSIST_CHAR) == 8 || sizeof(sP_FE2CL_REP_PERSIST_CHAR) == 0);
 static_assert(sizeof(sP_FE2CL_REP_RELOAD_CHAR) == 5272 || sizeof(sP_FE2CL_REP_RELOAD_CHAR) == 0);
-static_assert(sizeof(sP_LS2CL_REP_LOGIN_SUCC) == 84 || sizeof(sP_LS2CL_REP_LOGIN_SUCC) == 0);
+static_assert(sizeof(sP_FE2CL_REP_NANO_BOOK_SUBSET) == 76 || sizeof(sP_FE2CL_REP_NANO_BOOK_SUBSET) == 0);
+static_assert(sizeof(sP_LS2CL_REP_LOGIN_SUCC) == 88 || sizeof(sP_LS2CL_REP_LOGIN_SUCC) == 0);
 static_assert(sizeof(sP_LS2CL_REP_LOGIN_FAIL) == 72 || sizeof(sP_LS2CL_REP_LOGIN_FAIL) == 0);
 static_assert(sizeof(sP_LS2CL_REP_CHAR_INFO) == 288 || sizeof(sP_LS2CL_REP_CHAR_INFO) == 0);
 static_assert(sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC) == 52 || sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC) == 0);

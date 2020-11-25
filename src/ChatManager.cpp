@@ -729,6 +729,7 @@ void ChatManager::init() {
     registerCommand("toggleai", 30, toggleAiCommand, "enable/disable mob AI");
     registerCommand("flush", 30, flushCommand, "save gruntwork to file");
     registerCommand("level", 50, levelCommand, "change your character's level");
+    registerCommand("levelx", 50, levelCommand, "change your character's level"); // for Academy
     registerCommand("population", 100, populationCommand, "check how many players are online");
     registerCommand("refresh", 100, refreshCommand, "teleport yourself to your current location");
     registerCommand("minfo", 30, minfoCommand, "show details of the current mission and task.");

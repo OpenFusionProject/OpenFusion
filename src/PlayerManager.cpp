@@ -243,6 +243,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     // nanos
     for (int i = 1; i < SIZEOF_NANO_BANK_SLOT; i++) {
         response.PCLoadData2CL.aNanoBank[i] = plr.Nanos[i];
+        //response.PCLoadData2CL.aNanoBank[i] = plr.Nanos[i] = {0};
     }
     for (int i = 0; i < 3; i++) {
         response.PCLoadData2CL.aNanoSlots[i] = plr.equippedNanos[i];
@@ -304,12 +305,57 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     MissionManager::failInstancedMissions(sock);
 
+    sendNanoBookSubset(sock);
+
     // initial buddy sync
     BuddyManager::refreshBuddyList(sock);
 
     for (auto& pair : PlayerManager::players)
         if (pair.second->notify)
             ChatManager::sendServerMessage(pair.first, "[ADMIN]" + getPlayerName(&plr) + " has joined.");
+}
+
+/*
+ * Sends all nanos, from 0 to 58 (the contents of the Nanos array in PC_ENTER_SUCC are totally irrelevant).
+ * The first Nano in the in-game nanobook is the Unstable Nano, which is Van Kleiss.
+ * 0 (in plr->Nanos) is the null nano entry.
+ * 58 is a "Coming Soon" duplicate entry for an actual Van Kleiss nano, identical to the Unstable Nano.
+ * Nanos the player hasn't unlocked will (and should) be greyed out. Thus, all nanos should be accounted
+ * for in these packets, even if the player hasn't unlocked them.
+ */
+void PlayerManager::sendNanoBookSubset(CNSocket *sock) {
+#ifdef ACADEMY
+//#if 0
+    Player *plr = getPlayer(sock);
+
+#define P_FE2CL_REP_NANO_BOOK_SUBSET 822083892
+
+    int16_t id = 0;
+    INITSTRUCT(sP_FE2CL_REP_NANO_BOOK_SUBSET, pkt);
+
+    pkt.PCUID = plr->iID;
+    pkt.bookSize = NANO_COUNT;
+
+    while (id < NANO_COUNT) {
+        pkt.elementOffset = id;
+
+        for (int i = id - pkt.elementOffset; id < NANO_COUNT && i < 10; id++, i = id - pkt.elementOffset) {
+            // change between these two lines to either get all nanos or none
+            //pkt.element[i] = plr->Nanos[id] = {id, 36, 150};
+            //pkt.element[i] = plr->Nanos[id] = {0};
+
+            // this one should be kept
+            pkt.element[i] = plr->Nanos[id];
+
+            std::cout << "adding " << (int) id << std::endl;
+        }
+
+        std::cout << "sending subset" << std::endl;
+        sock->sendPacket((void*)&pkt, P_FE2CL_REP_NANO_BOOK_SUBSET, sizeof(sP_FE2CL_REP_NANO_BOOK_SUBSET));
+    }
+
+    // TODO: possibly send a player refresh packet from here
+#endif
 }
 
 void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size) {

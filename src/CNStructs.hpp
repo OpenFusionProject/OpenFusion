@@ -50,6 +50,8 @@ void terminate(int);
     #include "structs/0728.hpp"
 #elif PROTOCOL_VERSION == 104
     #include "structs/0104.hpp"
+#elif PROTOCOL_VERSION == 1013
+    #include "structs/1013.hpp"
 #else
     #error Invalid PROTOCOL_VERSION
 #endif

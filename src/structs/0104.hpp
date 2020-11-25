@@ -5,6 +5,9 @@
 #define AQINVEN_COUNT 50
 #define ABANK_COUNT 119
 
+// includes zeroeth entry
+#define NANO_COUNT 37
+
 #pragma pack(push)
 
 #pragma pack(4)
