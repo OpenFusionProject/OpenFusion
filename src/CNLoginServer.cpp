@@ -3,6 +3,7 @@
 #include "CNStructs.hpp"
 #include "Database.hpp"
 #include "PlayerManager.hpp"
+#include "ItemManager.hpp"
 #include <regex>
 #include "contrib/bcrypt/BCrypt.hpp"
 
@@ -122,8 +123,10 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
     if (!CNLoginServer::isPasswordCorrect(findUser->Password, userPassword))
         return loginFail(LoginError::ID_AND_PASSWORD_DO_NOT_MATCH, userLogin, sock);
 
-    /* calling this here to timestamp login attempt,
-     * in order to make duplicate exit sanity check work*/
+    /* 
+     * calling this here to timestamp login attempt,
+     * in order to make duplicate exit sanity check work
+     */
     Database::updateSelected(findUser->AccountID, findUser->Selected);
 
     if (CNLoginServer::isAccountInUse(findUser->AccountID))
@@ -269,19 +272,53 @@ void invalidCharacter(CNSocket* sock) {
     return;
 }
 
+bool validateCharacterCreation(sP_CL2LS_REQ_CHAR_CREATE* character) {
+
+    // all the values have been determined from analyzing client code and xdt
+    // and double checked using cheat engine
+
+    // check base parameters
+    sPCStyle* style = &character->PCStyle;
+    if (!(style->iBody      >= 0 && style->iBody      <= 2   &&
+          style->iEyeColor  >= 1 && style->iEyeColor  <= 5   &&
+          style->iGender    >= 1 && style->iGender    <= 2   &&
+          style->iHairColor >= 1 && style->iHairColor <= 18) &&
+          style->iHeight    >= 0 && style->iHeight    <= 4   &&
+          style->iNameCheck >= 0 && style->iNameCheck <= 2   &&
+          style->iSkinColor >= 1 && style->iSkinColor <= 12)
+        return false;
+            
+    // facestyle and hairstyle are gender dependent
+    if (!(style->iGender == 1 && style->iFaceStyle >= 1 && style->iFaceStyle <= 5  && style->iHairStyle >= 1  && style->iHairStyle <= 23) ||
+         (style->iGender == 2 && style->iFaceStyle >= 6 && style->iFaceStyle <= 10 && style->iHairStyle >= 25 && style->iHairStyle <= 45))
+        return false;
+
+    // validate items
+    std::pair<int32_t, int32_t> items[3];
+    items[0] = std::make_pair(character->sOn_Item.iEquipUBID, 1);
+    items[1] = std::make_pair(character->sOn_Item.iEquipLBID, 2);
+    items[2] = std::make_pair(character->sOn_Item.iEquipFootID, 3);
+    // once we have a static database perhaps we can check for the exact char creation items,
+    // for now only checking if it's a valid lvl1 item
+    for (int i = 0; i < 3; i++) {
+        if (ItemManager::ItemData.find(items[i]) == ItemManager::ItemData.end() || ItemManager::ItemData[items[i]].level != 1)
+            return false;
+    }
+    return true;
+}
+
 void CNLoginServer::characterCreate(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2LS_REQ_CHAR_CREATE))
         return;
 
     sP_CL2LS_REQ_CHAR_CREATE* character = (sP_CL2LS_REQ_CHAR_CREATE*)data->buf;
 
-    if (!Database::validateCharacter(character->PCStyle.iPC_UID, loginSessions[sock].userID))
+    if (! (Database::validateCharacter(character->PCStyle.iPC_UID, loginSessions[sock].userID) && validateCharacterCreation(character)))
         return invalidCharacter(sock);
 
     Database::finishCharacter(character);
 
-    Player player = Database::getPlayer(character->PCStyle.iPC_UID);
-    int64_t UID = player.iID;
+    Player player = Database::getPlayer(character->PCStyle.iPC_UID);;
 
     INITSTRUCT(sP_LS2CL_REP_CHAR_CREATE_SUCC, resp);
     resp.sPC_Style = player.PCStyle;
