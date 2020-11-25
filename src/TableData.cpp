@@ -16,6 +16,7 @@ std::map<int32_t, std::vector<WarpLocation>> TableData::RunningSkywayRoutes;
 std::map<int32_t, int> TableData::RunningNPCRotations;
 std::map<int32_t, int> TableData::RunningNPCMapNumbers;
 std::map<int32_t, BaseNPC*> TableData::RunningMobs;
+std::map<int32_t, BaseNPC*> TableData::RunningGroups;
 std::map<int32_t, BaseNPC*> TableData::RunningEggs;
 
 class TableException : public std::exception {
@@ -781,19 +782,12 @@ void TableData::flush() {
             continue;
 
         int x, y, z, hp;
-        int offsetX = 0;
-        int offsetY = 0;
         if (npc->npcClass == NPC_MOB) {
             Mob *m = (Mob*)npc;
             x = m->spawnX;
             y = m->spawnY;
             z = m->spawnZ;
             hp = m->maxHealth;
-            // handling groups
-            if (m->groupLeader != 0 && m->groupLeader != m->appearanceData.iNPC_ID) {
-                offsetX = m->offsetX;
-                offsetY = m->offsetY;
-            }
         } else {
             x = npc->appearanceData.iX;
             y = npc->appearanceData.iY;
@@ -811,14 +805,73 @@ void TableData::flush() {
         // this is a bit imperfect, since this is a live angle, not a spawn angle so it'll change often, but eh
         mob["iAngle"] = npc->appearanceData.iAngle;
 
-        // there is an assumption that group mobs will never have an offset of (0,0)
-        if (offsetX != 0 || offsetY != 0) {
-            mob["iOffsetX"] = offsetX;
-            mob["iOffsetY"] = offsetY;
+        // it's called mobs, but really it's everything
+        gruntwork["mobs"].push_back(mob);
+    }
+
+    for (auto& pair : RunningGroups) {
+        nlohmann::json mob;
+        BaseNPC* npc = pair.second;
+
+        if (NPCManager::NPCs.find(pair.first) == NPCManager::NPCs.end())
+            continue;
+
+        int x, y, z, hp;
+        std::vector<Mob*> followers;
+        if (npc->npcClass == NPC_MOB) {
+            Mob* m = (Mob*)npc;
+            x = m->spawnX;
+            y = m->spawnY;
+            z = m->spawnZ;
+            hp = m->maxHealth;
+            if (m->groupLeader != m->appearanceData.iNPC_ID) { // make sure this is a leader
+                std::cout << "[WARN] Non-leader mob found in running groups; ignoring\n";
+                continue;
+            }
+
+            // add follower data to vector; go until OOB or until follower ID is 0
+            for (int i = 0; i < 4 && m->groupMember[i] > 0; i++) {
+                if (MobManager::Mobs.find(m->groupMember[i]) == MobManager::Mobs.end()) {
+                    std::cout << "[WARN] Follower with ID " << m->groupMember[i] << " not found; skipping\n";
+                    continue;
+                }
+                followers.push_back(MobManager::Mobs[m->groupMember[i]]);
+            }
+        }
+        else {
+            x = npc->appearanceData.iX;
+            y = npc->appearanceData.iY;
+            z = npc->appearanceData.iZ;
+            hp = npc->appearanceData.iHP;
+        }
+
+        // NOTE: this format deviates slightly from the one in mobs.json
+        mob["iNPCType"] = (int)npc->appearanceData.iNPCType;
+        mob["iHP"] = hp;
+        mob["iX"] = x;
+        mob["iY"] = y;
+        mob["iZ"] = z;
+        mob["iMapNum"] = MAPNUM(npc->instanceID);
+        // this is a bit imperfect, since this is a live angle, not a spawn angle so it'll change often, but eh
+        mob["iAngle"] = npc->appearanceData.iAngle;
+
+        // followers
+        while (followers.size() > 0) {
+            Mob* follower = followers.back();
+            followers.pop_back(); // remove from vector
+
+            // populate JSON entry
+            nlohmann::json fol;
+            fol["iNPCType"] = follower->appearanceData.iNPCType;
+            fol["iHP"] = follower->maxHealth;
+            fol["iOffsetX"] = follower->offsetX;
+            fol["iOffsetY"] = follower->offsetY;
+
+            mob["aFollowers"].push_back(fol); // add to follower array
         }
 
         // it's called mobs, but really it's everything
-        gruntwork["mobs"].push_back(mob);
+        gruntwork["groups"].push_back(mob);
     }
 
     for (auto& pair : RunningEggs) {

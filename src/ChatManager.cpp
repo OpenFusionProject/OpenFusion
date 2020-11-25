@@ -651,8 +651,6 @@ void summonGroupCommand(std::string full, std::vector<std::string>& args, CNSock
 
         ChatManager::sendServerMessage(sock, "/summonGroup(W): placed mob with type: " + std::to_string(type) +
             ", id: " + std::to_string(npc->appearanceData.iNPC_ID));
-        if (wCommand)
-            TableData::RunningMobs[npc->appearanceData.iNPC_ID] = npc; // only record the one in the template
 
         if (i == 0 && team == 2) {
             type = type2;
@@ -660,6 +658,16 @@ void summonGroupCommand(std::string full, std::vector<std::string>& args, CNSock
             leadNpc->groupLeader = leadNpc->appearanceData.iNPC_ID;
         }
     }
+
+    if (!wCommand)
+        return; // not writing; don't add to running mobs
+
+    if (leadNpc == nullptr) {
+        std::cout << "/summonGroupW: can't find group leader! Won't be saved!\n";
+        return;
+    }
+
+    TableData::RunningGroups[leadNpc->appearanceData.iNPC_ID] = leadNpc; // only record the leader
 }
 
 void flushCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
