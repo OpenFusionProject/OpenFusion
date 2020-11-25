@@ -142,6 +142,7 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
     switch (route.type) {
     case 1: // S.C.A.M.P.E.R.
         target = Locations[route.end];
+        ChunkManager::updatePlayerChunk(sock, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
         PlayerManager::updatePlayerPosition(sock, target.x, target.y, target.z, INSTANCE_OVERWORLD, plr->angle);
         break;
     case 2: // Monkey Skyway
