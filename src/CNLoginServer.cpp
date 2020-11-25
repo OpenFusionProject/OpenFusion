@@ -201,38 +201,17 @@ void CNLoginServer::nameCheck(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2LS_REQ_CHECK_CHAR_NAME))
         return;
 
+    // responding to this packet only makes the client send the next packet (either name save or name change)
+    // so we're always sending SUCC here and actually validating the name when the next packet arrives
+
     sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck = (sP_CL2LS_REQ_CHECK_CHAR_NAME*)data->buf;
-    int errorCode = 0;
-    if (!CNLoginServer::isCharacterNameGood(U16toU8(nameCheck->szFirstName), U16toU8(nameCheck->szLastName))) {
-        errorCode = 4;
-    }
-    else if (!Database::isNameFree(nameCheck)) {
-        errorCode = 1;
-    }
-
-    if (errorCode != 0) {
-        INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL, resp);
-        resp.iErrorCode = errorCode;
-        sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_FAIL, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL));
-
-        DEBUGLOG(
-        std::cout << "Login Server: name check fail. Error code " << errorCode << std::endl;
-        )
-
-        return;
-    }
-    loginSessions[sock].lastHeartbeat = getTime();
 
     INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC, resp);
-    memcpy(resp.szFirstName, nameCheck->szFirstName, sizeof(nameCheck->szFirstName));
-    memcpy(resp.szLastName, nameCheck->szLastName, sizeof(nameCheck->szLastName));
-
+    memcpy(resp.szFirstName, nameCheck->szFirstName, sizeof(resp.szFirstName));
+    memcpy(resp.szLastName, nameCheck->szLastName, sizeof(resp.szLastName));
     sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC));
 
-    DEBUGLOG(
-    std::cout << "Login Server: name check success" << std::endl;
-    std::cout << "\tFirstName: " << U16toU8(nameCheck->szFirstName) << " LastName: " << U16toU8(nameCheck->szLastName) << std::endl;
-    )
+    loginSessions[sock].lastHeartbeat = getTime();
 }
 
 void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
@@ -242,11 +221,31 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
     sP_CL2LS_REQ_SAVE_CHAR_NAME* save = (sP_CL2LS_REQ_SAVE_CHAR_NAME*)data->buf;
     INITSTRUCT(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC, resp);
 
+    int errorCode = 0;
+    if (!CNLoginServer::isCharacterNameGood(U16toU8(save->szFirstName), U16toU8(save->szLastName))) {
+        errorCode = 4;
+    }
+    else if (!Database::isNameFree(U16toU8(save->szFirstName), U16toU8(save->szLastName))) {
+        errorCode = 1;
+    }
+
+    if (errorCode != 0) {
+        INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL, resp);
+        resp.iErrorCode = errorCode;
+        sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_FAIL, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL));
+
+        DEBUGLOG(
+            std::cout << "Login Server: name check fail. Error code " << errorCode << std::endl;
+        )
+
+        return;
+    }
+
     resp.iSlotNum = save->iSlotNum;
     resp.iGender = save->iGender;
     resp.iPC_UID = Database::createCharacter(save, loginSessions[sock].userID);
-    memcpy(resp.szFirstName, save->szFirstName, sizeof(save->szFirstName));
-    memcpy(resp.szLastName, save->szLastName, sizeof(save->szLastName));
+    memcpy(resp.szFirstName, save->szFirstName, sizeof(resp.szFirstName));
+    memcpy(resp.szLastName, save->szLastName, sizeof(resp.szLastName));
 
     loginSessions[sock].lastHeartbeat = getTime();
 
@@ -255,9 +254,9 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
     Database::updateSelected(loginSessions[sock].userID, save->iSlotNum);
 
     DEBUGLOG(
-    std::cout << "Login Server: new character created" << std::endl;
-    std::cout << "\tSlot: " << (int)save->iSlotNum << std::endl;
-    std::cout << "\tName: " << U16toU8(save->szFirstName) << " " << U16toU8(save->szLastName) << std::endl;
+        std::cout << "Login Server: new character created" << std::endl;
+        std::cout << "\tSlot: " << (int)save->iSlotNum << std::endl;
+        std::cout << "\tName: " << U16toU8(save->szFirstName) << " " << U16toU8(save->szLastName) << std::endl;
     )
 }
 
@@ -313,7 +312,7 @@ void CNLoginServer::characterCreate(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2LS_REQ_CHAR_CREATE* character = (sP_CL2LS_REQ_CHAR_CREATE*)data->buf;
 
-    if (! (Database::validateCharacter(character->PCStyle.iPC_UID, loginSessions[sock].userID) && validateCharacterCreation(character)))
+    if (!(Database::validateCharacter(character->PCStyle.iPC_UID, loginSessions[sock].userID) && validateCharacterCreation(character)))
         return invalidCharacter(sock);
 
     Database::finishCharacter(character);
@@ -332,22 +331,22 @@ void CNLoginServer::characterCreate(CNSocket* sock, CNPacketData* data) {
     Database::updateSelected(loginSessions[sock].userID, player.slot);   
 
     DEBUGLOG(
-    std::cout << "Login Server: Character creation completed" << std::endl;
-    std::cout << "\tPC_UID: " << character->PCStyle.iPC_UID << std::endl;
-    std::cout << "\tNameCheck: " << (int)character->PCStyle.iNameCheck << std::endl;
-    std::cout << "\tName: " << U16toU8(character->PCStyle.szFirstName) << " " << U16toU8(character->PCStyle.szLastName) << std::endl;
-    std::cout << "\tGender: " << (int)character->PCStyle.iGender << std::endl;
-    std::cout << "\tFace: " << (int)character->PCStyle.iFaceStyle << std::endl;
-    std::cout << "\tHair: " << (int)character->PCStyle.iHairStyle << std::endl;
-    std::cout << "\tHair Color: " << (int)character->PCStyle.iHairColor << std::endl;
-    std::cout << "\tSkin Color: " << (int)character->PCStyle.iSkinColor << std::endl;
-    std::cout << "\tEye Color: " << (int)character->PCStyle.iEyeColor << std::endl;
-    std::cout << "\tHeight: " << (int)character->PCStyle.iHeight << std::endl;
-    std::cout << "\tBody: " << (int)character->PCStyle.iBody << std::endl;
-    std::cout << "\tClass: " << (int)character->PCStyle.iClass << std::endl;
-    std::cout << "\tiEquipUBID: " << (int)character->sOn_Item.iEquipUBID << std::endl;
-    std::cout << "\tiEquipLBID: " << (int)character->sOn_Item.iEquipLBID << std::endl;
-    std::cout << "\tiEquipFootID: " << (int)character->sOn_Item.iEquipFootID << std::endl;
+        std::cout << "Login Server: Character creation completed" << std::endl;
+        std::cout << "\tPC_UID: " << character->PCStyle.iPC_UID << std::endl;
+        std::cout << "\tNameCheck: " << (int)character->PCStyle.iNameCheck << std::endl;
+        std::cout << "\tName: " << U16toU8(character->PCStyle.szFirstName) << " " << U16toU8(character->PCStyle.szLastName) << std::endl;
+        std::cout << "\tGender: " << (int)character->PCStyle.iGender << std::endl;
+        std::cout << "\tFace: " << (int)character->PCStyle.iFaceStyle << std::endl;
+        std::cout << "\tHair: " << (int)character->PCStyle.iHairStyle << std::endl;
+        std::cout << "\tHair Color: " << (int)character->PCStyle.iHairColor << std::endl;
+        std::cout << "\tSkin Color: " << (int)character->PCStyle.iSkinColor << std::endl;
+        std::cout << "\tEye Color: " << (int)character->PCStyle.iEyeColor << std::endl;
+        std::cout << "\tHeight: " << (int)character->PCStyle.iHeight << std::endl;
+        std::cout << "\tBody: " << (int)character->PCStyle.iBody << std::endl;
+        std::cout << "\tClass: " << (int)character->PCStyle.iClass << std::endl;
+        std::cout << "\tiEquipUBID: " << (int)character->sOn_Item.iEquipUBID << std::endl;
+        std::cout << "\tiEquipLBID: " << (int)character->sOn_Item.iEquipLBID << std::endl;
+        std::cout << "\tiEquipFootID: " << (int)character->sOn_Item.iEquipFootID << std::endl;
     )
 }
 
@@ -384,8 +383,8 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
         return invalidCharacter(sock);
 
     DEBUGLOG(
-    std::cout << "Login Server: Selected character [" << selection->iPC_UID << "]" << std::endl;
-    std::cout << "Connecting to shard server" << std::endl;
+        std::cout << "Login Server: Selected character [" << selection->iPC_UID << "]" << std::endl;
+        std::cout << "Connecting to shard server" << std::endl;
     )
   
     // copy IP to resp (this struct uses ASCII encoding so we don't have to goof around converting encodings)
@@ -432,12 +431,32 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
     if (!Database::validateCharacter(save->iPCUID, loginSessions[sock].userID))
         return invalidCharacter(sock);
 
+    int errorCode = 0;
+    if (!CNLoginServer::isCharacterNameGood(U16toU8(save->szFirstName), U16toU8(save->szLastName))) {
+        errorCode = 4;
+    }
+    else if (!Database::isNameFree(U16toU8(save->szFirstName), U16toU8(save->szLastName))) {
+        errorCode = 1;
+    }
+
+    if (errorCode != 0) {
+        INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL, resp);
+        resp.iErrorCode = errorCode;
+        sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_FAIL, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL));
+
+        DEBUGLOG(
+            std::cout << "Login Server: name check fail. Error code " << errorCode << std::endl;
+        )
+
+        return;
+    }
+
     Database::changeName(save);
 
     INITSTRUCT(sP_LS2CL_REP_CHANGE_CHAR_NAME_SUCC, resp);
     resp.iPC_UID = save->iPCUID;
-    memcpy(resp.szFirstName, save->szFirstName, sizeof(save->szFirstName));
-    memcpy(resp.szLastName, save->szLastName, sizeof(save->szLastName));
+    memcpy(resp.szFirstName, save->szFirstName, sizeof(resp.szFirstName));
+    memcpy(resp.szLastName, save->szLastName, sizeof(resp.szLastName));
     resp.iSlotNum = save->iSlotNum;
 
     loginSessions[sock].lastHeartbeat = getTime();
@@ -453,6 +472,8 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
 void CNLoginServer::duplicateExit(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2LS_REQ_PC_EXIT_DUPLICATE))
         return;
+
+    // TODO: FIX THIS PACKET
 
     sP_CL2LS_REQ_PC_EXIT_DUPLICATE* exit = (sP_CL2LS_REQ_PC_EXIT_DUPLICATE*)data->buf;
     auto account = Database::findAccount(U16toU8(exit->szID));
