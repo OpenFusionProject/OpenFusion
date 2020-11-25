@@ -1457,3 +1457,217 @@ void MobManager::followToCombat(Mob *mob) {
         leadMob->roamZ = leadMob->appearanceData.iZ;
     }
 }
+
+#pragma region Mob Powers
+namespace MobManager {
+bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
+    CNSocket *sock = nullptr;
+    Player *plr = nullptr;
+
+    for (auto& pair : PlayerManager::players) {
+        if (pair.second->iID == targetID) {
+            sock = pair.first;
+            plr = pair.second;
+            break;
+        }
+    }
+
+    // player not found
+    if (plr == nullptr) {
+        std::cout << "[WARN] doDamageNDebuff: player ID not found" << std::endl;
+        return false;
+    }
+
+    int damage = duration / 1000;
+
+    respdata[i].eCT = 1;
+    respdata[i].iDamage = damage;
+    respdata[i].iID = plr->iID;
+    respdata[i].iHP = plr->HP -= damage;
+    respdata[i].iStamina = plr->Nanos[plr->activeNano].iStamina;
+    if (plr->iConditionBitFlag & CSB_BIT_FREEDOM)
+        respdata[i].bProtected = 1;
+    else {
+        respdata[i].bProtected = 0;
+        plr->iConditionBitFlag |= bitFlag;
+        std::pair<CNSocket*, int32_t> key = std::make_pair(sock, bitFlag);
+        time_t until = getTime() + (time_t)duration;
+        NPCManager::EggBuffs[key] = until;
+    }
+    respdata[i].iConditionBitFlag = plr->iConditionBitFlag;
+    return true;
+}
+
+bool doHeal(Mob *mob, sSkillResult_Heal_HP *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
+    int healedAmount = amount * mob->maxHealth / 1000;
+    mob->appearanceData.iHP += healedAmount;
+    if (mob->appearanceData.iHP > mob->maxHealth)
+        mob->appearanceData.iHP = mob->maxHealth;
+
+    respdata[i].eCT = 4;
+    respdata[i].iID = mob->appearanceData.iNPC_ID;
+    respdata[i].iHP = mob->appearanceData.iHP;
+    respdata[i].iHealHP = healedAmount;
+
+    return true;
+}
+
+bool doDamage(Mob *mob, sSkillResult_Damage *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
+    Player *plr = nullptr;
+
+    for (auto& pair : PlayerManager::players) {
+        if (pair.second->iID == targetID) {
+            plr = pair.second;
+            break;
+        }
+    }
+
+    // player not found
+    if (plr == nullptr) {
+        std::cout << "[WARN] doDamage: player ID not found" << std::endl;
+        return false;
+    }
+
+    int damage = amount * PC_MAXHEALTH(plr->level) / 1000;
+
+    respdata[i].eCT = 1;
+    respdata[i].iDamage = damage;
+    respdata[i].iID = plr->iID;
+    respdata[i].iHP = plr->HP -= damage;
+
+    return true;
+}
+
+bool doLeech(Mob *mob, sSkillResult_Heal_HP *healdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
+    // this sanity check is VERY important
+    if (i != 0) {
+        std::cout << "[WARN] Mob attempted to leech more than one player!" << std::endl;
+        return false;
+    }
+
+    sSkillResult_Damage *damagedata = (sSkillResult_Damage*)(((uint8_t*)healdata) + sizeof(sSkillResult_Heal_HP));
+
+    int healedAmount = amount * mob->maxHealth / 1000;
+    mob->appearanceData.iHP += healedAmount;
+    if (mob->appearanceData.iHP > mob->maxHealth)
+        mob->appearanceData.iHP = mob->maxHealth;
+
+    healdata->eCT = 4;
+    healdata->iID = mob->appearanceData.iNPC_ID;
+    healdata->iHP = mob->appearanceData.iHP;
+    healdata->iHealHP = healedAmount;
+
+    Player *plr = nullptr;
+
+    for (auto& pair : PlayerManager::players) {
+        if (pair.second->iID == targetID) {
+            plr = pair.second;
+            break;
+        }
+    }
+
+    // player not found
+    if (plr == nullptr) {
+        std::cout << "[WARN] doLeech: player ID not found" << std::endl;
+        return false;
+    }
+
+    int damage = amount * PC_MAXHEALTH(plr->level) / 1000;
+
+    damagedata->eCT = 1;
+    damagedata->iDamage = damage;
+    damagedata->iID = plr->iID;
+    damagedata->iHP = plr->HP -= damage;
+
+    return true;
+}
+
+bool doBatteryDrain(Mob *mob, sSkillResult_BatteryDrain *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
+    Player *plr = nullptr;
+
+    for (auto& pair : PlayerManager::players) {
+        if (pair.second->iID == targetID) {
+            plr = pair.second;
+            break;
+        }
+    }
+
+    // player not found
+    if (plr == nullptr) {
+        std::cout << "[WARN] doDamage: player ID not found" << std::endl;
+        return false;
+    }
+
+    respdata[i].eCT = 1;
+    respdata[i].iID = plr->iID;
+
+    if (plr->iConditionBitFlag & CSB_BIT_PROTECT_BATTERY) {
+        respdata[i].bProtected = 1;
+        respdata[i].iDrainW = 0;
+        respdata[i].iDrainN = 0;
+    } else {
+        respdata[i].bProtected = 0;
+        respdata[i].iDrainW = amount / 10;
+        respdata[i].iDrainN = amount / 10;
+    }
+
+    respdata[i].iBatteryW = plr->batteryW -= respdata[i].iDrainW;
+    respdata[i].iBatteryN = plr->batteryN -= respdata[i].iDrainN;
+    respdata[i].iStamina = plr->Nanos[plr->activeNano].iStamina;
+    respdata[i].iConditionBitFlag = plr->iConditionBitFlag;
+
+    return true;
+}
+
+template<class sPAYLOAD,
+         bool (*work)(Mob*,sPAYLOAD*,int,int32_t,int32_t,int16_t,int16_t,int16_t)>
+void mobPower(Mob *mob, int targetData[],
+                int16_t skillID, int16_t duration, int16_t amount, 
+                int16_t skillType, int32_t bitFlag, int16_t timeBuffID) {
+    size_t resplen;
+    // special case since leech is atypically encoded
+    if (skillType == EST_BLOODSUCKING)
+        resplen = sizeof(sP_FE2CL_NPC_SKILL_HIT) + sizeof(sSkillResult_Heal_HP) + sizeof(sSkillResult_Damage);
+    else
+        resplen = sizeof(sP_FE2CL_NPC_SKILL_HIT) + targetData[0] * sizeof(sPAYLOAD);
+
+    // validate response packet
+    if (!validOutVarPacket(sizeof(sP_FE2CL_NPC_SKILL_HIT), targetData[0], sizeof(sPAYLOAD))) {
+        std::cout << "[WARN] bad sP_FE2CL_NPC_SKILL_HIT packet size" << std::endl;
+        return;
+    }
+
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    memset(respbuf, 0, resplen);
+
+    sP_FE2CL_NPC_SKILL_HIT *resp = (sP_FE2CL_NPC_SKILL_HIT*)respbuf;
+    sPAYLOAD *respdata = (sPAYLOAD*)(respbuf+sizeof(sP_FE2CL_NPC_SKILL_HIT));
+
+    resp->iNPC_ID = mob->appearanceData.iNPC_ID;
+    resp->iSkillID = skillID;
+    resp->iValue1 = mob->hitX;
+    resp->iValue2 = mob->hitY;
+    resp->iValue3 = mob->hitZ;
+    resp->eST = skillType;
+    resp->iTargetCnt = targetData[0];
+
+    for (int i = 0; i < targetData[0]; i++)
+        if (!work(mob, respdata, i, targetData[i+1], bitFlag, timeBuffID, duration, amount))
+            return;
+
+    NPCManager::sendToViewable(mob, (void*)&respbuf, P_FE2CL_NPC_SKILL_HIT, resplen);
+}
+
+// nano power dispatch table
+std::vector<MobPower> MobPowers = {
+    MobPower(EST_STUN,             CSB_BIT_STUN,              ECSB_STUN,              mobPower<sSkillResult_Damage_N_Debuff, doDamageNDebuff>),
+    MobPower(EST_HEAL_HP,          CSB_BIT_NONE,              ECSB_NONE,              mobPower<sSkillResult_Heal_HP,                  doHeal>),
+    MobPower(EST_RETURNHOMEHEAL,   CSB_BIT_NONE,              ECSB_NONE,              mobPower<sSkillResult_Heal_HP,                  doHeal>),
+    MobPower(EST_SNARE,            CSB_BIT_DN_MOVE_SPEED,     ECSB_DN_MOVE_SPEED,     mobPower<sSkillResult_Damage_N_Debuff, doDamageNDebuff>),
+    MobPower(EST_DAMAGE,           CSB_BIT_NONE,              ECSB_NONE,              mobPower<sSkillResult_Damage,                 doDamage>),
+    MobPower(EST_BATTERYDRAIN,     CSB_BIT_NONE,              ECSB_NONE,              mobPower<sSkillResult_BatteryDrain,     doBatteryDrain>),
+    MobPower(EST_SLEEP,            CSB_BIT_MEZ,               ECSB_MEZ,               mobPower<sSkillResult_Damage_N_Debuff, doDamageNDebuff>)
+};
+
+}; // namespace
+#pragma endregion

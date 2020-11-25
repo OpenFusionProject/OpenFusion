@@ -47,6 +47,8 @@ struct Mob : public BaseNPC {
     CNSocket *target = nullptr;
     time_t nextAttack = 0;
     time_t lastDrainTime = 0;
+    int skillStyle = -1; // -1 for nothing, 0-2 for corruption, -2 for ability windup, -3 for eruption
+    int hitX, hitY, hitZ; // for use in ability targeting
 
     // drop
     int dropType;
@@ -119,6 +121,24 @@ struct Bullet {
     int groupDamage;
     bool weaponBoost;
     int bulletType;
+};
+
+typedef void (*MobPowerHandler)(Mob*, int*, int16_t, int16_t, int16_t, int16_t, int32_t, int16_t);
+
+struct MobPower {
+    int16_t skillType;
+    int32_t bitFlag;
+    int16_t timeBuffID;
+    MobPowerHandler handler;
+
+    MobPower(int16_t s, int32_t b, int16_t t, MobPowerHandler h) : skillType(s), bitFlag(b), timeBuffID(t), handler(h) {}
+
+    void handle(Mob *mob, int* targetData, int16_t skillID, int16_t duration, int16_t amount) {
+        if (handler == nullptr)
+            return;
+
+        handler(mob, targetData, skillID, duration, amount, skillType, bitFlag, timeBuffID);
+    }
 };
 
 namespace MobManager {
