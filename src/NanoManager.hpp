@@ -36,6 +36,7 @@ struct SkillData {
     int skillType;
     int targetType;
     int drainType;
+    int effectArea;
     int batteryUse[4];
     int durationTime[4];
     int powerIntensity[4];

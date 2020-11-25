@@ -536,9 +536,22 @@ int* NanoManager::findTargets(Player* plr, int skillID, CNPacketData* data) {
         if (otherPlr == nullptr)
             return tD;
 
-        tD[0] = otherPlr->groupCnt;
-        for (int i = 0; i < otherPlr->groupCnt; i++)
-            tD[i+1] = otherPlr->groupIDs[i];
+        if (SkillTable[skillID].effectArea == 0) { // for buffs
+            tD[0] = otherPlr->groupCnt;
+            for (int i = 0; i < otherPlr->groupCnt; i++)
+                tD[i+1] = otherPlr->groupIDs[i];
+            return tD;
+        }
+
+        for (int i = 0; i < otherPlr->groupCnt; i++) { // group heals have an area limit
+            Player *otherPlr2 = PlayerManager::getPlayerFromID(otherPlr->groupIDs[i]);
+            if (otherPlr2 == nullptr)
+                continue;
+            if (hypot(otherPlr2->x - plr->x, otherPlr2->y - plr->y) < SkillTable[skillID].effectArea) {
+                tD[i+1] = otherPlr->groupIDs[i];
+                tD[0] += 1;
+            }
+        }
     }
     
     return tD;
