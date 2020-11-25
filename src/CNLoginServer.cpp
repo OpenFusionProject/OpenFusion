@@ -473,6 +473,8 @@ void CNLoginServer::duplicateExit(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2LS_REQ_PC_EXIT_DUPLICATE))
         return;
 
+    // TODO: FIX THIS PACKET
+
     sP_CL2LS_REQ_PC_EXIT_DUPLICATE* exit = (sP_CL2LS_REQ_PC_EXIT_DUPLICATE*)data->buf;
     auto account = Database::findAccount(U16toU8(exit->szID));
 
