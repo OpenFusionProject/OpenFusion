@@ -342,6 +342,9 @@ int MobManager::hitMob(CNSocket *sock, Mob *mob, int damage) {
         return 0; // no damage
     }
 
+    if (mob->skillStyle >= 0)
+        return 0; // don't hurt a mob casting corruption
+
     if (mob->state == MobState::ROAMING) {
         assert(mob->target == nullptr);
         mob->target = sock;
@@ -551,12 +554,15 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
         return;
 
     int distance = hypot(plr->x - mob->appearanceData.iX, plr->y - mob->appearanceData.iY);
+    int mobRange = (int)mob->data["m_iAtkRange"] + (int)mob->data["m_iRadius"];
 
+    if (currTime >= mob->nextAttack)
+        useAbilities(mob, currTime);
     /*
      * If the mob is close enough to attack, do so. If not, get closer.
      * No, I'm not 100% sure this is how it's supposed to work.
      */
-    if (distance <= (int)mob->data["m_iAtkRange"]) {
+    if (distance <= mobRange) {
         // attack logic
         if (mob->nextAttack == 0) {
             mob->nextAttack = currTime + (int)mob->data["m_iInitalTime"] * 100; //I *think* this is what this is
@@ -565,7 +571,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
             mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
             npcAttackPc(mob, currTime);
         }
-    } else {
+    } else if (mob->skillStyle == -1) { // don't move while casting a skill
         // movement logic
         if (mob->nextMovement != 0 && currTime < mob->nextMovement)
             return;
@@ -586,7 +592,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
             targetY += mob->offsetY*distance/(mob->idleRange + 1);
         }
 
-        auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, targetX, targetY, std::min(distance-(int)mob->data["m_iAtkRange"]+1, speed*2/5));
+        auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, targetX, targetY, std::min(distance-mobRange+1, speed*2/5));
 
         NPCManager::updateNPCPosition(mob->appearanceData.iNPC_ID, targ.first, targ.second, mob->appearanceData.iZ, mob->instanceID, mob->appearanceData.iAngle);
 
@@ -1236,6 +1242,7 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
 }
 
 void MobManager::clearDebuff(Mob *mob) {
+    mob->skillStyle = -1;
     mob->appearanceData.iConditionBitFlag = 0;
     mob->unbuffTimes.clear();
 
@@ -1458,6 +1465,190 @@ void MobManager::followToCombat(Mob *mob) {
     }
 }
 
+void MobManager::useAbilities(Mob *mob, time_t currTime) {
+    if (mob->skillStyle >= 0) { // corruption hit
+        int skillID = (int)mob->data["m_iCorruptionType"];
+        int targetData[5] = {1, mob->target->plr->iID, 0, 0, 0};
+        dealCorruption(mob, targetData, skillID, mob->skillStyle);
+        mob->nextAttack = currTime + 1000;
+        mob->skillStyle = -3;
+        return;
+    }
+
+    if (mob->skillStyle == -2) { // eruption hit
+        int skillID = (int)mob->data["m_iMegaType"];
+        int targetData[5] = {0, 0, 0, 0, 0};
+
+        // find the players within range of eruption
+        for (auto it = mob->viewableChunks->begin(); it != mob->viewableChunks->end(); it++) {
+            Chunk* chunk = *it;
+            for (CNSocket *s : chunk->players) {
+                Player *plr = s->plr;
+
+                if (plr->HP <= 0)
+                    continue;
+
+                int distance = hypot(mob->hitX - plr->x, mob->hitY - plr->y);
+                if (distance < NanoManager::SkillTable[skillID].effectArea) {
+                    targetData[0] += 1;
+                    targetData[targetData[0]] = plr->iID;
+                    if (targetData[0] > 3) // make sure not to have more than 4
+                        break;
+                }
+            }
+        }
+
+        for (auto& pwr : MobPowers)
+            if (pwr.skillType == NanoManager::SkillTable[skillID].skillType)
+                pwr.handle(mob, targetData, skillID, NanoManager::SkillTable[skillID].durationTime[0], NanoManager::SkillTable[skillID].powerIntensity[0]);
+        mob->skillStyle = -3; // eruption cooldown
+        mob->nextAttack = currTime + 1000;
+        return;
+    }
+
+    if (mob->skillStyle == -3) { // cooldown expires
+        mob->skillStyle = -1;
+        return;
+    }
+
+    int random = rand() % 100 * 30000;
+    int prob1 = (int)mob->data["m_iActiveSkill1Prob"]; // active skill probability
+    int prob2 = (int)mob->data["m_iCorruptionTypeProb"]; // corruption probability
+    int prob3 = (int)mob->data["m_iMegaTypeProb"]; // eruption probability
+
+    if (random < prob1) { // active skill hit
+        int skillID = (int)mob->data["m_iActiveSkill1"];
+        int targetData[5] = {1, mob->target->plr->iID, 0, 0, 0};
+        for (auto& pwr : MobPowers)
+            if (pwr.skillType == NanoManager::SkillTable[skillID].skillType)
+                pwr.handle(mob, targetData, skillID, NanoManager::SkillTable[skillID].durationTime[0], NanoManager::SkillTable[skillID].powerIntensity[0]);
+        mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
+        return;
+    }
+
+    if (random < prob1 + prob2) { // corruption windup
+        int skillID = (int)mob->data["m_iCorruptionType"];
+        INITSTRUCT(sP_FE2CL_NPC_SKILL_CORRUPTION_READY, pkt);
+        pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
+        pkt.iSkillID = skillID;
+        pkt.iValue1 = mob->target->plr->x;
+        pkt.iValue2 = mob->target->plr->y;
+        pkt.iValue3 = mob->target->plr->z;
+        mob->skillStyle = NanoManager::nanoStyle(mob->target->plr->activeNano) - 1;
+        if (mob->skillStyle == -1)
+            mob->skillStyle = 2;
+        if (mob->skillStyle == -2)
+            mob->skillStyle = (int)mob->data["m_iNpcStyle"];
+        pkt.iStyle = mob->skillStyle;
+        NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_SKILL_CORRUPTION_READY, sizeof(sP_FE2CL_NPC_SKILL_CORRUPTION_READY));
+        mob->nextAttack = currTime + 2000;
+        return;
+    }
+
+    if (random < prob1 + prob2 + prob3) { // eruption windup
+        int skillID = (int)mob->data["m_iMegaType"];
+        INITSTRUCT(sP_FE2CL_NPC_SKILL_READY, pkt);
+        pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
+        pkt.iSkillID = skillID;
+        pkt.iValue1 = mob->hitX = mob->target->plr->x;
+        pkt.iValue2 = mob->hitY = mob->target->plr->y;
+        pkt.iValue3 = mob->hitZ = mob->target->plr->z;
+        NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_SKILL_READY, sizeof(sP_FE2CL_NPC_SKILL_READY));
+        mob->nextAttack = currTime + 2500;
+        mob->skillStyle = -2;
+        return;
+    }
+
+    return;
+}
+
+void MobManager::dealCorruption(Mob *mob, int targetData[], int skillID, int style) {
+    size_t resplen = sizeof(sP_FE2CL_NPC_SKILL_CORRUPTION_HIT) + targetData[0] * sizeof(sCAttackResult);
+
+    // validate response packet
+    if (!validOutVarPacket(sizeof(sP_FE2CL_NPC_SKILL_CORRUPTION_HIT), targetData[0], sizeof(sCAttackResult))) {
+        std::cout << "[WARN] bad sP_FE2CL_NPC_SKILL_CORRUPTION_HIT packet size" << std::endl;
+        return;
+    }
+
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    memset(respbuf, 0, resplen);
+
+    sP_FE2CL_NPC_SKILL_CORRUPTION_HIT *resp = (sP_FE2CL_NPC_SKILL_CORRUPTION_HIT*)respbuf;
+    sCAttackResult *respdata = (sCAttackResult*)(respbuf+sizeof(sP_FE2CL_NPC_SKILL_CORRUPTION_HIT));
+
+    resp->iNPC_ID = mob->appearanceData.iNPC_ID;
+    resp->iSkillID = skillID;
+    resp->iStyle = style;
+    resp->iValue1 = mob->target->plr->x;
+    resp->iValue2 = mob->target->plr->y;
+    resp->iValue3 = mob->target->plr->z;
+    resp->iTargetCnt = targetData[0];
+
+    for (int i = 0; i < targetData[0]; i++) {
+        CNSocket *sock = nullptr;
+        Player *plr = nullptr;
+
+        for (auto& pair : PlayerManager::players) {
+            if (pair.second->iID == targetData[i+1]) {
+                sock = pair.first;
+                plr = pair.second;
+                break;
+            }
+        }
+
+        // player not found
+        if (plr == nullptr) {
+            std::cout << "[WARN] dealCorruption: player ID not found" << std::endl;
+            return;
+        }
+
+        respdata[i].eCT = 1;
+        respdata[i].iID = plr->iID;
+        respdata[i].bProtected = 0;
+
+        respdata[i].iActiveNanoSlotNum = -1;
+        for (int n = 0; n < 3; n++)
+            if (plr->activeNano == plr->equippedNanos[n])
+                respdata[i].iActiveNanoSlotNum = n;
+        respdata[i].iNanoID = plr->activeNano;
+
+        int style2 = NanoManager::nanoStyle(plr->activeNano);
+        if (style2 == -1 || style == style2) {
+            respdata[i].iHitFlag = 8; // tie
+            respdata[i].iDamage = 0;
+            respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina;
+        } else if (style - style2 == 1 || style2 - style == 2) {
+            respdata[i].iHitFlag = 4; // win
+            respdata[i].iDamage = 60;
+            respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina += 60;
+            if (plr->Nanos[plr->activeNano].iStamina > 150)
+                respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina = 150;
+        } else {
+            respdata[i].iHitFlag = 16; // lose
+            respdata[i].iDamage = 60;
+            plr->HP -= respdata[i].iDamage;
+            respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina -= 60;
+            if (plr->Nanos[plr->activeNano].iStamina < 0) {
+                respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina = 0;
+                NanoManager::summonNano(sock, -1); // unsummon when stamina is 0
+            }
+        }
+
+        respdata[i].iHP = plr->HP;
+        respdata[i].iConditionBitFlag = plr->iConditionBitFlag;
+
+        if (plr->HP <= 0) {
+            mob->target = nullptr;
+            mob->state = MobState::RETREAT;
+            if (!aggroCheck(mob, getTime()))
+                clearDebuff(mob);
+        }
+    }
+
+    NPCManager::sendToViewable(mob, (void*)&respbuf, P_FE2CL_NPC_SKILL_CORRUPTION_HIT, resplen);
+}
+
 #pragma region Mob Powers
 namespace MobManager {
 bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
@@ -1478,7 +1669,7 @@ bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, in
         return false;
     }
 
-    int damage = duration / 1000;
+    int damage = duration;
 
     respdata[i].eCT = 1;
     respdata[i].iDamage = damage;
@@ -1488,13 +1679,29 @@ bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, in
     if (plr->iConditionBitFlag & CSB_BIT_FREEDOM)
         respdata[i].bProtected = 1;
     else {
+        if  (!(plr->iConditionBitFlag & bitFlag)) {
+            INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt);
+            pkt.eCSTB = timeBuffID; // eCharStatusTimeBuffID
+            pkt.eTBU = 1; // eTimeBuffUpdate
+            pkt.eTBT = 2;
+            pkt.iConditionBitFlag = plr->iConditionBitFlag |= bitFlag;
+            sock->sendPacket((void*)&pkt, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+        }
+
         respdata[i].bProtected = 0;
-        plr->iConditionBitFlag |= bitFlag;
         std::pair<CNSocket*, int32_t> key = std::make_pair(sock, bitFlag);
-        time_t until = getTime() + (time_t)duration;
+        time_t until = getTime() + (time_t)duration * 100;
         NPCManager::EggBuffs[key] = until;
     }
     respdata[i].iConditionBitFlag = plr->iConditionBitFlag;
+
+    if (plr->HP <= 0) {
+        mob->target = nullptr;
+        mob->state = MobState::RETREAT;
+        if (!aggroCheck(mob, getTime()))
+            clearDebuff(mob);
+    }
+
     return true;
 }
 
@@ -1534,6 +1741,13 @@ bool doDamage(Mob *mob, sSkillResult_Damage *respdata, int i, int32_t targetID, 
     respdata[i].iDamage = damage;
     respdata[i].iID = plr->iID;
     respdata[i].iHP = plr->HP -= damage;
+
+    if (plr->HP <= 0) {
+        mob->target = nullptr;
+        mob->state = MobState::RETREAT;
+        if (!aggroCheck(mob, getTime()))
+            clearDebuff(mob);
+    }
 
     return true;
 }
@@ -1579,6 +1793,13 @@ bool doLeech(Mob *mob, sSkillResult_Heal_HP *healdata, int i, int32_t targetID, 
     damagedata->iID = plr->iID;
     damagedata->iHP = plr->HP -= damage;
 
+    if (plr->HP <= 0) {
+        mob->target = nullptr;
+        mob->state = MobState::RETREAT;
+        if (!aggroCheck(mob, getTime()))
+            clearDebuff(mob);
+    }
+
     return true;
 }
 
@@ -1594,7 +1815,7 @@ bool doBatteryDrain(Mob *mob, sSkillResult_BatteryDrain *respdata, int i, int32_
 
     // player not found
     if (plr == nullptr) {
-        std::cout << "[WARN] doDamage: player ID not found" << std::endl;
+        std::cout << "[WARN] doBatteryDrain: player ID not found" << std::endl;
         return false;
     }
 

@@ -47,7 +47,7 @@ struct Mob : public BaseNPC {
     CNSocket *target = nullptr;
     time_t nextAttack = 0;
     time_t lastDrainTime = 0;
-    int skillStyle = -1; // -1 for nothing, 0-2 for corruption, -2 for ability windup, -3 for eruption
+    int skillStyle = -1; // -1 for nothing, 0-2 for corruption, -2 for eruption
     int hitX, hitY, hitZ; // for use in ability targeting
 
     // drop
@@ -148,6 +148,7 @@ namespace MobManager {
     extern std::map<int32_t, MobDrop> MobDrops;
     extern std::map<int32_t, std::map<int8_t, Bullet>> Bullets;
     extern bool simulateMobs;
+    extern std::vector<MobPower> MobPowers;
 
     void init();
     void step(CNServer*, time_t);
@@ -187,5 +188,6 @@ namespace MobManager {
     int8_t addBullet(Player* plr, bool isGrenade);
 
     void followToCombat(Mob *mob);
-
+    void useAbilities(Mob *mob, time_t currTime);
+    void dealCorruption(Mob *mob, int *targetData, int skillID, int style);
 }

@@ -332,7 +332,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
             if (pwr.skillType == SkillTable[skillID].skillType) {
                 resp.eCSTB___Add = 1; // the part that makes nano go ZOOMAZOOM
                 plr->nanoDrainRate = SkillTable[skillID].batteryUse[boost*3];
-                
+
                 pwr.handle(sock, targetData, nanoID, skillID, 0, SkillTable[skillID].powerIntensity[boost]);
             }
         }
