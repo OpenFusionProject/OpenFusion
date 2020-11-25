@@ -654,8 +654,6 @@ void TableData::loadGruntwork(int32_t *nextId) {
 
         // mobs
         auto mobs = gruntwork["mobs"];
-        int leaderMob = -1;
-        int leaderMobFollowers = 0;
         for (auto _mob = mobs.begin(); _mob != mobs.end(); _mob++) {
             auto mob = _mob.value();
             BaseNPC *npc;
@@ -670,36 +668,6 @@ void TableData::loadGruntwork(int32_t *nextId) {
                 ((Mob*)npc)->summoned = false;
 
                 MobManager::Mobs[npc->appearanceData.iNPC_ID] = (Mob*)npc;
-
-                // handling groups
-                if (mob.find("iOffsetX") != mob.end() && MobManager::Mobs.find(id) != MobManager::Mobs.end()) {
-                    Mob* currNpc = MobManager::Mobs[id];
-
-                    if (leaderMob == -1) {
-                        if (MobManager::Mobs.find(id-1) != MobManager::Mobs.end()) {
-                            Mob* leadNpc = MobManager::Mobs[id-1];
-                            leaderMob = id-1;
-                            leadNpc->groupMember[leaderMobFollowers] = id;
-                            leaderMobFollowers++;
-                            currNpc->groupLeader = id-1;
-                            leadNpc->groupLeader = id-1;
-                        }
-                    } else {
-                        if (MobManager::Mobs.find(leaderMob) != MobManager::Mobs.end()) {
-                            Mob* leadNpc = MobManager::Mobs[leaderMob];
-                            leadNpc->groupMember[leaderMobFollowers] = id;
-                            leaderMobFollowers++;
-                            currNpc->groupLeader = leaderMob;
-                        }
-                    }
-
-                    currNpc->offsetX = (int)mob["iOffsetX"];
-                    currNpc->offsetY = mob.find("iOffsetY") == mob.end() ? 0 : (int)mob["iOffsetY"];
-                } else {
-                    leaderMob = -1;
-                    leaderMobFollowers = 0;
-                }
-
             } else {
                 npc = new BaseNPC(mob["iX"], mob["iY"], mob["iZ"], mob["iAngle"], instanceID, mob["iNPCType"], id);
             }
@@ -707,6 +675,56 @@ void TableData::loadGruntwork(int32_t *nextId) {
             NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
             TableData::RunningMobs[npc->appearanceData.iNPC_ID] = npc;
             NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, mob["iX"], mob["iY"], mob["iZ"], instanceID, mob["iAngle"]);
+        }
+
+        // mob groups
+        auto groups = gruntwork["groups"];
+        for (auto _group = groups.begin(); _group != groups.end(); _group++) {
+            auto leader = _group.value();
+            auto td = NPCManager::NPCData[(int)leader["iNPCType"]];
+            uint64_t instanceID = leader.find("iMapNum") == leader.end() ? INSTANCE_OVERWORLD : (int)leader["iMapNum"];
+
+            Mob* tmp = new Mob(leader["iX"], leader["iY"], leader["iZ"], leader["iAngle"], instanceID, leader["iNPCType"], leader["iHP"], td, *nextId);
+
+            // re-enable respawning
+            ((Mob*)tmp)->summoned = false;
+
+            NPCManager::NPCs[*nextId] = tmp;
+            MobManager::Mobs[*nextId] = (Mob*)NPCManager::NPCs[*nextId];
+            NPCManager::updateNPCPosition(*nextId, leader["iX"], leader["iY"], leader["iZ"], instanceID, leader["iAngle"]);
+
+            tmp->groupLeader = *nextId;
+
+            (*nextId)++;
+
+            auto followers = leader["aFollowers"];
+            if (followers.size() < 5) {
+                int followerCount = 0;
+                for (nlohmann::json::iterator _fol = followers.begin(); _fol != followers.end(); _fol++) {
+                    auto follower = _fol.value();
+                    auto tdFol = NPCManager::NPCData[(int)follower["iNPCType"]];
+                    Mob* tmpFol = new Mob((int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], leader["iAngle"], instanceID, follower["iNPCType"], follower["iHP"], tdFol, *nextId);
+
+                    // re-enable respawning
+                    ((Mob*)tmp)->summoned = false;
+
+                    NPCManager::NPCs[*nextId] = tmpFol;
+                    MobManager::Mobs[*nextId] = (Mob*)NPCManager::NPCs[*nextId];
+                    NPCManager::updateNPCPosition(*nextId, (int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], instanceID, leader["iAngle"]);
+
+                    tmpFol->offsetX = follower.find("iOffsetX") == follower.end() ? 0 : (int)follower["iOffsetX"];
+                    tmpFol->offsetY = follower.find("iOffsetY") == follower.end() ? 0 : (int)follower["iOffsetY"];
+                    tmpFol->groupLeader = tmp->appearanceData.iNPC_ID;
+                    tmp->groupMember[followerCount++] = *nextId;
+
+                    (*nextId)++;
+                }
+            }
+            else {
+                std::cout << "[WARN] Mob group leader with ID " << *nextId << " has too many followers (" << followers.size() << ")\n";
+            }
+
+            TableData::RunningGroups[tmp->appearanceData.iNPC_ID] = tmp; // store as running
         }
 
         auto eggs = gruntwork["eggs"];
