@@ -472,7 +472,7 @@ Database::DbPlayer Database::playerToDb(Player *player) {
     result.slot = player->slot;
     result.Taros = player->money;
     result.TutorialFlag = player->PCStyle2.iTutorialFlag;
-    if (player->instanceID == 0) { // only save coords if player isn't instanced
+    if (player->instanceID == 0 && !player->onMonkey) { // only save coords if player isn't instanced
         result.x_coordinates = player->x;
         result.y_coordinates = player->y;
         result.z_coordinates = player->z;

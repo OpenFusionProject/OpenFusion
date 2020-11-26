@@ -50,6 +50,7 @@ struct Player {
     bool isTradeConfirm;
 
     bool inCombat;
+    bool onMonkey;
     bool passiveNanoOut;
     int healCooldown;
 

@@ -146,15 +146,20 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
         PlayerManager::updatePlayerPosition(sock, target.x, target.y, target.z, INSTANCE_OVERWORLD, plr->angle);
         break;
     case 2: // Monkey Skyway
+        // set last safe coords
+        plr->lastX = plr->x;
+        plr->lastY = plr->y;
+        plr->lastZ = plr->z;
         if (SkywayPaths.find(route.mssRouteNum) != SkywayPaths.end()) { // check if route exists
             NanoManager::summonNano(sock, -1); // make sure that no nano is active during the ride
             SkywayQueues[sock] = SkywayPaths[route.mssRouteNum]; // set socket point queue to route
+            plr->onMonkey = true;
             break;
         } else if (TableData::RunningSkywayRoutes.find(route.mssRouteNum) != TableData::RunningSkywayRoutes.end()) {
             std::vector<WarpLocation>* _route = &TableData::RunningSkywayRoutes[route.mssRouteNum];
-
             NanoManager::summonNano(sock, -1);
             testMssRoute(sock, _route);
+            plr->onMonkey = true;
             break;
         }
 
@@ -235,6 +240,7 @@ void TransportManager::stepSkywaySystem() {
             // send packet to players in view
             PlayerManager::sendToViewable(it->first, (void*)&rideBroadcast, P_FE2CL_PC_RIDING, sizeof(sP_FE2CL_PC_RIDING));
             it = SkywayQueues.erase(it); // remove player from tracking map + update iterator
+            plr->onMonkey = false;
         } else {
             WarpLocation point = queue->front(); // get point
             queue->pop(); // remove point from front of queue

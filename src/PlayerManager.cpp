@@ -118,6 +118,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, ui
 
 void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I) {
     Player* plr = getPlayer(sock);
+    plr->onMonkey = false;
 
     if (plr->instanceID == INSTANCE_OVERWORLD) {
         // save last uninstanced coords
