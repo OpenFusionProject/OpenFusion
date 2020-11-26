@@ -289,7 +289,7 @@ bool validateCharacterCreation(sP_CL2LS_REQ_CHAR_CREATE* character) {
         return false;
             
     // facestyle and hairstyle are gender dependent
-    if (!(style->iGender == 1 && style->iFaceStyle >= 1 && style->iFaceStyle <= 5  && style->iHairStyle >= 1  && style->iHairStyle <= 23) ||
+    if (!(style->iGender == 1 && style->iFaceStyle >= 1 && style->iFaceStyle <= 5  && style->iHairStyle >= 1  && style->iHairStyle <= 23) &&
         !(style->iGender == 2 && style->iFaceStyle >= 6 && style->iFaceStyle <= 10 && style->iHairStyle >= 25 && style->iHairStyle <= 45))
         return false;
 
