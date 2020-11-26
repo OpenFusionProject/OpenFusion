@@ -25,6 +25,8 @@ public:
         appearanceData.iBarkerType = 0;
         appearanceData.iNPC_ID = id;
 
+        npcClass = NPCClass::NPC_BASE;
+
         instanceID = iID;
 
         chunkPos = std::make_tuple(0, 0, 0);
