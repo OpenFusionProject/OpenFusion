@@ -1469,9 +1469,10 @@ void MobManager::useAbilities(Mob *mob, time_t currTime) {
     if (mob->skillStyle >= 0) { // corruption hit
         int skillID = (int)mob->data["m_iCorruptionType"];
         int targetData[5] = {1, mob->target->plr->iID, 0, 0, 0};
-        dealCorruption(mob, targetData, skillID, mob->skillStyle);
+        int temp = mob->skillStyle;
+        mob->skillStyle = -3; // corruption cooldown
         mob->nextAttack = currTime + 1000;
-        mob->skillStyle = -3;
+        dealCorruption(mob, targetData, skillID, temp);
         return;
     }
 
@@ -1511,7 +1512,7 @@ void MobManager::useAbilities(Mob *mob, time_t currTime) {
         return;
     }
 
-    int random = rand() % 100 * 30000;
+    int random = rand() % 100 * 10000;
     int prob1 = (int)mob->data["m_iActiveSkill1Prob"]; // active skill probability
     int prob2 = (int)mob->data["m_iCorruptionTypeProb"]; // corruption probability
     int prob3 = (int)mob->data["m_iMegaTypeProb"]; // eruption probability
@@ -1614,28 +1615,35 @@ void MobManager::dealCorruption(Mob *mob, int targetData[], int skillID, int sty
         respdata[i].iNanoID = plr->activeNano;
 
         int style2 = NanoManager::nanoStyle(plr->activeNano);
-        if (style2 == -1 || style == style2) {
+        if (style2 == -1) { // no nano
+            respdata[i].iHitFlag = 8;
+            respdata[i].iDamage = NanoManager::SkillTable[skillID].powerIntensity[0] * PC_MAXHEALTH(plr->level) / 2000;
+        } else if (style == style2) {
             respdata[i].iHitFlag = 8; // tie
             respdata[i].iDamage = 0;
             respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina;
         } else if (style - style2 == 1 || style2 - style == 2) {
             respdata[i].iHitFlag = 4; // win
-            respdata[i].iDamage = 60;
-            respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina += 60;
+            respdata[i].iDamage = 0;
+            respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina += 45;
             if (plr->Nanos[plr->activeNano].iStamina > 150)
                 respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina = 150;
+            // fire damage power disguised as a corruption attack back at the enemy
+            int targetData2[5] = {1, mob->appearanceData.iNPC_ID, 0, 0, 0};
+            for (auto& pwr : NanoManager::NanoPowers)
+                if (pwr.skillType == EST_DAMAGE)
+                    pwr.handle(sock, targetData2, plr->activeNano, skillID, 0, 100);
         } else {
             respdata[i].iHitFlag = 16; // lose
-            respdata[i].iDamage = 60;
-            plr->HP -= respdata[i].iDamage;
-            respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina -= 60;
+            respdata[i].iDamage = NanoManager::SkillTable[skillID].powerIntensity[0] * PC_MAXHEALTH(plr->level) / 2000;
+            respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina -= 90;
             if (plr->Nanos[plr->activeNano].iStamina < 0) {
                 respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina = 0;
                 NanoManager::summonNano(sock, -1); // unsummon when stamina is 0
             }
         }
 
-        respdata[i].iHP = plr->HP;
+        respdata[i].iHP = plr->HP-= respdata[i].iDamage;
         respdata[i].iConditionBitFlag = plr->iConditionBitFlag;
 
         if (plr->HP <= 0) {
