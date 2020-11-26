@@ -735,9 +735,9 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
 
     // Response parameters
     response.PCRegenData.iActiveNanoSlotNum = activeSlot;
-    response.PCRegenData.iX = plr->x;
-    response.PCRegenData.iY = plr->y;
-    response.PCRegenData.iZ = plr->z;
+    response.PCRegenData.iX = move ? target.x : plr->x;
+    response.PCRegenData.iY = move ? target.y : plr->y;
+    response.PCRegenData.iZ = move ? target.z : plr->z;
     response.PCRegenData.iHP = plr->HP;
     response.iFusionMatter = plr->fusionmatter;
     response.bMoveLocation = 0;
