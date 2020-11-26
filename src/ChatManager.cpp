@@ -49,7 +49,7 @@ void helpCommand(std::string full, std::vector<std::string>& args, CNSocket* soc
     Player *plr = PlayerManager::getPlayer(sock);
 
     for (auto& cmd : ChatManager::commands) {
-        if (cmd.second.requiredAccLevel >= plr->accountId)
+        if (cmd.second.requiredAccLevel >= plr->accountLevel)
             ChatManager::sendServerMessage(sock, "/" + cmd.first + (cmd.second.help.length() > 0 ? " - " + cmd.second.help : ""));
     }
 }
