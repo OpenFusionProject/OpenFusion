@@ -364,9 +364,6 @@ void GroupManager::groupUnbuff(Player* plr) {
             Player* otherPlr = PlayerManager::getPlayerFromID(plr->groupIDs[i]);
             CNSocket* sock = PlayerManager::getSockFromID(plr->groupIDs[n]);
 
-            if (otherPlr == nullptr || sock == nullptr)
-                continue;
-
             NanoManager::applyBuff(sock, otherPlr->Nanos[otherPlr->activeNano].iSkillID, 2, 1, 0);
         }
     }

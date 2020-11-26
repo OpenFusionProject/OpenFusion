@@ -575,13 +575,8 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int eggId) {
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
-    if (otherPlr == nullptr)
-        return -1;
-
-    int CBFlag = 0;
     int bitFlag = GroupManager::getGroupFlags(otherPlr);
-
-    CBFlag = NanoManager::applyBuff(sock, skillId, 1, 3, bitFlag);
+    int CBFlag = NanoManager::applyBuff(sock, skillId, 1, 3, bitFlag);
 
     size_t resplen; 
 
@@ -589,9 +584,9 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int eggId) {
         resplen = sizeof(sP_FE2CL_NPC_SKILL_HIT) + sizeof(sSkillResult_Damage);
     } else if (skillId == 147) {
         resplen = sizeof(sP_FE2CL_NPC_SKILL_HIT) + sizeof(sSkillResult_Heal_HP);
-    } else
-        sizeof(sP_FE2CL_NPC_SKILL_HIT) + sizeof(sSkillResult_Buff);
-
+    } else {
+        resplen = sizeof(sP_FE2CL_NPC_SKILL_HIT) + sizeof(sSkillResult_Buff);
+    }
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
     // we know it's only one trailing struct, so we can skip full validation
 
@@ -605,6 +600,8 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int eggId) {
         skill->iID = plr->iID;
         skill->iDamage = PC_MAXHEALTH(plr->level) * NanoManager::SkillTable[skillId].powerIntensity[0] / 1000;
         plr->HP -= skill->iDamage;
+        if (plr->HP < 0)
+            plr->HP = 0;
         skill->iHP = plr->HP;
     } else if (skillId == 147) { // heal egg
         sSkillResult_Heal_HP* skill = (sSkillResult_Heal_HP*)(respbuf + sizeof(sP_FE2CL_NPC_SKILL_HIT));
@@ -653,16 +650,11 @@ void NPCManager::eggStep(CNServer* serv, time_t currTime) {
         // check remaining time
         if (it->second > timeStamp)
             it++;
-
-        // if time reached 0
-        else {
+        else { // if time reached 0
             CNSocket* sock = it->first.first;
             int32_t CBFlag = it->first.second;
             Player* plr = PlayerManager::getPlayer(sock);
             Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
-
-            if (otherPlr == nullptr)
-                continue;
 
             int groupFlags = GroupManager::getGroupFlags(otherPlr);
             for (auto& pwr : NanoManager::NanoPowers) {
@@ -691,8 +683,7 @@ void NPCManager::eggStep(CNServer* serv, time_t currTime) {
             egg.second->deadUntil = 0;
             egg.second->appearanceData.iHP = 400;
             
-            ChunkManager::addNPCToChunks(ChunkManager::getViewableChunks(egg.second->chunkPos),
-                egg.first);
+            ChunkManager::addNPCToChunks(ChunkManager::getViewableChunks(egg.second->chunkPos), egg.first);
         }
     }
 
