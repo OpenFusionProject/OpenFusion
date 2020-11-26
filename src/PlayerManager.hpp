@@ -52,7 +52,7 @@ namespace PlayerManager {
 
     Player *getPlayer(CNSocket* key);
     std::string getPlayerName(Player *plr, bool id=true);
-    WarpLocation getRespawnPoint(Player *plr);
+    WarpLocation* getRespawnPoint(Player *plr);
 
     bool isAccountInUse(int accountId);
     void exitDuplicate(int accountId);
