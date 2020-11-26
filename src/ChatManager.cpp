@@ -675,6 +675,30 @@ void flushCommand(std::string full, std::vector<std::string>& args, CNSocket* so
     ChatManager::sendServerMessage(sock, "Wrote gruntwork to " + settings::GRUNTWORKJSON);
 }
 
+void whoisCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player* plr = PlayerManager::getPlayer(sock);
+    BaseNPC* npc = NPCManager::getNearestNPC(plr->viewableChunks, plr->x, plr->y, plr->z);
+
+    if (npc == nullptr) {
+        ChatManager::sendServerMessage(sock, "[WHOIS] No NPCs found nearby");
+        return;
+    }
+
+    ChatManager::sendServerMessage(sock, "[WHOIS] ID: " + std::to_string(npc->appearanceData.iNPC_ID));
+    ChatManager::sendServerMessage(sock, "[WHOIS] Type: " + std::to_string(npc->appearanceData.iNPCType));
+    ChatManager::sendServerMessage(sock, "[WHOIS] HP: " + std::to_string(npc->appearanceData.iHP));
+    ChatManager::sendServerMessage(sock, "[WHOIS] CBF: " + std::to_string(npc->appearanceData.iConditionBitFlag));
+    ChatManager::sendServerMessage(sock, "[WHOIS] Class: " + std::to_string(npc->npcClass));
+    ChatManager::sendServerMessage(sock, "[WHOIS] X: " + std::to_string(npc->appearanceData.iX));
+    ChatManager::sendServerMessage(sock, "[WHOIS] Y: " + std::to_string(npc->appearanceData.iY));
+    ChatManager::sendServerMessage(sock, "[WHOIS] Z: " + std::to_string(npc->appearanceData.iZ));
+    ChatManager::sendServerMessage(sock, "[WHOIS] Angle: " + std::to_string(npc->appearanceData.iAngle));
+    std::string chunkPosition = std::to_string(std::get<0>(npc->chunkPos)) + ", " + std::to_string(std::get<1>(npc->chunkPos)) + ", " + std::to_string(std::get<2>(npc->chunkPos));
+    ChatManager::sendServerMessage(sock, "[WHOIS] Chunk: {" + chunkPosition + "}");
+    ChatManager::sendServerMessage(sock, "[WHOIS] MapNum: " + std::to_string(MAPNUM(npc->instanceID)));
+    ChatManager::sendServerMessage(sock, "[WHOIS] Instance: " + std::to_string(PLAYERID(npc->instanceID)));
+}
+
 void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
@@ -702,6 +726,7 @@ void ChatManager::init() {
     registerCommand("players", 30, playersCommand, "print all players on the server");
     registerCommand("summonGroup", 30, summonGroupCommand, "summon group NPCs");
     registerCommand("summonGroupW", 30, summonGroupCommand, "permanently summon group NPCs");
+    registerCommand("whois", 50, whoisCommand, "describe nearest NPC");
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {
