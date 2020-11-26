@@ -208,6 +208,16 @@ bool Database::isNameFree(std::string firstName, std::string lastName) {
             .empty());
 }
 
+bool Database::isSlotFree(int accountId, int slotNum) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    return
+        (db.get_all<DbPlayer>
+            (where((c(&DbPlayer::AccountID) == accountId)
+                and (c(&DbPlayer::slot) == slotNum)))
+            .empty());
+}
+
 int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) {
     std::lock_guard<std::mutex> lock(dbCrit);
 

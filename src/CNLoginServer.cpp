@@ -214,6 +214,17 @@ void CNLoginServer::nameCheck(CNSocket* sock, CNPacketData* data) {
     loginSessions[sock].lastHeartbeat = getTime();
 }
 
+void invalidCharacter(CNSocket* sock) {
+    INITSTRUCT(sP_LS2CL_REP_SHARD_SELECT_FAIL, fail);
+    fail.iErrorCode = 2;
+    sock->sendPacket((void*)&fail, P_LS2CL_REP_SHARD_SELECT_FAIL, sizeof(sP_LS2CL_REP_SHARD_SELECT_FAIL));
+
+    DEBUGLOG(
+        std::cout << "Login Server: Selected character error" << std::endl;
+    )
+        return;
+}
+
 void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2LS_REQ_SAVE_CHAR_NAME))
         return;
@@ -224,9 +235,10 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
     int errorCode = 0;
     if (!CNLoginServer::isCharacterNameGood(U16toU8(save->szFirstName), U16toU8(save->szLastName))) {
         errorCode = 4;
-    }
-    else if (!Database::isNameFree(U16toU8(save->szFirstName), U16toU8(save->szLastName))) {
+    } else if (!Database::isNameFree(U16toU8(save->szFirstName), U16toU8(save->szLastName))) {
         errorCode = 1;
+    } else if (!Database::isSlotFree(loginSessions[sock].userID, save->iSlotNum)) {
+        return invalidCharacter(sock);
     }
 
     if (errorCode != 0) {
@@ -258,17 +270,6 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tSlot: " << (int)save->iSlotNum << std::endl;
         std::cout << "\tName: " << U16toU8(save->szFirstName) << " " << U16toU8(save->szLastName) << std::endl;
     )
-}
-
-void invalidCharacter(CNSocket* sock) {
-    INITSTRUCT(sP_LS2CL_REP_SHARD_SELECT_FAIL, fail);
-    fail.iErrorCode = 2;
-    sock->sendPacket((void*)&fail, P_LS2CL_REP_SHARD_SELECT_FAIL, sizeof(sP_LS2CL_REP_SHARD_SELECT_FAIL));   
-
-    DEBUGLOG(
-        std::cout << "Login Server: Selected character error" << std::endl;
-    )
-    return;
 }
 
 bool validateCharacterCreation(sP_CL2LS_REQ_CHAR_CREATE* character) {
