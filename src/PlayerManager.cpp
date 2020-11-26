@@ -81,6 +81,7 @@ void PlayerManager::removePlayer(CNSocket* key) {
 
     std::cout << getPlayerName(key->plr) << " has left!" << std::endl;
 
+    delete plr->viewableChunks;
     key->plr = nullptr;
     delete plr;
     players.erase(key);

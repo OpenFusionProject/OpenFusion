@@ -84,6 +84,7 @@ void NPCManager::destroyNPC(int32_t id) {
         Eggs.erase(id);
 
     // finally, remove it from the map and free it
+    delete entity->viewableChunks;
     NPCs.erase(id);
     delete entity;
 }
