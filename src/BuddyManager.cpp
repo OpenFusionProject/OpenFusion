@@ -94,6 +94,9 @@ void BuddyManager::requestBuddy(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(req->iBuddyID);
 
+    if (otherPlr == nullptr)
+        return;
+
     if (getAvailableBuddySlot(plr) == -1 || getAvailableBuddySlot(otherPlr) == -1)
     {
         INITSTRUCT(sP_FE2CL_REP_REQUEST_MAKE_BUDDY_FAIL, failResp);
@@ -165,6 +168,9 @@ void BuddyManager::reqAcceptBuddy(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_ACCEPT_MAKE_BUDDY* req = (sP_CL2FE_REQ_ACCEPT_MAKE_BUDDY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(req->iBuddyID);
+
+    if (otherPlr == nullptr)
+        return; // sanity check
 
     CNSocket* otherSock = PlayerManager::getSockFromID(otherPlr->iID);
 
