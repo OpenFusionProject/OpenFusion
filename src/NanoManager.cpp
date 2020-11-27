@@ -904,7 +904,9 @@ std::vector<NanoPower> NanoPowers = {
     NanoPower(EST_RECALL_GROUP,     CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Move,                     doMove>),
     NanoPower(EST_RETROROCKET_SELF, CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Buff,                     doBuff>),
     NanoPower(EST_PHOENIX_GROUP,    CSB_BIT_NONE,              ECSB_NONE,              nanoPower<sSkillResult_Resurrect,           doResurrect>),
-    NanoPower(EST_NANOSTIMPAK,      CSB_BIT_STIMPAKSLOT1,      ECSB_STIMPAKSLOT1,      nanoPower<sSkillResult_Buff,                     doBuff>)
+    NanoPower(EST_NANOSTIMPAK,      CSB_BIT_STIMPAKSLOT1,      ECSB_STIMPAKSLOT1,      nanoPower<sSkillResult_Buff,                     doBuff>),
+    NanoPower(EST_NANOSTIMPAK,      CSB_BIT_STIMPAKSLOT2,      ECSB_STIMPAKSLOT2,      nanoPower<sSkillResult_Buff,                     doBuff>),
+    NanoPower(EST_NANOSTIMPAK,      CSB_BIT_STIMPAKSLOT3,      ECSB_STIMPAKSLOT3,      nanoPower<sSkillResult_Buff,                     doBuff>)
 };
 
 }; // namespace
