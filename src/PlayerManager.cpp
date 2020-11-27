@@ -762,7 +762,13 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     resp2.PCRegenDataForOtherPC.iZ = plr->z;
     resp2.PCRegenDataForOtherPC.iHP = plr->HP;
     resp2.PCRegenDataForOtherPC.iAngle = plr->angle;
-    resp2.PCRegenDataForOtherPC.iConditionBitFlag = plr->iConditionBitFlag;
+
+    Player *otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
+    if (otherPlr == nullptr)
+        return;
+    int bitFlag = GroupManager::getGroupFlags(otherPlr);
+    resp2.PCRegenDataForOtherPC.iConditionBitFlag = plr->iConditionBitFlag = plr->iSelfConditionBitFlag | bitFlag;
+
     resp2.PCRegenDataForOtherPC.iPCState = plr->iPCState;
     resp2.PCRegenDataForOtherPC.iSpecialState = plr->iSpecialState;
     resp2.PCRegenDataForOtherPC.Nano = plr->Nanos[plr->activeNano];
