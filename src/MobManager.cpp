@@ -954,7 +954,7 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
                     // passive nano unbuffing
                     int skillID = plr->Nanos[plr->activeNano].iSkillID;
                     if (NanoManager::SkillTable[skillID].drainType == 2) {
-                        int* targetData = NanoManager::findTargets(plr, skillID);
+                        std::vector<int> targetData = NanoManager::findTargets(plr, skillID);
 
                         for (auto& pwr : NanoManager::NanoPowers)
                             if (pwr.skillType == NanoManager::SkillTable[skillID].skillType)

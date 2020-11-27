@@ -135,7 +135,7 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
         std::cout << PlayerManager::getPlayerName(plr) << " requested to summon nano skill " << std::endl;
     )
 
-    int *targetData = findTargets(plr, skillID, data);
+    std::vector<int> targetData = findTargets(plr, skillID, data);
 
     int boost = 0;
     if (getNanoBoost(plr))
@@ -304,7 +304,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
 
     // passive nano unbuffing
     if (SkillTable[skillID].drainType == 2) {
-        int *targetData = findTargets(plr, skillID);
+        std::vector<int> targetData = findTargets(plr, skillID);
 
         for (auto& pwr : NanoPowers)
             if (pwr.skillType == SkillTable[skillID].skillType)
@@ -322,7 +322,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
 
     // passive nano buffing
     if (SkillTable[skillID].drainType == 2) {
-        int *targetData = findTargets(plr, skillID);
+        std::vector<int> targetData = findTargets(plr, skillID);
 
         int boost = 0;
         if (getNanoBoost(plr))
@@ -437,7 +437,7 @@ void NanoManager::resetNanoSkill(CNSocket* sock, int16_t nanoID) {
     plr->Nanos[nanoID] = nano;
 }
 
-void NanoManager::nanoUnbuff(CNSocket* sock, int targetData[], int32_t bitFlag, int16_t timeBuffID, int16_t amount, bool groupPower) {
+void NanoManager::nanoUnbuff(CNSocket* sock, std::vector<int> targetData, int32_t bitFlag, int16_t timeBuffID, int16_t amount, bool groupPower) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     if (plr == nullptr)
@@ -457,6 +457,8 @@ void NanoManager::nanoUnbuff(CNSocket* sock, int targetData[], int32_t bitFlag, 
         Player* varPlr = PlayerManager::getPlayerFromID(targetData[i+1]);
         if (!((groupFlags | varPlr->iSelfConditionBitFlag) & bitFlag)) {
             CNSocket* sockTo = PlayerManager::getSockFromID(targetData[i+1]);
+            if (sockTo == nullptr)
+                continue; // sanity check
 
             INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, resp);
             resp.eCSTB = timeBuffID; // eCharStatusTimeBuffID
@@ -512,9 +514,8 @@ int NanoManager::nanoStyle(int nanoID) {
     return NanoTable[nanoID].style;
 }
 
-int* NanoManager::findTargets(Player* plr, int skillID, CNPacketData* data) {
-    static int tD[5] = {0, 0, 0, 0, 0};
-    tD[0] = 0;
+std::vector<int> NanoManager::findTargets(Player* plr, int skillID, CNPacketData* data) {
+    std::vector<int> tD(5);
 
     if (SkillTable[skillID].targetType <= 2 && data != nullptr) { // client gives us the targets
         sP_CL2FE_REQ_NANO_SKILL_USE* pkt = (sP_CL2FE_REQ_NANO_SKILL_USE*)data->buf;
@@ -809,7 +810,7 @@ bool doMove(CNSocket *sock, sSkillResult_Move *respdata, int i, int32_t targetID
 
 template<class sPAYLOAD,
          bool (*work)(CNSocket*,sPAYLOAD*,int,int32_t,int32_t,int16_t,int16_t,int16_t)>
-void nanoPower(CNSocket *sock, int targetData[], 
+void nanoPower(CNSocket *sock, std::vector<int> targetData,
                 int16_t nanoID, int16_t skillID, int16_t duration, int16_t amount, 
                 int16_t skillType, int32_t bitFlag, int16_t timeBuffID) {
     Player *plr = PlayerManager::getPlayer(sock);
@@ -856,7 +857,7 @@ void nanoPower(CNSocket *sock, int targetData[],
     CNSocket *workSock = sock;
 
     for (int i = 0; i < targetData[0]; i++) {
-        if (SkillTable[skillID].targetType == 3)
+        if (SkillTable[skillID].targetType == 3 && PlayerManager::getSockFromID(targetData[i + 1]) != nullptr)
             workSock = PlayerManager::getSockFromID(targetData[i+1]);
         if (skillType == EST_RECALL || skillType == EST_RECALL_GROUP)
             targetData[i+1] = plr->iID;

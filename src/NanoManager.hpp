@@ -5,7 +5,7 @@
 
 #include "CNShardServer.hpp"
 
-typedef void (*PowerHandler)(CNSocket*, int*, int16_t, int16_t, int16_t, int16_t, int16_t, int32_t, int16_t);
+typedef void (*PowerHandler)(CNSocket*, std::vector<int>, int16_t, int16_t, int16_t, int16_t, int16_t, int32_t, int16_t);
 
 struct NanoPower {
     int16_t skillType;
@@ -15,7 +15,7 @@ struct NanoPower {
 
     NanoPower(int16_t s, int32_t b, int16_t t, PowerHandler h) : skillType(s), bitFlag(b), timeBuffID(t), handler(h) {}
 
-    void handle(CNSocket *sock, int* targetData, int16_t nanoID, int16_t skillID, int16_t duration, int16_t amount) {
+    void handle(CNSocket *sock, std::vector<int> targetData, int16_t nanoID, int16_t skillID, int16_t duration, int16_t amount) {
         if (handler == nullptr)
             return;
 
@@ -65,9 +65,9 @@ namespace NanoManager {
     void summonNano(CNSocket* sock, int slot);
     void setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill);
     void resetNanoSkill(CNSocket* sock, int16_t nanoID);
-    void nanoUnbuff(CNSocket* sock, int* targetData, int32_t bitFlag, int16_t timeBuffID, int16_t amount, bool groupPower);
+    void nanoUnbuff(CNSocket* sock, std::vector<int> targetData, int32_t bitFlag, int16_t timeBuffID, int16_t amount, bool groupPower);
     int applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags);
     int nanoStyle(int nanoID);
-    int* findTargets(Player* plr, int skillID, CNPacketData* data = nullptr);
+    std::vector<int> findTargets(Player* plr, int skillID, CNPacketData* data = nullptr);
     bool getNanoBoost(Player* plr);
 }
