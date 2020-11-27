@@ -142,8 +142,11 @@ void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
         boost = 1;
 
     plr->Nanos[plr->activeNano].iStamina -= SkillTable[skillID].batteryUse[boost*3];
-    if (plr->Nanos[plr->activeNano].iStamina < 0)
+    if (plr->Nanos[plr->activeNano].iStamina < 0) {
         plr->Nanos[plr->activeNano].iStamina = 0;
+        plr->activeNano = 0;
+        plr->nanoDrainRate = 0;
+    }
 
     for (auto& pwr : NanoPowers)
         if (pwr.skillType == SkillTable[skillID].skillType)
@@ -303,9 +306,9 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
     if (SkillTable[skillID].drainType == 2) {
         int *targetData = findTargets(plr, skillID);
 
-    for (auto& pwr : NanoPowers)
-        if (pwr.skillType == SkillTable[skillID].skillType)
-            nanoUnbuff(sock, targetData, pwr.bitFlag, pwr.timeBuffID, 0,(SkillTable[skillID].targetType == 3));
+        for (auto& pwr : NanoPowers)
+            if (pwr.skillType == SkillTable[skillID].skillType)
+                nanoUnbuff(sock, targetData, pwr.bitFlag, pwr.timeBuffID, 0,(SkillTable[skillID].targetType == 3));
     }
 
     int16_t nanoID = slot == -1 ? 0 : plr->equippedNanos[slot];
@@ -321,9 +324,9 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
     if (SkillTable[skillID].drainType == 2) {
         int *targetData = findTargets(plr, skillID);
 
-    int boost = 0;
-    if (getNanoBoost(plr))
-        boost = 1;
+        int boost = 0;
+        if (getNanoBoost(plr))
+            boost = 1;
 
         for (auto& pwr : NanoPowers) {
             if (pwr.skillType == SkillTable[skillID].skillType) {
