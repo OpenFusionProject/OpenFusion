@@ -660,7 +660,7 @@ void PlayerManager::setSpecialPlayer(CNSocket* sock, CNPacketData* data) {
             plr->batteryN = 9999;
         break;
     case 4:
-        plr->fusionmatter = setData->iSetValue;
+        MissionManager::updateFusionMatter(sock, setData->iSetValue - plr->fusionmatter);
         break;
     case 5:
         plr->money = setData->iSetValue;
