@@ -721,20 +721,18 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
         plr->HP = PC_MAXHEALTH(plr->level);
     } else {
         move = true;
-
         if (reviveData->iRegenType != 5)
             plr->HP = PC_MAXHEALTH(plr->level);
+    }
 
-        for (int i = 0; i < 3; i++) {
-            int nanoID = plr->equippedNanos[i];
-
-            // halve nano health if respawning
-            if (reviveData->iRegenType != 5)
-                plr->Nanos[nanoID].iStamina = 75; // max is 150, so 75 is half
-            response.PCRegenData.Nanos[i] = plr->Nanos[nanoID];
-            if (plr->activeNano == nanoID)
-                activeSlot = i;
-        }
+    for (int i = 0; i < 3; i++) {
+        int nanoID = plr->equippedNanos[i];
+        // halve nano health if respawning
+        if (reviveData->iRegenType == 6)
+            plr->Nanos[nanoID].iStamina = 75; // max is 150, so 75 is half
+        response.PCRegenData.Nanos[i] = plr->Nanos[nanoID];
+        if (plr->activeNano == nanoID)
+            activeSlot = i;
     }
 
     // Response parameters
