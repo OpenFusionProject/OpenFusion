@@ -138,12 +138,10 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
     TransportRoute route = Routes[req->iTransporationID];
     plr->money -= route.cost;
 
-    TransportLocation target;
+    TransportLocation* target = nullptr;
     switch (route.type) {
     case 1: // S.C.A.M.P.E.R.
-        target = Locations[route.end];
-        ChunkManager::updatePlayerChunk(sock, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
-        PlayerManager::updatePlayerPosition(sock, target.x, target.y, target.z, INSTANCE_OVERWORLD, plr->angle);
+        target = &Locations[route.end];
         break;
     case 2: // Monkey Skyway
         // set last safe coords
@@ -182,10 +180,16 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
     // response parameters
     resp.eTT = route.type;
     resp.iCandy = plr->money;
-    resp.iX = plr->x;
-    resp.iY = plr->y;
-    resp.iZ = plr->z;
+    resp.iX = (target == nullptr) ? plr->x : target->x;
+    resp.iY = (target == nullptr) ? plr->y : target->y;
+    resp.iZ = (target == nullptr) ? plr->z : target->z;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC));
+
+    if (target == nullptr)
+        return;
+    // we warped; update position and chunks
+    ChunkManager::updatePlayerChunk(sock, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
+    PlayerManager::updatePlayerPosition(sock, target->x, target->y, target->z, INSTANCE_OVERWORLD, plr->angle);
 }
 
 void TransportManager::testMssRoute(CNSocket *sock, std::vector<WarpLocation>* route) {
