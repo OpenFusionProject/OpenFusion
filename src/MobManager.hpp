@@ -123,7 +123,7 @@ struct Bullet {
     int bulletType;
 };
 
-typedef void (*MobPowerHandler)(Mob*, int*, int16_t, int16_t, int16_t, int16_t, int32_t, int16_t);
+typedef void (*MobPowerHandler)(Mob*, std::vector<int>, int16_t, int16_t, int16_t, int16_t, int32_t, int16_t);
 
 struct MobPower {
     int16_t skillType;
@@ -133,7 +133,7 @@ struct MobPower {
 
     MobPower(int16_t s, int32_t b, int16_t t, MobPowerHandler h) : skillType(s), bitFlag(b), timeBuffID(t), handler(h) {}
 
-    void handle(Mob *mob, int* targetData, int16_t skillID, int16_t duration, int16_t amount) {
+    void handle(Mob *mob, std::vector<int> targetData, int16_t skillID, int16_t duration, int16_t amount) {
         if (handler == nullptr)
             return;
 
@@ -189,5 +189,5 @@ namespace MobManager {
 
     void followToCombat(Mob *mob);
     void useAbilities(Mob *mob, time_t currTime);
-    void dealCorruption(Mob *mob, int *targetData, int skillID, int style);
+    void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, int style);
 }

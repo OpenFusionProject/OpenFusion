@@ -1468,7 +1468,7 @@ void MobManager::followToCombat(Mob *mob) {
 void MobManager::useAbilities(Mob *mob, time_t currTime) {
     if (mob->skillStyle >= 0) { // corruption hit
         int skillID = (int)mob->data["m_iCorruptionType"];
-        int targetData[5] = {1, mob->target->plr->iID, 0, 0, 0};
+        std::vector<int> targetData = {1, mob->target->plr->iID, 0, 0, 0};
         int temp = mob->skillStyle;
         mob->skillStyle = -3; // corruption cooldown
         mob->nextAttack = currTime + 1000;
@@ -1478,7 +1478,7 @@ void MobManager::useAbilities(Mob *mob, time_t currTime) {
 
     if (mob->skillStyle == -2) { // eruption hit
         int skillID = (int)mob->data["m_iMegaType"];
-        int targetData[5] = {0, 0, 0, 0, 0};
+        std::vector<int> targetData = {0, 0, 0, 0, 0};
 
         // find the players within range of eruption
         for (auto it = mob->viewableChunks->begin(); it != mob->viewableChunks->end(); it++) {
@@ -1519,7 +1519,7 @@ void MobManager::useAbilities(Mob *mob, time_t currTime) {
 
     if (random < prob1) { // active skill hit
         int skillID = (int)mob->data["m_iActiveSkill1"];
-        int targetData[5] = {1, mob->target->plr->iID, 0, 0, 0};
+        std::vector<int> targetData = {1, mob->target->plr->iID, 0, 0, 0};
         for (auto& pwr : MobPowers)
             if (pwr.skillType == NanoManager::SkillTable[skillID].skillType)
                 pwr.handle(mob, targetData, skillID, NanoManager::SkillTable[skillID].durationTime[0], NanoManager::SkillTable[skillID].powerIntensity[0]);
@@ -1563,7 +1563,7 @@ void MobManager::useAbilities(Mob *mob, time_t currTime) {
     return;
 }
 
-void MobManager::dealCorruption(Mob *mob, int targetData[], int skillID, int style) {
+void MobManager::dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, int style) {
     size_t resplen = sizeof(sP_FE2CL_NPC_SKILL_CORRUPTION_HIT) + targetData[0] * sizeof(sCAttackResult);
 
     // validate response packet
@@ -1629,7 +1629,7 @@ void MobManager::dealCorruption(Mob *mob, int targetData[], int skillID, int sty
             if (plr->Nanos[plr->activeNano].iStamina > 150)
                 respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina = 150;
             // fire damage power disguised as a corruption attack back at the enemy
-            int targetData2[5] = {1, mob->appearanceData.iNPC_ID, 0, 0, 0};
+            std::vector<int> targetData2 = {1, mob->appearanceData.iNPC_ID, 0, 0, 0};
             for (auto& pwr : NanoManager::NanoPowers)
                 if (pwr.skillType == EST_DAMAGE)
                     pwr.handle(sock, targetData2, plr->activeNano, skillID, 0, 100);
@@ -1850,7 +1850,7 @@ bool doBatteryDrain(Mob *mob, sSkillResult_BatteryDrain *respdata, int i, int32_
 
 template<class sPAYLOAD,
          bool (*work)(Mob*,sPAYLOAD*,int,int32_t,int32_t,int16_t,int16_t,int16_t)>
-void mobPower(Mob *mob, int targetData[],
+void mobPower(Mob *mob, std::vector<int> targetData,
                 int16_t skillID, int16_t duration, int16_t amount, 
                 int16_t skillType, int32_t bitFlag, int16_t timeBuffID) {
     size_t resplen;
