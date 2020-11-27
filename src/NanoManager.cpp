@@ -551,7 +551,7 @@ std::vector<int> NanoManager::findTargets(Player* plr, int skillID, CNPacketData
             Player *otherPlr2 = PlayerManager::getPlayerFromID(otherPlr->groupIDs[i]);
             if (otherPlr2 == nullptr)
                 continue;
-            if (hypot(otherPlr2->x - plr->x, otherPlr2->y - plr->y) < SkillTable[skillID].effectArea) {
+            if (true) {//hypot(otherPlr2->x - plr->x, otherPlr2->y - plr->y) < SkillTable[skillID].effectArea) {
                 tD[i+1] = otherPlr->groupIDs[i];
                 tD[0] += 1;
             }
@@ -859,10 +859,8 @@ void nanoPower(CNSocket *sock, std::vector<int> targetData,
     for (int i = 0; i < targetData[0]; i++) {
         if (SkillTable[skillID].targetType == 3 && PlayerManager::getSockFromID(targetData[i + 1]) != nullptr)
             workSock = PlayerManager::getSockFromID(targetData[i+1]);
-        if (skillType == EST_RECALL || skillType == EST_RECALL_GROUP)
-            targetData[i+1] = plr->iID;
         if (!work(workSock, respdata, i, targetData[i+1], bitFlag, timeBuffID, duration, amount))
-            return;
+            return; // TODO: Jade fix pls (name in popup is wrong)
     }
 
     sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
