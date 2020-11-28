@@ -7,6 +7,7 @@
 #include "MobManager.hpp"
 #include "ChunkManager.hpp"
 #include "NanoManager.hpp"
+#include "RacingManager.hpp"
 
 #include "contrib/JSON.hpp"
 
@@ -227,6 +228,17 @@ void TableData::init() {
         }
 
         std::cout << "[INFO] Loaded " << NanoManager::SkillTable.size() << " nano skills" << std::endl;
+
+        // load EP data
+        nlohmann::json instances = xdtData["m_pInstanceTable"]["m_pInstanceData"];
+
+        for (nlohmann::json::iterator _instance = instances.begin(); _instance != instances.end(); _instance++) {
+            auto instance = _instance.value();
+            EPInfo epInfo = {instance["m_iZoneX"], instance["m_iZoneY"], instance["m_iIsEP"], (int)instance["m_ScoreMax"]};
+            RacingManager::EPData[instance["m_iInstanceNameID"]] = epInfo;
+        }
+
+        std::cout << "[INFO] Loaded " << RacingManager::EPData.size() << " instances" << std::endl;
 
     }
     catch (const std::exception& err) {
