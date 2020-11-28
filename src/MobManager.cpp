@@ -751,7 +751,7 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
         mob->appearanceData.iConditionBitFlag = 0;
 
         // cast a return home heal spell, this is the right way(tm)
-        std::vector<int> targetData = {1, mob->target->plr->iID, 0, 0, 0};
+        std::vector<int> targetData = {1, 0, 0, 0, 0};
         for (auto& pwr : MobPowers)
             if (pwr.skillType == NanoManager::SkillTable[110].skillType)
                 pwr.handle(mob, targetData, 110, NanoManager::SkillTable[110].durationTime[0], NanoManager::SkillTable[110].powerIntensity[0]);
@@ -1548,7 +1548,7 @@ void MobManager::useAbilities(Mob *mob, time_t currTime) {
         if (mob->skillStyle == -1)
             mob->skillStyle = 2;
         if (mob->skillStyle == -2)
-            mob->skillStyle = (int)mob->data["m_iNpcStyle"];
+            mob->skillStyle = rand() % 3;
         pkt.iStyle = mob->skillStyle;
         NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_SKILL_CORRUPTION_READY, sizeof(sP_FE2CL_NPC_SKILL_CORRUPTION_READY));
         mob->nextAttack = currTime + 2000;
