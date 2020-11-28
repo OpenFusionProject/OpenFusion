@@ -1,6 +1,7 @@
 #include "CNProtocol.hpp"
 #include "PlayerManager.hpp"
 #include "NPCManager.hpp"
+#include "CNLoginServer.hpp"
 #include "CNShardServer.hpp"
 #include "CNShared.hpp"
 #include "MissionManager.hpp"
@@ -58,6 +59,9 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
     p->viewableChunks = new std::set<Chunk*>();
     p->lastHeartbeat = 0;
 
+
+    CNLoginServer::addShardConnection(plr.accountId, key);
+
     std::cout << getPlayerName(p) << " has joined!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
 }
@@ -65,6 +69,8 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
 void PlayerManager::removePlayer(CNSocket* key) {
     Player* plr = getPlayer(key);
     uint64_t fromInstance = plr->instanceID;
+
+    CNLoginServer::removeShardConnection(plr->accountId);
 
     GroupManager::groupKickPlayer(plr);
 
@@ -183,12 +189,6 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
         std::cout << "\tTemp: " << enter->iTempValue << std::endl;
         std::cout << "\tPC_UID: " << plr.PCStyle.iPC_UID << std::endl;
     )
-
-    // check if account is already in use
-    if (isAccountInUse(plr.accountId)) {
-        // kick the other player
-        exitDuplicate(plr.accountId);
-    }
 
     response.iID = plr.iID;
     response.uiSvrTime = getTime();
@@ -943,23 +943,12 @@ bool PlayerManager::isAccountInUse(int accountId) {
     return false;
 }
 
-void PlayerManager::exitDuplicate(int accountId) {
+void PlayerManager::exitDuplicate(CNSocket* sock) {
     std::map<CNSocket*, Player*>::iterator it;
 
-    // disconnect any duplicate players
-    for (it = players.begin(); it != players.end(); it++) {
-        if (it->second->accountId == accountId) {
-            CNSocket* sock = it->first;
-
-            INITSTRUCT(sP_FE2CL_REP_PC_EXIT_DUPLICATE, resp);
-            resp.iErrorCode = 0;
-            sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_EXIT_DUPLICATE, sizeof(sP_FE2CL_REP_PC_EXIT_DUPLICATE));
-
-            sock->kill();
-            CNShardServer::_killConnection(sock);
-            break;
-        }
-    }
+    INITSTRUCT(sP_FE2CL_REP_PC_EXIT_DUPLICATE, resp2);
+    sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_EXIT_DUPLICATE, sizeof(sP_FE2CL_REP_PC_EXIT_DUPLICATE));
+    CNShardServer::_killConnection(sock);
 }
 
 void PlayerManager::setSpecialState(CNSocket* sock, CNPacketData* data) {

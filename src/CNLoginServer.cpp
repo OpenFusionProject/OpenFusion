@@ -10,6 +10,9 @@
 #include "settings.hpp"
 
 std::map<CNSocket*, CNLoginData> CNLoginServer::loginSessions;
+/// account Id -> sock
+std::map<int32_t, CNSocket*> CNLoginServer::shardSessions;
+std::mutex lsCrit;
 
 CNLoginServer::CNLoginServer(uint16_t p) {
     port = p;
@@ -510,8 +513,6 @@ void CNLoginServer::duplicateExit(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2LS_REQ_PC_EXIT_DUPLICATE))
         return;
 
-    // TODO: FIX THIS PACKET
-
     sP_CL2LS_REQ_PC_EXIT_DUPLICATE* exit = (sP_CL2LS_REQ_PC_EXIT_DUPLICATE*)data->buf;
     Database::Account account = {};
     Database::findAccount(&account, U16toU8(exit->szID));
@@ -561,27 +562,34 @@ void CNLoginServer::onStep() {
 
 #pragma region helperMethods
 bool CNLoginServer::isAccountInUse(int accountId) {
-    std::map<CNSocket*, CNLoginData>::iterator it;
-    for (it = CNLoginServer::loginSessions.begin(); it != CNLoginServer::loginSessions.end(); it++) {
+    // check login server connections
+    for (std::map<CNSocket*, CNLoginData>::iterator it = CNLoginServer::loginSessions.begin(); it != CNLoginServer::loginSessions.end(); it++) {
         if (it->second.userID == accountId)
             return true;
     }
-    return false;
+    // check shard server connections
+    std::lock_guard<std::mutex> lock(lsCrit);
+    return (shardSessions.find(accountId) != shardSessions.end());
 }
 
-bool CNLoginServer::exitDuplicate(int accountId) {
+void CNLoginServer::exitDuplicate(int accountId) {
+    // login server
     std::map<CNSocket*, CNLoginData>::iterator it;
     for (it = CNLoginServer::loginSessions.begin(); it != CNLoginServer::loginSessions.end(); it++) {
         if (it->second.userID == accountId) {
             CNSocket* sock = it->first;
             INITSTRUCT(sP_LS2CL_REP_PC_EXIT_DUPLICATE, resp);
-            resp.iErrorCode = 0;
             sock->sendPacket((void*)&resp, P_LS2CL_REP_PC_EXIT_DUPLICATE, sizeof(sP_LS2CL_REP_PC_EXIT_DUPLICATE));
             sock->kill();
-            return true;
+            return;
         }
     }
-    return false;
+    // shard server
+    std::lock_guard<std::mutex> lock(lsCrit);
+    if (shardSessions.find(accountId) == shardSessions.end())
+        return;
+    CNSocket* sock = shardSessions[accountId];
+    PlayerManager::exitDuplicate(sock);
 }
 
 bool CNLoginServer::isLoginDataGood(std::string login, std::string password) {
@@ -601,4 +609,15 @@ bool CNLoginServer::isCharacterNameGood(std::string Firstname, std::string Lastn
     std::regex lastnamecheck(R"(((?! )(?!\.)[a-zA-Z0-9]*\.{0,1}(?!\.+ +)[a-zA-Z0-9]* {0,1}(?! +))*$)");
     return (std::regex_match(Firstname, firstnamecheck) && std::regex_match(Lastname, lastnamecheck));
 }
+
+void CNLoginServer::addShardConnection(int32_t id, CNSocket* sock) {
+    std::lock_guard<std::mutex> lock(lsCrit);
+    shardSessions[id] = sock;
+}
+
+void CNLoginServer::removeShardConnection(int32_t id) {
+    std::lock_guard<std::mutex> lock(lsCrit);
+    shardSessions.erase(id);
+}
+
 #pragma endregion

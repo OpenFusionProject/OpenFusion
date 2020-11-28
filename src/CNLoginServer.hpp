@@ -28,6 +28,7 @@ class CNLoginServer : public CNServer {
 private:
     static void handlePacket(CNSocket* sock, CNPacketData* data);
     static std::map<CNSocket*, CNLoginData> loginSessions;
+    static std::map<int32_t, CNSocket*> shardSessions;
 
     static void login(CNSocket* sock, CNPacketData* data);
     static void nameCheck(CNSocket* sock, CNPacketData* data);
@@ -44,12 +45,14 @@ private:
     static bool isAccountInUse(int accountId);
     static bool isCharacterNameGood(std::string Firstname, std::string Lastname);
     static void newAccount(CNSocket* sock, std::string userLogin, std::string userPassword, int32_t clientVerC);
-    // returns true if success
-    static bool exitDuplicate(int accountId);
+    static void exitDuplicate(int accountId);
 public:
     CNLoginServer(uint16_t p);
 
     void newConnection(CNSocket* cns);
     void killConnection(CNSocket* cns);
     void onStep();
+    // shard sessions logic
+    static void addShardConnection(int32_t id, CNSocket* sock);
+    static void removeShardConnection(int32_t id);
 };

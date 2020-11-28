@@ -57,7 +57,7 @@ namespace PlayerManager {
     WarpLocation* getRespawnPoint(Player *plr);
 
     bool isAccountInUse(int accountId);
-    void exitDuplicate(int accountId);
+    void exitDuplicate(CNSocket* sock);
     void setSpecialState(CNSocket* sock, CNPacketData* data);
     Player *getPlayerFromID(int32_t iID);
     CNSocket *getSockFromID(int32_t iID);
