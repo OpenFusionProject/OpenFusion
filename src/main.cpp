@@ -14,6 +14,7 @@
 #include "ChunkManager.hpp"
 #include "GroupManager.hpp"
 #include "Monitor.hpp"
+#include "RacingManager.hpp"
 
 #include "settings.hpp"
 
@@ -101,6 +102,7 @@ int main() {
     TransportManager::init();
     BuddyManager::init();
     GroupManager::init();
+    RacingManager::init();
     Database::open();
 
     switch (settings::EVENTMODE) {
