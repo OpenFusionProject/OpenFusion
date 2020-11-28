@@ -29,49 +29,6 @@ namespace Database {
         int16_t iSkillID;
         int16_t iStamina;
     };
-    struct DbPlayer {
-        int PlayerID;
-        int AccountID;
-        short int slot;
-        std::string FirstName;
-        std::string LastName;
-        uint64_t Created;
-        uint64_t LastLogin;
-        short int Level;
-        int Nano1;
-        int Nano2;
-        int Nano3;
-        short int AppearanceFlag;
-        short int Body;
-        short int Class;
-        short int EyeColor;
-        short int FaceStyle;
-        short int Gender;
-        int HP;
-        short int HairColor;
-        short int HairStyle;
-        short int Height;
-        short int NameCheck;
-        short int PayZoneFlag;
-        short int SkinColor;
-        bool TutorialFlag;
-        int AccountLevel;
-        int FusionMatter;
-        int Taros;
-        int x_coordinates;
-        int y_coordinates;
-        int z_coordinates;
-        int angle;
-        short int PCState;
-        int BatteryW;
-        int BatteryN;
-        int16_t Mentor;
-        std::vector<char> QuestFlag;
-        int32_t CurrentMissionID;
-        int32_t WarpLocationFlag;
-        int64_t SkywayLocationFlag1;
-        int64_t SkywayLocationFlag2;
-    };
     struct DbQuest {
         int PlayerId;
         int32_t TaskId;
@@ -140,12 +97,7 @@ namespace Database {
     void evaluateCustomName(int characterID, CustomName decision);
     void changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save);
 
-    // parsing DbPlayer
-    DbPlayer playerToDb(Player *player);
-    Player DbToPlayer(DbPlayer player);
-
     // getting players
-    DbPlayer getDbPlayerById(int id);
     Player getPlayer(int id);
 
     void updatePlayer(Player *player);
@@ -160,10 +112,6 @@ namespace Database {
     void getQuests(Player* player);
     void getBuddies(Player* player);
     int getNumBuddies(Player* player);
-
-    // parsing blobs
-    void appendBlob(std::vector<char>*blob, int64_t input);
-    int64_t blobToInt64(std::vector<char>::iterator it);
 
     // buddies
     void addBuddyship(int playerA, int playerB);

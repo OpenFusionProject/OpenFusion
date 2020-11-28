@@ -57,7 +57,6 @@ CXXSRC=\
 # headers (for timestamp purposes)
 CHDR=\
 	src/contrib/sqlite/sqlite3.h\
-	src/contrib/sqlite/sqlite_orm.h\
 	src/contrib/bcrypt/bcrypt.h\
 	src/contrib/bcrypt/crypt_blowfish.h\
 	src/contrib/bcrypt/crypt_gensalt.h\
