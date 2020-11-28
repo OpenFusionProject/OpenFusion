@@ -11,6 +11,7 @@
 #include "Database.hpp"
 #include "BuddyManager.hpp"
 #include "MobManager.hpp"
+#include "RacingManager.hpp"
 
 #include "settings.hpp"
 
@@ -70,6 +71,9 @@ void PlayerManager::removePlayer(CNSocket* key) {
 
     // remove player's bullets
     MobManager::Bullets.erase(plr->iID);
+
+    // remove player's ongoing race, if it exists
+    RacingManager::EPRaces.erase(key);
 
     // save player to DB
     Database::updatePlayer(plr);
