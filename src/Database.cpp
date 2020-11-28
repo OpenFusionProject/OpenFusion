@@ -4,11 +4,11 @@
 #include "CNProtocol.hpp"
 #include <string>
 #include "contrib/JSON.hpp"
+#include "contrib/sqlite/sqlite3.h"
 #include "CNStructs.hpp"
 #include "settings.hpp"
 #include "Player.hpp"
 #include "CNStructs.hpp"
-#include "contrib/sqlite/sqlite_orm.h"
 #include "MissionManager.hpp"
 
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
@@ -17,114 +17,7 @@
     #include <mutex>
 #endif
 
-using namespace sqlite_orm;
-
 std::mutex dbCrit;
-
-# pragma region DatabaseScheme
-auto db = make_storage("database.db",
-    make_table("Accounts",
-        make_column("AccountID", &Database::Account::AccountID, autoincrement(), primary_key()),
-        make_column("Login", &Database::Account::Login),
-        make_column("Password", &Database::Account::Password),
-        make_column("Selected", &Database::Account::Selected),
-        make_column("Created", &Database::Account::Created),
-        make_column("LastLogin", &Database::Account::LastLogin)
-    ),
-    make_table("Players",
-        make_column("PlayerID", &Database::DbPlayer::PlayerID, autoincrement(), primary_key()),
-        make_column("AccountID", &Database::DbPlayer::AccountID),
-        make_column("Slot", &Database::DbPlayer::slot),
-        make_column("Firstname", &Database::DbPlayer::FirstName, collate_nocase()),
-        make_column("LastName", &Database::DbPlayer::LastName, collate_nocase()),
-        make_column("Created", &Database::DbPlayer::Created),
-        make_column("LastLogin", &Database::DbPlayer::LastLogin),
-        make_column("Level", &Database::DbPlayer::Level),
-        make_column("Nano1", &Database::DbPlayer::Nano1),
-        make_column("Nano2", &Database::DbPlayer::Nano2),
-        make_column("Nano3", &Database::DbPlayer::Nano3),
-        make_column("AppearanceFlag", &Database::DbPlayer::AppearanceFlag),
-        make_column("TutorialFlag", &Database::DbPlayer::TutorialFlag),
-        make_column("PayZoneFlag", &Database::DbPlayer::PayZoneFlag),
-        make_column("XCoordinates", &Database::DbPlayer::x_coordinates),
-        make_column("YCoordinates", &Database::DbPlayer::y_coordinates),
-        make_column("ZCoordinates", &Database::DbPlayer::z_coordinates),
-        make_column("Angle", &Database::DbPlayer::angle),
-        make_column("Body", &Database::DbPlayer::Body),
-        make_column("Class", &Database::DbPlayer::Class),
-        make_column("EyeColor", &Database::DbPlayer::EyeColor),
-        make_column("FaceStyle", &Database::DbPlayer::FaceStyle),
-        make_column("Gender", &Database::DbPlayer::Gender),
-        make_column("HP", &Database::DbPlayer::HP),
-        make_column("HairColor", &Database::DbPlayer::HairColor),
-        make_column("HairStyle", &Database::DbPlayer::HairStyle),
-        make_column("Height", &Database::DbPlayer::Height),
-        make_column("NameCheck", &Database::DbPlayer::NameCheck),
-        make_column("SkinColor", &Database::DbPlayer::SkinColor),
-        make_column("AccountLevel", &Database::DbPlayer::AccountLevel),
-        make_column("FusionMatter", &Database::DbPlayer::FusionMatter),
-        make_column("Taros", &Database::DbPlayer::Taros),
-        make_column("Quests", &Database::DbPlayer::QuestFlag),
-        make_column("BatteryW", &Database::DbPlayer::BatteryW),
-        make_column("BatteryN", &Database::DbPlayer::BatteryN),
-        make_column("Mentor", &Database::DbPlayer::Mentor),
-        make_column("WarpLocationFlag", &Database::DbPlayer::WarpLocationFlag),
-        make_column("SkywayLocationFlag1", &Database::DbPlayer::SkywayLocationFlag1),
-        make_column("SkywayLocationFlag2", &Database::DbPlayer::SkywayLocationFlag2),
-        make_column("CurrentMissionID", &Database::DbPlayer::CurrentMissionID)
-    ),
-    make_table("Inventory",
-        make_column("PlayerId", &Database::Inventory::playerId),
-        make_column("Slot", &Database::Inventory::slot),
-        make_column("Id", &Database::Inventory::id),
-        make_column("Type", &Database::Inventory::Type),
-        make_column("Opt", &Database::Inventory::Opt),
-        make_column("TimeLimit", &Database::Inventory::TimeLimit)
-    ),
-    make_table("Nanos",
-        make_column("PlayerId", &Database::Nano::playerId),
-        make_column("Id", &Database::Nano::iID),
-        make_column("Skill", &Database::Nano::iSkillID),
-        make_column("Stamina", &Database::Nano::iStamina)
-    ),
-    make_table("RunningQuests",
-        make_column("PlayerId", &Database::DbQuest::PlayerId),
-        make_column("TaskId", &Database::DbQuest::TaskId),
-        make_column("RemainingNPCCount1", &Database::DbQuest::RemainingNPCCount1),
-        make_column("RemainingNPCCount2", &Database::DbQuest::RemainingNPCCount2),
-        make_column("RemainingNPCCount3", &Database::DbQuest::RemainingNPCCount3)
-    ),
-    make_table("Buddyships",
-        make_column("PlayerAId", &Database::Buddyship::PlayerAId),
-        make_column("PlayerBId", &Database::Buddyship::PlayerBId),
-        make_column("Status", &Database::Buddyship::Status)
-    ),
-    make_table("EmailData",
-        make_column("PlayerId", &Database::EmailData::PlayerId),
-        make_column("MsgIndex", &Database::EmailData::MsgIndex),
-        make_column("ReadFlag", &Database::EmailData::ReadFlag),
-        make_column("ItemFlag", &Database::EmailData::ItemFlag),
-        make_column("SenderId", &Database::EmailData::SenderId),
-        make_column("SenderFirstName", &Database::EmailData::SenderFirstName, collate_nocase()),
-        make_column("SenderLastName", &Database::EmailData::SenderLastName, collate_nocase()),
-        make_column("SubjectLine", &Database::EmailData::SubjectLine),
-        make_column("MsgBody", &Database::EmailData::MsgBody),
-        make_column("Taros", &Database::EmailData::Taros),
-        make_column("SendTime", &Database::EmailData::SendTime),
-        make_column("DeleteTime", &Database::EmailData::DeleteTime)
-    ),
-    make_table("EmailItems",
-        make_column("PlayerId", &Database::EmailItem::PlayerId),
-        make_column("MsgIndex", &Database::EmailItem::MsgIndex),
-        make_column("Slot", &Database::EmailItem::Slot),
-        make_column("Id", &Database::EmailItem::Id),
-        make_column("Type", &Database::EmailItem::Type),
-        make_column("Opt", &Database::EmailItem::Opt),
-        make_column("TimeLimit", &Database::EmailItem::TimeLimit)
-    )
-);
-
-# pragma endregion DatabaseScheme
 
 #pragma region LoginServer
 
