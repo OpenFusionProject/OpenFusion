@@ -18,13 +18,18 @@
 #endif
 
 std::mutex dbCrit;
+sqlite3* db;
 
 #pragma region LoginServer
 
 void Database::open() {
-    // this parameter means it will try to preserve data during migration
-    bool preserve = true;
-    db.sync_schema(preserve);
+    
+    int rc = sqlite3_open(settings::DBPATH.c_str(), &db);
+    if (rc != SQLITE_OK) {
+        std::cout << "[FATAL] Cannot open database: " << sqlite3_errmsg(db) << std::endl;
+        terminate(0);
+    }
+
     std::cout << "[INFO] Database in operation ";
     int accounts = getAccountsCount();
     int players = getPlayersCount();
