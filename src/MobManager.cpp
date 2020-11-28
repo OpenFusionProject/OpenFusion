@@ -556,8 +556,12 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     int distance = hypot(plr->x - mob->appearanceData.iX, plr->y - mob->appearanceData.iY);
     int mobRange = (int)mob->data["m_iAtkRange"] + (int)mob->data["m_iRadius"];
 
-    if (currTime >= mob->nextAttack)
-        useAbilities(mob, currTime);
+    if (currTime >= mob->nextAttack) {
+        if (mob->nextAttack != 0 || rand()%4 == 0)
+            useAbilities(mob, currTime);
+        if (mob->target == nullptr)
+            return;
+    }
     /*
      * If the mob is close enough to attack, do so. If not, get closer.
      * No, I'm not 100% sure this is how it's supposed to work.
