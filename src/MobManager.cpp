@@ -383,6 +383,7 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
     mob->state = MobState::DEAD;
     mob->target = nullptr;
     mob->appearanceData.iConditionBitFlag = 0;
+    mob->skillStyle = -1;
     mob->unbuffTimes.clear();
     mob->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
 
@@ -557,7 +558,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     int mobRange = (int)mob->data["m_iAtkRange"] + (int)mob->data["m_iRadius"];
 
     if (currTime >= mob->nextAttack) {
-        if (mob->nextAttack != 0 || rand()%4 == 0)
+        if (mob->skillStyle != -1 || distance <= mobRange || rand() % 10 == 0) // while not in attack range, 1 / 10 chance.
             useAbilities(mob, currTime);
         if (mob->target == nullptr)
             return;
@@ -748,9 +749,13 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
         mob->killedTime = 0;
         mob->nextAttack = 0;
         mob->appearanceData.iConditionBitFlag = 0;
-        
-        // HACK: we haven't found a better way to refresh a mob's client-side status
-        drainMobHP(mob, 0);
+
+        // cast a return home heal spell, this is the right way(tm)
+        std::vector<int> targetData = {1, mob->target->plr->iID, 0, 0, 0};
+        for (auto& pwr : MobPowers)
+            if (pwr.skillType == NanoManager::SkillTable[110].skillType)
+                pwr.handle(mob, targetData, 110, NanoManager::SkillTable[110].durationTime[0], NanoManager::SkillTable[110].powerIntensity[0]);
+        // clear outlying debuffs
         clearDebuff(mob);
     }
 }
@@ -1621,7 +1626,7 @@ void MobManager::dealCorruption(Mob *mob, std::vector<int> targetData, int skill
         int style2 = NanoManager::nanoStyle(plr->activeNano);
         if (style2 == -1) { // no nano
             respdata[i].iHitFlag = 8;
-            respdata[i].iDamage = NanoManager::SkillTable[skillID].powerIntensity[0] * PC_MAXHEALTH(plr->level) / 2000;
+            respdata[i].iDamage = NanoManager::SkillTable[skillID].powerIntensity[0] * PC_MAXHEALTH((int)mob->data["m_iNpcLevel"]) / 1500;
         } else if (style == style2) {
             respdata[i].iHitFlag = 8; // tie
             respdata[i].iDamage = 0;
@@ -1636,10 +1641,10 @@ void MobManager::dealCorruption(Mob *mob, std::vector<int> targetData, int skill
             std::vector<int> targetData2 = {1, mob->appearanceData.iNPC_ID, 0, 0, 0};
             for (auto& pwr : NanoManager::NanoPowers)
                 if (pwr.skillType == EST_DAMAGE)
-                    pwr.handle(sock, targetData2, plr->activeNano, skillID, 0, 100);
+                    pwr.handle(sock, targetData2, plr->activeNano, skillID, 0, 200);
         } else {
             respdata[i].iHitFlag = 16; // lose
-            respdata[i].iDamage = NanoManager::SkillTable[skillID].powerIntensity[0] * PC_MAXHEALTH(plr->level) / 2000;
+            respdata[i].iDamage = NanoManager::SkillTable[skillID].powerIntensity[0] * PC_MAXHEALTH((int)mob->data["m_iNpcLevel"]) / 1500;
             respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina -= 90;
             if (plr->Nanos[plr->activeNano].iStamina < 0) {
                 respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina = 0;
@@ -1747,7 +1752,7 @@ bool doDamage(Mob *mob, sSkillResult_Damage *respdata, int i, int32_t targetID, 
         return false;
     }
 
-    int damage = amount * PC_MAXHEALTH(plr->level) / 1000;
+    int damage = amount * PC_MAXHEALTH((int)mob->data["m_iNpcLevel"]) / 1500;
 
     respdata[i].eCT = 1;
     respdata[i].iDamage = damage;
@@ -1840,8 +1845,8 @@ bool doBatteryDrain(Mob *mob, sSkillResult_BatteryDrain *respdata, int i, int32_
         respdata[i].iDrainN = 0;
     } else {
         respdata[i].bProtected = 0;
-        respdata[i].iDrainW = amount / 10;
-        respdata[i].iDrainN = amount / 10;
+        respdata[i].iDrainW = amount * (18 + (int)mob->data["m_iNpcLevel"]) / 36;
+        respdata[i].iDrainN = amount * (18 + (int)mob->data["m_iNpcLevel"]) / 36;
     }
 
     respdata[i].iBatteryW = plr->batteryW -= respdata[i].iDrainW;
