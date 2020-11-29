@@ -136,8 +136,19 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
 
     if (I != INSTANCE_OVERWORLD) {
         INITSTRUCT(sP_FE2CL_INSTANCE_MAP_INFO, pkt);
-        pkt.iEP_ID = PLAYERID(I) == 0; // iEP_ID has to be positive for the map to be enabled
         pkt.iInstanceMapNum = (int32_t)MAPNUM(I); // lower 32 bits are mapnum
+        if (RacingManager::EPData.find(pkt.iInstanceMapNum) != RacingManager::EPData.end()) {
+            EPInfo* ep = &RacingManager::EPData[pkt.iInstanceMapNum];
+            pkt.iEP_ID = ep->EPID;
+            pkt.iMapCoordX_Min = ep->zoneX * 51200;
+            pkt.iMapCoordX_Max = (ep->zoneX + 1) * 51200;
+            pkt.iMapCoordY_Min = ep->zoneY * 51200;
+            pkt.iMapCoordY_Max = (ep->zoneY + 1) * 51200;
+            pkt.iMapCoordZ_Min = INT32_MIN;
+            pkt.iMapCoordZ_Max = INT32_MAX;
+        } else {
+            std::cout << "[WARN] Map number " << pkt.iInstanceMapNum << " unknown\n";
+        }
         sock->sendPacket((void*)&pkt, P_FE2CL_INSTANCE_MAP_INFO, sizeof(sP_FE2CL_INSTANCE_MAP_INFO));
     } else {
         // annoying but necessary to set the flag back
