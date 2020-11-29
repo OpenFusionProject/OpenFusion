@@ -110,7 +110,7 @@ void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
     if (missionData->iNPC_ID == 0) {
         TaskData* task = MissionManager::Tasks[missionData->iTaskNum];
         // double-checking
-        if (task->task["m_iHTaskType"] == 3) {
+        if (task->task["m_iSTGrantTimer"] > 0) {
             Player* plr = PlayerManager::getPlayer(sock);
             int failTaskID = task->task["m_iFOutgoingTask"];
             if (failTaskID != 0) {

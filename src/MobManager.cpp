@@ -522,7 +522,8 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     }
 
     // drain
-    if ((mob->lastDrainTime == 0 || currTime - mob->lastDrainTime >= 1000) && mob->appearanceData.iConditionBitFlag & CSB_BIT_BOUNDINGBALL) {
+    if (mob->skillStyle < 0 && (mob->lastDrainTime == 0 || currTime - mob->lastDrainTime >= 1000)
+        && mob->appearanceData.iConditionBitFlag & CSB_BIT_BOUNDINGBALL) {
         drainMobHP(mob, mob->maxHealth / 20); // lose 5% every second
         mob->lastDrainTime = currTime;
     }
@@ -558,7 +559,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     int mobRange = (int)mob->data["m_iAtkRange"] + (int)mob->data["m_iRadius"];
 
     if (currTime >= mob->nextAttack) {
-        if (mob->skillStyle != -1 || distance <= mobRange || rand() % 10 == 0) // while not in attack range, 1 / 10 chance.
+        if (mob->skillStyle != -1 || distance <= mobRange || rand() % 20 == 0) // while not in attack range, 1 / 10 chance.
             useAbilities(mob, currTime);
         if (mob->target == nullptr)
             return;
@@ -963,23 +964,10 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
 
         for (int i = 0; i < 3; i++) {
             if (plr->activeNano != 0 && plr->equippedNanos[i] == plr->activeNano) { // spend stamina
-                plr->Nanos[plr->activeNano].iStamina -= 1 + plr->nanoDrainRate * 2 / 5;
+                plr->Nanos[plr->activeNano].iStamina -= 1 + plr->nanoDrainRate / 5;
 
-                if (plr->Nanos[plr->activeNano].iStamina <= 0) {
-                    // passive nano unbuffing
-                    int skillID = plr->Nanos[plr->activeNano].iSkillID;
-                    if (NanoManager::SkillTable[skillID].drainType == 2) {
-                        std::vector<int> targetData = NanoManager::findTargets(plr, skillID);
-
-                        for (auto& pwr : NanoManager::NanoPowers)
-                            if (pwr.skillType == NanoManager::SkillTable[skillID].skillType)
-                                NanoManager::nanoUnbuff(sock, targetData, pwr.bitFlag, pwr.timeBuffID, 0, (NanoManager::SkillTable[skillID].targetType == 3));
-                    }
-
-                    plr->Nanos[plr->activeNano].iStamina = 0;
-                    plr->activeNano = 0;
-                    plr->nanoDrainRate = 0;
-                }
+                if (plr->Nanos[plr->activeNano].iStamina <= 0)
+                    NanoManager::summonNano(sock, -1); // unsummon nano
 
                 transmit = true;
             } else if (plr->Nanos[plr->equippedNanos[i]].iStamina < 150) { // regain stamina
@@ -1521,7 +1509,7 @@ void MobManager::useAbilities(Mob *mob, time_t currTime) {
         return;
     }
 
-    int random = rand() % 100 * 10000;
+    int random = rand() % 100 * 15000;
     int prob1 = (int)mob->data["m_iActiveSkill1Prob"]; // active skill probability
     int prob2 = (int)mob->data["m_iCorruptionTypeProb"]; // corruption probability
     int prob3 = (int)mob->data["m_iMegaTypeProb"]; // eruption probability
@@ -1646,10 +1634,8 @@ void MobManager::dealCorruption(Mob *mob, std::vector<int> targetData, int skill
             respdata[i].iHitFlag = 16; // lose
             respdata[i].iDamage = NanoManager::SkillTable[skillID].powerIntensity[0] * PC_MAXHEALTH((int)mob->data["m_iNpcLevel"]) / 1500;
             respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina -= 90;
-            if (plr->Nanos[plr->activeNano].iStamina < 0) {
+            if (plr->Nanos[plr->activeNano].iStamina < 0)
                 respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina = 0;
-                NanoManager::summonNano(sock, -1); // unsummon when stamina is 0
-            }
         }
 
         respdata[i].iHP = plr->HP-= respdata[i].iDamage;
