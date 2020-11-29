@@ -291,7 +291,7 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spe
     PlayerManager::sendToViewable(sock, (void*)&resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
 }
 
-void NanoManager::summonNano(CNSocket *sock, int slot) {
+void NanoManager::summonNano(CNSocket *sock, int slot, bool silent) {
     INITSTRUCT(sP_FE2CL_REP_NANO_ACTIVE_SUCC, resp);
     resp.iActiveNanoSlotNum = slot;
     Player *plr = PlayerManager::getPlayer(sock);
@@ -338,9 +338,10 @@ void NanoManager::summonNano(CNSocket *sock, int slot) {
         }
     }
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_ACTIVE_SUCC, sizeof(sP_FE2CL_REP_NANO_ACTIVE_SUCC));
+    if (!silent) // silent nano death but only for the summoning player
+        sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_ACTIVE_SUCC, sizeof(sP_FE2CL_REP_NANO_ACTIVE_SUCC));
 
-    // Send to other players
+    // Send to other players, these players can't handle silent nano deaths so this packet needs to be sent.
     INITSTRUCT(sP_FE2CL_NANO_ACTIVE, pkt1);
     pkt1.iPC_ID = plr->iID;
     pkt1.Nano = plr->Nanos[nanoID];

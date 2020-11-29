@@ -62,7 +62,7 @@ namespace NanoManager {
 
     // Helper methods
     void addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spendfm=false);
-    void summonNano(CNSocket* sock, int slot);
+    void summonNano(CNSocket* sock, int slot, bool silent = false);
     void setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill);
     void resetNanoSkill(CNSocket* sock, int16_t nanoID);
     void nanoUnbuff(CNSocket* sock, std::vector<int> targetData, int32_t bitFlag, int16_t timeBuffID, int16_t amount, bool groupPower);
