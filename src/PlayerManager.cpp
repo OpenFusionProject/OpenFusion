@@ -728,7 +728,8 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     for (int i = 0; i < 3; i++) {
         int nanoID = plr->equippedNanos[i];
         // halve nano health if respawning
-        if (reviveData->iRegenType == 6)
+        // all revives not 3-5 are normal respawns.
+        if (reviveData->iRegenType < 3 && reviveData->iRegenType > 5)
             plr->Nanos[nanoID].iStamina = 75; // max is 150, so 75 is half
         response.PCRegenData.Nanos[i] = plr->Nanos[nanoID];
         if (plr->activeNano == nanoID)
