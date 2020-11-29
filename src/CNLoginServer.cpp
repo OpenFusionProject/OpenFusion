@@ -112,6 +112,11 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
         userPassword = std::string(U16toU8(login->szPassword).c_str());
     }
 
+    // the client inserts a "\n" in the password if you press enter key in the middle of the password
+    // (not at the start or the end of the password field)
+    if (int(userPassword.find("\n")) > 0)
+        userPassword.erase(userPassword.find("\n"), 1);
+
     // check regex
     if (!CNLoginServer::isLoginDataGood(userLogin, userPassword))
         return loginFail(LoginError::LOGIN_ERROR, userLogin, sock);
