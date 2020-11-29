@@ -559,7 +559,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     int mobRange = (int)mob->data["m_iAtkRange"] + (int)mob->data["m_iRadius"];
 
     if (currTime >= mob->nextAttack) {
-        if (mob->skillStyle != -1 || distance <= mobRange || rand() % 20 == 0) // while not in attack range, 1 / 10 chance.
+        if (mob->skillStyle != -1 || distance <= mobRange || rand() % 20 == 0) // while not in attack range, 1 / 20 chance.
             useAbilities(mob, currTime);
         if (mob->target == nullptr)
             return;
@@ -913,7 +913,7 @@ void MobManager::dealGooDamage(CNSocket *sock, int amount) {
         if (plr->Nanos[plr->activeNano].iStamina <= 0) {
             dmg->bNanoDeactive = 1;
             plr->Nanos[plr->activeNano].iStamina = 0;
-            NanoManager::summonNano(PlayerManager::getSockFromID(plr->iID), -1);
+            NanoManager::summonNano(PlayerManager::getSockFromID(plr->iID), -1, true);
         }
     }
 
@@ -967,7 +967,7 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
                 plr->Nanos[plr->activeNano].iStamina -= 1 + plr->nanoDrainRate / 5;
 
                 if (plr->Nanos[plr->activeNano].iStamina <= 0)
-                    NanoManager::summonNano(sock, -1); // unsummon nano
+                    NanoManager::summonNano(sock, -1, true); // unsummon nano silently
 
                 transmit = true;
             } else if (plr->Nanos[plr->equippedNanos[i]].iStamina < 150) { // regain stamina
@@ -1634,8 +1634,10 @@ void MobManager::dealCorruption(Mob *mob, std::vector<int> targetData, int skill
             respdata[i].iHitFlag = 16; // lose
             respdata[i].iDamage = NanoManager::SkillTable[skillID].powerIntensity[0] * PC_MAXHEALTH((int)mob->data["m_iNpcLevel"]) / 1500;
             respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina -= 90;
-            if (plr->Nanos[plr->activeNano].iStamina < 0)
+            if (plr->Nanos[plr->activeNano].iStamina < 0) {
+                respdata[i].bNanoDeactive = 1;
                 respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina = 0;
+            }
         }
 
         respdata[i].iHP = plr->HP-= respdata[i].iDamage;
