@@ -70,6 +70,8 @@ namespace Database {
 
     // handles migrations
     void open();
+    void createTables();
+
     int getAccountsCount();
     int getPlayersCount();
     // returns ID
@@ -127,4 +129,5 @@ namespace Database {
     void deleteEmails(int playerID, int64_t* indices);
     int getNextEmailIndex(int playerID);
     void sendEmail(EmailData* data, std::vector<sItemBase> attachments);
+
 }
