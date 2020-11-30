@@ -704,6 +704,52 @@ void whoisCommand(std::string full, std::vector<std::string>& args, CNSocket* so
     ChatManager::sendServerMessage(sock, "[WHOIS] Instance: " + std::to_string(PLAYERID(npc->instanceID)));
 }
 
+void lairUnlock(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player* plr = PlayerManager::getPlayer(sock);
+    if (!ChunkManager::chunkExists(plr->chunkPos))
+        return;
+
+    Chunk* chnk = ChunkManager::chunks[plr->chunkPos];
+    int taskID = -1;
+    int missionID = -1;
+    int found = 0;
+    for (int32_t id : chnk->NPCs) {
+        if (NPCManager::NPCs.find(id) == NPCManager::NPCs.end())
+            continue;
+
+        BaseNPC* npc = NPCManager::NPCs[id];
+        for (auto it = NPCManager::Warps.begin(); it != NPCManager::Warps.end(); it++) {
+            if ((*it).second.npcID == npc->appearanceData.iNPCType) {
+                taskID = (*it).second.limitTaskID;
+                missionID = MissionManager::Tasks[taskID]->task["m_iHMissionID"];
+                found++;
+                break;
+            }
+        }
+    }
+
+    if (missionID == -1 || taskID == -1) {
+        ChatManager::sendServerMessage(sock, "You are NOT standing near a lair portal; move around and try again!");
+        return;
+    }
+
+    if (found > 1) {
+        ChatManager::sendServerMessage(sock, "More than one lair found; decrease chunk size and try again!");
+        return;
+    }
+
+    INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_SUCC, taskResp);
+    MissionManager::startTask(plr, taskID, false);
+    taskResp.iTaskNum = taskID;
+    taskResp.iRemainTime = 0;
+    sock->sendPacket((void*)&taskResp, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
+
+    INITSTRUCT(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, missionResp);
+    missionResp.iCurrentMissionID = missionID;
+    plr->CurrentMissionID = missionID;
+    sock->sendPacket((void*)&missionResp, P_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, sizeof(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID));
+}
+
 void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
@@ -732,6 +778,7 @@ void ChatManager::init() {
     registerCommand("summonGroup", 30, summonGroupCommand, "summon group NPCs");
     registerCommand("summonGroupW", 30, summonGroupCommand, "permanently summon group NPCs");
     registerCommand("whois", 50, whoisCommand, "describe nearest NPC");
+    registerCommand("lair", 50, lairUnlock, "Allows entry to lair by granting you the required mission and task");
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {

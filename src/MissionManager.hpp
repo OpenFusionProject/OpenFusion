@@ -41,6 +41,7 @@ namespace MissionManager {
     extern nlohmann::json AvatarGrowth[37];
     void init();
 
+    bool startTask(Player* plr, int TaskID, bool NanoMission);
     void taskStart(CNSocket* sock, CNPacketData* data);
     void taskEnd(CNSocket* sock, CNPacketData* data);
     void setMission(CNSocket* sock, CNPacketData* data);
