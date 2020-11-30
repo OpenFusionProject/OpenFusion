@@ -30,6 +30,8 @@ void Database::open() {
         terminate(0);
     }
 
+    createTables();
+
     std::cout << "[INFO] Database in operation ";
     int accounts = getAccountsCount();
     int players = getPlayersCount();
@@ -47,9 +49,160 @@ void Database::open() {
     std::cout << message << std::endl;
 }
 
-int Database::getAccountsCount() {
-    return db.count<Account>();
+void Database::createTables() {
+
+    char* errMsg = 0;
+    char* sql;
+
+    sql = R"(
+        CREATE TABLE IF NOT EXISTS "Accounts" (
+        "AccountID"	INTEGER NOT NULL,
+        "Login"	    TEXT    NOT NULL UNIQUE,
+        "Password"	TEXT    NOT NULL,
+        "Selected"	INTEGER NOT NULL,
+        "Created"	INTEGER NOT NULL,
+        "LastLogin"	INTEGER NOT NULL,
+        PRIMARY KEY("AccountID" AUTOINCREMENT)
+        );
+
+        CREATE TABLE IF NOT EXISTS "Players" (
+        "PlayerID"	INTEGER NOT NULL,
+        "AccountID"	INTEGER NOT NULL,
+        "Slot"	    INTEGER NOT NULL,
+        "Firstname"	TEXT    NOT NULL COLLATE NOCASE,
+        "LastName"	TEXT    NOT NULL COLLATE NOCASE,
+        "Created"	INTEGER NOT NULL,
+        "LastLogin"	INTEGER NOT NULL,
+        "Level"	    INTEGER NOT NULL,
+        "Nano1"	    INTEGER NOT NULL,
+        "Nano2"	    INTEGER NOT NULL,
+        "Nano3"	    INTEGER NOT NULL,
+        "AppearanceFlag" INTEGER NOT NULL,
+        "TutorialFlag"	 INTEGER NOT NULL,
+        "PayZoneFlag"	 INTEGER NOT NULL,
+        "XCoordinates"	 INTEGER NOT NULL,
+        "YCoordinates"	 INTEGER NOT NULL,
+        "ZCoordinates"	 INTEGER NOT NULL,
+        "HP"	         INTEGER NOT NULL,
+        "NameCheck"	     INTEGER NOT NULL,     
+        "AccountLevel"	INTEGER NOT NULL,
+        "FusionMatter"	INTEGER NOT NULL,
+        "Taros"	        INTEGER NOT NULL,
+        "Quests"	BLOB    NOT NULL,
+        "BatteryW"	INTEGER NOT NULL,
+        "BatteryN"	INTEGER NOT NULL,
+        "Mentor"	INTEGER NOT NULL,
+        "WarpLocationFlag"	    INTEGER NOT NULL,
+        "SkywayLocationFlag1"	INTEGER NOT NULL,
+        "SkywayLocationFlag2"	INTEGER NOT NULL,
+        "CurrentMissionID"	    INTEGER NOT NULL,
+        PRIMARY KEY("PlayerID" AUTOINCREMENT),
+        FOREIGN KEY("AccountID") REFERENCES "Accounts"("AccountID") ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS "Appearances" (
+        "PlayerID"	INTEGER NOT NULL,
+        "Angle"	    INTEGER NOT NULL,
+        "Body"	    INTEGER NOT NULL,
+        "EyeColor"	INTEGER NOT NULL,
+        "FaceStyle"	INTEGER NOT NULL,
+        "Gender"	INTEGER NOT NULL,
+        "HairColor"	INTEGER NOT NULL,
+        "HairStyle"	INTEGER NOT NULL,
+        "Height"	INTEGER NOT NULL,
+        "SkinColor"	INTEGER NOT NULL,
+        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS "Inventory" (
+	    "PlayerId"	INTEGER NOT NULL,
+	    "Slot"	    INTEGER NOT NULL,
+	    "Id"	    INTEGER NOT NULL,
+	    "Type"	    INTEGER NOT NULL,
+	    "Opt"	    INTEGER NOT NULL,
+	    "TimeLimit"	INTEGER NOT NULL,
+        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS "Nanos" (
+	    "PlayerId"	INTEGER NOT NULL,
+	    "Id"	    INTEGER NOT NULL,
+	    "Skill"	    INTEGER NOT NULL,
+	    "Stamina"	INTEGER NOT NULL,
+        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS "RunningQuests" (
+	    "PlayerId"	            INTEGER NOT NULL,
+	    "TaskId"	            INTEGER NOT NULL,
+	    "RemainingNPCCount1"	INTEGER NOT NULL,
+	    "RemainingNPCCount2"	INTEGER NOT NULL,
+	    "RemainingNPCCount3"	INTEGER NOT NULL,
+        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS "Buddyships" (
+	    "PlayerAId"	INTEGER NOT NULL,
+	    "PlayerBId"	INTEGER NOT NULL,
+	    "Status"	INTEGER NOT NULL,
+        FOREIGN KEY("PlayerAId") REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
+        FOREIGN KEY("PlayerBId") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS "EmailData" (
+	    "PlayerId"	INTEGER NOT NULL,
+	    "MsgIndex"	INTEGER NOT NULL,
+	    "ReadFlag"	INTEGER NOT NULL,
+	    "ItemFlag"	INTEGER NOT NULL,
+	    "SenderId"	INTEGER NOT NULL,
+	    "SenderFirstName"	TEXT NOT NULL COLLATE NOCASE,
+	    "SenderLastName"	TEXT NOT NULL COLLATE NOCASE,
+	    "SubjectLine"	    TEXT NOT NULL,
+	    "MsgBody"	        TEXT NOT NULL,
+	    "Taros"	        INTEGER NOT NULL,
+	    "SendTime"	    INTEGER NOT NULL,
+	    "DeleteTime"	INTEGER NOT NULL,
+        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS "EmailItems" (
+	    "PlayerId"	INTEGER NOT NULL,
+	    "MsgIndex"	INTEGER NOT NULL,
+	    "Slot"	    INTEGER NOT NULL,
+	    "Id"	    INTEGER NOT NULL,
+	    "Type"	    INTEGER NOT NULL,
+	    "Opt"	    INTEGER NOT NULL,
+	    "TimeLimit"	INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS "RaceResults"(
+        "EPID"      INTEGER NOT NULL,
+        "PlayerID"  INTEGER NOT NULL,
+        "Score"     INTEGER NOT NULL,
+        "Timestamp" INTEGER NOT NULL,    
+        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
+        )
+        )";
+
+    int rc = sqlite3_exec(db, sql, 0, 0, &errMsg);
+    if (rc != SQLITE_OK) {
+        std::cout << "[FATAL] Database failed to create tables: " << errMsg << std::endl;
+        terminate(0);
+    }
 }
+
+
+
+int Database::getAccountsCount() {
+    int result;
+    char* sql = "SELECT COUNT(*) FROM Accounts";
+    rc = sqlite3_exec(db, sql, CBAccountsCount, result, &err_msg);
+}
+
+static int Database::CBAccountsCount(void* AccountsCount, int count, char** data, char** columns) {
+    *AccountsCount = (int)data[0];
+}
+
 
 int Database::getPlayersCount() {
     return db.count<DbPlayer>();
