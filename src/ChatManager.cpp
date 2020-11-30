@@ -284,27 +284,29 @@ void unsummonWCommand(std::string full, std::vector<std::string>& args, CNSocket
         return;
     }
 
-    int leadId = ((Mob*)npc)->groupLeader;
-    if (leadId != 0) {
-        if (MobManager::Mobs.find(leadId) == MobManager::Mobs.end()) {
-            std::cout << "[WARN] unsummonW: leader not found!" << std::endl;
-        }
-        Mob* leadNpc = MobManager::Mobs[leadId];
-        for (int i = 0; i < 4; i++) {
-            if (leadNpc->groupMember[i] == 0)
-                break;
-
-            if (MobManager::Mobs.find(leadNpc->groupMember[i]) == MobManager::Mobs.end()) {
-                std::cout << "[WARN] unsommonW: leader can't find a group member!" << std::endl;
-                continue;
+    if (MobManager::Mobs.find(npc->appearanceData.iNPC_ID) != MobManager::Mobs.end()) {
+        int leadId = ((Mob*)npc)->groupLeader;
+        if (leadId != 0) {
+            if (MobManager::Mobs.find(leadId) == MobManager::Mobs.end()) {
+                std::cout << "[WARN] unsummonW: leader not found!" << std::endl;
             }
+            Mob* leadNpc = MobManager::Mobs[leadId];
+            for (int i = 0; i < 4; i++) {
+                if (leadNpc->groupMember[i] == 0)
+                    break;
 
-            NPCManager::destroyNPC(leadNpc->groupMember[i]);
+                if (MobManager::Mobs.find(leadNpc->groupMember[i]) == MobManager::Mobs.end()) {
+                    std::cout << "[WARN] unsommonW: leader can't find a group member!" << std::endl;
+                    continue;
+                }
+
+                NPCManager::destroyNPC(leadNpc->groupMember[i]);
+            }
+            TableData::RunningGroups.erase(leadId);
+            NPCManager::destroyNPC(leadId);
+            ChatManager::sendServerMessage(sock, "/unsummonW: Mob group destroyed.");
+            return;
         }
-        TableData::RunningGroups.erase(leadId);
-        NPCManager::destroyNPC(leadId);
-        ChatManager::sendServerMessage(sock, "/unsummonW: Mob group destroyed.");
-        return;
     }
 
     ChatManager::sendServerMessage(sock, "/unsummonW: removed mob with type: " + std::to_string(npc->appearanceData.iNPCType) +
