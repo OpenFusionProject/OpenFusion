@@ -704,6 +704,40 @@ void whoisCommand(std::string full, std::vector<std::string>& args, CNSocket* so
     ChatManager::sendServerMessage(sock, "[WHOIS] Instance: " + std::to_string(PLAYERID(npc->instanceID)));
 }
 
+void lairUnlock(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player* plr = PlayerManager::getPlayer(sock);
+    BaseNPC* npc = NPCManager::getNearestNPC(plr->viewableChunks, plr->x, plr->y, plr->z);
+    int taskID=-1;
+    int missionID = -1;
+    for (auto& pair : NPCManager::Warps) {
+        int currentNPCID = pair.second.npcID;
+        if (currentNPCID == npc->appearanceData.iNPCType) {
+            taskID = (int)pair.second.limitTaskID;
+            missionID = MissionManager::Tasks[taskID]->task["m_iHMissionID"];
+            break;
+        }
+        
+    }
+
+    if (missionID == -1 || taskID == -1)
+        ChatManager::sendServerMessage(sock, "You are NOT standing on a lair portal or there are multiple npcs, try to move a little bit on the portal itself and try again!");
+        return; // not a lair
+
+    INITSTRUCT(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, missionResp);
+    missionResp.iCurrentMissionID = missionID;
+    plr->CurrentMissionID = missionID;
+    sock->sendPacket((void*)&missionResp, P_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, sizeof(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID));
+
+
+    INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_SUCC, taskResp);
+    MissionManager::startTask(plr, taskID, true);
+    taskResp.iTaskNum = taskID;
+    taskResp.iRemainTime = 0;
+    sock->sendPacket((void*)&taskResp, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
+    ChatManager::sendServerMessage(sock, "Lair unlocked, please enter and watch your step!");
+
+}
+
 void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
@@ -732,6 +766,7 @@ void ChatManager::init() {
     registerCommand("summonGroup", 30, summonGroupCommand, "summon group NPCs");
     registerCommand("summonGroupW", 30, summonGroupCommand, "permanently summon group NPCs");
     registerCommand("whois", 50, whoisCommand, "describe nearest NPC");
+    registerCommand("lair", 50, lairUnlock, "Allows entry to lair by granting you the required mission and task");
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {

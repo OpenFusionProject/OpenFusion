@@ -18,7 +18,7 @@ void MissionManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_STOP, quitMission);
 }
 
-bool startTask(Player* plr, int TaskID, bool NanoMission) {
+bool MissionManager::startTask(Player* plr, int TaskID, bool NanoMission) {
     if (MissionManager::Tasks.find(TaskID) == MissionManager::Tasks.end()) {
         std::cout << "[WARN] Player submitted unknown task!?" << std::endl;
         return false;
