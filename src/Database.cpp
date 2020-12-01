@@ -59,9 +59,9 @@ void Database::createTables() {
         "AccountID"	INTEGER NOT NULL,
         "Login"	    TEXT    NOT NULL UNIQUE,
         "Password"	TEXT    NOT NULL,
-        "Selected"	INTEGER NOT NULL,
-        "Created"	INTEGER NOT NULL,
-        "LastLogin"	INTEGER NOT NULL,
+        "Selected"	INTEGER  DEFAULT 1 NOT NULL,
+        "Created"	INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
+        "LastLogin"	INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
         PRIMARY KEY("AccountID" AUTOINCREMENT)
         );
 
@@ -193,6 +193,7 @@ void Database::createTables() {
 
 int Database::getTableSize(std::string tableName) {
     std::lock_guard<std::mutex> lock(dbCrit);
+
     std::string query = "SELECT COUNT(*) FROM " + tableName + ";";
     const char* sql = query.c_str();
     sqlite3_stmt* stmt;
@@ -206,14 +207,20 @@ int Database::getTableSize(std::string tableName) {
 int Database::addAccount(std::string login, std::string password) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    password = BCrypt::generateHash(password);
-    Account account = {};
-    account.Login = login;
-    account.Password = password;
-    account.Selected = 1;
-    account.Created = getTimestamp();
-    account.LastLogin = account.Created;
-    return db.insert(account);
+    const char* sql = R"(
+        INSERT INTO "Accounts"
+        ("Login", "Password")
+        VALUES (?, ?);
+        )";
+    sqlite3_stmt* stmt;
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_text(stmt, 1, login.c_str(), -1, 0);
+    sqlite3_bind_text(stmt, 2, BCrypt::generateHash(password).c_str(), -1, 0);
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    return sqlite3_last_insert_rowid(db);
 }
 
 void Database::updateSelected(int accountId, int slot) {

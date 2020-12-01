@@ -73,7 +73,7 @@ namespace Database {
     void createTables();
 
     int getTableSize(std::string tableName);
-    // returns ID
+    // returns ID, 0 if something failed
     int addAccount(std::string login, std::string password);
     void updateSelected(int accountId, int playerId);
     std::unique_ptr<Account> findAccount(std::string login);

@@ -178,7 +178,7 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
 
 void CNLoginServer::newAccount(CNSocket* sock, std::string userLogin, std::string userPassword, int32_t clientVerC) {   
     loginSessions[sock] = CNLoginData();
-    loginSessions[sock].userID = Database::addAccount(userLogin, userPassword);
+    loginSessions[sock].userID = Database::addAccount(userLogin, userPassword); //TODO: Add logic if query fails
     loginSessions[sock].lastHeartbeat = getTime();
 
     INITSTRUCT(sP_LS2CL_REP_LOGIN_SUCC, resp);
