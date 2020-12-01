@@ -880,12 +880,12 @@ void ChatManager::announcementHandler(CNSocket* sock, CNPacketData* data) {
 
     switch (announcement->iAreaType) {
     case 0: // area (all players in viewable chunks)
+        sock->sendPacket((void*)&msg, P_FE2CL_GM_REP_PC_ANNOUNCE, sizeof(sP_FE2CL_GM_REP_PC_ANNOUNCE));
         PlayerManager::sendToViewable(sock, (void*)&msg, P_FE2CL_GM_REP_PC_ANNOUNCE, sizeof(sP_FE2CL_GM_REP_PC_ANNOUNCE));
         break;
     case 1: // shard
-        break; //stubbed for now
     case 2: // world
-        break; // stubbed for now
+        break; // not applicable to OpenFusion
     case 3: // global (all players)
         for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++) {
             CNSocket* allSock = it->first;
