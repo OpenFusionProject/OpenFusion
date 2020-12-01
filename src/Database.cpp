@@ -226,11 +226,26 @@ int Database::addAccount(std::string login, std::string password) {
 void Database::updateSelected(int accountId, int slot) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    Account acc = db.get<Account>(accountId);
-    acc.Selected = slot;
-    // timestamp
-    acc.LastLogin = getTimestamp();
-    db.update(acc);
+    if (slot < 0 || slot > 4) {
+        std::cout << "[WARN] Invalid slot number passed to updateSelected()! " << std::endl;
+        return;
+    }
+
+    const char* sql = R"(
+        UPDATE "Accounts"
+        SET "Selected" = ?, "LastLogin" = (strftime('%s', 'now'))
+        WHERE "AccountID" = ?;
+        )";
+
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, slot);
+    sqlite3_bind_int(stmt, 2, accountId);
+    int rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE)
+        std::cout << "[WARN] Database fail on updateSelected(). Error Code " << rc << std::endl;
+    sqlite3_finalize(stmt);
 }
 
 std::unique_ptr<Database::Account> Database::findAccount(std::string login) {
