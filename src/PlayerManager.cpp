@@ -57,8 +57,6 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
     p->viewableChunks = new std::set<Chunk*>();
     p->lastHeartbeat = 0;
 
-    key->plr = p;
-
     std::cout << getPlayerName(p) << " has joined!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
 }
@@ -79,10 +77,9 @@ void PlayerManager::removePlayer(CNSocket* key) {
     ChunkManager::removePlayerFromChunks(ChunkManager::getViewableChunks(plr->chunkPos), key);
     ChunkManager::untrackPlayer(plr->chunkPos, key);
 
-    std::cout << getPlayerName(key->plr) << " has left!" << std::endl;
+    std::cout << getPlayerName(plr) << " has left!" << std::endl;
 
     delete plr->viewableChunks;
-    key->plr = nullptr;
     delete plr;
     players.erase(key);
 
@@ -872,7 +869,8 @@ Player *PlayerManager::getPlayer(CNSocket* key) {
     if (players.find(key) != players.end())
         return players[key];
 
-    return nullptr;
+    // this should never happen
+    assert(false);
 }
 
 std::string PlayerManager::getPlayerName(Player *plr, bool id) {

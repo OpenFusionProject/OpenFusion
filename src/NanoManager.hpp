@@ -3,6 +3,7 @@
 #include <set>
 #include <vector>
 
+#include "Player.hpp"
 #include "CNShardServer.hpp"
 
 typedef void (*PowerHandler)(CNSocket*, std::vector<int>, int16_t, int16_t, int16_t, int16_t, int16_t, int32_t, int16_t);

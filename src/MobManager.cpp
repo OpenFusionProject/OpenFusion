@@ -591,8 +591,8 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
         if (mob->appearanceData.iConditionBitFlag & CSB_BIT_DN_MOVE_SPEED)
             speed /= 2;
 
-        int targetX = mob->target->plr->x;
-        int targetY = mob->target->plr->y;
+        int targetX = plr->x;
+        int targetY = plr->y;
         if (mob->groupLeader != 0) {
             targetX += mob->offsetX*distance/(mob->idleRange + 1);
             targetY += mob->offsetY*distance/(mob->idleRange + 1);
@@ -608,7 +608,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
         pkt.iSpeed = speed;
         pkt.iToX = mob->appearanceData.iX = targ.first;
         pkt.iToY = mob->appearanceData.iY = targ.second;
-        pkt.iToZ = mob->target->plr->z;
+        pkt.iToZ = plr->z;
         pkt.iMoveStyle = 1;
 
         // notify all nearby players
@@ -1192,7 +1192,7 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
     for (auto it = mob->viewableChunks->begin(); it != mob->viewableChunks->end(); it++) {
         Chunk* chunk = *it;
         for (CNSocket *s : chunk->players) {
-            Player *plr = s->plr;
+            Player *plr = PlayerManager::getPlayer(s);
 
             if (plr->HP <= 0)
                 continue;
@@ -1463,9 +1463,11 @@ void MobManager::followToCombat(Mob *mob) {
 }
 
 void MobManager::useAbilities(Mob *mob, time_t currTime) {
+    Player *plr = PlayerManager::getPlayer(mob->target);
+
     if (mob->skillStyle >= 0) { // corruption hit
         int skillID = (int)mob->data["m_iCorruptionType"];
-        std::vector<int> targetData = {1, mob->target->plr->iID, 0, 0, 0};
+        std::vector<int> targetData = {1, plr->iID, 0, 0, 0};
         int temp = mob->skillStyle;
         mob->skillStyle = -3; // corruption cooldown
         mob->nextAttack = currTime + 1000;
@@ -1481,7 +1483,7 @@ void MobManager::useAbilities(Mob *mob, time_t currTime) {
         for (auto it = mob->viewableChunks->begin(); it != mob->viewableChunks->end(); it++) {
             Chunk* chunk = *it;
             for (CNSocket *s : chunk->players) {
-                Player *plr = s->plr;
+                Player *plr = PlayerManager::getPlayer(s);
 
                 if (plr->HP <= 0)
                     continue;
@@ -1516,7 +1518,7 @@ void MobManager::useAbilities(Mob *mob, time_t currTime) {
 
     if (random < prob1) { // active skill hit
         int skillID = (int)mob->data["m_iActiveSkill1"];
-        std::vector<int> targetData = {1, mob->target->plr->iID, 0, 0, 0};
+        std::vector<int> targetData = {1, plr->iID, 0, 0, 0};
         for (auto& pwr : MobPowers)
             if (pwr.skillType == NanoManager::SkillTable[skillID].skillType)
                 pwr.handle(mob, targetData, skillID, NanoManager::SkillTable[skillID].durationTime[0], NanoManager::SkillTable[skillID].powerIntensity[0]);
@@ -1529,10 +1531,10 @@ void MobManager::useAbilities(Mob *mob, time_t currTime) {
         INITSTRUCT(sP_FE2CL_NPC_SKILL_CORRUPTION_READY, pkt);
         pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
         pkt.iSkillID = skillID;
-        pkt.iValue1 = mob->target->plr->x;
-        pkt.iValue2 = mob->target->plr->y;
-        pkt.iValue3 = mob->target->plr->z;
-        mob->skillStyle = NanoManager::nanoStyle(mob->target->plr->activeNano) - 1;
+        pkt.iValue1 = plr->x;
+        pkt.iValue2 = plr->y;
+        pkt.iValue3 = plr->z;
+        mob->skillStyle = NanoManager::nanoStyle(plr->activeNano) - 1;
         if (mob->skillStyle == -1)
             mob->skillStyle = 2;
         if (mob->skillStyle == -2)
@@ -1548,9 +1550,9 @@ void MobManager::useAbilities(Mob *mob, time_t currTime) {
         INITSTRUCT(sP_FE2CL_NPC_SKILL_READY, pkt);
         pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
         pkt.iSkillID = skillID;
-        pkt.iValue1 = mob->hitX = mob->target->plr->x;
-        pkt.iValue2 = mob->hitY = mob->target->plr->y;
-        pkt.iValue3 = mob->hitZ = mob->target->plr->z;
+        pkt.iValue1 = mob->hitX = plr->x;
+        pkt.iValue2 = mob->hitY = plr->y;
+        pkt.iValue3 = mob->hitZ = plr->z;
         NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_SKILL_READY, sizeof(sP_FE2CL_NPC_SKILL_READY));
         mob->nextAttack = currTime + 2500;
         mob->skillStyle = -2;
@@ -1561,6 +1563,8 @@ void MobManager::useAbilities(Mob *mob, time_t currTime) {
 }
 
 void MobManager::dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, int style) {
+    Player *plr = PlayerManager::getPlayer(mob->target);
+
     size_t resplen = sizeof(sP_FE2CL_NPC_SKILL_CORRUPTION_HIT) + targetData[0] * sizeof(sCAttackResult);
 
     // validate response packet
@@ -1578,9 +1582,9 @@ void MobManager::dealCorruption(Mob *mob, std::vector<int> targetData, int skill
     resp->iNPC_ID = mob->appearanceData.iNPC_ID;
     resp->iSkillID = skillID;
     resp->iStyle = style;
-    resp->iValue1 = mob->target->plr->x;
-    resp->iValue2 = mob->target->plr->y;
-    resp->iValue3 = mob->target->plr->z;
+    resp->iValue1 = plr->x;
+    resp->iValue2 = plr->y;
+    resp->iValue3 = plr->z;
     resp->iTargetCnt = targetData[0];
 
     for (int i = 0; i < targetData[0]; i++) {

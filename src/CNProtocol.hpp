@@ -135,8 +135,6 @@ enum ACTIVEKEY {
     SOCKETKEY_FE
 };
 
-struct Player;
-
 class CNSocket;
 typedef void (*PacketHandler)(CNSocket* sock, CNPacketData* data);
 
@@ -158,7 +156,6 @@ private:
 public:
     SOCKET sock;
     PacketHandler pHandler;
-    Player *plr = nullptr;
 
     CNSocket(SOCKET s, PacketHandler ph);
 
