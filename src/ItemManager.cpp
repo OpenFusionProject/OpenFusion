@@ -307,7 +307,7 @@ void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {
     player->Inven[resp->iSlotNum] = resp->RemainItem;
 
     std::pair<CNSocket*, int32_t> key = std::make_pair(sock, value1);
-    time_t until = getTime() + (time_t)NanoManager::SkillTable[144].durationTime[0] * 10;
+    time_t until = getTime() + (time_t)NanoManager::SkillTable[144].durationTime[0] * 100;
     NPCManager::EggBuffs[key] = until;
 }
 
