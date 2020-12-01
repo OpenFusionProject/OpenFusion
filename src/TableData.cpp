@@ -356,9 +356,11 @@ void TableData::loadPaths(int* nextId) {
 
         // npc paths
         nlohmann::json pathDataNPC = pathData["npc"];
+        /*
         for (nlohmann::json::iterator npcPath = pathDataNPC.begin(); npcPath != pathDataNPC.end(); npcPath++) {
             constructPathNPC(npcPath);
         }
+        */
 
         // mob paths
         pathDataNPC = pathData["mob"];
