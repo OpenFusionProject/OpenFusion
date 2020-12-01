@@ -470,6 +470,12 @@ void MissionManager::updateFusionMatter(CNSocket* sock, int fusion) {
     INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_SUCC, response);
     response.iTaskNum = AvatarGrowth[plr->level]["m_iNanoQuestTaskID"];
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
+
+    // play the beam animation for other players
+    INITSTRUCT(sP_FE2CL_PC_EVENT, bcast);
+    bcast.iEventID = 1; // beam effect
+    bcast.iPC_ID = plr->iID;
+    PlayerManager::sendToViewable(sock, (void*)&bcast, P_FE2CL_PC_EVENT, sizeof(sP_FE2CL_PC_EVENT));
 }
 
 void MissionManager::mobKilled(CNSocket *sock, int mobid) {
