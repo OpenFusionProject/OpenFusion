@@ -128,7 +128,9 @@ void MobManager::npcAttackPc(Mob *mob, time_t currTime) {
     sAttackResult *atk = (sAttackResult*)(respbuf + sizeof(sP_FE2CL_NPC_ATTACK_PCs));
 
     auto damage = getDamage(450 + (int)mob->data["m_iPower"], plr->defense, false, false, -1, -1, 0);
-    plr->HP -= damage.first;
+
+    if (!(plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE))
+        plr->HP -= damage.first;
 
     pkt->iNPC_ID = mob->appearanceData.iNPC_ID;
     pkt->iPCCnt = 1;
@@ -486,19 +488,12 @@ void MobManager::deadStep(Mob *mob, time_t currTime) {
 void MobManager::combatStep(Mob *mob, time_t currTime) {
     assert(mob->target != nullptr);
 
-    // sanity check: did the target player lose connection?
-    if (PlayerManager::players.find(mob->target) == PlayerManager::players.end()) {
-        mob->target = nullptr;
-        mob->state = MobState::RETREAT;
-        if (!aggroCheck(mob, currTime))
-            clearDebuff(mob);
-        return;
-    }
-
     Player *plr = PlayerManager::getPlayer(mob->target);
 
-    // did something else kill the player in the mean time?
-    if (plr->HP <= 0) {
+    // Lose aggro if the player lost connection, became invulnerable or died
+    if (plr->HP <= 0
+     || PlayerManager::players.find(mob->target) == PlayerManager::players.end()
+     || (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE)) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
         if (!aggroCheck(mob, currTime))
@@ -867,6 +862,9 @@ void MobManager::dealGooDamage(CNSocket *sock, int amount) {
 
     sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK *pkt = (sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK*)respbuf;
     sSkillResult_DotDamage *dmg = (sSkillResult_DotDamage*)(respbuf + sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
+
+    if (!(plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE))
+        amount = 0;
 
     if (plr->iConditionBitFlag & CSB_BIT_PROTECT_INFECTION) {
         amount = -2; // -2 is the magic number for "Protected" to appear as the damage number
@@ -1610,7 +1608,10 @@ void MobManager::dealCorruption(Mob *mob, std::vector<int> targetData, int skill
             }
         }
 
-        respdata[i].iHP = plr->HP-= respdata[i].iDamage;
+        if (!(plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE))
+            plr->HP -= respdata[i].iDamage;
+
+        respdata[i].iHP = plr->HP;
         respdata[i].iConditionBitFlag = plr->iConditionBitFlag;
 
         if (plr->HP <= 0) {
@@ -1645,6 +1646,9 @@ bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, in
     }
 
     int damage = duration;
+
+    if (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE)
+        damage = 0;
 
     respdata[i].eCT = 1;
     respdata[i].iDamage = damage;
@@ -1712,6 +1716,9 @@ bool doDamage(Mob *mob, sSkillResult_Damage *respdata, int i, int32_t targetID, 
 
     int damage = amount * PC_MAXHEALTH((int)mob->data["m_iNpcLevel"]) / 1500;
 
+    if (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE)
+        damage = 0;
+
     respdata[i].eCT = 1;
     respdata[i].iDamage = damage;
     respdata[i].iID = plr->iID;
@@ -1762,6 +1769,9 @@ bool doLeech(Mob *mob, sSkillResult_Heal_HP *healdata, int i, int32_t targetID, 
     }
 
     int damage = amount * PC_MAXHEALTH(plr->level) / 1000;
+
+    if (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE)
+        damage = 0;
 
     damagedata->eCT = 1;
     damagedata->iDamage = damage;
