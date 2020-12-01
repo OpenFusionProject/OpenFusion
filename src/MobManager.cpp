@@ -1171,7 +1171,7 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
             if (plr->iConditionBitFlag & CSB_BIT_UP_STEALTH)
                 mobRange /= 3;
 
-            if (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVISIBLE)
+            if (plr->iSpecialState & (CN_SPECIAL_STATE_FLAG__INVISIBLE|CN_SPECIAL_STATE_FLAG__INVULNERABLE))
                 mobRange = -1;
 
             // height is relevant for aggro distance because of platforming
