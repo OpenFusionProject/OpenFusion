@@ -488,13 +488,12 @@ void MissionManager::updateFusionMatter(CNSocket* sock, int fusion) {
     plr->fusionmatter -= (int)MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"];
     plr->level++;
 
-    INITSTRUCT(sP_FE2CL_REP_PC_CHANGE_LEVEL, response);
+    INITSTRUCT(sP_FE2CL_REP_PC_CHANGE_LEVEL_SUCC, response);
 
-    response.iPC_ID = plr->iID;
-    response.iPC_Level = plr->level;
+    response.iFusionMatter = plr->fusionmatter;
+    response.iLevel = plr->level;
 
-    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
-    PlayerManager::sendToViewable(sock, (void*)&response, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_CHANGE_LEVEL_SUCC, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL_SUCC));
 #endif
 
     // play the beam animation for other players
