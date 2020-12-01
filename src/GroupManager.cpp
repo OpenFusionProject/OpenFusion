@@ -28,7 +28,7 @@ void GroupManager::requestGroup(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(recv->iID_To);
 
-    if (plr == nullptr || otherPlr == nullptr)
+    if (otherPlr == nullptr)
         return;
 
     otherPlr = PlayerManager::getPlayerFromID(otherPlr->iIDGroup);
@@ -68,9 +68,6 @@ void GroupManager::refuseGroup(CNSocket* sock, CNPacketData* data) {
 
     Player* plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr)
-        return;
-
     INITSTRUCT(sP_FE2CL_PC_GROUP_INVITE_REFUSE, resp);
 
     resp.iID_To = plr->iID;
@@ -86,7 +83,7 @@ void GroupManager::joinGroup(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(recv->iID_From);
 
-    if (plr == nullptr || otherPlr == nullptr)
+    if (otherPlr == nullptr)
         return;
 
     otherPlr = PlayerManager::getPlayerFromID(otherPlr->iIDGroup);
@@ -159,10 +156,6 @@ void GroupManager::joinGroup(CNSocket* sock, CNPacketData* data) {
 
 void GroupManager::leaveGroup(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
-
     groupKickPlayer(plr);
 }
 
@@ -174,10 +167,10 @@ void GroupManager::chatGroup(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
-    std::string fullChat = ChatManager::sanitizeText(U16toU8(chat->szFreeChat));
-
-    if (plr == nullptr || otherPlr == nullptr)
+    if (otherPlr == nullptr)
         return;
+
+    std::string fullChat = ChatManager::sanitizeText(U16toU8(chat->szFreeChat));
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC, resp);
@@ -197,10 +190,10 @@ void GroupManager::menuChatGroup(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
-    std::string fullChat = ChatManager::sanitizeText(U16toU8(chat->szFreeChat));
-
-    if (plr == nullptr || otherPlr == nullptr)
+    if (otherPlr == nullptr)
         return;
+
+    std::string fullChat = ChatManager::sanitizeText(U16toU8(chat->szFreeChat));
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC, resp);

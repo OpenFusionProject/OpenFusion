@@ -33,7 +33,7 @@ void NanoManager::nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     // sanity checks
-    if (plr == nullptr || nano->iNanoSlotNum > 2 || nano->iNanoSlotNum < 0)
+    if (nano->iNanoSlotNum > 2 || nano->iNanoSlotNum < 0)
         return;
 
     resp.iNanoID = nano->iNanoID;
@@ -70,7 +70,7 @@ void NanoManager::nanoUnEquipHandler(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     // sanity check
-    if (plr == nullptr || nano->iNanoSlotNum > 2 || nano->iNanoSlotNum < 0)
+    if (nano->iNanoSlotNum > 2 || nano->iNanoSlotNum < 0)
         return;
 
     resp.iNanoSlotNum = nano->iNanoSlotNum;
@@ -93,9 +93,6 @@ void NanoManager::nanoGMGiveHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_GIVE_NANO* nano = (sP_CL2FE_REQ_PC_GIVE_NANO*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr)
-        return;
-
     // Add nano to player
     addNano(sock, nano->iNanoID, 0);
 
@@ -111,9 +108,6 @@ void NanoManager::nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_NANO_ACTIVE* pkt = (sP_CL2FE_REQ_NANO_ACTIVE*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr)
-        return;
-
     summonNano(sock, pkt->iNanoSlotNum);
 
     // Send to client
@@ -124,9 +118,6 @@ void NanoManager::nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
 
 void NanoManager::nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
 
     int16_t nanoID = plr->activeNano;
     int16_t skillID = plr->Nanos[nanoID].iSkillID;
@@ -214,7 +205,7 @@ void NanoManager::nanoPotionHandler(CNSocket* sock, CNPacketData* data) {
     Player* player = PlayerManager::getPlayer(sock);
 
     // sanity checks
-    if (player == nullptr || player->activeNano == -1 || player->batteryN == 0)
+    if (player->activeNano == -1 || player->batteryN == 0)
         return;
 
     sNano nano = player->Nanos[player->activeNano];
@@ -243,9 +234,6 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spe
         return;
 
     Player *plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
 
     int level = nanoID < plr->level ? plr->level : nanoID;
 
@@ -296,7 +284,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot, bool silent) {
     resp.iActiveNanoSlotNum = slot;
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr || slot > 2 || slot < -1)
+    if (slot > 2 || slot < -1)
         return; // sanity check
 
     plr->nanoDrainRate = 0;
@@ -353,9 +341,6 @@ void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
         return;
 
     Player *plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
 
     if (plr->activeNano > 0 && plr->activeNano == skill->iNanoID)
         summonNano(sock, -1); // just unsummon the nano to prevent infinite buffs
@@ -428,9 +413,6 @@ void NanoManager::resetNanoSkill(CNSocket* sock, int16_t nanoID) {
 
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr)
-        return;
-
     sNano nano = plr->Nanos[nanoID];
 
     // 0 is reset
@@ -440,9 +422,6 @@ void NanoManager::resetNanoSkill(CNSocket* sock, int16_t nanoID) {
 
 void NanoManager::nanoUnbuff(CNSocket* sock, std::vector<int> targetData, int32_t bitFlag, int16_t timeBuffID, int16_t amount, bool groupPower) {
     Player *plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
 
     plr->iSelfConditionBitFlag &= ~bitFlag;
     int groupFlags = 0;
@@ -692,9 +671,6 @@ bool doDamage(CNSocket *sock, sSkillResult_Damage *respdata, int i, int32_t targ
 
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr)
-        return false;
-
     int damage = MobManager::hitMob(sock, mob, PC_MAXHEALTH(plr->level) * amount / 2000 + mob->appearanceData.iHP * amount / 2000);
 
     respdata[i].eCT = 4;
@@ -725,9 +701,6 @@ bool doLeech(CNSocket *sock, sSkillResult_Heal_HP *healdata, int i, int32_t targ
 
     sSkillResult_Damage *damagedata = (sSkillResult_Damage*)(((uint8_t*)healdata) + sizeof(sSkillResult_Heal_HP));
     Player *plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return false;
 
     int healedAmount = amount;
 
@@ -817,9 +790,6 @@ void nanoPower(CNSocket *sock, std::vector<int> targetData,
                 int16_t nanoID, int16_t skillID, int16_t duration, int16_t amount, 
                 int16_t skillType, int32_t bitFlag, int16_t timeBuffID) {
     Player *plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
 
     if (skillType == EST_RETROROCKET_SELF || skillType == EST_RECALL) // rocket and self recall does not need any trailing structs
         targetData[0] = 0;

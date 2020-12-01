@@ -69,8 +69,6 @@ void levelCommand(std::string full, std::vector<std::string>& args, CNSocket* so
     }
 
     Player *plr = PlayerManager::getPlayer(sock);
-    if (plr == nullptr)
-        return;
 
     char *tmp;
     int level = std::strtol(args[1].c_str(), &tmp, 10);
@@ -210,7 +208,7 @@ void summonWCommand(std::string full, std::vector<std::string>& args, CNSocket* 
     }
 
     // permission & sanity check
-    if (plr == nullptr || type >= 3314)
+    if (type >= 3314)
         return;
 
     int team = NPCManager::NPCData[type]["m_iTeam"];
@@ -513,9 +511,6 @@ void eggCommand(std::string full, std::vector<std::string>& args, CNSocket* sock
     int id = NPCManager::nextId++;
 
     Player* plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
 
     // some math to place egg nicely in front of the player
     // temporarly disabled for sake of gruntwork

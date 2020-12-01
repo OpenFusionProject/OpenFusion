@@ -120,9 +120,6 @@ void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr)
-        return;
-
     Item* item = ItemManager::getItemData(req->Item.iID, req->Item.iType);
 
     if (item == nullptr) {
@@ -171,9 +168,6 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
 
     if (req->iInvenSlotNum < 0 || req->iInvenSlotNum >= AINVEN_COUNT || req->iItemCnt < 0) {
         std::cout << "[WARN] Client failed to sell item in slot " << req->iInvenSlotNum << std::endl;
@@ -230,9 +224,6 @@ void NPCManager::npcVendorBuyback(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
 
     Item* item = ItemManager::getItemData(req->Item.iID, req->Item.iType);
 
@@ -325,9 +316,6 @@ void NPCManager::npcVendorBuyBattery(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_VENDOR_BATTERY_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_BATTERY_BUY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr)
-        return;
-
     int cost = req->Item.iOpt * 100;
     if ((req->Item.iID == 3 ? (plr->batteryW >= 9999) : (plr->batteryN >= 9999)) || plr->money < cost) { // sanity check
         INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL, failResp);
@@ -363,9 +351,6 @@ void NPCManager::npcCombineItems(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_ITEM_COMBINATION* req = (sP_CL2FE_REQ_PC_ITEM_COMBINATION*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
 
     if (req->iCostumeItemSlot < 0 || req->iCostumeItemSlot >= AINVEN_COUNT || req->iStatItemSlot < 0 || req->iStatItemSlot >= AINVEN_COUNT) { // sanity check 1
         INITSTRUCT(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, failResp);
@@ -454,7 +439,7 @@ void NPCManager::npcUnsummonHandler(CNSocket* sock, CNPacketData* data) {
 
     Player* plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr || plr->accountLevel > 30)
+    if (plr->accountLevel > 30)
         return;
 
     sP_CL2FE_REQ_NPC_UNSUMMON* req = (sP_CL2FE_REQ_NPC_UNSUMMON*)data->buf;
@@ -469,7 +454,7 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     // permission & sanity check
-    if (plr == nullptr || plr->accountLevel > 30 || req->iNPCType >= 3314 || req->iNPCCnt > 100)
+    if (plr->accountLevel > 30 || req->iNPCType >= 3314 || req->iNPCCnt > 100)
         return;
 
     int team = NPCData[req->iNPCType]["m_iTeam"];

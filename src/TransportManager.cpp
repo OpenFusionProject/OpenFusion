@@ -29,9 +29,6 @@ void TransportManager::transportRegisterLocationHandler(CNSocket* sock, CNPacket
     sP_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION* transport = (sP_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr)
-        return;
-
     bool newReg = false; // this is a new registration
     //std::cout << "request to register transport, eTT " << transport->eTT << ", locID " << transport->iLocationID << ", npc " << transport->iNPC_ID << std::endl;
     if (transport->eTT == 1) { // S.C.A.M.P.E.R.
@@ -113,9 +110,6 @@ void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) 
 
     sP_CL2FE_REQ_PC_WARP_USE_TRANSPORTATION* req = (sP_CL2FE_REQ_PC_WARP_USE_TRANSPORTATION*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
 
     /*
      * req:

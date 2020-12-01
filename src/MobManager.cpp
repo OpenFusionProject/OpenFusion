@@ -43,9 +43,6 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_REQ_PC_ATTACK_NPCs* pkt = (sP_CL2FE_REQ_PC_ATTACK_NPCs*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr)
-        return;
-
     // sanity check
     if (!validInVarPacket(sizeof(sP_CL2FE_REQ_PC_ATTACK_NPCs), pkt->iNPCCnt, sizeof(int32_t), data->size)) {
         std::cout << "[WARN] bad sP_CL2FE_REQ_PC_ATTACK_NPCs packet size\n";
@@ -122,9 +119,6 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 void MobManager::npcAttackPc(Mob *mob, time_t currTime) {
     Player *plr = PlayerManager::getPlayer(mob->target);
 
-    if (plr == nullptr)
-        return;
-
     const size_t resplen = sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC) + sizeof(sAttackResult);
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
@@ -157,9 +151,6 @@ void MobManager::npcAttackPc(Mob *mob, time_t currTime) {
 
 void MobManager::giveReward(CNSocket *sock, Mob* mob) {
     Player *plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
 
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
@@ -391,20 +382,17 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
     if (sock != nullptr) {
         Player* plr = PlayerManager::getPlayer(sock);
 
-        if (plr == nullptr)
-            return;
-
         if (plr->groupCnt == 1 && plr->iIDGroup == plr->iID) {
             giveReward(sock, mob);
             MissionManager::mobKilled(sock, mob->appearanceData.iNPCType);
         } else {
-            plr = PlayerManager::getPlayerFromID(plr->iIDGroup);
+            Player* otherPlayer = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
-            if (plr == nullptr)
+            if (otherPlayer == nullptr)
                 return;
 
-            for (int i = 0; i < plr->groupCnt; i++) {
-                CNSocket* sockTo = PlayerManager::getSockFromID(plr->groupIDs[i]);
+            for (int i = 0; i < otherPlayer->groupCnt; i++) {
+                CNSocket* sockTo = PlayerManager::getSockFromID(otherPlayer->groupIDs[i]);
                 giveReward(sockTo, mob);
                 MissionManager::mobKilled(sockTo, mob->appearanceData.iNPCType);
             }
@@ -508,9 +496,6 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     }
 
     Player *plr = PlayerManager::getPlayer(mob->target);
-
-    if (plr == nullptr)
-        return;
 
     // did something else kill the player in the mean time?
     if (plr->HP <= 0) {
@@ -834,11 +819,6 @@ std::pair<int,int> MobManager::lerp(int x1, int y1, int x2, int y2, int speed) {
 void MobManager::combatBegin(CNSocket *sock, CNPacketData *data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr) {
-        std::cout << "[WARN] combatBegin: null player!" << std::endl;
-        return;
-    }
-
     plr->inCombat = true;
 
     // HACK: make sure the player has the right weapon out for combat
@@ -864,11 +844,6 @@ void MobManager::dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_DOT_DAMAGE_ONOFF *pkt = (sP_CL2FE_DOT_DAMAGE_ONOFF*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (plr == nullptr) {
-        std::cout << "[WARN] dotDamageOnOff: null player!" << std::endl;
-        return;
-    }
-
     if ((plr->iConditionBitFlag & CSB_BIT_INFECTION) != (bool)pkt->iFlag)
         plr->iConditionBitFlag ^= CSB_BIT_INFECTION;
 
@@ -887,9 +862,6 @@ void MobManager::dealGooDamage(CNSocket *sock, int amount) {
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
     Player *plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
 
     memset(respbuf, 0, resplen);
 
@@ -1042,9 +1014,6 @@ std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool
 void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_REQ_PC_ATTACK_CHARs* pkt = (sP_CL2FE_REQ_PC_ATTACK_CHARs*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
 
     // Unlike the attack mob packet, attacking players packet has an 8-byte trail (Instead of 4 bytes).
     if (!validInVarPacket(sizeof(sP_CL2FE_REQ_PC_ATTACK_CHARs), pkt->iTargetCnt, sizeof(int32_t) * 2, data->size)) {
@@ -1344,9 +1313,6 @@ int8_t MobManager::addBullet(Player* plr, bool isGrenade) {
 void MobManager::projectileHit(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_ROCKET_STYLE_HIT* pkt = (sP_CL2FE_REQ_PC_ROCKET_STYLE_HIT*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
-
-    if (plr == nullptr)
-        return;
 
     if (pkt->iTargetCnt == 0) {
         Bullets[plr->iID].erase(pkt->iBulletID);

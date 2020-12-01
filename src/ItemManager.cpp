@@ -234,7 +234,7 @@ void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_ITEM_USE* request = (sP_CL2FE_REQ_ITEM_USE*)data->buf;
     Player* player = PlayerManager::getPlayer(sock);
 
-    if (player == nullptr || request->iSlotNum < 0 || request->iSlotNum >= AINVEN_COUNT)
+    if (request->iSlotNum < 0 || request->iSlotNum >= AINVEN_COUNT)
         return; // sanity check
 
     // gumball can only be used from inventory, so we ignore eIL
@@ -839,9 +839,6 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     // chest opening acknowledgement packet
     INITSTRUCT(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, resp);
     resp.iSlotNum = chest->iSlotNum;
-
-    if (plr == nullptr)
-        return;
 
     // item giving packet
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
