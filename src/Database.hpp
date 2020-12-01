@@ -72,8 +72,7 @@ namespace Database {
     void open();
     void createTables();
 
-    int getAccountsCount();
-    int getPlayersCount();
+    int getTableSize(std::string tableName);
     // returns ID
     int addAccount(std::string login, std::string password);
     void updateSelected(int accountId, int playerId);

@@ -33,8 +33,8 @@ void Database::open() {
     createTables();
 
     std::cout << "[INFO] Database in operation ";
-    int accounts = getAccountsCount();
-    int players = getPlayersCount();
+    int accounts = getTableSize("Accounts");
+    int players = getTableSize("Players");
     std::string message = "";
     if (accounts > 0) {
         message += ": Found " + std::to_string(accounts) + " Account";
@@ -191,21 +191,16 @@ void Database::createTables() {
     }
 }
 
-
-
-int Database::getAccountsCount() {
-    int result;
-    char* sql = "SELECT COUNT(*) FROM Accounts";
-    rc = sqlite3_exec(db, sql, CBAccountsCount, result, &err_msg);
-}
-
-static int Database::CBAccountsCount(void* AccountsCount, int count, char** data, char** columns) {
-    *AccountsCount = (int)data[0];
-}
-
-
-int Database::getPlayersCount() {
-    return db.count<DbPlayer>();
+int Database::getTableSize(std::string tableName) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+    std::string query = "SELECT COUNT(*) FROM " + tableName + ";";
+    const char* sql = query.c_str();
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_step(stmt);
+    int result = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+    return result;
 }
 
 int Database::addAccount(std::string login, std::string password) {
