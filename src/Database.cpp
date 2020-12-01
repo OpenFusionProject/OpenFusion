@@ -248,42 +248,96 @@ void Database::updateSelected(int accountId, int slot) {
     sqlite3_finalize(stmt);
 }
 
-std::unique_ptr<Database::Account> Database::findAccount(std::string login) {
+void Database::findAccount(Account* account, std::string login) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    // this is awful, I've tried everything to improve it
-    auto find = db.get_all<Account>(
-        where(c(&Account::Login) == login), limit(1));
-    if (find.empty())
-        return nullptr;
-    return
-        std::unique_ptr<Account>(new Account(find.front()));
+    const char* sql = R"(
+        SELECT "AccountID", "Password", "Selected"
+        FROM "Accounts"
+        WHERE "Login" = ?
+        LIMIT 1;        
+        )";
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_text(stmt, 1, login.c_str(), -1, 0);
+    int rc = sqlite3_step(stmt);
+    if (rc == SQLITE_ROW)
+    {
+        account->AccountID = sqlite3_column_int(stmt, 0);
+        account->Password = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+        account->Selected = sqlite3_column_int(stmt, 2);
+    }
+    sqlite3_finalize(stmt);
 }
 
 bool Database::validateCharacter(int characterID, int userID) {
-    return db.select(&DbPlayer::PlayerID,
-        where((c(&DbPlayer::PlayerID) == characterID) && (c(&DbPlayer::AccountID) == userID)))
-        .size() > 0;
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    // query whatever
+    const char* sql = R"(
+        SELECT "PlayerID"
+        FROM "Players"
+        WHERE "PlayerID" = ? AND "AccountID" = ?
+        LIMIT 1;        
+        )";
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, characterID);
+    sqlite3_bind_int(stmt, 2, userID);
+    int rc = sqlite3_step(stmt);
+    // if we got a row back, the character is valid
+    bool result = (rc == SQLITE_ROW);
+    sqlite3_finalize(stmt);
+    return result;
 }
 
 bool Database::isNameFree(std::string firstName, std::string lastName) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    return
-        (db.get_all<DbPlayer>
-            (where((c(&DbPlayer::FirstName) == firstName)
-                and (c(&DbPlayer::LastName) == lastName)))
-            .empty());
+    const char* sql = R"(
+        SELECT "PlayerID"
+        FROM "Players"
+        WHERE "Firstname" = ? AND "LastName" = ?
+        LIMIT 1;        
+        )";
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_text(stmt, 1, firstName.c_str(), -1, 0);
+    sqlite3_bind_text(stmt, 2, lastName.c_str(),  -1, 0);
+    int rc = sqlite3_step(stmt);
+
+    bool result = (rc != SQLITE_ROW);
+    sqlite3_finalize(stmt);
+    return result;
 }
 
 bool Database::isSlotFree(int accountId, int slotNum) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    return
-        (db.get_all<DbPlayer>
-            (where((c(&DbPlayer::AccountID) == accountId)
-                and (c(&DbPlayer::slot) == slotNum)))
-            .empty());
+    if (slotNum < 0 || slotNum > 4) {
+        std::cout << "[WARN] Invalid slot number passed to isSlotFree()! " << std::endl;
+        return false;
+    }
+
+    const char* sql = R"(
+        SELECT "PlayerID"
+        FROM "Players"
+        WHERE "AccountID" = ? AND "Slot" = ?
+        LIMIT 1;        
+        )";
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, accountId);
+    sqlite3_bind_int(stmt, 2, slotNum);
+    int rc = sqlite3_step(stmt);
+
+    bool result = (rc != SQLITE_ROW);
+    sqlite3_finalize(stmt);
+    return result;
 }
 
 int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) {

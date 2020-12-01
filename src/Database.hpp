@@ -9,11 +9,8 @@ namespace Database {
 
     struct Account {
         int AccountID;
-        std::string Login;
         std::string Password;
         int Selected;
-        uint64_t Created;
-        uint64_t LastLogin;
     };
     struct Inventory {
         int playerId;
@@ -76,7 +73,7 @@ namespace Database {
     // returns ID, 0 if something failed
     int addAccount(std::string login, std::string password);
     void updateSelected(int accountId, int playerId);
-    std::unique_ptr<Account> findAccount(std::string login);
+    void findAccount(Account* account, std::string login);
     bool validateCharacter(int characterID, int userID);
     bool isNameFree(std::string firstName, std::string lastName);
     bool isSlotFree(int accountId, int slotNum);

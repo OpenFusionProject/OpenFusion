@@ -121,24 +121,27 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
     if (!CNLoginServer::isLoginDataGood(userLogin, userPassword))
         return loginFail(LoginError::LOGIN_ERROR, userLogin, sock);
 
-    std::unique_ptr<Database::Account> findUser = Database::findAccount(userLogin);
-    if (findUser == nullptr)
+    Database::Account findUser = {};
+    Database::findAccount(&findUser, userLogin);
+    
+    // if 0 was returned, account was not found
+    if (findUser.AccountID == 0)
         return newAccount(sock, userLogin, userPassword, login->iClientVerC);
 
-    if (!CNLoginServer::isPasswordCorrect(findUser->Password, userPassword))
+    if (!CNLoginServer::isPasswordCorrect(findUser.Password, userPassword))
         return loginFail(LoginError::ID_AND_PASSWORD_DO_NOT_MATCH, userLogin, sock);
 
     /* 
      * calling this here to timestamp login attempt,
      * in order to make duplicate exit sanity check work
      */
-    Database::updateSelected(findUser->AccountID, findUser->Selected);
+    Database::updateSelected(findUser.AccountID, findUser.Selected);
 
-    if (CNLoginServer::isAccountInUse(findUser->AccountID))
+    if (CNLoginServer::isAccountInUse(findUser.AccountID))
         return loginFail(LoginError::ID_ALREADY_IN_USE, userLogin, sock);
 
     loginSessions[sock] = CNLoginData();
-    loginSessions[sock].userID = findUser->AccountID;
+    loginSessions[sock].userID = findUser.AccountID;
     loginSessions[sock].lastHeartbeat = getTime();
 
     std::vector<sP_LS2CL_REP_CHAR_INFO> characters = Database::getCharInfo(loginSessions[sock].userID);
@@ -147,7 +150,7 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
     memcpy(resp.szID, login->szID, sizeof(login->szID));
 
     resp.iCharCount = characters.size();
-    resp.iSlotNum = findUser->Selected;
+    resp.iSlotNum = findUser.Selected;
     resp.iPaymentFlag = 1;
     resp.iOpenBetaFlag = 0;
     resp.uiSvrTime = getTime();
