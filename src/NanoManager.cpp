@@ -590,18 +590,23 @@ bool doBuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t targetID
 
     respdata[i].eCT = 1;
     respdata[i].iID = plr->iID;
-    respdata[i].iConditionBitFlag = bitFlag;
+    respdata[i].iConditionBitFlag = 0;
 
-    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt);
-    pkt.eCSTB = timeBuffID; // eCharStatusTimeBuffID
-    pkt.eTBU = 1; // eTimeBuffUpdate
-    pkt.eTBT = 1; // eTimeBuffType 1 means nano
-    pkt.iConditionBitFlag = plr->iConditionBitFlag |= bitFlag;
+    // only apply buffs if the player is actually alive
+    if (plr->HP > 0) {
+        respdata[i].iConditionBitFlag = bitFlag;
 
-    if (amount > 0)
-        pkt.TimeBuff.iValue = amount;
+        INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt);
+        pkt.eCSTB = timeBuffID; // eCharStatusTimeBuffID
+        pkt.eTBU = 1; // eTimeBuffUpdate
+        pkt.eTBT = 1; // eTimeBuffType 1 means nano
+        pkt.iConditionBitFlag = plr->iConditionBitFlag |= bitFlag;
 
-    sock->sendPacket((void*)&pkt, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+        if (amount > 0)
+            pkt.TimeBuff.iValue = amount;
+
+        sock->sendPacket((void*)&pkt, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+    }
 
     return true;
 }
@@ -645,6 +650,10 @@ bool doHeal(CNSocket *sock, sSkillResult_Heal_HP *respdata, int i, int32_t targe
     }
 
     int healedAmount = PC_MAXHEALTH(plr->level) * amount / 1500;
+
+    // do not heal dead players
+    if (plr->HP <= 0)
+        healedAmount = 0;
 
     plr->HP += healedAmount;
 
