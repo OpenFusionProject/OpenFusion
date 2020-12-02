@@ -1174,7 +1174,7 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
 
             // height is relevant for aggro distance because of platforming
             int xyDistance = hypot(mob->appearanceData.iX - plr->x, mob->appearanceData.iY - plr->y);
-            int distance = hypot(xyDistance, mob->appearanceData.iZ - plr->z);
+            int distance = hypot(xyDistance, (mob->appearanceData.iZ - plr->z) * 2); // difference in Z counts twice
 
             if (distance > mobRange || distance > closestDistance)
                 continue;
