@@ -95,7 +95,7 @@ namespace Database {
     bool changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save, int accountId);
 
     // getting players
-    Player getPlayer(int id);
+    void getPlayer(Player* plr, int id);
 
     void updatePlayer(Player *player);
     void updateInventory(Player *player);
@@ -103,11 +103,8 @@ namespace Database {
     void updateQuests(Player* player);
     void updateBuddies(Player* player);
 
-    void getInventory(Player* player);
     void removeExpiredVehicles(Player* player);
-    void getNanos(Player* player);
-    void getQuests(Player* player);
-    void getBuddies(Player* player);
+
     int getNumBuddies(Player* player);
 
     // buddies

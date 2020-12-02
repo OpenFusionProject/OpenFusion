@@ -127,6 +127,15 @@ void Database::createTables() {
         UNIQUE ("PlayerId", "Slot")
         );
 
+        CREATE TABLE IF NOT EXISTS "QuestItems" (
+	    "PlayerId"	INTEGER NOT NULL,
+	    "Slot"	    INTEGER NOT NULL,
+	    "Id"	    INTEGER NOT NULL,
+	    "Opt"	    INTEGER NOT NULL,
+        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
+        UNIQUE ("PlayerId", "Slot")
+        );      
+
         CREATE TABLE IF NOT EXISTS "Nanos" (
 	    "PlayerId"	INTEGER NOT NULL,
 	    "Id"	    INTEGER NOT NULL,
@@ -692,12 +701,13 @@ std::vector <sP_LS2CL_REP_CHAR_INFO> Database::getCharInfo(int userID) {
         // request aEquip
         const char* sql2 = R"(
             SELECT "Slot", "Type", "Id", "Opt", "TimeLimit" from Inventory
-            WHERE "PlayerID" = ? AND "Slot"<9
+            WHERE "PlayerID" = ? AND "Slot"< ?
             )";
         sqlite3_stmt* stmt2;
 
         sqlite3_prepare_v2(db, sql2, -1, &stmt2, 0);
         sqlite3_bind_int(stmt2, 1, toAdd.sPC_Style.iPC_UID);
+        sqlite3_bind_int(stmt2, 2, AEQUIP_COUNT);
 
         while (sqlite3_step(stmt2) == SQLITE_ROW) {
             sItemBase* item = &toAdd.aEquip[sqlite3_column_int(stmt2, 0)];
@@ -755,145 +765,184 @@ bool Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save, int accountId) {
     return rc == SQLITE_DONE;
 }
 
-Database::DbPlayer Database::playerToDb(Player *player) {
-    // TODO: move stuff that is never updated to separate table so it doesn't try to update it every time
-    DbPlayer result = {};
+void Database::getPlayer(Player* plr, int id) {
+    std::lock_guard<std::mutex> lock(dbCrit);
 
-    result.PlayerID = player->iID;
-    result.AccountID = player->accountId;
-    result.AppearanceFlag = player->PCStyle2.iAppearanceFlag;
-    result.Body = player->PCStyle.iBody;
-    result.Class = player->PCStyle.iClass;
-    result.EyeColor = player->PCStyle.iEyeColor;
-    result.FaceStyle = player->PCStyle.iFaceStyle;
-    result.FirstName = U16toU8( player->PCStyle.szFirstName);
-    result.FusionMatter = player->fusionmatter;
-    result.Gender = player->PCStyle.iGender;
-    result.HairColor = player->PCStyle.iHairColor;
-    result.HairStyle = player->PCStyle.iHairStyle;
-    result.Height = player->PCStyle.iHeight;
-    result.HP = player->HP;
-    result.AccountLevel = player->accountLevel;
-    result.LastName = U16toU8(player->PCStyle.szLastName);
-    result.Level = player->level;
-    result.NameCheck = player->PCStyle.iNameCheck;
-    result.PayZoneFlag = player->PCStyle2.iPayzoneFlag;
-    result.PlayerID = player->PCStyle.iPC_UID;
-    result.SkinColor = player->PCStyle.iSkinColor;
-    result.slot = player->slot;
-    result.Taros = player->money;
-    result.TutorialFlag = player->PCStyle2.iTutorialFlag;
-    if (player->instanceID == 0 && !player->onMonkey) { // only save coords if player isn't instanced
-        result.x_coordinates = player->x;
-        result.y_coordinates = player->y;
-        result.z_coordinates = player->z;
-        result.angle = player->angle;
-    } else {
-        result.x_coordinates = player->lastX;
-        result.y_coordinates = player->lastY;
-        result.z_coordinates = player->lastZ;
-        result.angle = player->lastAngle;
+    const char* sql = R"(
+        SELECT p.AccountID, p.Slot, p.Firstname, p.LastName,
+        p.Level, p.Nano1, p.Nano2, p.Nano3,
+        p.AppearanceFlag, p.TutorialFlag, p.PayZoneFlag,
+        p.XCoordinates, p.YCoordinates, p.ZCoordinates, p.NameCheck,
+        p.Angle, p.HP, p.AccountLevel, p.FusionMatter, p.Taros, p.Quests,
+        p.BatteryW, p.BatteryN, p.Mentor, p.WarpLocationFlag,
+        p.SkywayLocationFlag1, p.SkywayLocationFlag2, p.CurrentMissionID
+        a.Body, a.EyeColor, a.FaceStyle, a.Gender, a.HairColor, a.HairStyle, a.Height, a.SkinColor  
+        FROM "Players" as p 
+        INNER JOIN "Appearances" as a ON p.PlayerID = a.PlayerID
+        WHERE p.PlayerID = ?
+        )";
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, id);
+    if (sqlite3_step(stmt) != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        std::cout << "[WARN] Database: Failed to load character [" << id << "]" << std::endl;
+        return;
     }
-    result.Nano1 = player->equippedNanos[0];
-    result.Nano2 = player->equippedNanos[1];
-    result.Nano3 = player->equippedNanos[2];
-    result.BatteryN = player->batteryN;
-    result.BatteryW = player->batteryW;
-    result.Mentor = player->mentor;
-    result.WarpLocationFlag = player->iWarpLocationFlag;
-    result.SkywayLocationFlag1 = player->aSkywayLocationFlag[0];
-    result.SkywayLocationFlag2 = player->aSkywayLocationFlag[1];
-    result.CurrentMissionID = player->CurrentMissionID;
 
-    // timestamp
-    result.LastLogin = getTimestamp();
-    result.Created = player->creationTime;
+    plr->iID = id;
+    plr->PCStyle.iPC_UID = id;
 
-    // save completed quests
-    result.QuestFlag = std::vector<char>((char*)player->aQuestFlag, (char*)player->aQuestFlag + 128);
+    plr->accountId = sqlite3_column_int(stmt, 0);
+    plr->slot = sqlite3_column_int(stmt, 1);
+    
+    // parsing const unsigned char* to char16_t 
+    std::string placeHolder = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+    U8toU16(placeHolder, plr->PCStyle.szFirstName , sizeof(plr->PCStyle.szFirstName));
+    placeHolder = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+    U8toU16(placeHolder, plr->PCStyle.szLastName, sizeof(plr->PCStyle.szLastName));
 
-    return result;
-}
+    plr->level = sqlite3_column_int(stmt, 4);
+    plr->equippedNanos[0] = sqlite3_column_int(stmt, 5);
+    plr->equippedNanos[1] = sqlite3_column_int(stmt, 6);
+    plr->equippedNanos[2] = sqlite3_column_int(stmt, 7);
 
-Player Database::DbToPlayer(DbPlayer player) {
-    Player result = {}; // fixes some weird memory errors, this zeros out the members (not the padding inbetween though)
+    plr->PCStyle2.iAppearanceFlag = sqlite3_column_int(stmt, 8);
+    plr->PCStyle2.iTutorialFlag = sqlite3_column_int(stmt, 9);
+    plr->PCStyle2.iPayzoneFlag = sqlite3_column_int(stmt, 10);
 
-    result.iID = player.PlayerID;
-    result.accountId = player.AccountID;
-    result.creationTime = player.Created;
-    result.PCStyle2.iAppearanceFlag = player.AppearanceFlag;
-    result.PCStyle.iBody = player.Body;
-    result.PCStyle.iClass = player.Class;
-    result.PCStyle.iEyeColor = player.EyeColor;
-    result.PCStyle.iFaceStyle = player.FaceStyle;
-    U8toU16(player.FirstName, result.PCStyle.szFirstName, sizeof(result.PCStyle.szFirstName));
-    result.PCStyle.iGender = player.Gender;
-    result.PCStyle.iHairColor = player.HairColor;
-    result.PCStyle.iHairStyle = player.HairStyle;
-    result.PCStyle.iHeight = player.Height;
-    result.HP = player.HP;
-    result.accountLevel = player.AccountLevel;
-    U8toU16(player.LastName, result.PCStyle.szLastName, sizeof(result.PCStyle.szLastName));
-    result.level = player.Level;
-    result.PCStyle.iNameCheck = player.NameCheck;
-    result.PCStyle2.iPayzoneFlag = player.PayZoneFlag;
-    result.iID = player.PlayerID;
-    result.PCStyle.iPC_UID = player.PlayerID;
-    result.PCStyle.iSkinColor = player.SkinColor;
-    result.slot = player.slot;
-    result.PCStyle2.iTutorialFlag = player.TutorialFlag;
-    result.x = player.x_coordinates;
-    result.y = player.y_coordinates;
-    result.z = player.z_coordinates;
-    result.angle = player.angle;
-    result.money = player.Taros;
-    result.fusionmatter = player.FusionMatter;
-    result.batteryN = player.BatteryN;
-    result.batteryW = player.BatteryW;
-    result.mentor = player.Mentor;
-    result.CurrentMissionID = player.CurrentMissionID;
+    plr->x = sqlite3_column_int(stmt, 11);
+    plr->y = sqlite3_column_int(stmt, 12);
+    plr->z = sqlite3_column_int(stmt, 13);
+    plr->PCStyle.iNameCheck = sqlite3_column_int(stmt, 14);
 
-    result.equippedNanos[0] = player.Nano1;
-    result.equippedNanos[1] = player.Nano2;
-    result.equippedNanos[2] = player.Nano3;
+    plr->angle = sqlite3_column_int(stmt, 15);
+    plr->HP = sqlite3_column_int(stmt, 16);
+    plr->accountLevel = sqlite3_column_int(stmt, 17);
+    plr->fusionmatter = sqlite3_column_int(stmt, 18);
+    plr->money = sqlite3_column_int(stmt, 19);
 
-    result.inCombat = false;
+    const void* questBuffer = plr->aQuestFlag;
+    questBuffer = sqlite3_column_blob(stmt, 20);
 
-    result.iWarpLocationFlag = player.WarpLocationFlag;
-    result.aSkywayLocationFlag[0] = player.SkywayLocationFlag1;
-    result.aSkywayLocationFlag[1] = player.SkywayLocationFlag2;
+    plr->batteryW = sqlite3_column_int(stmt, 21);
+    plr->batteryN = sqlite3_column_int(stmt, 22);
+    plr->mentor = sqlite3_column_int(stmt, 23);
+    plr->iWarpLocationFlag = sqlite3_column_int(stmt, 24);
+    
+    plr->aSkywayLocationFlag[0] = sqlite3_column_int(stmt, 25);
+    plr->aSkywayLocationFlag[1] = sqlite3_column_int(stmt, 26);
+    plr->CurrentMissionID = sqlite3_column_int(stmt, 27);
 
-    Database::getInventory(&result);
-    Database::removeExpiredVehicles(&result);
-    Database::getNanos(&result);
-    Database::getQuests(&result);
-    Database::getBuddies(&result);
+    plr->PCStyle.iBody = sqlite3_column_int(stmt, 28);
+    plr->PCStyle.iEyeColor = sqlite3_column_int(stmt, 29);
+    plr->PCStyle.iFaceStyle = sqlite3_column_int(stmt, 30);
+    plr->PCStyle.iGender = sqlite3_column_int(stmt, 31);
+    plr->PCStyle.iHairColor = sqlite3_column_int(stmt, 32);
+    plr->PCStyle.iHairStyle = sqlite3_column_int(stmt, 33);
+    plr->PCStyle.iHeight = sqlite3_column_int(stmt, 34);
+    plr->PCStyle.iSkinColor = sqlite3_column_int(stmt, 35);
 
-    // load completed quests
-    memcpy(&result.aQuestFlag, player.QuestFlag.data(), std::min(sizeof(result.aQuestFlag), player.QuestFlag.size()));
+    // get inventory
 
-    return result;
-}
+    sql = R"(
+        SELECT "Slot", "Type", "Id", "Opt", "TimeLimit" from Inventory
+        WHERE "PlayerID" = ? AND "Slot" < ?
+        )";
 
-Database::DbPlayer Database::getDbPlayerById(int id) {
-    auto player = db.get_all<DbPlayer>(where(c(&DbPlayer::PlayerID) == id));
-    if (player.size() < 1) {
-        // garbage collection
-        db.remove_all<Inventory>(where(c(&Inventory::playerId) == id));
-        db.remove_all<Nano>(where(c(&Nano::playerId) == id));
-        db.remove_all<DbQuest>(where(c(&DbQuest::PlayerId) == id));
-        db.remove_all<Buddyship>(where(c(&Buddyship::PlayerAId) == id || c(&Buddyship::PlayerBId) == id));
-        db.remove_all<EmailData>(where(c(&EmailData::PlayerId) == id));
-        db.remove_all<EmailItem>(where(c(&EmailItem::PlayerId) == id));
-        return DbPlayer{ -1 };
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+    sqlite3_bind_int(stmt, 1, id);
+    // we don't want bank items here
+    sqlite3_bind_int(stmt, 2, AEQUIP_COUNT + AINVEN_COUNT);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int slot = sqlite3_column_int(stmt, 0);
+
+        sItemBase* item = slot < AEQUIP_COUNT ? &plr->Equip[slot] : &plr->Inven[slot = AEQUIP_COUNT];
+        item->iType = sqlite3_column_int(stmt, 1);
+        item->iID = sqlite3_column_int(stmt, 2);
+        item->iOpt = sqlite3_column_int(stmt, 3);
+        item->iTimeLimit = sqlite3_column_int(stmt, 4);
     }
-    return player.front();
-}
 
-Player Database::getPlayer(int id) {
-    return DbToPlayer(
-        getDbPlayerById(id)
-    );
+    Database::removeExpiredVehicles(plr);
+    
+    // get quest inventory
+
+    sql = R"(
+        SELECT "Slot", "Id", "Opt" from QuestItems
+        WHERE "PlayerID" = ?
+        )";
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+    sqlite3_bind_int(stmt, 1, id);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int slot = sqlite3_column_int(stmt, 0);
+
+        sItemBase* item = &plr->QInven[slot];
+        item->iType = 8;
+        item->iID = sqlite3_column_int(stmt, 1);
+        item->iOpt = sqlite3_column_int(stmt, 2);
+    }
+
+
+    // get nanos
+    sql = R"(
+        SELECT "Id", "Skill", "Stamina" from "Nanos"
+        WHERE "PlayerID" = ?
+        )";
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, id);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int id = sqlite3_column_int(stmt, 0);
+        sNano* nano = &plr->Nanos[id];
+        nano->iID = id;
+        nano->iSkillID = sqlite3_column_int(stmt, 1);
+        nano->iStamina = sqlite3_column_int(stmt, 2);
+    }
+
+    // get active quests
+    sql = R"(
+        SELECT "TaskId", "RemainingNPCCount1", "RemainingNPCCount2", "RemainingNPCCount3" from "RunningQuests"
+        WHERE "PlayerID" = ?
+        )";
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, id);
+
+    int i = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW && i < ACTIVE_MISSION_COUNT) {
+        plr->tasks[i] = sqlite3_column_int(stmt, 0);
+        plr->RemainingNPCCount[i][0] = sqlite3_column_int(stmt, 1);
+        plr->RemainingNPCCount[i][1] = sqlite3_column_int(stmt, 2);
+        plr->RemainingNPCCount[i][2] = sqlite3_column_int(stmt, 3);
+    }
+
+    // get buddies
+    sql = R"(
+        SELECT "PlayerAId", "PlayerBId" from "Buddyships"
+        WHERE "PlayerAId" = ? OR "PlayerBId" = ?
+        )";
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, id);
+    sqlite3_bind_int(stmt, 2, id);
+
+    i = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW && i < 50) {
+        int PlayerAId = sqlite3_column_int(stmt, 0);
+        int PlayerBId = sqlite3_column_int(stmt, 1);
+
+        plr->buddyIDs[i] = id == PlayerAId ? PlayerBId : PlayerAId;
+    }
+
+    sqlite3_finalize(stmt);
 }
 
 #pragma endregion LoginServer
@@ -1043,40 +1092,10 @@ void Database::updateBuddies(Player* player) {
     db.commit();
 }
 
-void Database::getInventory(Player* player) {
-    // get items from DB
-    auto items = db.get_all<Inventory>(
-        where(c(&Inventory::playerId) == player->iID)
-        );
-    // set items
-    for (const Inventory &current : items) {
-        sItemBase toSet = {};
-        toSet.iID = current.id;
-        toSet.iType = current.Type;
-        toSet.iOpt = current.Opt;
-        toSet.iTimeLimit = current.TimeLimit;
-        // assign to proper arrays
-        if (current.slot < AEQUIP_COUNT)
-            player->Equip[current.slot] = toSet;
-        else if (current.slot < (AEQUIP_COUNT + AINVEN_COUNT))
-            player->Inven[current.slot - AEQUIP_COUNT] = toSet;
-        else if (current.slot < (AEQUIP_COUNT + AINVEN_COUNT + ABANK_COUNT))
-            player->Bank[current.slot - AEQUIP_COUNT - AINVEN_COUNT] = toSet;
-        else
-            player->QInven[current.slot - AEQUIP_COUNT - AINVEN_COUNT - ABANK_COUNT] = toSet;
-    }
-
-
-}
-
 void Database::removeExpiredVehicles(Player* player) {
     int32_t currentTime = getTimestamp();
-    // remove from bank immediately
-    for (int i = 0; i < ABANK_COUNT; i++) {
-        if (player->Bank[i].iType == 10 && player->Bank[i].iTimeLimit < currentTime)
-            player->Bank[i] = {};
-    }
-    // for the rest, we want to leave only 1 expired vehicle on player to delete it with the client packet
+
+    // we want to leave only 1 expired vehicle on player to delete it with the client packet
     std::vector<sItemBase*> toRemove;
 
     // equiped vehicle
@@ -1097,49 +1116,6 @@ void Database::removeExpiredVehicles(Player* player) {
     // delete all but one vehicles, leave last one for ceremonial deletion
     for (int i = 0; i < (int)toRemove.size()-1; i++) {
         memset(toRemove[i], 0, sizeof(sItemBase));
-    }
-}
-
-void Database::getNanos(Player* player) {
-    // get from DB
-    auto nanos = db.get_all<Nano>(
-        where(c(&Nano::playerId) == player->iID)
-        );
-    // set
-    for (const Nano& current : nanos) {
-        sNano *toSet = &player->Nanos[current.iID];
-        toSet->iID = current.iID;
-        toSet->iSkillID = current.iSkillID;
-        toSet->iStamina = current.iStamina;
-    }
-}
-
-void Database::getQuests(Player* player) {
-    // get from DB
-    auto quests = db.get_all<DbQuest>(
-        where(c(&DbQuest::PlayerId) == player->iID)
-        );
-    // set
-    int i = 0;
-    for (const DbQuest& current : quests) {
-        player->tasks[i] = current.TaskId;
-        player->RemainingNPCCount[i][0] = current.RemainingNPCCount1;
-        player->RemainingNPCCount[i][1] = current.RemainingNPCCount2;
-        player->RemainingNPCCount[i][2] = current.RemainingNPCCount3;
-        i++;
-    }
-}
-
-void Database::getBuddies(Player* player) {
-    auto buddies = db.get_all<Buddyship>( // player can be on either side
-        where(c(&Buddyship::PlayerAId) == player->iID || c(&Buddyship::PlayerBId) == player->iID)
-        );
-
-    // there should never be more than 50 buddyships per player, but just in case
-    for (int i = 0; i < 50 && i < buddies.size(); i++) {
-        // if the player is player A, then the buddy is player B, and vice versa
-        player->buddyIDs[i] = player->iID == buddies.at(i).PlayerAId
-            ? buddies.at(i).PlayerBId : buddies.at(i).PlayerAId;
     }
 }
 
