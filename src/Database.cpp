@@ -734,17 +734,25 @@ void Database::evaluateCustomName(int characterID, CustomName decision) {
     sqlite3_finalize(stmt);
 }
 
-void Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save) {
+bool Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save, int accountId) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    DbPlayer Player = getDbPlayerById(save->iPCUID);
-    Player.FirstName = U16toU8(save->szFirstName);
-    Player.LastName = U16toU8(save->szLastName);
-    if (settings::APPROVEALLNAMES || save->iFNCode)
-        Player.NameCheck = 1;
-    else
-        Player.NameCheck = 0;
-    db.update(Player);
+    const char* sql = R"(
+    UPDATE "Players"
+    SET "Firstname" = ?,
+    "LastName" = ?
+    WHERE "PlayerID" = ? AND "AccountID" = ?;
+    )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_text(stmt, 1, U16toU8(save->szFirstName).c_str(), -1, 0);
+    sqlite3_bind_text(stmt, 2, U16toU8(save->szLastName).c_str(), -1, 0);
+    sqlite3_bind_int(stmt, 3, save->iPCUID);
+    sqlite3_bind_int(stmt, 4, accountId);
+
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    return rc == SQLITE_DONE;
 }
 
 Database::DbPlayer Database::playerToDb(Player *player) {

@@ -92,7 +92,7 @@ namespace Database {
         DISAPPROVE = 2
     };
     void evaluateCustomName(int characterID, CustomName decision);
-    void changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save);
+    bool changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save, int accountId);
 
     // getting players
     Player getPlayer(int id);
