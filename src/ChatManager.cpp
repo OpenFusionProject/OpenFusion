@@ -699,7 +699,7 @@ void whoisCommand(std::string full, std::vector<std::string>& args, CNSocket* so
     ChatManager::sendServerMessage(sock, "[WHOIS] Instance: " + std::to_string(PLAYERID(npc->instanceID)));
 }
 
-void lairUnlock(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+void lairUnlockCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
     if (!ChunkManager::chunkExists(plr->chunkPos))
         return;
@@ -773,7 +773,7 @@ void ChatManager::init() {
     registerCommand("summonGroup", 30, summonGroupCommand, "summon group NPCs");
     registerCommand("summonGroupW", 30, summonGroupCommand, "permanently summon group NPCs");
     registerCommand("whois", 50, whoisCommand, "describe nearest NPC");
-    registerCommand("lair", 50, lairUnlock, "Allows entry to lair by granting you the required mission and task");
+    registerCommand("lair", 50, lairUnlockCommand, "get the required mission for the nearest fusion lair");
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {
