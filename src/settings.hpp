@@ -25,6 +25,8 @@ namespace settings {
     extern std::string GRUNTWORKJSON;
     extern int EVENTMODE;
     extern int EVENTCRATECHANCE;
+    extern int MONITORPORT;
+    extern int MONITORINTERVAL;
 
     void init();
 }

@@ -2,6 +2,7 @@
 #include "PlayerManager.hpp"
 #include "CNStructs.hpp"
 #include "Monitor.hpp"
+#include "settings.hpp"
 
 #include <cstdio>
 
@@ -26,7 +27,7 @@ void Monitor::init() {
 
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(8003);
+    address.sin_port = htons(settings::MONITORPORT);
 
     if (bind(listener, (struct sockaddr*)&address, sizeof(address)) < 0) {
         perror("bind");
@@ -38,9 +39,9 @@ void Monitor::init() {
         exit(1);
     }
 
-    std::cout << "[INFO] Monitor listening on *:8003" << std::endl;
+    std::cout << "[INFO] Monitor listening on *:" << settings::MONITORPORT << std::endl;
 
-    REGISTER_SHARD_TIMER(tick, 5000);
+    REGISTER_SHARD_TIMER(tick, settings::MONITORINTERVAL);
 }
 
 static bool transmit(std::list<int>::iterator& it, char *buff, int len) {

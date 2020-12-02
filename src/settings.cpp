@@ -30,6 +30,10 @@ std::string settings::GRUNTWORKJSON = "tdata/gruntwork.json";
 std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
 int settings::ACCLEVEL = 1;
 
+// monitor settings
+int settings::MONITORPORT = 8003;
+int settings::MONITORINTERVAL = 5000;
+
 // event mode settings
 int settings::EVENTMODE = 0;
 int settings::EVENTCRATECHANCE = 10;
@@ -70,4 +74,6 @@ void settings::init() {
     ACCLEVEL = reader.GetInteger("shard", "accountlevel", ACCLEVEL);
     EVENTMODE = reader.GetInteger("shard", "eventmode", EVENTMODE);
     EVENTCRATECHANCE = reader.GetInteger("shard", "eventcratechance", EVENTCRATECHANCE);
+    MONITORPORT = reader.GetInteger("monitor", "port", MONITORPORT);
+    MONITORINTERVAL = reader.GetInteger("monitor", "interval", MONITORINTERVAL);
 }
