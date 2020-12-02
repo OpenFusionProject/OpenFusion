@@ -608,12 +608,38 @@ bool Database::finishTutorial(int playerID) {
 int Database::deleteCharacter(int characterID, int userID) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    auto find =
-        db.get_all<DbPlayer>(where(c(&DbPlayer::PlayerID) == characterID and c(&DbPlayer::AccountID)==userID));
-    int slot = find.front().slot;
-    db.remove<DbPlayer>(find.front().PlayerID);
-    db.remove_all<Inventory>(where(c(&Inventory::playerId) == characterID));
-    db.remove_all<Nano>(where(c(&Nano::playerId) == characterID));
+    const char* sql = R"(
+        SELECT "Slot"
+        FROM "Players"
+        WHERE "AccountID" = ? AND "PlayerID" = ?
+        LIMIT 1;
+        )";
+
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, userID);
+    sqlite3_bind_int(stmt, 2, characterID);
+    int rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW)
+    {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+    int slot = sqlite3_column_int(stmt, 0);
+
+    sql = R"(
+        DELETE FROM "Players"
+        WHERE "AccountID" = ? AND "PlayerID" = ?;
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, userID);
+    sqlite3_bind_int(stmt, 2, characterID);
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    if (rc != SQLITE_DONE)
+        return 0;
 
     return slot;
 }
