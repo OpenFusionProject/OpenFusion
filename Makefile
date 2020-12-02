@@ -50,6 +50,7 @@ CXXSRC=\
 	src/ChunkManager.cpp\
 	src/BuddyManager.cpp\
 	src/GroupManager.cpp\
+	src/Monitor.cpp\
 
 # headers (for timestamp purposes)
 CHDR=\
@@ -88,6 +89,7 @@ CXXHDR=\
 	src/ChunkManager.hpp\
 	src/BuddyManager.hpp\
 	src/GroupManager.hpp\
+	src/Monitor.hpp\
 
 COBJ=$(CSRC:.c=.o)
 CXXOBJ=$(CXXSRC:.cpp=.o)

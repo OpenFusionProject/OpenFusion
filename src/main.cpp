@@ -13,6 +13,7 @@
 #include "TableData.hpp"
 #include "ChunkManager.hpp"
 #include "GroupManager.hpp"
+#include "Monitor.hpp"
 
 #include "settings.hpp"
 
@@ -36,6 +37,8 @@
 
 CNShardServer *shardServer = nullptr;
 std::thread *shardThread = nullptr;
+
+std::thread *monitorThread = nullptr;
 
 void startShard(CNShardServer* server) {
     server->start();
@@ -101,6 +104,7 @@ int main() {
     TransportManager::init();
     BuddyManager::init();
     GroupManager::init();
+    Monitor::init();
     Database::open();
 
     switch (settings::EVENTMODE) {
@@ -119,6 +123,7 @@ int main() {
     shardServer = new CNShardServer(settings::SHARDPORT);
 
     shardThread = new std::thread(startShard, (CNShardServer*)shardServer);
+    monitorThread = new std::thread(Monitor::start, nullptr);
 
     loginServer.start();
 
