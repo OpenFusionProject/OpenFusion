@@ -43,16 +43,18 @@ void Monitor::init() {
     REGISTER_SHARD_TIMER(tick, 5000);
 }
 
-// XXX
-static bool transmit(std::list<int>::iterator it, char *buff, int len) {
+static bool transmit(std::list<int>::iterator& it, char *buff, int len) {
     int n = 0;
     int sock = *it;
 
     while (n < len) {
-        n = send(sock, buff+n, len-n, 0);
+        n += write(sock, buff+n, len-n);
         if (n < 0) {
             perror("send");
             close(sock);
+
+            std::cout << "[INFO] Disconnected a monitor" << std::endl;
+
             it = sockets.erase(it);
             return false;
         }
@@ -65,41 +67,23 @@ static bool transmit(std::list<int>::iterator it, char *buff, int len) {
 void Monitor::tick(CNServer *serv, time_t delta) {
     std::lock_guard<std::mutex> lock(sockLock);
     char buff[256];
-    int n;
 
     auto it = sockets.begin();
     while (it != sockets.end()) {
-        int sock = *it;
-
-        n = send(sock, "begin\n", 6, 0);
-        if (n < 0) {
-            perror("send");
-            close(sock);
-            it = sockets.erase(it);
+        if (!transmit(it, (char*)"begin\n", 6))
             continue;
-        }
 
         for (auto& pair : PlayerManager::players) {
-            n = std::snprintf(buff, sizeof(buff), "player %d %d %s\n",
+            int n = std::snprintf(buff, sizeof(buff), "player %d %d %s\n",
                     pair.second->x, pair.second->y,
                     PlayerManager::getPlayerName(pair.second, false).c_str());
 
-            n = send(sock, buff, n, 0);
-            if (n < 0) {
-                perror("send");
-                close(sock);
-                it = sockets.erase(it);
+            if (!transmit(it, buff, n))
                 continue;
-            }
         }
 
-        n = send(sock, "end\n", 4, 0);
-        if (n < 0) {
-            perror("send");
-            close(sock);
-            it = sockets.erase(it);
+        if (!transmit(it, (char*)"end\n", 4))
             continue;
-        }
 
         it++;
     }
