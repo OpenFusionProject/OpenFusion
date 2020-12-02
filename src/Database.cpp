@@ -20,8 +20,6 @@
 std::mutex dbCrit;
 sqlite3* db;
 
-#pragma region LoginServer
-
 void Database::open() {
     
     int rc = sqlite3_open(settings::DBPATH.c_str(), &db);
@@ -945,151 +943,220 @@ void Database::getPlayer(Player* plr, int id) {
     sqlite3_finalize(stmt);
 }
 
-#pragma endregion LoginServer
-
-#pragma region ShardServer
-
 void Database::updatePlayer(Player *player) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    DbPlayer toUpdate = playerToDb(player);
-    db.update(toUpdate);
-    updateInventory(player);
-    updateNanos(player);
-    updateQuests(player);
-    //updateBuddies(player); we add/remove buddies explicitly now
+    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+
+    const char* sql = R"(
+        UPDATE "Players"
+        SET
+        "Level" = ? , "Nano1" = ?, "Nano2" = ?, "Nano3" = ?,
+        "XCoordinates" = ?, "YCoordinates" = ?, "ZCoordinates" = ?,
+        "Angle" = ?, "HP" = ?, "FusionMatter" = ?, "Taros" = ?, "Quests" = ?,
+        "BatteryW" = ?, "BatteryN" = ?, "WarplocationFlag" = ?,
+        "SkywayLocationFlag1" = ?, "SkywayLocationFlag2" = ?, "CurrentMissionID" = ?
+        WHERE "PlayerID" = ?
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, player->level);
+    sqlite3_bind_int(stmt, 2, player->equippedNanos[0]);
+    sqlite3_bind_int(stmt, 3, player->equippedNanos[1]);
+    sqlite3_bind_int(stmt, 4, player->equippedNanos[2]);
+    sqlite3_bind_int(stmt, 5, player->x);
+    sqlite3_bind_int(stmt, 6, player->y);
+    sqlite3_bind_int(stmt, 7, player->z);
+    sqlite3_bind_int(stmt, 8, player->angle);
+    sqlite3_bind_int(stmt, 9, player->HP);
+    sqlite3_bind_int(stmt, 10, player->fusionmatter);
+    sqlite3_bind_int(stmt, 11, player->money);
+    sqlite3_bind_blob(stmt, 12, player->aQuestFlag, sizeof(player->aQuestFlag), 0);
+    sqlite3_bind_int(stmt, 13, player->batteryW);
+    sqlite3_bind_int(stmt, 14, player->batteryN);
+    sqlite3_bind_int(stmt, 15, player->iWarpLocationFlag);
+    sqlite3_bind_int(stmt, 16, player->aSkywayLocationFlag[0]);
+    sqlite3_bind_int(stmt, 17, player->aSkywayLocationFlag[1]);
+    sqlite3_bind_int(stmt, 18, player->CurrentMissionID);
+    sqlite3_bind_int(stmt, 19, player->iID);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+        sqlite3_finalize(stmt);
+        std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
+        return;
+    }
+
+    // update inventory
+    sql = R"(
+        DELETE FROM "Inventory" WHERE "PlayerID" = ?;
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, player->iID);
+    sqlite3_step(stmt);
+
+    sql = R"(
+        INSERT INTO "Inventory"
+        ("PlayerID", "Slot", "Type", "Opt" "Id", "Timelimit")
+        VALUES (?, ?, ?, ?, ?, ?);
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+    int i = -1;
+    while (++i < AEQUIP_COUNT && player->Equip[i].iID != 0) {
+        sqlite3_bind_int(stmt, 1, player->iID);
+        sqlite3_bind_int(stmt, 2, i);
+        sqlite3_bind_int(stmt, 3, player->Equip[i].iType);
+        sqlite3_bind_int(stmt, 4, player->Equip[i].iOpt);
+        sqlite3_bind_int(stmt, 5, player->Equip[i].iID);
+        sqlite3_bind_int(stmt, 6, player->Equip[i].iTimeLimit);
+
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
+            sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+            sqlite3_finalize(stmt);
+            std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
+            return;
+        }
+        sqlite3_reset(stmt);
+    }
+
+    i = -1;
+    while (++i < AINVEN_COUNT && player->Inven[i].iID != 0) {
+        sqlite3_bind_int(stmt, 1, player->iID);
+        sqlite3_bind_int(stmt, 2, i + AEQUIP_COUNT);
+        sqlite3_bind_int(stmt, 3, player->Inven[i].iType);
+        sqlite3_bind_int(stmt, 4, player->Inven[i].iOpt);
+        sqlite3_bind_int(stmt, 5, player->Inven[i].iID);
+        sqlite3_bind_int(stmt, 6, player->Inven[i].iTimeLimit);
+
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
+            sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+            sqlite3_finalize(stmt);
+            std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
+            return;
+        }
+        sqlite3_reset(stmt);
+    }
+
+    // Update Quest Inventory
+    sql = R"(
+        DELETE FROM "QuestItems" WHERE "PlayerID" = ?;
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, player->iID);
+    sqlite3_step(stmt);
+
+    sql = R"(
+        INSERT INTO "QuestItems"
+        ("PlayerID", "Slot", "Opt" "Id")
+        VALUES (?, ?, ?, ?);
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+    i = -1;
+    while (++i < AQINVEN_COUNT && player->QInven[i].iID != 0) {
+        sqlite3_bind_int(stmt, 1, player->iID);
+        sqlite3_bind_int(stmt, 2, i);
+        sqlite3_bind_int(stmt, 3, player->QInven[i].iOpt);
+        sqlite3_bind_int(stmt, 4, player->QInven[i].iID);
+
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
+            sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+            sqlite3_finalize(stmt);
+            std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
+            return;
+        }
+        sqlite3_reset(stmt);
+    }
+
+    // Update Nanos
+    sql = R"(
+        DELETE FROM "Nanos" WHERE "PlayerID" = ?;
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, player->iID);
+    sqlite3_step(stmt);
+
+    sql = R"(
+        INSERT INTO "Nanos"
+        ("PlayerID", "Id", "SKill" "Stamina")
+        VALUES (?, ?, ?, ?);
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+    i = -1;
+    while (++i < SIZEOF_NANO_BANK_SLOT && player->Nanos[i].iID != 0) {
+        sqlite3_bind_int(stmt, 1, player->iID);
+        sqlite3_bind_int(stmt, 2, player->Nanos[i].iID);
+        sqlite3_bind_int(stmt, 3, player->Nanos[i].iSkillID);
+        sqlite3_bind_int(stmt, 4, player->Nanos[i].iStamina);
+
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
+            sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+            sqlite3_finalize(stmt);
+            std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
+            return;
+        }
+        sqlite3_reset(stmt);
+    }
+
+    // Update Running Quests
+    sql = R"(
+        DELETE FROM "RunningQuests" WHERE "PlayerID" = ?;
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, player->iID);
+    sqlite3_step(stmt);
+
+    sql = R"(
+        INSERT INTO "RunningQuests"
+        ("PlayerID", "TaskId", "RemainingNPCCount1", "RemainingNPCCount2", "RemainingNPCCount3")
+        VALUES (?, ?, ?, ?, ?);
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+    i = -1;
+    while (++i < ACTIVE_MISSION_COUNT && player->tasks[i] != 0) {
+        sqlite3_bind_int(stmt, 1, player->iID);
+        sqlite3_bind_int(stmt, 2, player->tasks[i]);
+        sqlite3_bind_int(stmt, 3, player->RemainingNPCCount[i][0]);
+        sqlite3_bind_int(stmt, 4, player->RemainingNPCCount[i][1]);
+        sqlite3_bind_int(stmt, 5, player->RemainingNPCCount[i][2]);
+
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
+            sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+            sqlite3_finalize(stmt);
+            std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
+            return;
+        }
+        sqlite3_reset(stmt);
+    }
+
+    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+    sqlite3_finalize(stmt);
 }
 
-void Database::updateInventory(Player *player){
-    // start transaction
-    db.begin_transaction();
-    // remove all
-    db.remove_all<Inventory>(
-        where(c(&Inventory::playerId) == player->iID)
-        );
-    // insert equip
-    for (int i = 0; i < AEQUIP_COUNT; i++) {
-        if (player->Equip[i].iID != 0) {
-            sItemBase* next = &player->Equip[i];
-            Inventory toAdd = {};
-            toAdd.playerId = player->iID;
-            toAdd.slot = i;
-            toAdd.id = next->iID;
-            toAdd.Opt = next->iOpt;
-            toAdd.Type = next->iType;
-            toAdd.TimeLimit = next->iTimeLimit;
-            db.insert(toAdd);
-        }
-    }
-    // insert inventory
-    for (int i = 0; i < AINVEN_COUNT; i++) {
-        if (player->Inven[i].iID != 0) {
-            sItemBase* next = &player->Inven[i];
-            Inventory toAdd = {};
-            toAdd.playerId = player->iID;
-            toAdd.slot = i + AEQUIP_COUNT;
-            toAdd.id = next->iID;
-            toAdd.Opt = next->iOpt;
-            toAdd.Type = next->iType;
-            toAdd.TimeLimit = next->iTimeLimit;
-            db.insert(toAdd);
-        }
-    }
-    // insert bank
-    for (int i = 0; i < ABANK_COUNT; i++) {
-        if (player->Bank[i].iID != 0) {
-            sItemBase* next = &player->Bank[i];
-            Inventory toAdd = {};
-            toAdd.playerId = player->iID;
-            toAdd.slot = i + AEQUIP_COUNT + AINVEN_COUNT;
-            toAdd.id = next->iID;
-            toAdd.Opt = next->iOpt;
-            toAdd.Type = next->iType;
-            toAdd.TimeLimit = next->iTimeLimit;
-            db.insert(toAdd);
-        }
-    }
-    // insert quest items
-    for (int i = 0; i < AQINVEN_COUNT; i++) {
-        if (player->QInven[i].iID != 0) {
-            sItemBase* next = &player->QInven[i];
-            Inventory toAdd = {};
-            toAdd.playerId = player->iID;
-            toAdd.slot = i + AEQUIP_COUNT + AINVEN_COUNT + ABANK_COUNT;
-            toAdd.id = next->iID;
-            toAdd.Opt = next->iOpt;
-            toAdd.Type = next->iType;
-            toAdd.TimeLimit = next->iTimeLimit;
-            db.insert(toAdd);
-        }
-    }
-    db.commit();
-}
-
-void Database::updateNanos(Player *player) {
-    // start transaction
-    db.begin_transaction();
-    // remove all
-    db.remove_all<Nano>(
-        where(c(&Nano::playerId) == player->iID)
-        );
-    // insert
-    for (int i=1; i < SIZEOF_NANO_BANK_SLOT; i++) {
-        if ((player->Nanos[i]).iID == 0)
-            continue;
-        Nano toAdd = {};
-        sNano* next = &player->Nanos[i];
-        toAdd.playerId = player->iID;
-        toAdd.iID = next->iID;
-        toAdd.iSkillID = next->iSkillID;
-        toAdd.iStamina = next->iStamina;
-        db.insert(toAdd);
-    }
-    db.commit();
-}
-
-void Database::updateQuests(Player* player) {
-    // start transaction
-    db.begin_transaction();
-    // remove all
-    db.remove_all<DbQuest>(
-        where(c(&DbQuest::PlayerId) == player->iID)
-        );
-    // insert
-    for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
-        if (player->tasks[i] == 0)
-            continue;
-        DbQuest toAdd = {};
-        toAdd.PlayerId = player->iID;
-        toAdd.TaskId = player->tasks[i];
-        toAdd.RemainingNPCCount1 = player->RemainingNPCCount[i][0];
-        toAdd.RemainingNPCCount2 = player->RemainingNPCCount[i][1];
-        toAdd.RemainingNPCCount3 = player->RemainingNPCCount[i][2];
-        db.insert(toAdd);
-    }
-    db.commit();
-}
 
 // note: do not use. explicitly add/remove records instead.
 void Database::updateBuddies(Player* player) {
-    db.begin_transaction();
+    //db.begin_transaction();
 
-    db.remove_all<Buddyship>( // remove all buddyships with this player involved
-        where(c(&Buddyship::PlayerAId) == player->iID || c(&Buddyship::PlayerBId) == player->iID)
-        );
+    //db.remove_all<Buddyship>( // remove all buddyships with this player involved
+    //    where(c(&Buddyship::PlayerAId) == player->iID || c(&Buddyship::PlayerBId) == player->iID)
+    //    );
 
-    // iterate through player's buddies and add records for each non-zero entry
-    for (int i = 0; i < 50; i++) {
-        if (player->buddyIDs[i] != 0) {
-            Buddyship record;
-            record.PlayerAId = player->iID;
-            record.PlayerBId = player->buddyIDs[i];
-            record.Status = 0; // still not sure how we'll handle blocking
-            db.insert(record);
-        }
-    }
+    //// iterate through player's buddies and add records for each non-zero entry
+    //for (int i = 0; i < 50; i++) {
+    //    if (player->buddyIDs[i] != 0) {
+    //        Buddyship record;
+    //        record.PlayerAId = player->iID;
+    //        record.PlayerBId = player->buddyIDs[i];
+    //        record.Status = 0; // still not sure how we'll handle blocking
+    //        db.insert(record);
+    //    }
+    //}
 
-    db.commit();
+    //db.commit();
 }
 
 void Database::removeExpiredVehicles(Player* player) {
@@ -1122,43 +1189,60 @@ void Database::removeExpiredVehicles(Player* player) {
 int Database::getNumBuddies(Player* player) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    auto buddies = db.get_all<Buddyship>( // player can be on either side
-        where(c(&Buddyship::PlayerAId) == player->iID || c(&Buddyship::PlayerBId) == player->iID)
-        );
+    const char* sql = R"(
+        SELECT COUNT(*) FROM "Buddyships"
+        WHERE "PlayerAId" = ? OR "PlayerBId" = ?;
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, player->iID);
+    sqlite3_bind_int(stmt, 2, player->iID);
+    sqlite3_step(stmt);
+    int result = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
 
     // again, for peace of mind
-    return buddies.size() > 50 ? 50 : buddies.size();
+    return result > 50 ? 50 : result;
 }
 
 // buddies
 void Database::addBuddyship(int playerA, int playerB) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    db.begin_transaction();
+    const char* sql = R"(
+        INSERT INTO "Buddyships" 
+        ("PlayerAId", "PlayerBId", Status")
+        VALUES (?, ?, ?);
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, playerA);
+    sqlite3_bind_int(stmt, 2, playerB);
+    // blocking???
+    sqlite3_bind_int(stmt, 3, 0);
 
-    Buddyship record;
-    record.PlayerAId = playerA;
-    record.PlayerBId = playerB;
-    record.Status = 0; // blocking ???
-    db.insert(record);
-
-    db.commit();
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+        std::cout << "[WARN] Database: failed to add buddies" << std::endl;
+    sqlite3_finalize(stmt);
 }
 
 void Database::removeBuddyship(int playerA, int playerB) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    db.begin_transaction();
+    const char* sql = R"(
+        DELETE FROM "Buddyships" 
+        WHERE ("PlayerAId" = ? AND "PlayerBId" = ?) OR ("PlayerAId" = ? AND "PlayerBId" = ?);
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, playerA);
+    sqlite3_bind_int(stmt, 2, playerB);
+    sqlite3_bind_int(stmt, 3, playerB);
+    sqlite3_bind_int(stmt, 4, playerA);
 
-    db.remove_all<Buddyship>(
-        where(c(&Buddyship::PlayerAId) == playerA && c(&Buddyship::PlayerBId) == playerB)
-        );
-
-    db.remove_all<Buddyship>( // the pair could be in either position
-        where(c(&Buddyship::PlayerAId) == playerB && c(&Buddyship::PlayerBId) == playerA)
-        );
-
-    db.commit();
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+        std::cout << "[WARN] Database: failed to remove buddies" << std::endl;
+    sqlite3_finalize(stmt);
 }
 
 // email
@@ -1313,4 +1397,3 @@ void Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
     db.commit();
 }
 
-#pragma endregion ShardServer
