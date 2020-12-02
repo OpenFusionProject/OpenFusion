@@ -99,7 +99,8 @@ void Database::createTables() {
         "CurrentMissionID"	    INTEGER DEFAULT 0 NOT NULL,
         PRIMARY KEY("PlayerID" AUTOINCREMENT),
         FOREIGN KEY("AccountID") REFERENCES "Accounts"("AccountID") ON DELETE CASCADE,
-        UNIQUE ("AccountID", "Slot")
+        UNIQUE ("AccountID", "Slot"),
+        UNIQUE ("Firstname", "LastName")
         );
 
         CREATE TABLE IF NOT EXISTS "Appearances" (
@@ -197,10 +198,10 @@ void Database::createTables() {
 int Database::getTableSize(std::string tableName) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    std::string query = "SELECT COUNT(*) FROM " + tableName + ";";
-    const char* sql = query.c_str();
+    const char* sql = "SELECT COUNT(*) FROM ?;";
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_text(stmt, 1, tableName.c_str(), -1, 0);
     sqlite3_step(stmt);
     int result = sqlite3_column_int(stmt, 0);
     sqlite3_finalize(stmt);
@@ -217,19 +218,19 @@ int Database::addAccount(std::string login, std::string password) {
         )";
     sqlite3_stmt* stmt;
 
-    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
     sqlite3_bind_text(stmt, 1, login.c_str(), -1, 0);
     sqlite3_bind_text(stmt, 2, BCrypt::generateHash(password).c_str(), -1, 0);
-    sqlite3_step(stmt);
+    int rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
-    return sqlite3_last_insert_rowid(db);
+    return rc==SQLITE_DONE ? sqlite3_last_insert_rowid(db) : 0;
 }
 
 void Database::updateSelected(int accountId, int slot) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    if (slot < 0 || slot > 4) {
+    if (slot < 1 || slot > 4) {
         std::cout << "[WARN] Invalid slot number passed to updateSelected()! " << std::endl;
         return;
     }
@@ -320,7 +321,7 @@ bool Database::isNameFree(std::string firstName, std::string lastName) {
 bool Database::isSlotFree(int accountId, int slotNum) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    if (slotNum < 0 || slotNum > 4) {
+    if (slotNum < 1 || slotNum > 4) {
         std::cout << "[WARN] Invalid slot number passed to isSlotFree()! " << std::endl;
         return false;
     }
@@ -375,18 +376,18 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
     sqlite3_bind_int(stmt, 11, settings::ACCLEVEL);
 
     // 128 byte blob for completed quests
-    unsigned char blobBuffer[128];
+    unsigned char blobBuffer[128] = { 0 };
     sqlite3_bind_blob(stmt, 12, blobBuffer, sizeof(blobBuffer), 0);
 
-    sqlite3_step(stmt);
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+        return 0;
+    }
 
     int playerId = sqlite3_last_insert_rowid(db);
-    sqlite3_finalize(stmt);
-
-    // if something failed
-    if (playerId == 0)
-        return 0;
-
+    
     sql = R"(
         INSERT INTO "Appearances"
         ("PlayerID")
@@ -395,12 +396,13 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
     sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
     sqlite3_bind_int(stmt, 1, playerId);
 
-    if (sqlite3_step(stmt) != SQLITE_DONE) {
-        sqlite3_finalize(stmt);
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
         return 0;
     }
 
-    sqlite3_finalize(stmt);
     sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
     return playerId;
 }
@@ -417,11 +419,12 @@ bool Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character) {
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
     sqlite3_bind_int(stmt, 1, character->PCStyle.iPC_UID);
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
 
-    if (sqlite3_step(stmt) != SQLITE_ROW)
+    if ( rc != SQLITE_ROW)
     {
-        std::cout << "[WARN] Player tried Character Creation on already existing character?!" << std::endl;
-        sqlite3_finalize(stmt);
+        std::cout << "[WARN] Player tried Character Creation on already existing character?!" << std::endl;    
         return false;
     }
 
@@ -435,9 +438,12 @@ bool Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character) {
 
     sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
     sqlite3_bind_int(stmt, 1, character->PCStyle.iPC_UID);
-    if (sqlite3_step(stmt) != SQLITE_DONE)
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    if (rc != SQLITE_DONE)
     {
-        sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
         return false;
     }
 
@@ -466,30 +472,35 @@ bool Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character) {
     sqlite3_bind_int(stmt, 8, character->PCStyle.iSkinColor);
     sqlite3_bind_int(stmt, 9, character->PCStyle.iPC_UID);
 
-    if (sqlite3_step(stmt) != SQLITE_DONE)
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    if (rc != SQLITE_DONE)
     {
-        sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
         return false;
     }
-    sqlite3_finalize(stmt);
 
     sql = R"(
         INSERT INTO "Inventory"
         ("PlayerID", "Slot", "Id", "Type", "Opt")
         VALUES (?, ?, ?, ?, 1);
         )";
-    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
 
     int items[3] = { character->sOn_Item.iEquipUBID, character->sOn_Item.iEquipLBID, character->sOn_Item.iEquipFootID };
     for (int i = 0; i < 3; i++) {
-        rc = sqlite3_bind_int(stmt, 1, character->PCStyle.iPC_UID);
-        rc = sqlite3_bind_int(stmt, 2, i+1);
-        rc = sqlite3_bind_int(stmt, 3, items[i]);
-        rc = sqlite3_bind_int(stmt, 4, i+1);
+        sqlite3_bind_int(stmt, 1, character->PCStyle.iPC_UID);
+        sqlite3_bind_int(stmt, 2, i+1);
+        sqlite3_bind_int(stmt, 3, items[i]);
+        sqlite3_bind_int(stmt, 4, i+1);
 
-        if (sqlite3_step(stmt) != SQLITE_DONE)
+        rc = sqlite3_step(stmt);       
+
+        if (rc != SQLITE_DONE)
         {
             sqlite3_finalize(stmt);
+            sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
             return false;
         }
         sqlite3_reset(stmt);
@@ -522,7 +533,6 @@ bool Database::finishTutorial(int playerID) {
 
     sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
-
     // Lightning Gun
     sql = R"(
     INSERT INTO "Inventory"
@@ -536,9 +546,12 @@ bool Database::finishTutorial(int playerID) {
     sqlite3_bind_int(stmt, 3, 328);
     sqlite3_bind_int(stmt, 4, 0);
 
-    if (sqlite3_step(stmt) != SQLITE_DONE)
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    if (rc != SQLITE_DONE)
     {
-        sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
         return false;
     }
 
@@ -555,9 +568,12 @@ bool Database::finishTutorial(int playerID) {
     sqlite3_bind_int(stmt, 2, 1);
     sqlite3_bind_int(stmt, 3, 1);
 
-    if (sqlite3_step(stmt) != SQLITE_DONE)
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    if (rc != SQLITE_DONE)
     {
-        sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
         return false;
     }
 
@@ -576,14 +592,16 @@ bool Database::finishTutorial(int playerID) {
     sqlite3_bind_blob(stmt, 1, questBuffer, sizeof(questBuffer), 0);
     sqlite3_bind_int(stmt, 2, playerID);
 
-    if (sqlite3_step(stmt) != SQLITE_DONE)
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    if (rc != SQLITE_DONE)
     {
-        sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
         return false;
     }
 
     sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
-    sqlite3_finalize(stmt);
     return true;
 }
 
