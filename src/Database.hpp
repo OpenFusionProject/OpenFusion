@@ -9,11 +9,8 @@ namespace Database {
 
     struct Account {
         int AccountID;
-        std::string Login;
         std::string Password;
         int Selected;
-        uint64_t Created;
-        uint64_t LastLogin;
     };
     struct Inventory {
         int playerId;
@@ -72,21 +69,20 @@ namespace Database {
     void open();
     void createTables();
 
-    int getAccountsCount();
-    int getPlayersCount();
-    // returns ID
+    int getTableSize(std::string tableName);
+    // returns ID, 0 if something failed
     int addAccount(std::string login, std::string password);
     void updateSelected(int accountId, int playerId);
-    std::unique_ptr<Account> findAccount(std::string login);
+    void findAccount(Account* account, std::string login);
     bool validateCharacter(int characterID, int userID);
     bool isNameFree(std::string firstName, std::string lastName);
     bool isSlotFree(int accountId, int slotNum);
     // called after chosing name, returns ID
     int createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID);
     // called after finishing creation
-    void finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character);
+    bool finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character);
     // called after tutorial
-    void finishTutorial(int PlayerID);
+    bool finishTutorial(int playerID);
     // returns slot number
     int deleteCharacter(int characterID, int userID);
     std::vector <Player> getCharacters(int userID);
