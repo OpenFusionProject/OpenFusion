@@ -6,6 +6,8 @@
 
 #include <cstdio>
 
+#ifndef _WIN32
+
 static int listener;
 static std::mutex sockLock; // guards socket list
 static std::list<int> sockets;
@@ -110,3 +112,5 @@ void Monitor::start(void *unused) {
         }
     }
 }
+
+#endif // _WIN32
