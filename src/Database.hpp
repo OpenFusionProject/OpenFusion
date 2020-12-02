@@ -80,9 +80,9 @@ namespace Database {
     // called after chosing name, returns ID
     int createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID);
     // called after finishing creation
-    void finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character);
+    bool finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character);
     // called after tutorial
-    void finishTutorial(int PlayerID);
+    bool finishTutorial(int playerID);
     // returns slot number
     int deleteCharacter(int characterID, int userID);
     std::vector <Player> getCharacters(int userID);

@@ -65,52 +65,52 @@ void Database::createTables() {
         PRIMARY KEY("AccountID" AUTOINCREMENT)
         );
 
-        CREATE TABLE IF NOT EXISTS "Players" (
+         CREATE TABLE IF NOT EXISTS "Players" (
         "PlayerID"	INTEGER NOT NULL,
         "AccountID"	INTEGER NOT NULL,
         "Slot"	    INTEGER NOT NULL,
         "Firstname"	TEXT    NOT NULL COLLATE NOCASE,
         "LastName"	TEXT    NOT NULL COLLATE NOCASE,
-        "Created"	INTEGER NOT NULL,
-        "LastLogin"	INTEGER NOT NULL,
-        "Level"	    INTEGER NOT NULL,
-        "Nano1"	    INTEGER NOT NULL,
-        "Nano2"	    INTEGER NOT NULL,
-        "Nano3"	    INTEGER NOT NULL,
-        "AppearanceFlag" INTEGER NOT NULL,
-        "TutorialFlag"	 INTEGER NOT NULL,
-        "PayZoneFlag"	 INTEGER NOT NULL,
+        "Created"	INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
+        "LastLogin"	INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
+        "Level"	    INTEGER DEFAULT 1 NOT NULL,
+        "Nano1"	    INTEGER DEFAULT 0 NOT NULL,
+        "Nano2"	    INTEGER DEFAULT 0 NOT NULL,
+        "Nano3"	    INTEGER DEFAULT 0 NOT NULL,
+        "AppearanceFlag" INTEGER DEFAULT 0 NOT NULL,
+        "TutorialFlag"	 INTEGER DEFAULT 0 NOT NULL,
+        "PayZoneFlag"	 INTEGER DEFAULT 0 NOT NULL,
         "XCoordinates"	 INTEGER NOT NULL,
         "YCoordinates"	 INTEGER NOT NULL,
         "ZCoordinates"	 INTEGER NOT NULL,
+        "Angle"	    INTEGER NOT NULL,
         "HP"	         INTEGER NOT NULL,
         "NameCheck"	     INTEGER NOT NULL,     
         "AccountLevel"	INTEGER NOT NULL,
-        "FusionMatter"	INTEGER NOT NULL,
-        "Taros"	        INTEGER NOT NULL,
+        "FusionMatter"	INTEGER DEFAULT 0 NOT NULL,
+        "Taros"	        INTEGER DEFAULT 0 NOT NULL,
         "Quests"	BLOB    NOT NULL,
-        "BatteryW"	INTEGER NOT NULL,
-        "BatteryN"	INTEGER NOT NULL,
-        "Mentor"	INTEGER NOT NULL,
-        "WarpLocationFlag"	    INTEGER NOT NULL,
-        "SkywayLocationFlag1"	INTEGER NOT NULL,
-        "SkywayLocationFlag2"	INTEGER NOT NULL,
-        "CurrentMissionID"	    INTEGER NOT NULL,
+        "BatteryW"	INTEGER DEFAULT 0 NOT NULL,
+        "BatteryN"	INTEGER DEFAULT 0 NOT NULL,
+        "Mentor"	INTEGER DEFAULT 5 NOT NULL,
+        "WarpLocationFlag"	    INTEGER DEFAULT 0 NOT NULL,
+        "SkywayLocationFlag1"	INTEGER DEFAULT 0 NOT NULL,
+        "SkywayLocationFlag2"	INTEGER DEFAULT 0 NOT NULL,
+        "CurrentMissionID"	    INTEGER DEFAULT 0 NOT NULL,
         PRIMARY KEY("PlayerID" AUTOINCREMENT),
         FOREIGN KEY("AccountID") REFERENCES "Accounts"("AccountID") ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS "Appearances" (
         "PlayerID"	INTEGER NOT NULL,
-        "Angle"	    INTEGER NOT NULL,
-        "Body"	    INTEGER NOT NULL,
-        "EyeColor"	INTEGER NOT NULL,
-        "FaceStyle"	INTEGER NOT NULL,
-        "Gender"	INTEGER NOT NULL,
-        "HairColor"	INTEGER NOT NULL,
-        "HairStyle"	INTEGER NOT NULL,
-        "Height"	INTEGER NOT NULL,
-        "SkinColor"	INTEGER NOT NULL,
+        "Body"	    INTEGER DEFAULT 0 NOT NULL,
+        "EyeColor"	INTEGER DEFAULT 1 NOT NULL,
+        "FaceStyle"	INTEGER DEFAULT 1 NOT NULL,
+        "Gender"	INTEGER DEFAULT 1 NOT NULL,
+        "HairColor"	INTEGER DEFAULT 1 NOT NULL,
+        "HairStyle"	INTEGER DEFAULT 1 NOT NULL,
+        "Height"	INTEGER DEFAULT 0 NOT NULL,
+        "SkinColor"	INTEGER DEFAULT 1 NOT NULL,
         FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
         );
 
@@ -120,7 +120,7 @@ void Database::createTables() {
 	    "Id"	    INTEGER NOT NULL,
 	    "Type"	    INTEGER NOT NULL,
 	    "Opt"	    INTEGER NOT NULL,
-	    "TimeLimit"	INTEGER NOT NULL,
+	    "TimeLimit"	INTEGER NOT DEFALUT 0 NULL,
         FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
         );
 
@@ -128,7 +128,7 @@ void Database::createTables() {
 	    "PlayerId"	INTEGER NOT NULL,
 	    "Id"	    INTEGER NOT NULL,
 	    "Skill"	    INTEGER NOT NULL,
-	    "Stamina"	INTEGER NOT NULL,
+	    "Stamina"	INTEGER DEFAULT = 150 NOT NULL,
         FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
         );
 
@@ -342,126 +342,246 @@ bool Database::isSlotFree(int accountId, int slotNum) {
 
 int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) {
     std::lock_guard<std::mutex> lock(dbCrit);
+    
+    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
-    // fail if the player already has 4 or more characters
-    if (db.count<DbPlayer>(where(c(&DbPlayer::AccountID) == AccountID)) >= 4)
-        return -1;
+    const char* sql = R"(
+        INSERT INTO "Players"
+        ("AccountID", "Slot", "Firstname", "LastName", "XCoordinates" , "YCoordinates", "ZCoordinates", "Angle",
+         "HP", "NameCheck", "AccountLevel", "Quests")
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        )";
+    sqlite3_stmt* stmt;
+    std::string firstName = U16toU8(save->szFirstName);
+    std::string lastName =  U16toU8(save->szLastName);
+    
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, AccountID);
+    sqlite3_bind_int(stmt, 2, save->iSlotNum);
+    sqlite3_bind_text(stmt, 3, firstName.c_str(), -1, 0);
+    sqlite3_bind_text(stmt, 4, lastName.c_str(), -1, 0);
+    sqlite3_bind_int(stmt, 5, settings::SPAWN_X);
+    sqlite3_bind_int(stmt, 6, settings::SPAWN_Y);
+    sqlite3_bind_int(stmt, 7, settings::SPAWN_Z);
+    sqlite3_bind_int(stmt, 8, settings::SPAWN_ANGLE);
+    sqlite3_bind_int(stmt, 9, PC_MAXHEALTH(1));
 
-    DbPlayer create = {};
+    // if FNCode isn't 0, it's a wheel name
+    int nameCheck = (settings::APPROVEALLNAMES || save->iFNCode) ? 1 : 0;
+    sqlite3_bind_int(stmt, 10, nameCheck);
+    sqlite3_bind_int(stmt, 11, settings::ACCLEVEL);
 
-    // set timestamp
-    create.Created = getTimestamp();
-    // save packet data
-    create.FirstName = U16toU8(save->szFirstName);
-    create.LastName = U16toU8(save->szLastName);
-    create.slot = save->iSlotNum;
-    create.AccountID = AccountID;
+    // 128 byte blob for completed quests
+    unsigned char blobBuffer[128];
+    sqlite3_bind_blob(stmt, 12, blobBuffer, sizeof(blobBuffer), 0);
 
-    // set flags
-    create.AppearanceFlag = 0;
-    create.TutorialFlag = 0;
-    create.PayZoneFlag = 0;
+    sqlite3_step(stmt);
 
-    // set namecheck based on setting
-    if (settings::APPROVEALLNAMES || save->iFNCode)
-        create.NameCheck = 1;
-    else
-        create.NameCheck = 0;
+    int playerId = sqlite3_last_insert_rowid(db);
+    sqlite3_finalize(stmt);
 
-    // create default body character
-    create.Body = 0;
-    create.Class = 0;
-    create.EyeColor = 1;
-    create.FaceStyle = 1;
-    create.Gender = 1;
-    create.Level = 1;
-    create.HP = PC_MAXHEALTH(create.Level);
-    create.HairColor = 1;
-    create.HairStyle = 1;
-    create.Height = 0;
-    create.SkinColor = 1;
-    create.AccountLevel = settings::ACCLEVEL;
-    create.x_coordinates = settings::SPAWN_X;
-    create.y_coordinates = settings::SPAWN_Y;
-    create.z_coordinates = settings::SPAWN_Z;
-    create.angle = settings::SPAWN_ANGLE;
-    // set mentor to computress
-    create.Mentor = 5;
+    // if something failed
+    if (playerId == 0)
+        return 0;
 
-    // initialize the quest blob to 128 0-bytes
-    create.QuestFlag = std::vector<char>(128, 0);
+    sql = R"(
+        INSERT INTO "Appearances"
+        ("PlayerID")
+        VALUES (?);
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, playerId);
 
-    return db.insert(create);
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+    return playerId;
 }
 
-void Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character) {
+bool Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character) {
     std::lock_guard<std::mutex> lock(dbCrit);
+    
+    const char* sql = R"(
+        SELECT "PlayerID"
+        FROM "Players"
+        WHERE "PlayerID" = ? AND "AppearanceFlag" = 0
+        LIMIT 1;        
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, character->PCStyle.iPC_UID);
 
-    DbPlayer finish = getDbPlayerById(character->PCStyle.iPC_UID);
-    finish.AppearanceFlag = 1;
-    finish.Body = character->PCStyle.iBody;
-    finish.Class = character->PCStyle.iClass;
-    finish.EyeColor = character->PCStyle.iEyeColor;
-    finish.FaceStyle = character->PCStyle.iFaceStyle;
-    finish.Gender = character->PCStyle.iGender;
-    finish.HairColor = character->PCStyle.iHairColor;
-    finish.HairStyle = character->PCStyle.iHairStyle;
-    finish.Height = character->PCStyle.iHeight;
-    finish.Level = 1;
-    finish.SkinColor = character->PCStyle.iSkinColor;
-    db.update(finish);
-    // clothes
-    Inventory Foot, LB, UB;
-    Foot.playerId = character->PCStyle.iPC_UID;
-    Foot.id = character->sOn_Item.iEquipFootID;
-    Foot.Type = 3;
-    Foot.slot = 3;
-    Foot.Opt = 1;
-    Foot.TimeLimit = 0;
-    db.insert(Foot);
-    LB.playerId = character->PCStyle.iPC_UID;
-    LB.id = character->sOn_Item.iEquipLBID;
-    LB.Type = 2;
-    LB.slot = 2;
-    LB.Opt = 1;
-    LB.TimeLimit = 0;
-    db.insert(LB);
-    UB.playerId = character->PCStyle.iPC_UID;
-    UB.id = character->sOn_Item.iEquipUBID;
-    UB.Type = 1;
-    UB.slot = 1;
-    UB.Opt = 1;
-    UB.TimeLimit = 0;
-    db.insert(UB);
+    if (sqlite3_step(stmt) != SQLITE_ROW)
+    {
+        std::cout << "[WARN] Player tried Character Creation on already existing character?!" << std::endl;
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+
+    sql = R"(
+        UPDATE "Players"
+        SET "AppearanceFlag" = 1
+        WHERE "PlayerID" = ?;
+        )";
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, character->PCStyle.iPC_UID);
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sql = R"(
+        UPDATE "Appearances"
+        SET
+        "Body" = ? ,
+        "EyeColor" = ? ,
+        "FaceStyle" = ? ,
+        "Gender" = ? ,
+        "HairColor" = ? ,
+        "HairStyle" = ? ,
+        "Height" = ? ,
+        "SkinColor" = ?
+        WHERE "PlayerID" = ? ;
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+    sqlite3_bind_int(stmt, 1, character->PCStyle.iBody);
+    sqlite3_bind_int(stmt, 2, character->PCStyle.iEyeColor);
+    sqlite3_bind_int(stmt, 3, character->PCStyle.iFaceStyle);
+    sqlite3_bind_int(stmt, 4, character->PCStyle.iGender);
+    sqlite3_bind_int(stmt, 5, character->PCStyle.iHairColor);
+    sqlite3_bind_int(stmt, 6, character->PCStyle.iHairStyle);
+    sqlite3_bind_int(stmt, 7, character->PCStyle.iHeight);
+    sqlite3_bind_int(stmt, 8, character->PCStyle.iSkinColor);
+    sqlite3_bind_int(stmt, 9, character->PCStyle.iPC_UID);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        sqlite3_finalize(stmt);
+        return false;
+    }
+    sqlite3_finalize(stmt);
+
+    sql = R"(
+        INSERT INTO "Inventory"
+        ("PlayerID", "Slot", "Id", "Type", "Opt")
+        VALUES (?, ?, ?, ?, 1);
+        )";
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+    int items[3] = { character->sOn_Item.iEquipUBID, character->sOn_Item.iEquipLBID, character->sOn_Item.iEquipFootID };
+    for (int i = 0; i < 3; i++) {
+        rc = sqlite3_bind_int(stmt, 1, character->PCStyle.iPC_UID);
+        rc = sqlite3_bind_int(stmt, 2, i+1);
+        rc = sqlite3_bind_int(stmt, 3, items[i]);
+        rc = sqlite3_bind_int(stmt, 4, i+1);
+
+        if (sqlite3_step(stmt) != SQLITE_DONE)
+        {
+            sqlite3_finalize(stmt);
+            return false;
+        }
+        sqlite3_reset(stmt);
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+    return true;
 }
 
-void Database::finishTutorial(int PlayerID) {
+bool Database::finishTutorial(int playerID) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    Player finish = getPlayer(PlayerID);
-    // set flag
-    finish.PCStyle2.iTutorialFlag= 1;
-    // add Gun
-    Inventory LightningGun = {};
-    LightningGun.playerId = PlayerID;
-    LightningGun.id = 328;
-    LightningGun.slot = 0;
-    LightningGun.Type = 0;
-    LightningGun.Opt = 1;
-    db.insert(LightningGun);
-    // add Nano
-    Nano Buttercup = {};
-    Buttercup.playerId = PlayerID;
-    Buttercup.iID = 1;
-    Buttercup.iSkillID = 1;
-    Buttercup.iStamina = 150;
-    finish.equippedNanos[0] = 1;
-    db.insert(Buttercup);
-    // save missions
-    MissionManager::saveMission(&finish, 0);
-    MissionManager::saveMission(&finish, 1);
+    const char* sql = R"(
+    SELECT "PlayerID"
+    FROM "Players"
+    WHERE "PlayerID" = ? AND "TutorialFlag" = 0
+    LIMIT 1;        
+    )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, playerID);
 
-    db.update(playerToDb(&finish));
+    if (sqlite3_step(stmt) != SQLITE_ROW)
+    {
+        std::cout << "[WARN] Player tried to finish tutorial on a character that already did?!" << std::endl;
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+
+
+    // Lightning Gun
+    sql = R"(
+    INSERT INTO "Inventory"
+    ("PlayerID", "Slot", "Id", "Type", "Opt")
+    VALUES (?, ?, ?, ?, 1);
+    )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+    sqlite3_bind_int(stmt, 1, playerID);
+    sqlite3_bind_int(stmt, 2, 0);
+    sqlite3_bind_int(stmt, 3, 328);
+    sqlite3_bind_int(stmt, 4, 0);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    // Nano Buttercup
+
+    sql = R"(
+    INSERT INTO "Nanos"
+    ("PlayerID", "Id", "Skill")
+    VALUES (?, ?, ?);
+    )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+    sqlite3_bind_int(stmt, 1, playerID);
+    sqlite3_bind_int(stmt, 2, 1);
+    sqlite3_bind_int(stmt, 3, 1);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sql = R"(
+    UPDATE "Players"
+    SET "TutorialFlag" = 1, 
+    "Nano1" = 1,
+    "Quests" = ?
+    WHERE "PlayerID" = ?;
+    )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+    // save missions nr 1 & 2
+    unsigned char questBuffer[128] = { 0 };
+    questBuffer[0] = 3;
+    sqlite3_bind_blob(stmt, 1, questBuffer, sizeof(questBuffer), 0);
+    sqlite3_bind_int(stmt, 2, playerID);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+    sqlite3_finalize(stmt);
+    return true;
 }
 
 int Database::deleteCharacter(int characterID, int userID) {
