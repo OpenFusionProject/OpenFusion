@@ -85,7 +85,6 @@ namespace Database {
     bool finishTutorial(int playerID);
     // returns slot number
     int deleteCharacter(int characterID, int userID);
-    std::vector <Player> getCharacters(int userID);
     std::vector <sP_LS2CL_REP_CHAR_INFO> getCharInfo(int userID);
     // accepting/declining custom name
     enum class CustomName {
@@ -93,10 +92,10 @@ namespace Database {
         DISAPPROVE = 2
     };
     void evaluateCustomName(int characterID, CustomName decision);
-    void changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save);
+    bool changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save, int accountId);
 
     // getting players
-    Player getPlayer(int id);
+    void getPlayer(Player* plr, int id);
 
     void updatePlayer(Player *player);
     void updateInventory(Player *player);
@@ -104,11 +103,8 @@ namespace Database {
     void updateQuests(Player* player);
     void updateBuddies(Player* player);
 
-    void getInventory(Player* player);
     void removeExpiredVehicles(Player* player);
-    void getNanos(Player* player);
-    void getQuests(Player* player);
-    void getBuddies(Player* player);
+
     int getNumBuddies(Player* player);
 
     // buddies
