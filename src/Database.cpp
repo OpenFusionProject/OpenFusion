@@ -98,11 +98,12 @@ void Database::createTables() {
         "SkywayLocationFlag2"	INTEGER DEFAULT 0 NOT NULL,
         "CurrentMissionID"	    INTEGER DEFAULT 0 NOT NULL,
         PRIMARY KEY("PlayerID" AUTOINCREMENT),
-        FOREIGN KEY("AccountID") REFERENCES "Accounts"("AccountID") ON DELETE CASCADE
+        FOREIGN KEY("AccountID") REFERENCES "Accounts"("AccountID") ON DELETE CASCADE,
+        UNIQUE ("AccountID", "Slot")
         );
 
         CREATE TABLE IF NOT EXISTS "Appearances" (
-        "PlayerID"	INTEGER NOT NULL,
+        "PlayerID"	INTEGER UNIQUE NOT NULL,
         "Body"	    INTEGER DEFAULT 0 NOT NULL,
         "EyeColor"	INTEGER DEFAULT 1 NOT NULL,
         "FaceStyle"	INTEGER DEFAULT 1 NOT NULL,
@@ -120,16 +121,18 @@ void Database::createTables() {
 	    "Id"	    INTEGER NOT NULL,
 	    "Type"	    INTEGER NOT NULL,
 	    "Opt"	    INTEGER NOT NULL,
-	    "TimeLimit"	INTEGER NOT DEFALUT 0 NULL,
-        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
+	    "TimeLimit"	INTEGER DEFAULT 0 NOT NULL,
+        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
+        UNIQUE ("PlayerId", "Slot")
         );
 
         CREATE TABLE IF NOT EXISTS "Nanos" (
 	    "PlayerId"	INTEGER NOT NULL,
 	    "Id"	    INTEGER NOT NULL,
 	    "Skill"	    INTEGER NOT NULL,
-	    "Stamina"	INTEGER DEFAULT = 150 NOT NULL,
-        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
+	    "Stamina"	INTEGER DEFAULT 150 NOT NULL,
+        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
+        UNIQUE ("PlayerId", "Id")
         );
 
         CREATE TABLE IF NOT EXISTS "RunningQuests" (
