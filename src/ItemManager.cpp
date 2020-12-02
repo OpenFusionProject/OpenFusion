@@ -74,9 +74,9 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         case SlotType::INVENTORY:
             fromItem = &plr->Inven[itemmove->iFromSlotNum];
             break;
-        case SlotType::BANK:
+        /*case SlotType::BANK:
             fromItem = &plr->Bank[itemmove->iFromSlotNum];
-            break;
+            break;*/
         default:
             std::cout << "[WARN] MoveItem submitted unknown Item Type?! " << itemmove->eFrom << std::endl;
             return;
@@ -91,9 +91,9 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     case SlotType::INVENTORY:
         toItem = &plr->Inven[itemmove->iToSlotNum];
         break;
-    case SlotType::BANK:
-        toItem = &plr->Bank[itemmove->iToSlotNum];
-        break;
+    //case SlotType::BANK:
+    //    toItem = &plr->Bank[itemmove->iToSlotNum];
+    //    break;
     default:
         std::cout << "[WARN] MoveItem submitted unknown Item Type?! " << itemmove->eTo << std::endl;
         return;
@@ -320,7 +320,7 @@ void ItemManager::itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
     // just send bank inventory
     INITSTRUCT(sP_FE2CL_REP_PC_BANK_OPEN_SUCC, resp);
     for (int i = 0; i < ABANK_COUNT; i++) {
-        resp.aBank[i] = plr->Bank[i];
+        //resp.aBank[i] = plr->Bank[i];
     }
     resp.iExtraBank = 1;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BANK_OPEN_SUCC, sizeof(sP_FE2CL_REP_PC_BANK_OPEN_SUCC));

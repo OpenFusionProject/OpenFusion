@@ -446,7 +446,7 @@ bool Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character) {
 
     sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
     sqlite3_bind_int(stmt, 1, character->PCStyle.iPC_UID);
-    int rc = sqlite3_step(stmt);
+    rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
     if (rc != SQLITE_DONE)
@@ -1394,7 +1394,7 @@ void Database::updateEmailContent(EmailData* data) {
     // TODO: CHANGE THIS TO UPDATE
     sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
-    const char* sql = R"(
+    sql = R"(
         DELETE FROM "EmailData"
         WHERE "PlayerId" = ? AND "MsgIndex" = ?;
         )";
@@ -1403,7 +1403,7 @@ void Database::updateEmailContent(EmailData* data) {
     sqlite3_bind_int(stmt, 2, data->MsgIndex);
     sqlite3_step(stmt);
 
-    const char* sql = R"(
+    sql = R"(
         INSERT INTO "EmailData" 
         ("PlayerId", "MsgIndex", "ReadFlag", "ItemFlag", "SenderId", "SenderFirstName", "SenderLastName",
         "SubjectLine", "MsgBody", "Taros", "SendTime", "DeleteTime"
