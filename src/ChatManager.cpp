@@ -894,6 +894,8 @@ void ChatManager::announcementHandler(CNSocket* sock, CNPacketData* data) {
     default:
         break;
     }
+    
+    std::cout << "[Bcast " << announcement->iAreaType << "] " << PlayerManager::getPlayerName(plr, false) << ": " << U16toU8(msg.szAnnounceMsg) << std::endl;
 }
 
 // we only allow plain ascii, at least for now
