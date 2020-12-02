@@ -183,7 +183,8 @@ void Database::createTables() {
 	    "Id"	    INTEGER NOT NULL,
 	    "Type"	    INTEGER NOT NULL,
 	    "Opt"	    INTEGER NOT NULL,
-	    "TimeLimit"	INTEGER NOT NULL
+	    "TimeLimit"	INTEGER NOT NULL,
+        UNIQUE ("MsgIndex", "Slot")
         );
 
         CREATE TABLE IF NOT EXISTS "RaceResults"(
@@ -1249,11 +1250,15 @@ void Database::removeBuddyship(int playerA, int playerB) {
 int Database::getUnreadEmailCount(int playerID) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    auto emailData = db.get_all<Database::EmailData>(
-        where(c(&Database::EmailData::PlayerId) == playerID && c(&Database::EmailData::ReadFlag) == 0)
-        );
-
-    return emailData.size();
+    const char* sql = R"(
+        SELECT COUNT (*) FROM "EmailData"
+        WHERE "PlayerId" = ? AND "ReadFlag" = 0;
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, playerID);
+    sqlite3_step(stmt);
+    return sqlite3_column_int(stmt, 0);
 }
 
 std::vector<Database::EmailData> Database::getEmails(int playerID, int page) {
@@ -1261,17 +1266,38 @@ std::vector<Database::EmailData> Database::getEmails(int playerID, int page) {
     
     std::vector<Database::EmailData> emails;
 
-    auto emailData = db.get_all<Database::EmailData>(
-        where(c(&Database::EmailData::PlayerId) == playerID),
-        order_by(&Database::EmailData::MsgIndex).desc(),
-        limit(5 * (page - 1), 5)
-        );
+    const char* sql = R"(
+        SELECT "MsgIndex", "ItemFlag", "ReadFlag", "SenderId", "SenderFirstName", "SenderLastName", "SubjectLine", "MsgBody", 
+        "Taros", "SendTime", "DeleteTime" 
+        FROM "EmailData" 
+        WHERE "PlayerId" = ?
+        ORDER BY "MsgIndex" DESC
+        LIMIT 5
+        OFFSET ?;
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, playerID);
+    int offset = 5 * page - 5;
+    sqlite3_bind_int(stmt, 2, offset);
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        Database::EmailData toAdd;
+        toAdd.PlayerId = playerID;
+        toAdd.MsgIndex = sqlite3_column_int(stmt, 0);
+        toAdd.ItemFlag = sqlite3_column_int(stmt, 1);
+        toAdd.ReadFlag = sqlite3_column_int(stmt, 2);
+        toAdd.SenderId = sqlite3_column_int(stmt, 3);
+        toAdd.SenderFirstName = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)));
+        toAdd.SenderLastName = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)));
+        toAdd.SubjectLine = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)));
+        toAdd.MsgBody = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7)));
+        toAdd.Taros = sqlite3_column_int(stmt, 8);
+        toAdd.SendTime = sqlite3_column_int64(stmt, 9);
+        toAdd.DeleteTime = sqlite3_column_int64(stmt, 10);
 
-    int i = 0;
-    for (Database::EmailData email : emailData) {
-        emails.push_back(email);
-        i++;
+        emails.push_back(toAdd);
     }
+    sqlite3_finalize(stmt);
 
     return emails;
 }
@@ -1279,14 +1305,42 @@ std::vector<Database::EmailData> Database::getEmails(int playerID, int page) {
 Database::EmailData Database::getEmail(int playerID, int index) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    auto emailData = db.get_all<Database::EmailData>(
-        where(c(&Database::EmailData::PlayerId) == playerID && c(&Database::EmailData::MsgIndex) == index)
-        );
+    const char* sql = R"(
+        SELECT "ItemFlag", "ReadFlag", "SenderId", "SenderFirstName", "SenderLastName", "SubjectLine", "MsgBody", 
+        "Taros", "SendTime", "DeleteTime" 
+        FROM "EmailData" 
+        WHERE "PlayerId" = ? AND "MsgIndex" = ?;
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, playerID);
+    sqlite3_bind_int(stmt, 2, index);
 
-    if (emailData.size() > 1)
-        std::cout << "[WARN] Duplicate emails detected (player " << playerID << ", index " << index << ")" << std::endl;
+    Database::EmailData result;
+    if (sqlite3_step(stmt) != SQLITE_ROW) {
+        std::cout << "[WARN] Database: Email not found!" << std::endl;
+        sqlite3_finalize(stmt);
+        return result;
+    }
 
-    return emailData.at(0);
+    result.PlayerId = playerID;
+    result.MsgIndex = index;
+    result.ItemFlag = sqlite3_column_int(stmt, 0);
+    result.ReadFlag = sqlite3_column_int(stmt, 1);
+    result.SenderId = sqlite3_column_int(stmt, 2);
+    result.SenderFirstName = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+    result.SenderLastName = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4)));
+    result.SubjectLine = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)));
+    result.MsgBody = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6)));
+    result.Taros = sqlite3_column_int(stmt, 7);
+    result.SendTime = sqlite3_column_int64(stmt, 8);
+    result.DeleteTime = sqlite3_column_int64(stmt, 9);
+
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+        std::cout << "[WARN] Database: Player has multiple emails with the same index ?!" << std::endl;
+
+    sqlite3_finalize(stmt);
+    return result;
 }
 
 sItemBase* Database::getEmailAttachments(int playerID, int index) {
@@ -1294,106 +1348,221 @@ sItemBase* Database::getEmailAttachments(int playerID, int index) {
 
     sItemBase* items = new sItemBase[4];
     for (int i = 0; i < 4; i++)
-        items[i] = { 0, 0, 0, 0 }; // zero out items
+        items[i] = { 0, 0, 0, 0 };
 
-    auto attachments = db.get_all<Database::EmailItem>(
-        where(c(&Database::EmailItem::PlayerId) == playerID && c(&Database::EmailItem::MsgIndex) == index)
-        );
+    const char* sql = R"(
+        SELECT "Slot", "Id", "Type", "Opt", "TimeLimit" 
+        FROM "EmailItems"
+        WHERE "PlayerId" = ? AND "MsgIndex" = ?;
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, playerID);
+    sqlite3_bind_int(stmt, 2, index);
 
-    if (attachments.size() > 4)
-        std::cout << "[WARN] Email has too many attachments (player " << playerID << ", index " << index << ")" << std::endl;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int slot = sqlite3_column_int(stmt, 0) - 1;
+        if (slot < 0 || slot > 3) {
+            std::cout << "[WARN] Email item has invalid slot number ?!" << std::endl;
+            continue;
+        }
 
-    for (Database::EmailItem& item : attachments) {
-        items[item.Slot - 1] = { item.Type, item.Id, item.Opt, item.TimeLimit };
+        items[slot].iID = sqlite3_column_int(stmt, 1);
+        items[slot].iType = sqlite3_column_int(stmt, 2);
+        items[slot].iOpt = sqlite3_column_int(stmt, 3);
+        items[slot].iTimeLimit = sqlite3_column_int(stmt, 4);
     }
-
+    
     return items;
 }
 
 void Database::updateEmailContent(EmailData* data) {
     std::lock_guard<std::mutex> lock(dbCrit);
+    
+    const char* sql = R"(
+        SELECT COUNT(*) FROM "EmailItems"
+        WHERE "PlayerId" = ? AND "MsgIndex" = ?;
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, data->PlayerId);
+    sqlite3_bind_int(stmt, 2, data->MsgIndex);
+    sqlite3_step(stmt);
+    int attachmentsCount = sqlite3_column_int(stmt, 0);
 
-    db.begin_transaction();
+    data->ItemFlag = (data->Taros > 0 || attachmentsCount > 0) ? 1 : 0; // set attachment flag dynamically
+    // TODO: CHANGE THIS TO UPDATE
+    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
-    auto attachments = db.get_all<Database::EmailItem>(
-        where(c(&Database::EmailItem::PlayerId) == data->PlayerId && c(&Database::EmailItem::MsgIndex) == data->MsgIndex)
-        );
-    data->ItemFlag = (data->Taros > 0 || attachments.size() > 0) ? 1 : 0; // set attachment flag dynamically
+    const char* sql = R"(
+        DELETE FROM "EmailData"
+        WHERE "PlayerId" = ? AND "MsgIndex" = ?;
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, data->PlayerId);
+    sqlite3_bind_int(stmt, 2, data->MsgIndex);
+    sqlite3_step(stmt);
 
-    db.remove_all<Database::EmailData>(
-        where(c(&Database::EmailData::PlayerId) == data->PlayerId && c(&Database::EmailData::MsgIndex) == data->MsgIndex)
-        );
-    db.insert(*data);
+    const char* sql = R"(
+        INSERT INTO "EmailData" 
+        ("PlayerId", "MsgIndex", "ReadFlag", "ItemFlag", "SenderId", "SenderFirstName", "SenderLastName",
+        "SubjectLine", "MsgBody", "Taros", "SendTime", "DeleteTime"
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, data->PlayerId);
+    sqlite3_bind_int(stmt, 2, data->MsgIndex);
+    sqlite3_bind_int(stmt, 3, data->ReadFlag);
+    sqlite3_bind_int(stmt, 4, data->ItemFlag);
+    sqlite3_bind_int(stmt, 5, data->SenderId);
+    sqlite3_bind_text(stmt, 6, data->SenderFirstName.c_str(), -1, 0);
+    sqlite3_bind_text(stmt, 7, data->SenderLastName.c_str(), -1, 0);
+    sqlite3_bind_text(stmt, 8, data->SubjectLine.c_str(), -1, 0);
+    sqlite3_bind_text(stmt, 9, data->MsgBody.c_str(), -1, 0);
+    sqlite3_bind_int(stmt, 10, data->Taros);
+    sqlite3_bind_int64(stmt, 11, data->SendTime);
+    sqlite3_bind_int64(stmt, 12, data->DeleteTime);
 
-    db.commit();
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+        std::cout << "[WARN] Database: failed to update email" << std::endl;
+
+    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+    sqlite3_finalize(stmt);
 }
 
 void Database::deleteEmailAttachments(int playerID, int index, int slot) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    db.begin_transaction();
+    sqlite3_stmt* stmt;
 
     if (slot == -1) { // delete all
-        db.remove_all<Database::EmailItem>(
-            where(c(&Database::EmailItem::PlayerId) == playerID && c(&Database::EmailItem::MsgIndex) == index)
-            );
+        const char* sql = R"(
+            DELETE FROM "EmailItems"
+            WHERE "PlayerId" = ? AND "MsgIndex" = ?;
+            )";
+        sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+        sqlite3_bind_int(stmt, 1, playerID);
+        sqlite3_bind_int(stmt, 2, index);
+        if (sqlite3_step(stmt) != SQLITE_DONE)
+            std::cout << "[wARN] Database: Failed to delete email attachemtns" << std::endl;
+    
     } else { // delete single by comparing slot num
-        db.remove_all<Database::EmailItem>(
-            where(c(&Database::EmailItem::PlayerId) == playerID && c(&Database::EmailItem::MsgIndex) == index
-                && c(&Database::EmailItem::Slot) == slot)
-            );
+        const char* sql = R"(
+            DELETE FROM "EmailItems"
+            WHERE "PlayerId" = ? AND "MsgIndex" = ? AND "Slot" = ?;
+            )";
+        sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+        sqlite3_bind_int(stmt, 1, playerID);
+        sqlite3_bind_int(stmt, 2, index);
+        sqlite3_bind_int(stmt, 3, slot);
+        if (sqlite3_step(stmt) != SQLITE_DONE)
+            std::cout << "[wARN] Database: Failed to delete email attachemtns" << std::endl;
     }
-
-    db.commit();
+    sqlite3_finalize(stmt);
 }
 
 void Database::deleteEmails(int playerID, int64_t* indices) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    db.begin_transaction();
+    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+    sqlite3_stmt* stmt;
+
+    const char* sql = R"(
+        DELETE FROM "EmailData"
+        WHERE "PlayerId" = ? AND "MsgIndex" = ?;
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
 
     for (int i = 0; i < 5; i++) {
-        db.remove_all<Database::EmailData>(
-            where(c(&Database::EmailData::PlayerId) == playerID && c(&Database::EmailData::MsgIndex) == indices[i])
-            ); // no need to check if the index is 0, since an email will never have index < 1
+        sqlite3_bind_int(stmt, 1, playerID);
+        sqlite3_bind_int64(stmt, 2, indices[i]);
+        sqlite3_step(stmt);
+        sqlite3_reset(stmt);
     }
+    sqlite3_finalize(stmt);
 
-    db.commit();
+    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
 }
 
 int Database::getNextEmailIndex(int playerID) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    auto emailData = db.get_all<Database::EmailData>(
-        where(c(&Database::EmailData::PlayerId) == playerID),
-        order_by(&Database::EmailData::MsgIndex).desc(),
-        limit(1)
-        );
+    const char* sql = R"(
+        SELECT "MsgIndex" FROM "EmailData"
+        WHERE "PlayerId" = ?
+        ORDER BY "MsgIndex" DESC
+        LIMIT 1
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, playerID);
+    sqlite3_step(stmt);
+    int index = sqlite3_column_int(stmt, 0);
 
-    return (emailData.size() > 0 ? emailData.at(0).MsgIndex + 1 : 1);
+    return (index > 0 ? index + 1 : 1);
 }
 
 void Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    db.begin_transaction();
+    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
-    db.insert(*data); // add email data to db
-    // add email attachments to db email inventory
-    int slot = 1;
-    for (sItemBase item : attachments) {
-        EmailItem dbItem = {
-            data->PlayerId,
-            data->MsgIndex,
-            slot++,
-            item.iType,
-            item.iID,
-            item.iOpt,
-            item.iTimeLimit
-        };
-        db.insert(dbItem);
+    const char* sql = R"(
+        INSERT INTO "EmailData" 
+        ("PlayerId", "MsgIndex", "ReadFlag", "ItemFlag", "SenderId", "SenderFirstName", "SenderLastName",
+        "SubjectLine", "MsgBody", "Taros", "SendTime", "DeleteTime"
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        )";
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, data->PlayerId);
+    sqlite3_bind_int(stmt, 2, data->MsgIndex);
+    sqlite3_bind_int(stmt, 3, data->ReadFlag);
+    sqlite3_bind_int(stmt, 4, data->ItemFlag);
+    sqlite3_bind_int(stmt, 5, data->SenderId);
+    sqlite3_bind_text(stmt, 6, data->SenderFirstName.c_str(), -1, 0);
+    sqlite3_bind_text(stmt, 7, data->SenderLastName.c_str(), -1, 0);
+    sqlite3_bind_text(stmt, 8, data->SubjectLine.c_str(), -1, 0);
+    sqlite3_bind_text(stmt, 9, data->MsgBody.c_str(), -1, 0);
+    sqlite3_bind_int(stmt, 10, data->Taros);
+    sqlite3_bind_int64(stmt, 11, data->SendTime);
+    sqlite3_bind_int64(stmt, 12, data->DeleteTime);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        std::cout << "[WARN] Database: Failed to send email" << std::endl;
+        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+        sqlite3_finalize(stmt);
+        return;
     }
 
-    db.commit();
+    int slot = 1;
+    for (sItemBase item : attachments) {
+        sql = R"(
+            INSERT INTO EmailItems
+            ("PlayerId", "MsgIndex", "Slot", "Id", "Type", "Opt", "TimeLimit")
+            VALUES (?, ?, ?, ?, ?, ?, ?);
+            )";
+        sqlite3_stmt* stmt;
+
+        sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+        sqlite3_bind_int(stmt, 1, data->PlayerId);
+        sqlite3_bind_int(stmt, 2, data->MsgIndex);
+        sqlite3_bind_int(stmt, 3, slot++);
+        sqlite3_bind_int(stmt, 4, item.iID);
+        sqlite3_bind_int(stmt, 5, item.iType);
+        sqlite3_bind_int(stmt, 6, item.iOpt);
+        sqlite3_bind_int(stmt, 7, item.iTimeLimit);
+
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
+            std::cout << "[WARN] Database: Failed to send email" << std::endl;
+            sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+            sqlite3_finalize(stmt);
+            return;
+        }
+        sqlite3_reset(stmt);
+    }
+    sqlite3_finalize(stmt);
+    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
 }
 
