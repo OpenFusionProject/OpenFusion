@@ -644,71 +644,75 @@ int Database::deleteCharacter(int characterID, int userID) {
     return slot;
 }
 
-std::vector <Player> Database::getCharacters(int UserID) {
-    std::lock_guard<std::mutex> lock(dbCrit);
-
-    std::vector<DbPlayer>characters =
-        db.get_all<DbPlayer>(where
-        (c(&DbPlayer::AccountID) == UserID));
-    // parsing DbPlayer to Player
-    std::vector<Player> result = std::vector<Player>();
-    for (auto &character : characters) {
-        Player toadd = DbToPlayer(character);
-        result.push_back(
-            toadd
-        );
-    }
-    return result;
-}
-
 std::vector <sP_LS2CL_REP_CHAR_INFO> Database::getCharInfo(int userID) {
+    std::vector<sP_LS2CL_REP_CHAR_INFO> result = std::vector<sP_LS2CL_REP_CHAR_INFO>();
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    std::vector<DbPlayer>characters =
-        db.get_all<DbPlayer>(where
-        (c(&DbPlayer::AccountID) == userID));
+    const char* sql = R"(
+        SELECT p.PlayerID, p.Slot, p.Firstname, p.LastName, p.Level, p.AppearanceFlag, p.TutorialFlag, p.PayZoneFlag,
+        p.XCoordinates, p.YCoordinates, p.ZCoordinates, p.NameCheck,
+        a.Body, a.EyeColor, a.FaceStyle, a.Gender, a.HairColor, a.HairStyle, a.Height, a.SkinColor  
+        FROM "Players" as p 
+        INNER JOIN "Appearances" as a ON p.PlayerID = a.PlayerID
+        WHERE p.AccountID = ?
+        )";
+    sqlite3_stmt* stmt;
 
-    std::vector<sP_LS2CL_REP_CHAR_INFO> result = std::vector<sP_LS2CL_REP_CHAR_INFO>();
-    for (auto& character : characters) {
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, userID);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
         sP_LS2CL_REP_CHAR_INFO toAdd = {};
-        toAdd.iX = character.x_coordinates;
-        toAdd.iY = character.y_coordinates;
-        toAdd.iZ = character.z_coordinates;
-        toAdd.iLevel = character.Level;
-        toAdd.iSlot =  character.slot;
-        toAdd.sPC_Style.iBody =      character.Body;
-        toAdd.sPC_Style.iClass =     character.Class;
-        toAdd.sPC_Style.iEyeColor =  character.EyeColor;
-        toAdd.sPC_Style.iFaceStyle = character.FaceStyle;
-        toAdd.sPC_Style.iGender =    character.Gender;
-        toAdd.sPC_Style.iHairColor = character.HairColor;
-        toAdd.sPC_Style.iHairStyle = character.HairStyle;
-        toAdd.sPC_Style.iHeight =    character.Height;
-        toAdd.sPC_Style.iNameCheck = character.NameCheck;
-        toAdd.sPC_Style.iPC_UID =    character.PlayerID;
-        toAdd.sPC_Style.iSkinColor = character.SkinColor;
-        U8toU16(character.FirstName, toAdd.sPC_Style.szFirstName, sizeof(toAdd.sPC_Style.szFirstName));
-        U8toU16(character.LastName,  toAdd.sPC_Style.szLastName,  sizeof(toAdd.sPC_Style.szLastName));
-        toAdd.sPC_Style2.iAppearanceFlag = character.AppearanceFlag;
-        toAdd.sPC_Style2.iPayzoneFlag =    character.PayZoneFlag;
-        toAdd.sPC_Style2.iTutorialFlag =   character.TutorialFlag;
+        toAdd.sPC_Style.iPC_UID = sqlite3_column_int(stmt, 0);
+        toAdd.iSlot = sqlite3_column_int(stmt, 1);
 
-        //get equipment
-        auto items = db.get_all<Inventory>(
-            where(c(&Inventory::playerId) == character.PlayerID && c(&Inventory::slot) < AEQUIP_COUNT));
+        // parsing const unsigned char* to char16_t 
+        std::string placeHolder = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+        U8toU16(placeHolder, toAdd.sPC_Style.szFirstName, sizeof(toAdd.sPC_Style.szFirstName));
+        placeHolder = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+        U8toU16(placeHolder, toAdd.sPC_Style.szLastName, sizeof(toAdd.sPC_Style.szLastName));
+    
+        toAdd.iLevel = sqlite3_column_int(stmt, 4);
+        toAdd.sPC_Style2.iAppearanceFlag = sqlite3_column_int(stmt, 5);
+        toAdd.sPC_Style2.iTutorialFlag = sqlite3_column_int(stmt, 6);
+        toAdd.sPC_Style2.iPayzoneFlag = sqlite3_column_int(stmt, 7);
+        toAdd.iX = sqlite3_column_int(stmt, 8);
+        toAdd.iY = sqlite3_column_int(stmt, 9);
+        toAdd.iZ = sqlite3_column_int(stmt, 10);
+        toAdd.sPC_Style.iNameCheck = sqlite3_column_int(stmt, 11);
+        toAdd.sPC_Style.iBody = sqlite3_column_int(stmt, 12);
+        toAdd.sPC_Style.iEyeColor = sqlite3_column_int(stmt, 13);
+        toAdd.sPC_Style.iFaceStyle = sqlite3_column_int(stmt, 14);
+        toAdd.sPC_Style.iGender = sqlite3_column_int(stmt, 15);
+        toAdd.sPC_Style.iHairColor = sqlite3_column_int(stmt, 16);
+        toAdd.sPC_Style.iHairStyle = sqlite3_column_int(stmt, 17);
+        toAdd.sPC_Style.iHeight = sqlite3_column_int(stmt, 18);
+        toAdd.sPC_Style.iSkinColor = sqlite3_column_int(stmt, 19);
 
-        for (auto& item : items) {
-            sItemBase addItem = {};
-            addItem.iID = item.id;
-            addItem.iType = item.Type;
-            addItem.iOpt = item.Opt;
-            addItem.iTimeLimit = item.TimeLimit;
-            toAdd.aEquip[item.slot] = addItem;
+        // request aEquip
+        const char* sql2 = R"(
+            SELECT "Slot", "Type", "Id", "Opt", "TimeLimit" from Inventory
+            WHERE "PlayerID" = ? AND "Slot"<9
+            )";
+        sqlite3_stmt* stmt2;
+
+        sqlite3_prepare_v2(db, sql2, -1, &stmt2, 0);
+        sqlite3_bind_int(stmt2, 1, toAdd.sPC_Style.iPC_UID);
+
+        while (sqlite3_step(stmt2) == SQLITE_ROW) {
+            sItemBase* item = &toAdd.aEquip[sqlite3_column_int(stmt2, 0)];
+            item->iType = sqlite3_column_int(stmt2, 1);
+            item->iID = sqlite3_column_int(stmt2, 2);
+            item->iOpt = sqlite3_column_int(stmt2, 3);
+            item->iTimeLimit = sqlite3_column_int(stmt2, 4);
         }
+        sqlite3_finalize(stmt2);
 
         result.push_back(toAdd);
     }
+    sqlite3_finalize(stmt);
     return result;
+
 }
 
 // XXX: This is never called?
