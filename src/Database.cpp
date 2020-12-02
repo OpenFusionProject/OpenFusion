@@ -719,9 +719,19 @@ std::vector <sP_LS2CL_REP_CHAR_INFO> Database::getCharInfo(int userID) {
 void Database::evaluateCustomName(int characterID, CustomName decision) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    DbPlayer player = getDbPlayerById(characterID);
-    player.NameCheck = (int)decision;
-    db.update(player);
+    const char* sql = R"(
+    UPDATE "Players"
+    SET "NameCheck" = ?
+    WHERE "PlayerID" = ?;
+    )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, int(decision));
+    sqlite3_bind_int(stmt, 2, characterID);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+        std::cout << "[WARN] Database: Failed to update nameCheck" << std::endl;
+    sqlite3_finalize(stmt);
 }
 
 void Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save) {
