@@ -326,7 +326,7 @@ void CNLoginServer::characterCreate(CNSocket* sock, CNPacketData* data) {
 
     Database::finishCharacter(character);
 
-    Player player;
+    Player player = {};
     Database::getPlayer(&player, character->PCStyle.iPC_UID);
 
     INITSTRUCT(sP_LS2CL_REP_CHAR_CREATE_SUCC, resp);
@@ -404,7 +404,7 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
     resp.g_FE_ServerPort = settings::SHARDPORT;
     
     // pass player to CNSharedData
-    Player passPlayer;
+    Player passPlayer = {};
     Database::getPlayer(&passPlayer, selection->iPC_UID);
     passPlayer.FEKey = sock->getFEKey();
     resp.iEnterSerialKey = passPlayer.iID;
@@ -487,7 +487,7 @@ void CNLoginServer::duplicateExit(CNSocket* sock, CNPacketData* data) {
     // TODO: FIX THIS PACKET
 
     sP_CL2LS_REQ_PC_EXIT_DUPLICATE* exit = (sP_CL2LS_REQ_PC_EXIT_DUPLICATE*)data->buf;
-    Database::Account account;
+    Database::Account account = {};
     Database::findAccount(&account, U16toU8(exit->szID));
 
     // sanity check

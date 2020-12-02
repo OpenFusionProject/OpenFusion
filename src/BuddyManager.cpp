@@ -64,7 +64,7 @@ void BuddyManager::refreshBuddyList(CNSocket* sock) {
         int64_t buddyID = plr->buddyIDs[i];
         if (buddyID != 0) {
             sBuddyBaseInfo buddyInfo = {};
-            Player buddyPlayerData;
+            Player buddyPlayerData = {};
             Database::getPlayer(&buddyPlayerData, buddyID);
             if (buddyPlayerData.iID == 0)
                 continue;
@@ -674,7 +674,7 @@ void BuddyManager::emailSend(CNSocket* sock, CNPacketData* data) {
         U16toU8(plr->PCStyle.szFirstName), // SenderFirstName
         U16toU8(plr->PCStyle.szLastName), // SenderLastName
         ChatManager::sanitizeText(U16toU8(pkt->szSubject)), // SubjectLine
-        ChatManager::sanitizeText(U16toU8(pkt->szContent), true), // MsgBody
+        ChatManager::sanitizeText(U16toU8(pkt->szContent)), // MsgBody
         pkt->iCash, // Taros
         (uint64_t)getTimestamp(), // SendTime
         0 // DeleteTime (unimplemented)
