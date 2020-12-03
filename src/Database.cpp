@@ -1544,7 +1544,7 @@ void Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
     const char* sql = R"(
         INSERT INTO "EmailData" 
         ("PlayerId", "MsgIndex", "ReadFlag", "ItemFlag", "SenderId", "SenderFirstName", "SenderLastName",
-        "SubjectLine", "MsgBody", "Taros", "SendTime", "DeleteTime"
+        "SubjectLine", "MsgBody", "Taros", "SendTime", "DeleteTime")
         VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         )";
     sqlite3_stmt* stmt;
