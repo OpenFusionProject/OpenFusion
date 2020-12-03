@@ -44,6 +44,7 @@ struct Player {
     uint64_t instanceID;
     sItemBase Equip[AEQUIP_COUNT];
     sItemBase Inven[AINVEN_COUNT];
+    sItemBase Bank[ABANK_COUNT];
     sItemTrade Trade[12];
     int32_t moneyInTrade;
     bool isTrading;
