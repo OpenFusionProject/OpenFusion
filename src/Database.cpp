@@ -968,7 +968,8 @@ void Database::updatePlayer(Player *player) {
         "XCoordinates" = ?, "YCoordinates" = ?, "ZCoordinates" = ?,
         "Angle" = ?, "HP" = ?, "FusionMatter" = ?, "Taros" = ?, "Quests" = ?,
         "BatteryW" = ?, "BatteryN" = ?, "WarplocationFlag" = ?,
-        "SkywayLocationFlag1" = ?, "SkywayLocationFlag2" = ?, "CurrentMissionID" = ?
+        "SkywayLocationFlag1" = ?, "SkywayLocationFlag2" = ?, "CurrentMissionID" = ?,
+        "PayZoneFlag" = ?
         WHERE "PlayerID" = ?
         )";
     sqlite3_stmt* stmt;
@@ -977,10 +978,20 @@ void Database::updatePlayer(Player *player) {
     sqlite3_bind_int(stmt, 2, player->equippedNanos[0]);
     sqlite3_bind_int(stmt, 3, player->equippedNanos[1]);
     sqlite3_bind_int(stmt, 4, player->equippedNanos[2]);
-    sqlite3_bind_int(stmt, 5, player->x);
-    sqlite3_bind_int(stmt, 6, player->y);
-    sqlite3_bind_int(stmt, 7, player->z);
-    sqlite3_bind_int(stmt, 8, player->angle);
+
+    if (player->instanceID == 0 && !player->onMonkey) {
+        sqlite3_bind_int(stmt, 5, player->x);
+        sqlite3_bind_int(stmt, 6, player->y);
+        sqlite3_bind_int(stmt, 7, player->z);
+        sqlite3_bind_int(stmt, 8, player->angle);
+    }
+    else {
+        sqlite3_bind_int(stmt, 5, player->lastX);
+        sqlite3_bind_int(stmt, 6, player->lastY);
+        sqlite3_bind_int(stmt, 7, player->lastZ);
+        sqlite3_bind_int(stmt, 8, player->lastAngle);
+    }
+
     sqlite3_bind_int(stmt, 9, player->HP);
     sqlite3_bind_int(stmt, 10, player->fusionmatter);
     sqlite3_bind_int(stmt, 11, player->money);
@@ -991,7 +1002,8 @@ void Database::updatePlayer(Player *player) {
     sqlite3_bind_int64(stmt, 16, player->aSkywayLocationFlag[0]);
     sqlite3_bind_int64(stmt, 17, player->aSkywayLocationFlag[1]);
     sqlite3_bind_int(stmt, 18, player->CurrentMissionID);
-    sqlite3_bind_int(stmt, 19, player->iID);
+    sqlite3_bind_int(stmt, 19, player->PCStyle2.iPayzoneFlag);
+    sqlite3_bind_int(stmt, 20, player->iID);
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
