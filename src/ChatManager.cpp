@@ -745,6 +745,107 @@ void lairUnlockCommand(std::string full, std::vector<std::string>& args, CNSocke
     sock->sendPacket((void*)&missionResp, P_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, sizeof(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID));
 }
 
+void bringPlayer(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player* plr = PlayerManager::getPlayer(sock);
+    std::string name = args[1].c_str() + std::string(" ") + args[2].c_str();
+    Player* desiredPlr = PlayerManager::getPlayerFromName(name);
+    if (desiredPlr == nullptr || !PlayerManager::isPlayerOnline(desiredPlr)) {
+        ChatManager::sendServerMessage(sock, "Wrong name or player is offline!");
+        return;
+    }
+    CNSocket* otherSock = PlayerManager::getSockFromID(desiredPlr->iID);
+    PlayerManager::sendPlayerTo(otherSock, plr->x, plr->y, plr->z);
+    DEBUGLOG(std::cout << PlayerManager::getPlayerName(plr, false) << " summoned " << name << " to their location, coords: "
+        << plr->x << ", " << plr->y << ", " << plr->z << std::endl;)
+}
+
+void goToPlayer(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player* plr = PlayerManager::getPlayer(sock);
+    std::string name = args[1].c_str() + std::string(" ") + args[2].c_str();
+    Player* desiredPlr = PlayerManager::getPlayerFromName(name);
+    if (desiredPlr == nullptr || !PlayerManager::isPlayerOnline(desiredPlr)) {
+        ChatManager::sendServerMessage(sock, "Wrong name or player is offline!");
+        return;
+    }
+    PlayerManager::sendPlayerTo(sock, plr->x, plr->y, plr->z);
+    DEBUGLOG(std::cout << PlayerManager::getPlayerName(plr, false) << " went to " << name << "'s location, coords: "
+        << plr->x << ", " << plr->y << ", " << plr->z << std::endl;)
+}
+
+void kickPlayer(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player* plr = PlayerManager::getPlayer(sock);
+    std::string kickerName = PlayerManager::getPlayerName(plr, false); // in case someone kicks themselves intentionally or by mistake
+    std::string name = args[1].c_str() + std::string(" ") + args[2].c_str();
+    Player* desiredPlr = PlayerManager::getPlayerFromName(name);
+    if (desiredPlr == nullptr || !PlayerManager::isPlayerOnline(desiredPlr)) {
+        ChatManager::sendServerMessage(sock, "Wrong name or player is offline!");
+        return;
+    }
+    else if (desiredPlr->accountLevel < plr->accountId) {
+        ChatManager::sendServerMessage(sock, "Nice try, you can't kick someone higher in rank than you!");
+        return;
+    }
+    else if (plr == desiredPlr) {
+        ChatManager::sendServerMessage(sock, "You can't kick yourself!");
+        return;
+    }
+    CNSocket* otherSock = PlayerManager::getSockFromID(desiredPlr->iID);
+    
+    INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
+    std::string reason;
+    std::string announce;
+    msg.iAnnounceType = 3;
+    msg.iDuringTime = 30;
+    if (args.size() < 3)
+        announce = "You were kicked.";
+    else {
+        reason = args[3].c_str();
+        announce = "You were kicked, reason is: " + reason + ".";
+    }
+    U8toU16(announce, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
+    otherSock->sendPacket((void*)&msg, P_FE2CL_GM_REP_PC_ANNOUNCE, sizeof(sP_FE2CL_GM_REP_PC_ANNOUNCE));
+    otherSock->kill();
+    CNShardServer::_killConnection(otherSock);
+
+    DEBUGLOG(std::cout << PlayerManager::getPlayerName(plr, false) << " kicked " << name << " with reason: "
+        << reason << std::endl;)
+}
+
+void sendPlayerTo(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    char* rest;
+    int x = std::strtol(args[3].c_str(), &rest, 10) * 100;
+    int y = std::strtol(args[4].c_str(), &rest, 10) * 100;
+    int z = std::strtol(args[5].c_str(), &rest, 10) * 100;
+    std::string name = args[1].c_str() + std::string(" ") + args[2].c_str();
+    Player* plr = PlayerManager::getPlayer(sock);
+    Player* desiredPlr = PlayerManager::getPlayerFromName(name);
+    if (desiredPlr == nullptr || !PlayerManager::isPlayerOnline(desiredPlr)) {
+        ChatManager::sendServerMessage(sock, "Wrong name!");
+        return;
+    }
+    CNSocket* otherSock = PlayerManager::getSockFromID(desiredPlr->iID);
+    PlayerManager::sendPlayerTo(otherSock, x, y, z);
+    DEBUGLOG(std::cout << PlayerManager::getPlayerName(plr, false) << " warped " << name << " to coords: "
+        << x << ", " << y << ", " << z << std::endl;)
+}
+
+void promoteToGM(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    std::string name = args[1].c_str() + std::string(" ") + args[2].c_str();
+    Player* plr = PlayerManager::getPlayer(sock);
+    Player* desiredPlr = PlayerManager::getPlayerFromName(name);
+    char* rest;
+    int accLvl = std::strtol(args[3].c_str(), &rest, 10);
+    if (accLvl < plr->accountLevel) {
+        ChatManager::sendServerMessage(sock, "You can't promote someone to a rank higher than you hold!");
+        return;
+    }
+    else if (desiredPlr->accountLevel < plr->accountLevel) {
+        ChatManager::sendServerMessage(sock, "You can't edit someone with a rank higher than you hold!");
+        return;
+    }
+    desiredPlr->accountLevel = accLvl;
+}
+
 void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
@@ -774,6 +875,11 @@ void ChatManager::init() {
     registerCommand("summonGroupW", 30, summonGroupCommand, "permanently summon group NPCs");
     registerCommand("whois", 50, whoisCommand, "describe nearest NPC");
     registerCommand("lair", 50, lairUnlockCommand, "get the required mission for the nearest fusion lair");
+    registerCommand("bring", 30, bringPlayer, "Warps desired player to your location.");
+    registerCommand("gotoplayer", 30, goToPlayer, "Warps you to desired player");
+    registerCommand("sendto", 30, sendPlayerTo, "Sends player to desired coordinates.");
+    registerCommand("kick", 30, kickPlayer, "Kicks selected player.");
+    registerCommand("gm", 50, promoteToGM, "Changes user account level.");
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {

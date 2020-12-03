@@ -895,6 +895,13 @@ WarpLocation* PlayerManager::getRespawnPoint(Player *plr) {
     return best;
 }
 
+bool PlayerManager::isPlayerOnline(Player* plr) {
+    for (auto pair : PlayerManager::players)
+        if (pair.second == plr)
+            return true;
+    return false;
+}
+
 bool PlayerManager::isAccountInUse(int accountId) {
     std::map<CNSocket*, Player*>::iterator it;
     for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++) {
@@ -960,5 +967,13 @@ CNSocket *PlayerManager::getSockFromID(int32_t iID) {
             return pair.first;
 
     return nullptr;
+}
+
+Player* PlayerManager::getPlayerFromName(std::string name) {
+    for (auto& pair : PlayerManager::players)
+        if (getPlayerName(pair.second,false) == name)
+            return pair.second;
+    return nullptr;
+
 }
 #pragma endregion
