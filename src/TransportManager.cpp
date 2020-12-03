@@ -218,13 +218,13 @@ void TransportManager::stepSkywaySystem() {
 
         std::queue<WarpLocation>* queue = &it->second;
 
-        Player* plr = PlayerManager::getPlayer(it->first);
-
-        if (plr == nullptr) {
+        if (PlayerManager::players.find(it->first) == PlayerManager::players.end()) {
             // pluck out dead socket + update iterator
             it = SkywayQueues.erase(it);
             continue;
         }
+
+        Player* plr = PlayerManager::getPlayer(it->first);
 
         if (queue->empty()) {
             // send dismount packet
