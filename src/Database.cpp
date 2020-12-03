@@ -933,6 +933,7 @@ void Database::getPlayer(Player* plr, int id) {
         plr->RemainingNPCCount[i][0] = sqlite3_column_int(stmt, 1);
         plr->RemainingNPCCount[i][1] = sqlite3_column_int(stmt, 2);
         plr->RemainingNPCCount[i][2] = sqlite3_column_int(stmt, 3);
+        i++;
     }
 
     // get buddies
@@ -951,6 +952,7 @@ void Database::getPlayer(Player* plr, int id) {
         int PlayerBId = sqlite3_column_int(stmt, 1);
 
         plr->buddyIDs[i] = id == PlayerAId ? PlayerBId : PlayerAId;
+        i++;
     }
 
     sqlite3_finalize(stmt);
@@ -1244,7 +1246,7 @@ void Database::addBuddyship(int playerA, int playerB) {
 
     const char* sql = R"(
         INSERT INTO "Buddyships" 
-        ("PlayerAId", "PlayerBId", Status")
+        ("PlayerAId", "PlayerBId", "Status")
         VALUES (?, ?, ?);
         )";
     sqlite3_stmt* stmt;
@@ -1542,7 +1544,7 @@ void Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
     const char* sql = R"(
         INSERT INTO "EmailData" 
         ("PlayerId", "MsgIndex", "ReadFlag", "ItemFlag", "SenderId", "SenderFirstName", "SenderLastName",
-        "SubjectLine", "MsgBody", "Taros", "SendTime", "DeleteTime"
+        "SubjectLine", "MsgBody", "Taros", "SendTime", "DeleteTime")
         VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         )";
     sqlite3_stmt* stmt;
