@@ -12,27 +12,6 @@ namespace Database {
         std::string Password;
         int Selected;
     };
-    struct Inventory {
-        int playerId;
-        int slot;
-        int16_t Type;
-        int16_t id;
-        int32_t Opt;
-        int32_t TimeLimit;
-    };
-    struct Nano {
-        int playerId;
-        int16_t iID;
-        int16_t iSkillID;
-        int16_t iStamina;
-    };
-    struct DbQuest {
-        int PlayerId;
-        int32_t TaskId;
-        int RemainingNPCCount1;
-        int RemainingNPCCount2;
-        int RemainingNPCCount3;
-    };
     struct Buddyship {
         int PlayerAId;
         int PlayerBId;
@@ -65,49 +44,44 @@ namespace Database {
 
 #pragma endregion DatabaseStructs
 
-    // handles migrations
     void open();
     void createTables();
-
     int getTableSize(std::string tableName);
-    // returns ID, 0 if something failed
+
+    void findAccount(Account* account, std::string login);
+    /// returns ID, 0 if something failed
     int addAccount(std::string login, std::string password);
     void updateSelected(int accountId, int playerId);
-    void findAccount(Account* account, std::string login);
+    
     bool validateCharacter(int characterID, int userID);
     bool isNameFree(std::string firstName, std::string lastName);
     bool isSlotFree(int accountId, int slotNum);
-    // called after chosing name, returns ID
+    /// returns ID, 0 if something failed
     int createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID);
-    // called after finishing creation
-    bool finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character);
-    // called after tutorial
-    bool finishTutorial(int playerID);
-    // returns slot number
+    /// returns true if query succeeded
+    bool finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character, int accountId);
+    /// returns true if query succeeded
+    bool finishTutorial(int playerID, int accountID);
+    /// returns slot number if query succeeded
     int deleteCharacter(int characterID, int userID);
-    std::vector <sP_LS2CL_REP_CHAR_INFO> getCharInfo(int userID);
-    // accepting/declining custom name
+    void getCharInfo(std::vector <sP_LS2CL_REP_CHAR_INFO>* result, int userID);
+    /// accepting/declining custom name
     enum class CustomName {
         APPROVE = 1,
         DISAPPROVE = 2
     };
     void evaluateCustomName(int characterID, CustomName decision);
+    /// returns true if query succeeded
     bool changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save, int accountId);
 
     // getting players
     void getPlayer(Player* plr, int id);
-
     void updatePlayer(Player *player);
-    void updateInventory(Player *player);
-    void updateNanos(Player *player);
-    void updateQuests(Player* player);
     void updateBuddies(Player* player);
-
     void removeExpiredVehicles(Player* player);
-
-    int getNumBuddies(Player* player);
-
+    
     // buddies
+    int getNumBuddies(Player* player);
     void addBuddyship(int playerA, int playerB);
     void removeBuddyship(int playerA, int playerB);
 
