@@ -326,7 +326,8 @@ void CNLoginServer::characterCreate(CNSocket* sock, CNPacketData* data) {
 
     Database::finishCharacter(character);
 
-    Player player = Database::getPlayer(character->PCStyle.iPC_UID);;
+    Player player = {};
+    Database::getPlayer(&player, character->PCStyle.iPC_UID);
 
     INITSTRUCT(sP_LS2CL_REP_CHAR_CREATE_SUCC, resp);
     resp.sPC_Style = player.PCStyle;
@@ -403,7 +404,8 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
     resp.g_FE_ServerPort = settings::SHARDPORT;
     
     // pass player to CNSharedData
-    Player passPlayer = Database::getPlayer(selection->iPC_UID);
+    Player passPlayer = {};
+    Database::getPlayer(&passPlayer, selection->iPC_UID);
     passPlayer.FEKey = sock->getFEKey();
     resp.iEnterSerialKey = passPlayer.iID;
     CNSharedData::setPlayer(resp.iEnterSerialKey, passPlayer);
@@ -460,7 +462,7 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    Database::changeName(save);
+    Database::changeName(save, loginSessions[sock].userID);
 
     INITSTRUCT(sP_LS2CL_REP_CHANGE_CHAR_NAME_SUCC, resp);
     resp.iPC_UID = save->iPCUID;
@@ -485,15 +487,16 @@ void CNLoginServer::duplicateExit(CNSocket* sock, CNPacketData* data) {
     // TODO: FIX THIS PACKET
 
     sP_CL2LS_REQ_PC_EXIT_DUPLICATE* exit = (sP_CL2LS_REQ_PC_EXIT_DUPLICATE*)data->buf;
-    auto account = Database::findAccount(U16toU8(exit->szID));
+    Database::Account account = {};
+    Database::findAccount(&account, U16toU8(exit->szID));
 
     // sanity check
-    if (account == nullptr) {
+    if (account.AccountID == 0) {
         std::cout << "[WARN] P_CL2LS_REQ_PC_EXIT_DUPLICATE submitted unknown username: " << exit->szID << std::endl;
         return;
     }
 
-    exitDuplicate(account->AccountID);
+    exitDuplicate(account.AccountID);
 }
 #pragma endregion
 

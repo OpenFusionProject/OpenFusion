@@ -64,18 +64,19 @@ void BuddyManager::refreshBuddyList(CNSocket* sock) {
         int64_t buddyID = plr->buddyIDs[i];
         if (buddyID != 0) {
             sBuddyBaseInfo buddyInfo = {};
-            Database::DbPlayer buddyPlayerData = Database::getDbPlayerById(buddyID);
-            if (buddyPlayerData.PlayerID == -1)
+            Player buddyPlayerData = {};
+            Database::getPlayer(&buddyPlayerData, buddyID);
+            if (buddyPlayerData.iID == 0)
                 continue;
             buddyInfo.bBlocked = 0;
             buddyInfo.bFreeChat = 1;
-            buddyInfo.iGender = buddyPlayerData.Gender;
+            buddyInfo.iGender = buddyPlayerData.PCStyle.iGender;
             buddyInfo.iID = buddyID;
             buddyInfo.iPCUID = buddyID;
-            buddyInfo.iNameCheckFlag = buddyPlayerData.NameCheck;
-            buddyInfo.iPCState = buddyPlayerData.PCState;
-            U8toU16(buddyPlayerData.FirstName, buddyInfo.szFirstName, sizeof(buddyInfo.szFirstName));
-            U8toU16(buddyPlayerData.LastName, buddyInfo.szLastName, sizeof(buddyInfo.szLastName));
+            buddyInfo.iNameCheckFlag = buddyPlayerData.PCStyle.iNameCheck;
+            buddyInfo.iPCState = buddyPlayerData.iPCState;
+            memcpy(buddyInfo.szFirstName, buddyPlayerData.PCStyle.szFirstName, sizeof(buddyInfo.szFirstName));
+            memcpy(buddyInfo.szLastName, buddyPlayerData.PCStyle.szLastName, sizeof(buddyInfo.szLastName));
             respdata[buddyIndex] = buddyInfo;
             buddyIndex++;
         }
@@ -697,7 +698,7 @@ void BuddyManager::emailSend(CNSocket* sock, CNPacketData* data) {
         U16toU8(plr->PCStyle.szFirstName), // SenderFirstName
         U16toU8(plr->PCStyle.szLastName), // SenderLastName
         ChatManager::sanitizeText(U16toU8(pkt->szSubject)), // SubjectLine
-        ChatManager::sanitizeText(U16toU8(pkt->szContent), true), // MsgBody
+        ChatManager::sanitizeText(U16toU8(pkt->szContent)), // MsgBody
         pkt->iCash, // Taros
         (uint64_t)getTimestamp(), // SendTime
         0 // DeleteTime (unimplemented)
