@@ -859,19 +859,33 @@ void Database::getPlayer(Player* plr, int id) {
 
     sql = R"(
         SELECT "Slot", "Type", "Id", "Opt", "TimeLimit" from Inventory
-        WHERE "PlayerID" = ? AND "Slot" < ?
+        WHERE "PlayerID" = ?;
         )";
 
     sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
 
     sqlite3_bind_int(stmt, 1, id);
-    // we don't want bank items here
-    sqlite3_bind_int(stmt, 2, AEQUIP_COUNT + AINVEN_COUNT);
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         int slot = sqlite3_column_int(stmt, 0);
 
-        sItemBase* item = slot < AEQUIP_COUNT ? &plr->Equip[slot] : &plr->Inven[slot = AEQUIP_COUNT];
+        // for extra safety
+        if (slot > AEQUIP_COUNT + AINVEN_COUNT + ABANK_COUNT) {
+            std::cout << "[WARN] Database: Invalid item slot in db?! " << std::endl;
+            continue;
+        }
+
+        sItemBase* item;
+        if (slot < AEQUIP_COUNT)
+            //equipment
+            item = &plr->Equip[slot];
+        else if (slot < (AEQUIP_COUNT + AINVEN_COUNT))
+            //inventory
+            item = &plr->Inven[slot - AEQUIP_COUNT];
+        else
+            //bank
+            item = &plr->Bank[slot - AEQUIP_COUNT - AINVEN_COUNT];
+
         item->iType = sqlite3_column_int(stmt, 1);
         item->iID = sqlite3_column_int(stmt, 2);
         item->iOpt = sqlite3_column_int(stmt, 3);
@@ -1069,6 +1083,27 @@ void Database::updatePlayer(Player *player) {
         sqlite3_reset(stmt);
     }
 
+    for (int i = 0; i < ABANK_COUNT; i++) {
+        if (player->Bank[i].iID == 0)
+            continue;
+
+        sqlite3_bind_int(stmt, 1, player->iID);
+        sqlite3_bind_int(stmt, 2, i + AEQUIP_COUNT + AINVEN_COUNT);
+        sqlite3_bind_int(stmt, 3, player->Bank[i].iType);
+        sqlite3_bind_int(stmt, 4, player->Bank[i].iOpt);
+        sqlite3_bind_int(stmt, 5, player->Bank[i].iID);
+        sqlite3_bind_int(stmt, 6, player->Bank[i].iTimeLimit);
+
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
+            sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+            sqlite3_finalize(stmt);
+            std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
+            return;
+        }
+        sqlite3_reset(stmt);
+    }
+
+
     // Update Quest Inventory
     sql = R"(
         DELETE FROM "QuestItems" WHERE "PlayerID" = ?;
@@ -1196,6 +1231,13 @@ void Database::updateBuddies(Player* player) {
 
 void Database::removeExpiredVehicles(Player* player) {
     int32_t currentTime = getTimestamp();
+
+    //if there are expired vehicles in bank just remove them silently
+    for (int i = 0; i < ABANK_COUNT; i++) {
+        if (player->Bank[i].iType == 10 && player->Bank[i].iTimeLimit < currentTime) {
+            memset(&player->Bank[i], 0, sizeof(sItemBase));
+        }
+    }
 
     // we want to leave only 1 expired vehicle on player to delete it with the client packet
     std::vector<sItemBase*> toRemove;
