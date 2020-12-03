@@ -218,6 +218,29 @@ int Database::getTableSize(std::string tableName) {
     return result;
 }
 
+void Database::findAccount(Account* account, std::string login) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    const char* sql = R"(
+        SELECT "AccountID", "Password", "Selected"
+        FROM "Accounts"
+        WHERE "Login" = ?
+        LIMIT 1;        
+        )";
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_text(stmt, 1, login.c_str(), -1, 0);
+    int rc = sqlite3_step(stmt);
+    if (rc == SQLITE_ROW)
+    {
+        account->AccountID = sqlite3_column_int(stmt, 0);
+        account->Password = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+        account->Selected = sqlite3_column_int(stmt, 2);
+    }
+    sqlite3_finalize(stmt);
+}
+
 int Database::addAccount(std::string login, std::string password) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
@@ -235,7 +258,11 @@ int Database::addAccount(std::string login, std::string password) {
     int rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
-    return rc==SQLITE_DONE ? sqlite3_last_insert_rowid(db) : 0;
+    if (rc != SQLITE_DONE) {
+        std::cout << "[WARN] Database: failed to add new character" << std::endl;
+        return 0;
+    }
+    return sqlite3_last_insert_rowid(db);
 }
 
 void Database::updateSelected(int accountId, int slot) {
@@ -260,29 +287,6 @@ void Database::updateSelected(int accountId, int slot) {
     int rc = sqlite3_step(stmt);
     if (rc != SQLITE_DONE)
         std::cout << "[WARN] Database fail on updateSelected(). Error Code " << rc << std::endl;
-    sqlite3_finalize(stmt);
-}
-
-void Database::findAccount(Account* account, std::string login) {
-    std::lock_guard<std::mutex> lock(dbCrit);
-
-    const char* sql = R"(
-        SELECT "AccountID", "Password", "Selected"
-        FROM "Accounts"
-        WHERE "Login" = ?
-        LIMIT 1;        
-        )";
-    sqlite3_stmt* stmt;
-
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-    sqlite3_bind_text(stmt, 1, login.c_str(), -1, 0);
-    int rc = sqlite3_step(stmt);
-    if (rc == SQLITE_ROW)
-    {
-        account->AccountID = sqlite3_column_int(stmt, 0);
-        account->Password = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
-        account->Selected = sqlite3_column_int(stmt, 2);
-    }
     sqlite3_finalize(stmt);
 }
 
@@ -333,7 +337,7 @@ bool Database::isSlotFree(int accountId, int slotNum) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     if (slotNum < 1 || slotNum > 4) {
-        std::cout << "[WARN] Invalid slot number passed to isSlotFree()! " << std::endl;
+        std::cout << "[WARN] Invalid slot number passed to isSlotFree()! "<<slotNum << std::endl;
         return false;
     }
 
@@ -418,24 +422,25 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
     return playerId;
 }
 
-bool Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character) {
+bool Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character, int accountId) {
     std::lock_guard<std::mutex> lock(dbCrit);
     
     const char* sql = R"(
         SELECT "PlayerID"
         FROM "Players"
-        WHERE "PlayerID" = ? AND "AppearanceFlag" = 0
+        WHERE "PlayerID" = ? AND "AccountID" = ? AND "AppearanceFlag" = 0
         LIMIT 1;        
         )";
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
     sqlite3_bind_int(stmt, 1, character->PCStyle.iPC_UID);
+    sqlite3_bind_int(stmt, 2, accountId);
     int rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
     if ( rc != SQLITE_ROW)
-    {
-        std::cout << "[WARN] Player tried Character Creation on already existing character?!" << std::endl;    
+    {  
+        std::cout << "[WARN] Database: Invalid data submitted to finish character creation" << std::endl;
         return false;
     }
 
@@ -522,22 +527,23 @@ bool Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character) {
     return true;
 }
 
-bool Database::finishTutorial(int playerID) {
+bool Database::finishTutorial(int playerID, int accountID) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     const char* sql = R"(
     SELECT "PlayerID"
     FROM "Players"
-    WHERE "PlayerID" = ? AND "TutorialFlag" = 0
+    WHERE "PlayerID" = ? AND "AccountID" = ? AND "TutorialFlag" = 0
     LIMIT 1;        
     )";
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
     sqlite3_bind_int(stmt, 1, playerID);
+    sqlite3_bind_int(stmt, 2, accountID);
 
     if (sqlite3_step(stmt) != SQLITE_ROW)
     {
-        std::cout << "[WARN] Player tried to finish tutorial on a character that already did?!" << std::endl;
+        std::cout << "[WARN] Database: Invalid data submitted to finish tutorial" << std::endl;
         sqlite3_finalize(stmt);
         return false;
     }
@@ -655,8 +661,7 @@ int Database::deleteCharacter(int characterID, int userID) {
     return slot;
 }
 
-std::vector <sP_LS2CL_REP_CHAR_INFO> Database::getCharInfo(int userID) {
-    std::vector<sP_LS2CL_REP_CHAR_INFO> result = std::vector<sP_LS2CL_REP_CHAR_INFO>();
+void Database::getCharInfo(std::vector <sP_LS2CL_REP_CHAR_INFO>* result, int userID) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     const char* sql = R"(
@@ -720,11 +725,9 @@ std::vector <sP_LS2CL_REP_CHAR_INFO> Database::getCharInfo(int userID) {
         }
         sqlite3_finalize(stmt2);
 
-        result.push_back(toAdd);
+        result->push_back(toAdd);
     }
     sqlite3_finalize(stmt);
-    return result;
-
 }
 
 // XXX: This is never called?
@@ -752,15 +755,22 @@ bool Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save, int accountId) {
     const char* sql = R"(
     UPDATE "Players"
     SET "Firstname" = ?,
-    "LastName" = ?
+    "LastName" = ?, "NameCheck" = ?
     WHERE "PlayerID" = ? AND "AccountID" = ?;
     )";
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-    sqlite3_bind_text(stmt, 1, U16toU8(save->szFirstName).c_str(), -1, 0);
-    sqlite3_bind_text(stmt, 2, U16toU8(save->szLastName).c_str(), -1, 0);
-    sqlite3_bind_int(stmt, 3, save->iPCUID);
-    sqlite3_bind_int(stmt, 4, accountId);
+
+    std::string firstName = U16toU8(save->szFirstName);
+    std::string lastName = U16toU8(save->szLastName);
+
+    sqlite3_bind_text(stmt, 1, firstName.c_str(), -1, 0);
+    sqlite3_bind_text(stmt, 2, lastName.c_str(), -1, 0);
+    // if FNCode isn't 0, it's a wheel name
+    int nameCheck = (settings::APPROVEALLNAMES || save->iFNCode) ? 1 : 0;
+    sqlite3_bind_int(stmt, 3, nameCheck);
+    sqlite3_bind_int(stmt, 4, save->iPCUID);
+    sqlite3_bind_int(stmt, 5, accountId);
 
     int rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
@@ -1148,7 +1158,6 @@ void Database::updatePlayer(Player *player) {
     sqlite3_finalize(stmt);
 }
 
-
 // note: do not use. explicitly add/remove records instead.
 void Database::updateBuddies(Player* player) {
     //db.begin_transaction();
@@ -1198,6 +1207,7 @@ void Database::removeExpiredVehicles(Player* player) {
     }
 }
 
+// buddies
 int Database::getNumBuddies(Player* player) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
@@ -1217,7 +1227,6 @@ int Database::getNumBuddies(Player* player) {
     return result > 50 ? 50 : result;
 }
 
-// buddies
 void Database::addBuddyship(int playerA, int playerB) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
