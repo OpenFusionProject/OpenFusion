@@ -432,7 +432,7 @@ void MissionManager::updateFusionMatter(CNSocket* sock, int fusion) {
         plr->fusionmatter = 0;
 
     // check if it is enough for the nano mission
-    if (plr->fusionmatter <= AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"])
+    if (plr->fusionmatter < AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"])
         return;
 
     // don't give the Blossom nano mission until the player's in the Past
