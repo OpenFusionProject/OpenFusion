@@ -6,24 +6,26 @@
 
 #include <cstdio>
 
-#ifndef _WIN32
-
 static int listener;
 static std::mutex sockLock; // guards socket list
-static std::list<int> sockets;
+static std::list<SOCKET> sockets;
 static sockaddr_in address;
 
 // runs during init
 void Monitor::init() {
     listener = socket(AF_INET, SOCK_STREAM, 0);
-    if (listener < 0) {
-        perror("socket");
+    if (SOCKETERROR(listener)) {
+        std::cout << "Failed to create monitor socket" << std::endl;
         exit(1);
     }
 
+#ifdef _WIN32
+    const char opt = 1;
+#else
     int opt = 1;
-    if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-        perror("setsockopt");
+#endif
+    if (SOCKETERROR(setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)))) {
+        std::cout << "Failed to set SO_REUSEADDR on monitor socket" << std::endl;
         exit(1);
     }
 
@@ -31,30 +33,35 @@ void Monitor::init() {
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(settings::MONITORPORT);
 
-    if (bind(listener, (struct sockaddr*)&address, sizeof(address)) < 0) {
-        perror("bind");
+    if (SOCKETERROR(bind(listener, (struct sockaddr*)&address, sizeof(address)))) {
+        std::cout << "Failed to bind to monitor port" << std::endl;
         exit(1);
     }
 
-    if (listen(listener, SOMAXCONN) < 0) {
-        perror("listen");
+    if (SOCKETERROR(listen(listener, SOMAXCONN))) {
+        std::cout << "Failed to listen on monitor port" << std::endl;
         exit(1);
     }
 
-    std::cout << "[INFO] Monitor listening on *:" << settings::MONITORPORT << std::endl;
+    std::cout << "Monitor listening on *:" << settings::MONITORPORT << std::endl;
 
     REGISTER_SHARD_TIMER(tick, settings::MONITORINTERVAL);
 }
 
-static bool transmit(std::list<int>::iterator& it, char *buff, int len) {
+static bool transmit(std::list<SOCKET>::iterator& it, char *buff, int len) {
     int n = 0;
     int sock = *it;
 
     while (n < len) {
-        n += write(sock, buff+n, len-n);
-        if (n < 0) {
-            perror("send");
+        n += send(sock, buff+n, len-n, 0);
+        if (SOCKETERROR(n)) {
+#ifdef _WIN32
+            shutdown(sock, SD_BOTH);
+            closesocket(sock);
+#else
+            shutdown(sock, SHUT_RDWR);
             close(sock);
+#endif
 
             std::cout << "[INFO] Disconnected a monitor" << std::endl;
 
@@ -101,10 +108,8 @@ void Monitor::start(void *unused) {
 
     for (;;) {
         int sock = accept(listener, (struct sockaddr*)&address, &len);
-        if (sock < 0) {
-            perror("accept");
+        if (SOCKETERROR(sock))
             continue;
-        }
 
         std::cout << "[INFO] New monitor connection from " << inet_ntoa(address.sin_addr) << std::endl;
 
@@ -115,5 +120,3 @@ void Monitor::start(void *unused) {
         }
     }
 }
-
-#endif // _WIN32

@@ -104,9 +104,7 @@ int main() {
     TransportManager::init();
     BuddyManager::init();
     GroupManager::init();
-#ifndef _WIN32
     Monitor::init();
-#endif
     Database::open();
 
     switch (settings::EVENTMODE) {
@@ -125,9 +123,7 @@ int main() {
     shardServer = new CNShardServer(settings::SHARDPORT);
 
     shardThread = new std::thread(startShard, (CNShardServer*)shardServer);
-#ifndef _WIN32
     monitorThread = new std::thread(Monitor::start, nullptr);
-#endif
 
     loginServer.start();
 
