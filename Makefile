@@ -18,7 +18,7 @@ WIN_CXX=x86_64-w64-mingw32-g++
 WIN_CFLAGS=-O3 #-g3 -fsanitize=address
 WIN_CXX_VANILLA_MINGW_OPT_DISABLES=-fno-tree-dce -fno-inline-small-functions
 WIN_CXX_MSYS2_MINGW_OPT_DISABLES=-fno-tree-dce -fno-tree-fre -fno-tree-vrp -fno-ipa-sra
-WIN_CXXFLAGS=-Wall -Wno-unknown-pragmas -std=c++17 -O3 $(WIN_CXX_OPT_DISABLES) -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) -DGIT_VERSION=\"$(shell git describe --tags)\" #-g3 -fsanitize=address
+WIN_CXXFLAGS=-D_WIN32_WINNT=0x0601 -Wall -Wno-unknown-pragmas -std=c++17 -O3 $(WIN_CXX_OPT_DISABLES) -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) -DGIT_VERSION=\"$(shell git describe --tags)\" #-g3 -fsanitize=address
 WIN_LDFLAGS=-static -lws2_32 -lwsock32 #-g3 -fsanitize=address
 WIN_SERVER=bin/winfusion.exe
 

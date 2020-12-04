@@ -268,7 +268,7 @@ CNServer::CNServer(uint16_t p): port(p) {}
 
 void CNServer::start() {
     int nfds = 1, oldnfds;
-    struct pollfd fds[30]; // TODO: dynamically grow
+    PollFD fds[30]; // TODO: dynamically grow
 
     memset(&fds, 0, sizeof(fds));
 
@@ -281,11 +281,11 @@ void CNServer::start() {
     while (active) {
         // the timeout is to ensure shard timers are ticking
         //std::cout << "pre-poll\n";
-        int n = poll((struct pollfd *)&fds, nfds, 200);
+        int n = poll((PollFD*)&fds, nfds, 200);
         //if (n > 0)
         //    std::cout << "poll returned " << n << std::endl;
-        if (n < 0) {
-            perror("poll");
+        if (SOCKETERROR(n)) {
+            std::cout << "[FATAL] poll() returned error" << std::endl;
             terminate(0);
         }
 

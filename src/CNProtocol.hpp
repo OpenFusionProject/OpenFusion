@@ -17,6 +17,8 @@
     #pragma comment(lib, "Ws2_32.lib")
 
     typedef char buffer_t;
+    #define PollFD WSAPOLLFD
+    #define poll WSAPoll
     #define OF_ERRNO WSAGetLastError()
     #define OF_EWOULD WSAEWOULDBLOCK
     #define SOCKETINVALID(x) (x == INVALID_SOCKET)
@@ -32,6 +34,7 @@
 
     typedef int SOCKET;
     typedef void buffer_t;
+    #define PollFD struct pollfd
     #define OF_ERRNO errno
     #define OF_EWOULD EWOULDBLOCK
     #define SOCKETINVALID(x) (x < 0)
