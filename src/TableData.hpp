@@ -17,7 +17,6 @@ namespace TableData {
     void loadGruntwork(int32_t*);
     void flush();
 
-    int getItemType(int);
     void loadPaths(int*);
     void loadDrops();
     void loadEggs(int32_t* nextId);

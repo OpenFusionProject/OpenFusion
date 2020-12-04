@@ -121,32 +121,39 @@ void TableData::init() {
 
         std::cout << "[INFO] Loaded mission-related data" << std::endl;
 
-        // load all item data. i'm sorry. it has to be done
-        const char* setNames[12] = { "m_pBackItemTable", "m_pFaceItemTable", "m_pGlassItemTable", "m_pHatItemTable",
-        "m_pHeadItemTable", "m_pPantsItemTable", "m_pShirtsItemTable", "m_pShoesItemTable", "m_pWeaponItemTable",
-        "m_pVehicleItemTable", "m_pGeneralItemTable", "m_pChestItemTable" };
+        /*
+        * load all equipment data. i'm sorry. it has to be done
+        * NOTE: please don't change the ordering. it determines the types, since type and equipLoc are used inconsistently
+        */
+        const char* setNames[11] = { "m_pWeaponItemTable", "m_pShirtsItemTable", "m_pPantsItemTable", "m_pShoesItemTable",
+        "m_pHatItemTable", "m_pGlassItemTable", "m_pBackItemTable", "m_pGeneralItemTable", "",
+        "m_pChestItemTable", "m_pVehicleItemTable" };
         nlohmann::json itemSet;
-        for (int i = 0; i < 12; i++) {
+        for (int i = 0; i < 11; i++) {
+            if (i == 8)
+                continue; // there is no type 8, of course
+
             itemSet = xdtData[setNames[i]]["m_pItemData"];
             for (nlohmann::json::iterator _item = itemSet.begin(); _item != itemSet.end(); _item++) {
                 auto item = _item.value();
                 int itemID = item["m_iItemNumber"];
-                int typeOverride = getItemType(i); // used for special cases where iEquipLoc doesn't indicate item type
                 INITSTRUCT(ItemManager::Item, itemData);
                 itemData.tradeable = item["m_iTradeAble"] == 1;
                 itemData.sellable = item["m_iSellAble"] == 1;
                 itemData.buyPrice = item["m_iItemPrice"];
                 itemData.sellPrice = item["m_iItemSellPrice"];
                 itemData.stackSize = item["m_iStackNumber"];
-                itemData.rarity = i > 9 ? 1 : (int)item["m_iRarity"];
-                if (i <= 9) {
+                if (i != 7 && i != 9) {
+                    itemData.rarity = item["m_iRarity"];
                     itemData.level = item["m_iMinReqLev"];
                     itemData.pointDamage = item["m_iPointRat"];
                     itemData.groupDamage = item["m_iGroupRat"];
                     itemData.defense = item["m_iDefenseRat"];
                     itemData.gender = item["m_iReqSex"];
+                } else {
+                    itemData.rarity = 1;
                 }
-                ItemManager::ItemData[std::make_pair(itemID, typeOverride != -1 ? typeOverride : (int)item["m_iEquipLoc"])] = itemData;
+                ItemManager::ItemData[std::make_pair(itemID, i)] = itemData;
             }
         }
 
@@ -308,27 +315,6 @@ void TableData::init() {
     loadGruntwork(&nextId);
 
     NPCManager::nextId = nextId;
-}
-
-/*
- * Some item categories either don't possess iEquipLoc or use a different value for item type.
- */
-int TableData::getItemType(int itemSet) {
-    int overriden;
-    switch (itemSet) {
-    case 11: // Chest items don't have iEquipLoc and are type 9.
-        overriden = 9;
-        break;
-    case 10: // General items don't have iEquipLoc and are type 7.
-        overriden = 7;
-        break;
-    case 9: // Vehicles have iEquipLoc 8, but type 10.
-        overriden = 10;
-        break;
-    default:
-        overriden = -1;
-    }
-    return overriden;
 }
 
 /*
