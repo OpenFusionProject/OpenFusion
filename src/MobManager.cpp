@@ -871,9 +871,6 @@ void MobManager::dealGooDamage(CNSocket *sock, int amount) {
     sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK *pkt = (sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK*)respbuf;
     sSkillResult_DotDamage *dmg = (sSkillResult_DotDamage*)(respbuf + sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
 
-    if (!(plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE))
-        amount = 0;
-
     if (plr->iConditionBitFlag & CSB_BIT_PROTECT_INFECTION) {
         amount = -2; // -2 is the magic number for "Protected" to appear as the damage number
         dmg->bProtected = 1;
@@ -926,7 +923,8 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
             continue;
 
         // fm patch/lake damage
-        if (plr->iConditionBitFlag & CSB_BIT_INFECTION)
+        if ((plr->iConditionBitFlag & CSB_BIT_INFECTION)
+            && !(plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE))
             dealGooDamage(sock, PC_MAXHEALTH(plr->level) * 3 / 20);
 
         // heal
