@@ -163,6 +163,7 @@ void CNSocket::setActiveKey(ACTIVEKEY key) {
 void CNSocket::step() {
     // read step
 
+    // XXX NOTE: we must not recv() twice without a poll() inbetween
     if (readSize <= 0) {
         // we aren't reading a packet yet, try to start looking for one
         int recved = recv(sock, (buffer_t*)readBuffer, sizeof(int32_t), 0);
@@ -183,8 +184,7 @@ void CNSocket::step() {
             return;
         }
     }
-
-    if (readSize > 0 && readBufferIndex < readSize) {
+    else if (readSize > 0 && readBufferIndex < readSize) {
         // read until the end of the packet! (or at least try too)
         int recved = recv(sock, (buffer_t*)(readBuffer + readBufferIndex), readSize - readBufferIndex, 0);
         if (!SOCKETERROR(recved))
@@ -196,7 +196,7 @@ void CNSocket::step() {
         }
     }
 
-    if (activelyReading && readBufferIndex - readSize <= 0) {
+    if (activelyReading && readBufferIndex >= readSize) {
         // decrypt readBuffer and copy to CNPacketData
         CNSocketEncryption::decryptData((uint8_t*)&readBuffer, (uint8_t*)(&EKey), readSize);
 
@@ -255,7 +255,7 @@ CNServer::CNServer() {};
 CNServer::CNServer(uint16_t p): port(p) {}
 
 void CNServer::start() {
-    int nfds = 1;
+    int nfds = 1, oldnfds;
     struct pollfd fds[20]; // TODO: dynamically grow
 
     memset(&fds, 0, sizeof(fds));
@@ -280,9 +280,11 @@ void CNServer::start() {
             terminate(0);
         }
 
+        oldnfds = nfds;
+
         activeCrit.lock();
 
-        for (int i = 0; i < nfds && n > 0; i++) {
+        for (int i = 0; i < oldnfds && n > 0; i++) {
             if (fds[i].revents == 0)
                 continue; // nothing in this one; don't decrement n
 
@@ -295,7 +297,7 @@ void CNServer::start() {
                     terminate(0);
                 }
 
-                SOCKET newConnectionSocket = accept(sock, (struct sockaddr *)&(address), (socklen_t*)&(addressSize));
+                SOCKET newConnectionSocket = accept(sock, (struct sockaddr *)&address, (socklen_t*)&addressSize);
                 if (SOCKETINVALID(newConnectionSocket)) {
                     n--;
                     continue;
@@ -321,12 +323,17 @@ void CNServer::start() {
                 while (it != connections.end()) {
                     CNSocket* cSock = *it;
 
-                    if (fds[i].fd != cSock->sock)
+                    if (fds[i].fd != cSock->sock) {
+                        // not the socket we're looking for; check the next one
+                        it++;
                         continue;
+                    }
 
                     // kill the socket on error
-                    if (fds[i].revents & ~POLLIN)
+                    if (fds[i].revents & ~POLLIN) {
+                        std::cout << "Killing socket at fds[" << i << "]\n";
                         cSock->kill();
+                    }
 
                     if (cSock->isAlive()) {
                         cSock->step();
@@ -339,9 +346,18 @@ void CNServer::start() {
 
                         nfds--;
                         assert(nfds > 0);
-                        fds[i].fd = fds[nfds].fd;
                         std::cout << "in thread " << (void*) this << " nfds is now " << nfds << std::endl;
-                        // events are the same
+
+                        if (i != nfds) {
+                            // move the last entry to the new empty spot
+                            fds[i].fd = fds[nfds].fd;
+                            fds[i].events = fds[nfds].events; // redundant; events are always the same
+                        }
+
+                        // delete the entry
+                        fds[nfds].fd = 0;
+                        fds[nfds].events = 0;
+
                         break;
                     }
                 }
