@@ -45,6 +45,7 @@ namespace Database {
 #pragma endregion DatabaseStructs
 
     void open();
+    void close();
     void createTables();
     int getTableSize(std::string tableName);
 

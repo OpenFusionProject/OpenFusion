@@ -48,7 +48,8 @@ void terminate(int arg) {
 
     if (shardServer != nullptr && shardThread != nullptr)
         shardServer->kill();
-
+    
+    Database::close();
     exit(0);
 }
 

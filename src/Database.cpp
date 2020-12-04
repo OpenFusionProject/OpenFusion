@@ -49,6 +49,10 @@ void Database::open() {
     std::cout << message << std::endl;
 }
 
+void Database::close() {
+    sqlite3_close(db);
+}
+
 void Database::createTables() {
 
     char* errMsg = 0;
