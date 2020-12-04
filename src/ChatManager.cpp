@@ -745,6 +745,28 @@ void lairUnlockCommand(std::string full, std::vector<std::string>& args, CNSocke
     sock->sendPacket((void*)&missionResp, P_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, sizeof(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID));
 }
 
+void hideCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player* plr = PlayerManager::getPlayer(sock);
+    if (plr->hidden) {
+        ChatManager::sendServerMessage(sock, "[HIDE] You're already hidden from the map.");
+        return;
+    }
+
+    plr->hidden = true;
+    ChatManager::sendServerMessage(sock, "[HIDE] Successfully hidden from the map.");
+}
+
+void unhideCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player* plr = PlayerManager::getPlayer(sock);
+    if (!plr->hidden) {
+        ChatManager::sendServerMessage(sock, "[HIDE] You're already visible from the map.");
+        return;
+    }
+
+    plr->hidden = false;
+    ChatManager::sendServerMessage(sock, "[HIDE] Successfully un-hidden from the map.");
+}
+
 void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
@@ -774,6 +796,8 @@ void ChatManager::init() {
     registerCommand("summonGroupW", 30, summonGroupCommand, "permanently summon group NPCs");
     registerCommand("whois", 50, whoisCommand, "describe nearest NPC");
     registerCommand("lair", 50, lairUnlockCommand, "get the required mission for the nearest fusion lair");
+    registerCommand("hide", 100, hideCommand, "hide yourself from the global player map");
+    registerCommand("unhide", 100, unhideCommand, "un-hide yourself from the global player map");
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {

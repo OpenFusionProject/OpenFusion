@@ -77,6 +77,9 @@ void Monitor::tick(CNServer *serv, time_t delta) {
             continue;
 
         for (auto& pair : PlayerManager::players) {
+            if (pair.second->hidden)
+                continue;
+
             int n = std::snprintf(buff, sizeof(buff), "player %d %d %s\n",
                     pair.second->x, pair.second->y,
                     PlayerManager::getPlayerName(pair.second, false).c_str());
