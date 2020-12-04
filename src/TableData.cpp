@@ -130,9 +130,23 @@ void TableData::init() {
             itemSet = xdtData[setNames[i]]["m_pItemData"];
             for (nlohmann::json::iterator _item = itemSet.begin(); _item != itemSet.end(); _item++) {
                 auto item = _item.value();
+                int itemID = item["m_iItemNumber"];
                 int typeOverride = getItemType(i); // used for special cases where iEquipLoc doesn't indicate item type
-                ItemManager::ItemData[std::pair<int32_t, int32_t>(item["m_iItemNumber"], typeOverride != -1 ? typeOverride : (int)item["m_iEquipLoc"])]
-                = { item["m_iTradeAble"] == 1, item["m_iSellAble"] == 1, item["m_iItemPrice"], item["m_iItemSellPrice"], item["m_iStackNumber"], i > 9 ? 0 : (int)item["m_iMinReqLev"], i > 9 ? 1 : (int)item["m_iRarity"], i > 9 ? 0 : (int)item["m_iPointRat"], i > 9 ? 0 : (int)item["m_iGroupRat"], i > 9 ? 0 : (int)item["m_iDefenseRat"], i > 9 ? 0 : (int)item["m_iReqSex"] };
+                INITSTRUCT(ItemManager::Item, itemData);
+                itemData.tradeable = item["m_iTradeAble"] == 1;
+                itemData.sellable = item["m_iSellAble"] == 1;
+                itemData.buyPrice = item["m_iItemPrice"];
+                itemData.sellPrice = item["m_iItemSellPrice"];
+                itemData.stackSize = item["m_iStackNumber"];
+                itemData.rarity = i > 9 ? 1 : (int)item["m_iRarity"];
+                if (i <= 9) {
+                    itemData.level = item["m_iMinReqLev"];
+                    itemData.pointDamage = item["m_iPointRat"];
+                    itemData.groupDamage = item["m_iGroupRat"];
+                    itemData.defense = item["m_iDefenseRat"];
+                    itemData.gender = item["m_iReqSex"];
+                }
+                ItemManager::ItemData[std::make_pair(itemID, typeOverride != -1 ? typeOverride : (int)item["m_iEquipLoc"])] = itemData;
             }
         }
 
@@ -478,11 +492,11 @@ void TableData::loadDrops() {
                 throw TableException(std::string(buff));
             }
 
-            std::map<std::pair<int32_t, int32_t>, Item>::iterator toAdd = ItemManager::ItemData.find(itemDataKey);
+            std::map<std::pair<int32_t, int32_t>, ItemManager::Item>::iterator toAdd = ItemManager::ItemData.find(itemDataKey);
 
             // if item collection doesn't exist, start a new one
             if (ItemManager::CrateItems.find(itemSetkey) == ItemManager::CrateItems.end()) {
-                std::vector<std::map<std::pair<int32_t, int32_t>, Item>::iterator> vector;
+                std::vector<std::map<std::pair<int32_t, int32_t>, ItemManager::Item>::iterator> vector;
                 vector.push_back(toAdd);
                 ItemManager::CrateItems[itemSetkey] = vector;
             } else // else add a new element to existing collection

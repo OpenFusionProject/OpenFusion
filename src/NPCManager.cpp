@@ -120,7 +120,7 @@ void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
-    Item* item = ItemManager::getItemData(req->Item.iID, req->Item.iType);
+    ItemManager::Item* item = ItemManager::getItemData(req->Item.iID, req->Item.iType);
 
     if (item == nullptr) {
         std::cout << "[WARN] Item id " << req->Item.iID << " with type " << req->Item.iType << " not found (buy)" << std::endl;
@@ -178,7 +178,7 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
     }
 
     sItemBase* item = &plr->Inven[req->iInvenSlotNum];
-    Item* itemData = ItemManager::getItemData(item->iID, item->iType);
+    ItemManager::Item* itemData = ItemManager::getItemData(item->iID, item->iType);
 
     if (itemData == nullptr || !itemData->sellable) { // sanity + sellable check
         std::cout << "[WARN] Item id " << item->iID << " with type " << item->iType << " not found (sell)" << std::endl;
@@ -225,7 +225,7 @@ void NPCManager::npcVendorBuyback(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
-    Item* item = ItemManager::getItemData(req->Item.iID, req->Item.iType);
+    ItemManager::Item* item = ItemManager::getItemData(req->Item.iID, req->Item.iType);
 
     if (item == nullptr) {
         std::cout << "[WARN] Item id " << req->Item.iID << " with type " << req->Item.iType << " not found (rebuy)" << std::endl;
@@ -364,8 +364,8 @@ void NPCManager::npcCombineItems(CNSocket* sock, CNPacketData* data) {
 
     sItemBase* itemStats = &plr->Inven[req->iStatItemSlot];
     sItemBase* itemLooks = &plr->Inven[req->iCostumeItemSlot];
-    Item* itemStatsDat = ItemManager::getItemData(itemStats->iID, itemStats->iType);
-    Item* itemLooksDat = ItemManager::getItemData(itemLooks->iID, itemLooks->iType);
+    ItemManager::Item* itemStatsDat = ItemManager::getItemData(itemStats->iID, itemStats->iType);
+    ItemManager::Item* itemLooksDat = ItemManager::getItemData(itemLooks->iID, itemLooks->iType);
 
     if (itemStatsDat == nullptr || itemLooksDat == nullptr
         || ItemManager::CrocPotTable.find(abs(itemStatsDat->level - itemLooksDat->level)) == ItemManager::CrocPotTable.end()) { // sanity check 2

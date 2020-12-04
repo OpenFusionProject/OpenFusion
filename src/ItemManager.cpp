@@ -9,13 +9,13 @@
 #include <string.h> // for memset()
 #include <assert.h>
 
-std::map<std::pair<int32_t, int32_t>, Item> ItemManager::ItemData;
+std::map<std::pair<int32_t, int32_t>, ItemManager::Item> ItemManager::ItemData;
 std::map<int32_t, std::vector<VendorListing>> ItemManager::VendorTables;
 std::map<int32_t, CrocPotEntry> ItemManager::CrocPotTable;
 std::map<int32_t, std::vector<int>> ItemManager::RarityRatios;
 std::map<int32_t, Crate> ItemManager::Crates;
 // pair Itemset, Rarity -> vector of pointers (map iterators) to records in ItemData
-std::map<std::pair<int32_t, int32_t>, std::vector<std::map<std::pair<int32_t, int32_t>, Item>::iterator>> ItemManager::CrateItems;
+std::map<std::pair<int32_t, int32_t>, std::vector<std::map<std::pair<int32_t, int32_t>, ItemManager::Item>::iterator>> ItemManager::CrateItems;
 
 void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
@@ -1012,9 +1012,9 @@ int ItemManager::findFreeSlot(Player *plr) {
     return -1;
 }
 
-Item* ItemManager::getItemData(int32_t id, int32_t type) {
-    if(ItemData.find(std::pair<int32_t, int32_t>(id, type)) !=  ItemData.end())
-        return &ItemData[std::pair<int32_t, int32_t>(id, type)];
+ItemManager::Item* ItemManager::getItemData(int32_t id, int32_t type) {
+    if(ItemData.find(std::make_pair(id, type)) !=  ItemData.end())
+        return &ItemData[std::make_pair(id, type)];
     return nullptr;
 }
 

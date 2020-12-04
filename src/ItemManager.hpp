@@ -3,10 +3,6 @@
 #include "CNShardServer.hpp"
 #include "Player.hpp"
 
-struct Item {
-    bool tradeable, sellable;
-    int buyPrice, sellPrice, stackSize, level, rarity, pointDamage, groupDamage, defense, gender; // TODO: implement more as needed
-};
 struct VendorListing {
     int sort, type, iID;
 };
@@ -24,6 +20,10 @@ namespace ItemManager {
         EQUIP = 0,
         INVENTORY = 1,
         BANK = 3
+    };
+    struct Item {
+        bool tradeable, sellable;
+        int buyPrice, sellPrice, stackSize, level, rarity, pointDamage, groupDamage, defense, gender; // TODO: implement more as needed
     };
     // hopefully this is fine since it's never modified after load
     extern std::map<std::pair<int32_t, int32_t>, Item> ItemData; // <id, type> -> data
