@@ -882,7 +882,7 @@ void MobManager::dealGooDamage(CNSocket *sock, int amount) {
         plr->HP -= amount;
     }
 
-    if (plr->activeNano != -1) {
+    if (plr->activeNano != 0) {
         dmg->iStamina = plr->Nanos[plr->activeNano].iStamina;
 
         if (plr->Nanos[plr->activeNano].iStamina <= 0) {
