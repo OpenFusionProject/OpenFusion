@@ -13,6 +13,9 @@ static sockaddr_in address;
 
 // runs during init
 void Monitor::init() {
+    if (!settings::MONITORENABLED)
+        return;
+
     listener = socket(AF_INET, SOCK_STREAM, 0);
     if (SOCKETERROR(listener)) {
         std::cout << "Failed to create monitor socket" << std::endl;
@@ -105,6 +108,9 @@ void Monitor::tick(CNServer *serv, time_t delta) {
 // runs in monitor thread
 void Monitor::start(void *unused) {
     socklen_t len = sizeof(address);
+
+    if (!settings::MONITORENABLED)
+        return;
 
     for (;;) {
         int sock = accept(listener, (struct sockaddr*)&address, &len);

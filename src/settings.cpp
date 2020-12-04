@@ -31,6 +31,7 @@ std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
 int settings::ACCLEVEL = 1;
 
 // monitor settings
+bool settings::MONITORENABLED = false;
 int settings::MONITORPORT = 8003;
 int settings::MONITORINTERVAL = 5000;
 
@@ -74,6 +75,7 @@ void settings::init() {
     ACCLEVEL = reader.GetInteger("shard", "accountlevel", ACCLEVEL);
     EVENTMODE = reader.GetInteger("shard", "eventmode", EVENTMODE);
     EVENTCRATECHANCE = reader.GetInteger("shard", "eventcratechance", EVENTCRATECHANCE);
+    MONITORENABLED = reader.GetBoolean("monitor", "enabled", MONITORENABLED);
     MONITORPORT = reader.GetInteger("monitor", "port", MONITORPORT);
     MONITORINTERVAL = reader.GetInteger("monitor", "interval", MONITORINTERVAL);
 }
