@@ -284,54 +284,24 @@ void CNServer::init() {
     }
 
     // poll() configuration
-    fdsSize = STARTFDSCOUNT * sizeof(PollFD); // won't overflow
-    fds = (PollFD*)xmalloc(fdsSize);
-
-    nfds = 1;
-    fds[0].fd = sock;
-    fds[0].events = POLLIN;
+    fds.reserve(STARTFDSCOUNT);
+    fds.push_back({sock, POLLIN});
 }
 
 CNServer::CNServer() {};
 CNServer::CNServer(uint16_t p): port(p) {}
 
 void CNServer::addPollFD(SOCKET s) {
-    // if the array is full, double its size
-    if (nfds == fdsSize / sizeof(PollFD)) {
-        size_t oldsize = fdsSize;
-
-        // check for multiplication overflow
-        assert(fdsSize < SIZE_MAX / 2);
-        fdsSize *= 2;
-
-        fds = (PollFD*)realloc(fds, fdsSize);
-        if (fds == NULL) {
-            std::cerr << "[FATAL] OpenFusion: out of memory!" << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
-        // initialize newly allocated area
-        memset(((uint8_t*)fds) + oldsize, 0, oldsize);
-    }
-
-    fds[nfds].fd = s;
-    fds[nfds].events = POLLIN;
-    nfds++;
+    fds.push_back({s, POLLIN});
 }
 
 void CNServer::removePollFD(int i) {
-    nfds--;
-    assert(nfds > 0);
+    auto it = fds.begin();
+    while (it != fds.end() && it->fd != fds[i].fd)
+        it++;
+    assert(it != fds.end());
 
-    if (i != nfds) {
-        // move the last entry to the new empty spot
-        fds[i].fd = fds[nfds].fd;
-        fds[i].events = fds[nfds].events; // redundant; events are always the same
-    }
-
-    // delete the entry
-    fds[nfds].fd = 0;
-    fds[nfds].events = 0;
+    fds.erase(it);
 }
 
 void CNServer::start() {
@@ -340,13 +310,13 @@ void CNServer::start() {
     std::cout << "Starting server at *:" << port << std::endl;
     while (active) {
         // the timeout is to ensure shard timers are ticking
-        int n = poll(fds, nfds, 200);
+        int n = poll(fds.data(), fds.size(), 50);
         if (SOCKETERROR(n)) {
             std::cout << "[FATAL] poll() returned error" << std::endl;
             terminate(0);
         }
 
-        oldnfds = nfds;
+        oldnfds = fds.size();
 
         activeCrit.lock();
 

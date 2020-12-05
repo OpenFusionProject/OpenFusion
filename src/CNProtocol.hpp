@@ -48,6 +48,8 @@
 #include <list>
 #include <queue>
 #include <unordered_map>
+#include <vector>
+#include <algorithm>
 
 #include "Defines.hpp"
 #include "settings.hpp"
@@ -197,9 +199,7 @@ protected:
     std::mutex activeCrit;
 
     const size_t STARTFDSCOUNT = 8; // number of initial PollFD slots
-    size_t fdsSize; // size of PollFD array in bytes
-    int nfds; // number of populated PollFD slots
-    PollFD *fds;
+    std::vector<PollFD> fds;
 
     SOCKET sock;
     uint16_t port;
