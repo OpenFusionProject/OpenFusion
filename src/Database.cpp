@@ -161,9 +161,15 @@ void Database::createTables() {
         CREATE TABLE IF NOT EXISTS "Buddyships" (
 	    "PlayerAId"	INTEGER NOT NULL,
 	    "PlayerBId"	INTEGER NOT NULL,
-	    "Status"	INTEGER NOT NULL,
         FOREIGN KEY("PlayerAId") REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
         FOREIGN KEY("PlayerBId") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS "Blocks" (
+	    "PlayerId"	        INTEGER NOT NULL,
+	    "BlockedPlayerId"	INTEGER NOT NULL,
+        FOREIGN KEY("PlayerId")       REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
+        FOREIGN KEY("BlockedPlayerId") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS "EmailData" (
@@ -970,6 +976,23 @@ void Database::getPlayer(Player* plr, int id) {
         int PlayerBId = sqlite3_column_int(stmt, 1);
 
         plr->buddyIDs[i] = id == PlayerAId ? PlayerBId : PlayerAId;
+        plr->isBuddyBlocked[i] = false;
+        i++;
+    }
+
+    // get blocked players
+    sql = R"(
+        SELECT "BlockedPlayerId" FROM "Blocks"
+        WHERE "PlayerId" = ?;
+        )";
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, id);
+    
+    // i remains from adding buddies!
+    while (sqlite3_step(stmt) == SQLITE_ROW && i < 50) {
+        plr->buddyIDs[i] = sqlite3_column_int(stmt, 0);
+        plr->isBuddyBlocked[i] = true;
         i++;
     }
 
@@ -1268,6 +1291,7 @@ void Database::removeExpiredVehicles(Player* player) {
 }
 
 // buddies
+/// returns num of buddies + blocked players
 int Database::getNumBuddies(Player* player) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
@@ -1281,7 +1305,15 @@ int Database::getNumBuddies(Player* player) {
     sqlite3_bind_int(stmt, 2, player->iID);
     sqlite3_step(stmt);
     int result = sqlite3_column_int(stmt, 0);
-    sqlite3_finalize(stmt);
+
+    sql = R"(
+        SELECT COUNT(*) FROM "Blocks"
+        WHERE "PlayerId" = ?;
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, player->iID);
+    sqlite3_step(stmt);
+    result += sqlite3_column_int(stmt, 0);
 
     // again, for peace of mind
     return result > 50 ? 50 : result;
@@ -1292,15 +1324,13 @@ void Database::addBuddyship(int playerA, int playerB) {
 
     const char* sql = R"(
         INSERT INTO "Buddyships" 
-        ("PlayerAId", "PlayerBId", "Status")
-        VALUES (?, ?, ?);
+        ("PlayerAId", "PlayerBId")
+        VALUES (?, ?);
         )";
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
     sqlite3_bind_int(stmt, 1, playerA);
     sqlite3_bind_int(stmt, 2, playerB);
-    // blocking???
-    sqlite3_bind_int(stmt, 3, 0);
 
     if (sqlite3_step(stmt) != SQLITE_DONE)
         std::cout << "[WARN] Database: failed to add buddies" << std::endl;
@@ -1321,8 +1351,40 @@ void Database::removeBuddyship(int playerA, int playerB) {
     sqlite3_bind_int(stmt, 3, playerB);
     sqlite3_bind_int(stmt, 4, playerA);
 
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+}
+
+// blocking
+void Database::addBlock(int playerId, int blockedPlayerId) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    const char* sql = R"(
+        INSERT INTO "Blocks" 
+        ("PlayerId", "BlockedPlayerId")
+        VALUES (?, ?);
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, playerId);
+    sqlite3_bind_int(stmt, 2, blockedPlayerId);
+
     if (sqlite3_step(stmt) != SQLITE_DONE)
-        std::cout << "[WARN] Database: failed to remove buddies" << std::endl;
+        std::cout << "[WARN] Database: failed to block player" << std::endl;
+    sqlite3_finalize(stmt);
+}
+
+void Database::removeBlock(int playerId, int blockedPlayerId) {
+    const char* sql = R"(
+        DELETE FROM "Blocks" 
+        WHERE "PlayerId" = ? AND "BlockedPlayerId" = ?;
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, playerId);
+    sqlite3_bind_int(stmt, 2, blockedPlayerId);
+
+    sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 }
 

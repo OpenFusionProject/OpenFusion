@@ -77,6 +77,7 @@ struct Player {
 
     bool buddiesSynced;
     int64_t buddyIDs[50];
+    bool isBuddyBlocked[50];
 
     ChunkPos chunkPos;
     std::set<Chunk*>* viewableChunks;

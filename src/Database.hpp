@@ -85,6 +85,10 @@ namespace Database {
     int getNumBuddies(Player* player);
     void addBuddyship(int playerA, int playerB);
     void removeBuddyship(int playerA, int playerB);
+    
+    // blocking
+    void addBlock(int playerId, int blockedPlayerId);
+    void removeBlock(int playerId, int blockedPlayerId);
 
     // email
     int getUnreadEmailCount(int playerID);
