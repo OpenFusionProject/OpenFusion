@@ -47,6 +47,7 @@
 #include <csignal>
 #include <list>
 #include <queue>
+#include <unordered_map>
 
 #include "Defines.hpp"
 #include "settings.hpp"
@@ -71,7 +72,7 @@ inline void* xmalloc(size_t sz) {
     void* res = calloc(1, sz);
 
     if (res == NULL) {
-        std::cerr << "[FATAL] OpenFusion: calloc failed to allocate memory!" << std::endl;
+        std::cerr << "[FATAL] OpenFusion: out of memory!" << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -192,8 +193,13 @@ struct TimerEvent {
 // in charge of accepting new connections and making sure each connection is kept alive
 class CNServer {
 protected:
-    std::list<CNSocket*> connections;
+    std::unordered_map<SOCKET, CNSocket*> connections;
     std::mutex activeCrit;
+
+    const size_t STARTFDSCOUNT = 8; // number of initial PollFD slots
+    size_t fdsSize; // size of PollFD array in bytes
+    int nfds; // number of populated PollFD slots
+    PollFD *fds;
 
     SOCKET sock;
     uint16_t port;
@@ -208,6 +214,9 @@ public:
 
     CNServer();
     CNServer(uint16_t p);
+
+    void addPollFD(SOCKET s);
+    void removePollFD(int i);
 
     void start();
     void kill();

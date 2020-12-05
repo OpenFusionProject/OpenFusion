@@ -214,6 +214,27 @@ void CNSocket::step() {
     }
 }
 
+static bool setSockNonblocking(SOCKET listener, SOCKET newSock) {
+#ifdef _WIN32
+    unsigned long mode = 1;
+    if (ioctlsocket(newSock, FIONBIO, &mode) != 0) {
+#else
+    if (fcntl(newSock, F_SETFL, (fcntl(listener, F_GETFL, 0) | O_NONBLOCK)) != 0) {
+#endif
+        std::cerr << "[WARN] OpenFusion: fcntl failed on new connection" << std::endl;
+#ifdef _WIN32
+        shutdown(newSock, SD_BOTH);
+        closesocket(newSock);
+#else
+        shutdown(newSock, SHUT_RDWR);
+        close(newSock);
+#endif
+        return false;
+    }
+
+    return true;
+}
+
 // ========================================================[[ CNServer ]]========================================================
 
 void CNServer::init() {
@@ -261,29 +282,65 @@ void CNServer::init() {
         std::cerr << "[FATAL] OpenFusion: fcntl failed" << std::endl;
         exit(EXIT_FAILURE);
     }
+
+    // poll() configuration
+    fdsSize = STARTFDSCOUNT * sizeof(PollFD); // won't overflow
+    fds = (PollFD*)xmalloc(fdsSize);
+
+    nfds = 1;
+    fds[0].fd = sock;
+    fds[0].events = POLLIN;
 }
 
 CNServer::CNServer() {};
 CNServer::CNServer(uint16_t p): port(p) {}
 
+void CNServer::addPollFD(SOCKET s) {
+    // if the array is full, double its size
+    if (nfds == fdsSize / sizeof(PollFD)) {
+        size_t oldsize = fdsSize;
+
+        // check for multiplication overflow
+        assert(fdsSize < SIZE_MAX / 2);
+        fdsSize *= 2;
+
+        fds = (PollFD*)realloc(fds, fdsSize);
+        if (fds == NULL) {
+            std::cerr << "[FATAL] OpenFusion: out of memory!" << std::endl;
+            exit(EXIT_FAILURE);
+        }
+
+        // initialize newly allocated area
+        memset(((uint8_t*)fds) + oldsize, 0, oldsize);
+    }
+
+    fds[nfds].fd = s;
+    fds[nfds].events = POLLIN;
+    nfds++;
+}
+
+void CNServer::removePollFD(int i) {
+    nfds--;
+    assert(nfds > 0);
+
+    if (i != nfds) {
+        // move the last entry to the new empty spot
+        fds[i].fd = fds[nfds].fd;
+        fds[i].events = fds[nfds].events; // redundant; events are always the same
+    }
+
+    // delete the entry
+    fds[nfds].fd = 0;
+    fds[nfds].events = 0;
+}
+
 void CNServer::start() {
-    int nfds = 1, oldnfds;
-    PollFD fds[30]; // TODO: dynamically grow
-
-    memset(&fds, 0, sizeof(fds));
-
-    // listener socket
-    fds[0].fd = sock;
-    fds[0].events = POLLIN;
+    int oldnfds;
 
     std::cout << "Starting server at *:" << port << std::endl;
-    // listen to new connections, add to connection list
     while (active) {
         // the timeout is to ensure shard timers are ticking
-        //std::cout << "pre-poll\n";
-        int n = poll((PollFD*)&fds, nfds, 200);
-        //if (n > 0)
-        //    std::cout << "poll returned " << n << std::endl;
+        int n = poll(fds, nfds, 200);
         if (SOCKETERROR(n)) {
             std::cout << "[FATAL] poll() returned error" << std::endl;
             terminate(0);
@@ -297,6 +354,8 @@ void CNServer::start() {
             if (fds[i].revents == 0)
                 continue; // nothing in this one; don't decrement n
 
+            n--;
+
             // is it the listener?
             if (fds[i].fd == sock) {
                 // any sort of error on the listener
@@ -307,91 +366,44 @@ void CNServer::start() {
                 }
 
                 SOCKET newConnectionSocket = accept(sock, (struct sockaddr *)&address, (socklen_t*)&addressSize);
-                if (SOCKETINVALID(newConnectionSocket)) {
-                    n--;
+                if (SOCKETINVALID(newConnectionSocket))
                     continue;
-                }
 
-                // set it to non-blocking mode
-#ifdef _WIN32
-                unsigned long mode = 1;
-                if (ioctlsocket(newConnectionSocket, FIONBIO, &mode) != 0) {
-#else
-                if (fcntl(newConnectionSocket, F_SETFL, (fcntl(sock, F_GETFL, 0) | O_NONBLOCK)) != 0) {
-#endif
-                    std::cerr << "[WARN] OpenFusion: fcntl failed on new connection" << std::endl;
-#ifdef _WIN32
-                    shutdown(newConnectionSocket, SD_BOTH);
-                    closesocket(newConnectionSocket);
-#else
-                    shutdown(newConnectionSocket, SHUT_RDWR);
-                    close(newConnectionSocket);
-#endif
-                    n--;
+                if (!setSockNonblocking(sock, newConnectionSocket))
                     continue;
-                }
 
                 std::cout << "New connection! " << inet_ntoa(address.sin_addr) << std::endl;
 
-                // add to pollfds
-                assert(nfds < 30); // XXX
-                fds[nfds].fd = newConnectionSocket;
-                fds[nfds].events = POLLIN;
-                nfds++;
-                std::cout << "in thread " << (void*) this << " nfds is now " << nfds << std::endl;
+                addPollFD(newConnectionSocket);
 
                 // add connection to list!
                 CNSocket* tmp = new CNSocket(newConnectionSocket, pHandler);
-                connections.push_back(tmp);
+                connections[newConnectionSocket] = tmp;
                 newConnection(tmp);
 
             } else {
                 // player sockets
-                std::list<CNSocket*>::iterator it = connections.begin();
-                while (it != connections.end()) {
-                    CNSocket* cSock = *it;
+                if (connections.find(fds[i].fd) == connections.end()) {
+                    std::cout << "[WARN] Event on non-existant socket?" << std::endl;
+                    continue; // just to be safe
+                }
 
-                    if (fds[i].fd != cSock->sock) {
-                        // not the socket we're looking for; check the next one
-                        it++;
-                        continue;
-                    }
+                CNSocket* cSock = connections[fds[i].fd];
 
-                    // kill the socket on error
-                    if (fds[i].revents & ~POLLIN) {
-                        std::cout << "Killing socket at fds[" << i << "]\n";
-                        cSock->kill();
-                    }
+                // kill the socket on hangup/error
+                if (fds[i].revents & ~POLLIN)
+                    cSock->kill();
 
-                    if (cSock->isAlive()) {
-                        cSock->step();
+                if (cSock->isAlive()) {
+                    cSock->step();
+                } else {
+                    killConnection(cSock);
+                    connections.erase(fds[i].fd);
+                    delete cSock;
 
-                        ++it; // go to the next element
-                    } else {
-                        killConnection(cSock);
-                        connections.erase(it++);
-                        delete cSock;
-
-                        nfds--;
-                        assert(nfds > 0);
-                        std::cout << "in thread " << (void*) this << " nfds is now " << nfds << std::endl;
-
-                        if (i != nfds) {
-                            // move the last entry to the new empty spot
-                            fds[i].fd = fds[nfds].fd;
-                            fds[i].events = fds[nfds].events; // redundant; events are always the same
-                        }
-
-                        // delete the entry
-                        fds[nfds].fd = 0;
-                        fds[nfds].events = 0;
-
-                        break;
-                    }
+                    removePollFD(i);
                 }
             }
-
-            n--;
         }
 
         onStep();
@@ -404,15 +416,11 @@ void CNServer::kill() {
     active = false;
 
     // kill all connections
-    std::list<CNSocket*>::iterator i = connections.begin();
-    while (i != connections.end()) {
-        CNSocket* cSock = *i;
-
-        if (cSock->isAlive()) {
+    for (auto& pair : connections) {
+        CNSocket *cSock = pair.second;
+        if (cSock->isAlive())
             cSock->kill();
-        }
 
-        ++i; // go to the next element
         delete cSock;
     }
 
