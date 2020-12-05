@@ -131,6 +131,10 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
     if (!CNLoginServer::isPasswordCorrect(findUser.Password, userPassword))
         return loginFail(LoginError::ID_AND_PASSWORD_DO_NOT_MATCH, userLogin, sock);
 
+    // is the account banned
+    if (findUser.BannedUntil > getTimestamp())
+        return loginFail(LoginError::LOGIN_ERROR, userLogin, sock);
+
     /* 
      * calling this here to timestamp login attempt,
      * in order to make duplicate exit sanity check work
@@ -166,7 +170,7 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
     DEBUGLOG(
         std::cout << "Login Server: Login success. Welcome " << userLogin << " [" << loginSessions[sock].userID << "]" << std::endl;
     )
-
+        
     if (resp.iCharCount == 0)
         return;
 

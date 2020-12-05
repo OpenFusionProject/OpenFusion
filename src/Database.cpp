@@ -64,8 +64,11 @@ void Database::createTables() {
         "Login"	    TEXT    NOT NULL UNIQUE,
         "Password"	TEXT    NOT NULL,
         "Selected"	INTEGER  DEFAULT 1 NOT NULL,
+        "AccountLevel" INTEGER NOT NULL,
         "Created"	INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
         "LastLogin"	INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
+        "BannedUntil" INTEGER DEFAULT 0 NOT NULL,
+        "BannedSince" INTEGER DEFAULT 0 NOT NULL,
         PRIMARY KEY("AccountID" AUTOINCREMENT)
         );
 
@@ -90,7 +93,6 @@ void Database::createTables() {
         "Angle"	    INTEGER NOT NULL,
         "HP"	         INTEGER NOT NULL,
         "NameCheck"	     INTEGER NOT NULL,     
-        "AccountLevel"	INTEGER NOT NULL,
         "FusionMatter"	INTEGER DEFAULT 0 NOT NULL,
         "Taros"	        INTEGER DEFAULT 0 NOT NULL,
         "Quests"	BLOB    NOT NULL,
@@ -196,6 +198,7 @@ void Database::createTables() {
 	    "Type"	    INTEGER NOT NULL,
 	    "Opt"	    INTEGER NOT NULL,
 	    "TimeLimit"	INTEGER NOT NULL,
+        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
         UNIQUE ("MsgIndex", "Slot")
         );
 
@@ -232,7 +235,7 @@ void Database::findAccount(Account* account, std::string login) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     const char* sql = R"(
-        SELECT "AccountID", "Password", "Selected"
+        SELECT "AccountID", "Password", "Selected", "BannedUntil"
         FROM "Accounts"
         WHERE "Login" = ?
         LIMIT 1;        
@@ -247,6 +250,7 @@ void Database::findAccount(Account* account, std::string login) {
         account->AccountID = sqlite3_column_int(stmt, 0);
         account->Password = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
         account->Selected = sqlite3_column_int(stmt, 2);
+        account->BannedUntil = sqlite3_column_int64(stmt, 3);
     }
     sqlite3_finalize(stmt);
 }
@@ -256,8 +260,8 @@ int Database::addAccount(std::string login, std::string password) {
 
     const char* sql = R"(
         INSERT INTO "Accounts"
-        ("Login", "Password")
-        VALUES (?, ?);
+        ("Login", "Password", "AccountLevel")
+        VALUES (?, ?, ?);
         )";
     sqlite3_stmt* stmt;
 
@@ -265,14 +269,34 @@ int Database::addAccount(std::string login, std::string password) {
     sqlite3_bind_text(stmt, 1, login.c_str(), -1, 0);
     std::string hashedPassword = BCrypt::generateHash(password);
     sqlite3_bind_text(stmt, 2, hashedPassword.c_str(), -1, 0);
+    sqlite3_bind_int(stmt, 3, settings::ACCLEVEL);
     int rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
     if (rc != SQLITE_DONE) {
-        std::cout << "[WARN] Database: failed to add new character" << std::endl;
+        std::cout << "[WARN] Database: failed to add new account" << std::endl;
         return 0;
     }
     return sqlite3_last_insert_rowid(db);
+}
+
+void Database::banAccount(int accountId, int days) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    const char* sql = R"(
+        UPDATE "Accounts"
+        SET "BannedSince" = (strftime('%s', 'now')),
+        "BannedUntil" = (strftime('%s', 'now')) + ?
+        WHERE "AccountID" = ?;
+        )";
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_int(stmt, 1, days * 86400); // convert days to seconds
+    sqlite3_bind_int(stmt, 2, accountId);
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        std::cout << "[WARN] Database: failed to ban player" << std::endl;
+    }
 }
 
 void Database::updateSelected(int accountId, int slot) {
@@ -377,9 +401,9 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
     const char* sql = R"(
         INSERT INTO "Players"
         ("AccountID", "Slot", "Firstname", "LastName", "XCoordinates" , "YCoordinates", "ZCoordinates", "Angle",
-         "HP", "NameCheck", "AccountLevel", "Quests")
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-        )";
+         "HP", "NameCheck", "Quests")
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        )";   
     sqlite3_stmt* stmt;
     std::string firstName = U16toU8(save->szFirstName);
     std::string lastName =  U16toU8(save->szLastName);
@@ -398,11 +422,10 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
     // if FNCode isn't 0, it's a wheel name
     int nameCheck = (settings::APPROVEALLNAMES || save->iFNCode) ? 1 : 0;
     sqlite3_bind_int(stmt, 10, nameCheck);
-    sqlite3_bind_int(stmt, 11, settings::ACCLEVEL);
 
     // 128 byte blob for completed quests
     unsigned char blobBuffer[128] = { 0 };
-    sqlite3_bind_blob(stmt, 12, blobBuffer, sizeof(blobBuffer), 0);
+    sqlite3_bind_blob(stmt, 11, blobBuffer, sizeof(blobBuffer), 0);
 
     int rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
@@ -795,12 +818,13 @@ void Database::getPlayer(Player* plr, int id) {
         p.Level, p.Nano1, p.Nano2, p.Nano3,
         p.AppearanceFlag, p.TutorialFlag, p.PayZoneFlag,
         p.XCoordinates, p.YCoordinates, p.ZCoordinates, p.NameCheck,
-        p.Angle, p.HP, p.AccountLevel, p.FusionMatter, p.Taros, p.Quests,
+        p.Angle, p.HP, acc.AccountLevel, p.FusionMatter, p.Taros, p.Quests,
         p.BatteryW, p.BatteryN, p.Mentor, p.WarpLocationFlag,
         p.SkywayLocationFlag1, p.SkywayLocationFlag2, p.CurrentMissionID,
         a.Body, a.EyeColor, a.FaceStyle, a.Gender, a.HairColor, a.HairStyle, a.Height, a.SkinColor  
         FROM "Players" as p 
         INNER JOIN "Appearances" as a ON p.PlayerID = a.PlayerID
+        INNER JOIN "Accounts" as acc ON p.AccountID = acc.AccountID
         WHERE p.PlayerID = ?
         )";
     sqlite3_stmt* stmt;

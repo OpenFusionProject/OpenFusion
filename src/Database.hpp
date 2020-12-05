@@ -11,6 +11,7 @@ namespace Database {
         int AccountID;
         std::string Password;
         int Selected;
+        time_t BannedUntil;
     };
     struct Buddyship {
         int PlayerAId;
@@ -52,6 +53,7 @@ namespace Database {
     void findAccount(Account* account, std::string login);
     /// returns ID, 0 if something failed
     int addAccount(std::string login, std::string password);
+    void banAccount(int accountId, int days);
     void updateSelected(int accountId, int playerId);
     
     bool validateCharacter(int characterID, int userID);
