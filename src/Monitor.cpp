@@ -46,6 +46,16 @@ void Monitor::init() {
         exit(1);
     }
 
+#ifdef _WIN32
+    unsigned long mode = 1;
+    if (ioctlsocket(listener, FIONBIO, &mode) != 0) {
+#else
+    if (fcntl(listener, F_SETFL, (fcntl(listener, F_GETFL, 0) | O_NONBLOCK)) != 0) {
+#endif
+        std::cerr << "[FATAL] OpenFusion: fcntl failed" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
     std::cout << "Monitor listening on *:" << settings::MONITORPORT << std::endl;
 
     REGISTER_SHARD_TIMER(tick, settings::MONITORINTERVAL);
@@ -116,6 +126,8 @@ void Monitor::start(void *unused) {
         int sock = accept(listener, (struct sockaddr*)&address, &len);
         if (SOCKETERROR(sock))
             continue;
+
+        setSockNonblocking(listener, sock);
 
         std::cout << "[INFO] New monitor connection from " << inet_ntoa(address.sin_addr) << std::endl;
 

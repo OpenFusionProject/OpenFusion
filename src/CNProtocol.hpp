@@ -117,6 +117,8 @@ inline bool validInVarPacket(size_t base, int32_t npayloads, size_t plsize, size
     return true;
 }
 
+bool setSockNonblocking(SOCKET listener, SOCKET newSock);
+
 namespace CNSocketEncryption {
     // you won't believe how complicated they made it in the client :facepalm:
     static constexpr const char* defaultKey = "m@rQn~W#";

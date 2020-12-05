@@ -214,7 +214,7 @@ void CNSocket::step() {
     }
 }
 
-static bool setSockNonblocking(SOCKET listener, SOCKET newSock) {
+bool setSockNonblocking(SOCKET listener, SOCKET newSock) {
 #ifdef _WIN32
     unsigned long mode = 1;
     if (ioctlsocket(newSock, FIONBIO, &mode) != 0) {
