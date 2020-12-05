@@ -21,6 +21,7 @@ void BuddyManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE, reqBuddyMenuchat);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_GET_BUDDY_STATE, reqPktGetBuddyState);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SET_BUDDY_BLOCK, reqBuddyBlock);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SET_PC_BLOCK, reqPlayerBlock);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_REMOVE_BUDDY, reqBuddyDelete);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_BUDDY_WARP, reqBuddyWarp);
     //
@@ -68,7 +69,7 @@ void BuddyManager::refreshBuddyList(CNSocket* sock) {
             Database::getPlayer(&buddyPlayerData, buddyID);
             if (buddyPlayerData.iID == 0)
                 continue;
-            buddyInfo.bBlocked = 0;
+            buddyInfo.bBlocked = plr->isBuddyBlocked[i];
             buddyInfo.bFreeChat = 1;
             buddyInfo.iGender = buddyPlayerData.PCStyle.iGender;
             buddyInfo.iID = buddyID;
@@ -382,16 +383,72 @@ void BuddyManager::reqBuddyBlock(CNSocket* sock, CNPacketData* data) {
         return; // malformed packet
 
     sP_CL2FE_REQ_SET_BUDDY_BLOCK* pkt = (sP_CL2FE_REQ_SET_BUDDY_BLOCK*)data->buf;
+    Player* plr = PlayerManager::getPlayer(sock);
 
+    // sanity checks
+    if (pkt->iBuddySlot < 0 || pkt->iBuddySlot >= 50 || plr->buddyIDs[pkt->iBuddySlot] != pkt->iBuddyPCUID)
+        return;
+
+    // save in DB
+    Database::removeBuddyship(plr->iID, pkt->iBuddyPCUID);
+    Database::addBlock(plr->iID, pkt->iBuddyPCUID);
+
+    // save serverside
+    // since ID is already in the array, just set it to blocked
+    plr->isBuddyBlocked[pkt->iBuddySlot] = true;
+
+    // send response
     INITSTRUCT(sP_FE2CL_REP_SET_BUDDY_BLOCK_SUCC, resp);
-
     resp.iBuddyPCUID = pkt->iBuddyPCUID;
     resp.iBuddySlot = pkt->iBuddySlot;
-
-    // TODO: handle this?
-
     sock->sendPacket((void*)&resp, P_FE2CL_REP_SET_BUDDY_BLOCK_SUCC, sizeof(sP_FE2CL_REP_SET_BUDDY_BLOCK_SUCC));
 
+    // notify the other player he isn't a buddy anymore
+    INITSTRUCT(sP_FE2CL_REP_REMOVE_BUDDY_SUCC, otherResp);
+    CNSocket* otherSock = PlayerManager::getSockFromID(pkt->iBuddyPCUID);
+    if (otherSock == nullptr)
+        return; // other player isn't online, no broadcast needed
+    Player* otherPlr = PlayerManager::getPlayer(otherSock);
+    // search for the slot with the requesting player's ID
+    otherResp.iBuddyPCUID = plr->PCStyle.iPC_UID;
+    for (int i = 0; i < 50; i++) {
+        if (otherPlr->buddyIDs[i] == plr->PCStyle.iPC_UID) {
+            // remove buddy
+            otherPlr->buddyIDs[i] = 0;
+            // broadcast
+            otherResp.iBuddySlot = i;
+            otherSock->sendPacket((void*)&otherResp, P_FE2CL_REP_REMOVE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_REMOVE_BUDDY_SUCC));
+            return;
+        }
+    }
+}
+
+// block non-buddy
+void BuddyManager::reqPlayerBlock(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_SET_PC_BLOCK))
+        return;
+
+    sP_CL2FE_REQ_SET_PC_BLOCK* pkt = (sP_CL2FE_REQ_SET_PC_BLOCK*)data->buf;
+
+    Player* plr = PlayerManager::getPlayer(sock);
+    int buddySlot = getAvailableBuddySlot(plr);
+    if (buddySlot == -1)
+        return;
+
+    // save in DB
+    Database::addBlock(plr->iID, pkt->iBlock_PCUID);
+
+    // save serverside
+    plr->buddyIDs[buddySlot] = pkt->iBlock_PCUID;
+    plr->isBuddyBlocked[buddySlot] = true;
+
+    // send response
+    INITSTRUCT(sP_FE2CL_REP_SET_PC_BLOCK_SUCC, resp);
+    resp.iBlock_ID = pkt->iBlock_ID;
+    resp.iBlock_PCUID = pkt->iBlock_PCUID;
+    resp.iBuddySlot = buddySlot;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_SET_PC_BLOCK_SUCC, sizeof(sP_FE2CL_REP_SET_PC_BLOCK_SUCC));
 }
 
 // Deleting the buddy
@@ -399,6 +456,7 @@ void BuddyManager::reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_REMOVE_BUDDY))
         return; // malformed packet
 
+    // note! this packet is used both for removing buddies and blocks
     sP_CL2FE_REQ_REMOVE_BUDDY* pkt = (sP_CL2FE_REQ_REMOVE_BUDDY*)data->buf;
 
     Player* plr = PlayerManager::getPlayer(sock);
@@ -407,13 +465,22 @@ void BuddyManager::reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_REMOVE_BUDDY_SUCC, resp);
     resp.iBuddyPCUID = pkt->iBuddyPCUID;
     resp.iBuddySlot = pkt->iBuddySlot;
-    if (pkt->iBuddySlot < 0 || pkt->iBuddySlot >= 50)
+    if (pkt->iBuddySlot < 0 || pkt->iBuddySlot >= 50 || plr->buddyIDs[pkt->iBuddySlot] != pkt->iBuddyPCUID)
         return; // sanity check
-    plr->buddyIDs[resp.iBuddySlot] = 0;
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_REMOVE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_REMOVE_BUDDY_SUCC));
 
+    bool wasBlocked = plr->isBuddyBlocked[resp.iBuddySlot];
+    plr->buddyIDs[resp.iBuddySlot] = 0;
+    plr->isBuddyBlocked[resp.iBuddySlot] = false;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_REMOVE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_REMOVE_BUDDY_SUCC));
+    
     // remove record from db
     Database::removeBuddyship(plr->PCStyle.iPC_UID, pkt->iBuddyPCUID);
+    // try this too
+    Database::removeBlock(plr->PCStyle.iPC_UID, pkt->iBuddyPCUID);
+    
+    if (wasBlocked)
+        return;
 
     // remove buddy on their side, reusing the struct
     CNSocket* otherSock = PlayerManager::getSockFromID(pkt->iBuddyPCUID);

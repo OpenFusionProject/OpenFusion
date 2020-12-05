@@ -31,6 +31,7 @@ namespace BuddyManager {
 
 	// Blocking/removing buddies
 	void reqBuddyBlock(CNSocket* sock, CNPacketData* data);
+	void reqPlayerBlock(CNSocket* sock, CNPacketData* data);
 	void reqBuddyDelete(CNSocket* sock, CNPacketData* data);
 
 	// Buddy warping
