@@ -42,7 +42,7 @@ void startShard(CNShardServer* server) {
     server->start();
 }
 
-// terminate gracefully on SIGINT (for gprof)
+// terminate gracefully on SIGINT (for gprof & DB saving)
 void terminate(int arg) {
     std::cout << "OpenFusion: terminating." << std::endl;
 
@@ -111,7 +111,7 @@ int main() {
     case 3: std::cout << "[INFO] Event active. Have a very hoppy Easter!" << std::endl; break;
     default:
         std::cout << "[FATAL] Unknown event set in config file." << std::endl;
-        terminate(0);
+        terminate();
         /* not reached */
     }
 

@@ -313,12 +313,10 @@ void CNServer::start() {
         int n = poll(fds.data(), fds.size(), 50);
         if (SOCKETERROR(n)) {
             std::cout << "[FATAL] poll() returned error" << std::endl;
-            terminate(0);
+            terminate();
         }
 
         oldnfds = fds.size();
-
-        activeCrit.lock();
 
         for (int i = 0; i < oldnfds && n > 0; i++) {
             if (fds[i].revents == 0)
@@ -331,8 +329,7 @@ void CNServer::start() {
                 // any sort of error on the listener
                 if (fds[i].revents & ~POLLIN) {
                     std::cout << "[FATAL] Error on listener socket" << std::endl;
-                    activeCrit.unlock(); // must unlock before calling terminate()
-                    terminate(0);
+                    terminate();
                 }
 
                 SOCKET newConnectionSocket = accept(sock, (struct sockaddr *)&address, (socklen_t*)&addressSize);
@@ -355,6 +352,8 @@ void CNServer::start() {
                 // no-op. handled in checkExtraSockets().
 
             } else {
+                std::lock_guard<std::mutex> lock(activeCrit); // protect operations on connections
+
                 // player sockets
                 if (connections.find(fds[i].fd) == connections.end()) {
                     std::cout << "[WARN] Event on non-existant socket?" << std::endl;
@@ -380,7 +379,6 @@ void CNServer::start() {
         }
 
         onStep();
-        activeCrit.unlock();
     }
 }
 

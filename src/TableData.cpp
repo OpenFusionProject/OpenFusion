@@ -54,7 +54,7 @@ void TableData::init() {
     }
     catch (const std::exception& err) {
         std::cerr << "[FATAL] Malformed NPCs.json file! Reason:" << err.what() << std::endl;
-        terminate(0);
+        terminate();
     }
 
     // load everything else from xdttable
@@ -230,7 +230,7 @@ void TableData::init() {
     }
     catch (const std::exception& err) {
         std::cerr << "[FATAL] Malformed xdt.json file! Reason:" << err.what() << std::endl;
-        terminate(0);
+        terminate();
     }
 
     // load temporary mob dump
@@ -303,7 +303,7 @@ void TableData::init() {
     }
     catch (const std::exception& err) {
         std::cerr << "[FATAL] Malformed mobs.json file! Reason:" << err.what() << std::endl;
-        terminate(0);
+        terminate();
     }
 
     loadDrops();
@@ -373,7 +373,7 @@ void TableData::loadPaths(int* nextId) {
                     if (firstPoint["iX"] != pair.second->spawnX || firstPoint["iY"] != pair.second->spawnY) {
                         std::cout << "[FATAL] The first point of the route for mob " << pair.first <<
                             " (type " << pair.second->appearanceData.iNPCType << ") does not correspond with its spawn point." << std::endl;
-                        terminate(0);
+                        terminate();
                     }
 
                     constructPathNPC(npcPath, pair.first);
@@ -386,7 +386,7 @@ void TableData::loadPaths(int* nextId) {
     }
     catch (const std::exception& err) {
         std::cerr << "[FATAL] Malformed paths.json file! Reason:" << err.what() << std::endl;
-        terminate(0);
+        terminate();
     }
 }
 
@@ -497,7 +497,7 @@ void TableData::loadDrops() {
     }
     catch (const std::exception& err) {
         std::cerr << "[FATAL] Malformed drops.json file! Reason:" << err.what() << std::endl;
-        terminate(0);
+        terminate();
     }
 }
 
@@ -539,7 +539,7 @@ void TableData::loadEggs(int32_t* nextId) {
     }
     catch (const std::exception& err) {
         std::cerr << "[FATAL] Malformed eggs.json file! Reason:" << err.what() << std::endl;
-        terminate(0);
+        terminate();
     }
 }
 
@@ -763,7 +763,7 @@ void TableData::loadGruntwork(int32_t *nextId) {
     }
     catch (const std::exception& err) {
         std::cerr << "[FATAL] Malformed gruntwork.json file! Reason:" << err.what() << std::endl;
-        terminate(0);
+        terminate();
     }
 }
 
