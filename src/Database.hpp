@@ -3,20 +3,17 @@
 #include "Player.hpp"
 #include <string>
 #include <vector>
+#include <map>
+
+#define DATABASE_VERSION 1
 
 namespace Database {
-#pragma region DatabaseStructs
 
     struct Account {
         int AccountID;
         std::string Password;
         int Selected;
         time_t BannedUntil;
-    };
-    struct Buddyship {
-        int PlayerAId;
-        int PlayerBId;
-        int16_t Status;
     };
     struct EmailData {
         int PlayerId;
@@ -32,21 +29,11 @@ namespace Database {
         uint64_t SendTime;
         uint64_t DeleteTime;
     };
-    struct EmailItem {
-        int PlayerId;
-        int MsgIndex;
-        int Slot;
-        int16_t Type;
-        int16_t Id;
-        int32_t Opt;
-        int32_t TimeLimit;
-    };
-
-
-#pragma endregion DatabaseStructs
-
+    
     void open();
     void close();
+    void checkMetaTable();
+    void createMetaTable();
     void createTables();
     int getTableSize(std::string tableName);
 
