@@ -6,16 +6,12 @@
 
 #include <cstdio>
 
-static int listener;
+static SOCKET listener;
 static std::mutex sockLock; // guards socket list
 static std::list<SOCKET> sockets;
 static sockaddr_in address;
 
-// runs during init
-void Monitor::init() {
-    if (!settings::MONITORENABLED)
-        return;
-
+SOCKET Monitor::init() {
     listener = socket(AF_INET, SOCK_STREAM, 0);
     if (SOCKETERROR(listener)) {
         std::cout << "Failed to create monitor socket" << std::endl;
@@ -59,6 +55,8 @@ void Monitor::init() {
     std::cout << "Monitor listening on *:" << settings::MONITORPORT << std::endl;
 
     REGISTER_SHARD_TIMER(tick, settings::MONITORINTERVAL);
+
+    return listener;
 }
 
 static bool transmit(std::list<SOCKET>::iterator& it, char *buff, int len) {
@@ -86,7 +84,6 @@ static bool transmit(std::list<SOCKET>::iterator& it, char *buff, int len) {
     return true;
 }
 
-// runs in shard thread
 void Monitor::tick(CNServer *serv, time_t delta) {
     std::lock_guard<std::mutex> lock(sockLock);
     char buff[256];
@@ -115,26 +112,33 @@ void Monitor::tick(CNServer *serv, time_t delta) {
     }
 }
 
-// runs in monitor thread
-void Monitor::start(void *unused) {
+bool Monitor::acceptConnection(SOCKET fd, uint16_t revents) {
     socklen_t len = sizeof(address);
 
     if (!settings::MONITORENABLED)
-        return;
+        return false;
 
-    for (;;) {
-        int sock = accept(listener, (struct sockaddr*)&address, &len);
-        if (SOCKETERROR(sock))
-            continue;
+    if (fd != listener)
+        return false;
 
-        setSockNonblocking(listener, sock);
-
-        std::cout << "[INFO] New monitor connection from " << inet_ntoa(address.sin_addr) << std::endl;
-
-        {
-            std::lock_guard<std::mutex> lock(sockLock);
-
-            sockets.push_back(sock);
-        }
+    if (revents & ~POLLIN) {
+        std::cout << "[FATAL] Error on monitor listener?" << std::endl;
+        terminate(0);
     }
+
+    int sock = accept(listener, (struct sockaddr*)&address, &len);
+    if (SOCKETERROR(sock))
+        return true;
+
+    setSockNonblocking(listener, sock);
+
+    std::cout << "[INFO] New monitor connection from " << inet_ntoa(address.sin_addr) << std::endl;
+
+    {
+        std::lock_guard<std::mutex> lock(sockLock);
+
+        sockets.push_back(sock);
+    }
+
+    return true;
 }

@@ -6,7 +6,7 @@
 #include <mutex>
 
 namespace Monitor {
-    void init();
+    SOCKET init();
     void tick(CNServer *, time_t);
-    void start(void *);
+    bool acceptConnection(SOCKET, uint16_t);
 };

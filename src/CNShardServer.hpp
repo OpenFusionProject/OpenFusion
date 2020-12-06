@@ -23,6 +23,7 @@ public:
 
     static void _killConnection(CNSocket *cns);
 
+    bool checkExtraSockets(int i);
     void newConnection(CNSocket* cns);
     void killConnection(CNSocket* cns);
     void kill();

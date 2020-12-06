@@ -6,6 +6,7 @@
 #include "CNShared.hpp"
 #include "settings.hpp"
 #include "Database.hpp"
+#include "Monitor.hpp"
 #include "TableData.hpp" // for flush()
 
 #include <iostream>
@@ -21,6 +22,9 @@ CNShardServer::CNShardServer(uint16_t p) {
     REGISTER_SHARD_TIMER(keepAliveTimer, 4000);
     REGISTER_SHARD_TIMER(periodicSaveTimer, settings::DBSAVEINTERVAL*1000);
     init();
+
+    if (settings::MONITORENABLED)
+        fds.push_back({Monitor::init(), POLLIN});
 }
 
 void CNShardServer::handlePacket(CNSocket* sock, CNPacketData* data) {
@@ -60,6 +64,10 @@ void CNShardServer::periodicSaveTimer(CNServer* serv, time_t currTime) {
 
     TableData::flush();
     std::cout << "[INFO] Done." << std::endl;
+}
+
+bool CNShardServer::checkExtraSockets(int i) {
+    return Monitor::acceptConnection(fds[i].fd, fds[i].revents);
 }
 
 void CNShardServer::newConnection(CNSocket* cns) {

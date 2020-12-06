@@ -219,7 +219,7 @@ bool setSockNonblocking(SOCKET listener, SOCKET newSock) {
     unsigned long mode = 1;
     if (ioctlsocket(newSock, FIONBIO, &mode) != 0) {
 #else
-    if (fcntl(newSock, F_SETFL, (fcntl(listener, F_GETFL, 0) | O_NONBLOCK)) != 0) {
+    if (fcntl(newSock, F_SETFL, (fcntl(newSock, F_GETFL, 0) | O_NONBLOCK)) != 0) {
 #endif
         std::cerr << "[WARN] OpenFusion: fcntl failed on new connection" << std::endl;
 #ifdef _WIN32
@@ -351,6 +351,9 @@ void CNServer::start() {
                 connections[newConnectionSocket] = tmp;
                 newConnection(tmp);
 
+            } else if (checkExtraSockets(i)) {
+                // no-op. handled in checkExtraSockets().
+
             } else {
                 // player sockets
                 if (connections.find(fds[i].fd) == connections.end()) {
@@ -419,6 +422,7 @@ void CNServer::printPacket(CNPacketData *data, int type) {
     std::cout << "OpenFusion: received " << Defines::p2str(type, data->type) << " (" << data->type << ")" << std::endl;
 }
 
+bool CNServer::checkExtraSockets(int i) { return false; } // stubbed
 void CNServer::newConnection(CNSocket* cns) {} // stubbed
 void CNServer::killConnection(CNSocket* cns) {} // stubbed
 void CNServer::onStep() {} // stubbed

@@ -223,6 +223,7 @@ public:
     void start();
     void kill();
     static void printPacket(CNPacketData *data, int type);
+    virtual bool checkExtraSockets(int i);
     virtual void newConnection(CNSocket* cns);
     virtual void killConnection(CNSocket* cns);
     virtual void onStep();
