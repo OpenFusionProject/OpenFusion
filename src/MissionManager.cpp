@@ -426,13 +426,19 @@ void MissionManager::updateFusionMatter(CNSocket* sock, int fusion) {
     plr->fusionmatter += fusion;
 
     // there's a much lower FM cap in the Future
-    if (plr->fusionmatter > AvatarGrowth[plr->level]["m_iFMLimit"])
-        plr->fusionmatter = AvatarGrowth[plr->level]["m_iFMLimit"];
+    int fmCap = AvatarGrowth[plr->level]["m_iFMLimit"];
+    if (plr->fusionmatter > fmCap)
+        plr->fusionmatter = fmCap;
     else if (plr->fusionmatter < 0) // if somehow lowered too far
         plr->fusionmatter = 0;
 
+    // don't run nano mission logic at level 36
+    if (plr->level >= 36)
+        return;
+
     // check if it is enough for the nano mission
-    if (plr->fusionmatter < AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"])
+    int fmNano = AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"];
+    if (plr->fusionmatter < fmNano)
         return;
 
     // don't give the Blossom nano mission until the player's in the Past
