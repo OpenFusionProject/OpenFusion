@@ -3,7 +3,6 @@
 #include "CNShardServer.hpp"
 
 #define CMD_PREFIX '/'
-#define M_PI 3.14159265358979323846
 
 typedef void (*CommandHandler)(std::string fullString, std::vector<std::string>& args, CNSocket* sock);
 

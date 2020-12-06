@@ -11,6 +11,7 @@
 
 #include <sstream>
 #include <iterator>
+#include <math.h>
 
 std::map<std::string, ChatCommand> ChatManager::commands;
 
