@@ -30,6 +30,7 @@ void Database::open() {
 
     // foreign keys are off by default
     sqlite3_exec(db, "PRAGMA foreign_keys=ON", NULL, NULL, NULL);
+    checkMetaTable();
     createTables();
 
     std::cout << "[INFO] Database in operation ";
@@ -53,7 +54,118 @@ void Database::close() {
     sqlite3_close(db);
 }
 
+void Database::checkMetaTable() {
+
+    // first check if meta table exists
+    const char* sql = R"(
+        SELECT COUNT (*) FROM sqlite_master WHERE type="table" AND name="Meta";
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    int rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW) {
+        std::cout << "[FATAL] Failed to check meta table"  << std::endl;
+        terminate(0);
+    }
+
+    int count = sqlite3_column_int(stmt, 0);
+    if (count == 0) {
+        sqlite3_finalize(stmt);
+        return createMetaTable();
+    }
+
+    // check protocol version
+    sql = R"(
+        SELECT "Value" FROM "Meta" WHERE "Key" = "ProtocolVersion";
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+
+    if (sqlite3_step(stmt) != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        std::cout << "[FATAL] Failed to check DB Protocol Version" << std::endl;
+        terminate(0);
+    }
+
+    if (sqlite3_column_int(stmt, 0) != PROTOCOL_VERSION) {
+        sqlite3_finalize(stmt);
+        std::cout << "[FATAL] DB Protocol Version doesn't match Server Build" << std::endl;
+        terminate(0);
+    }
+
+    sql = R"(
+        SELECT "Value" FROM "Meta" WHERE "Key" = "DatabaseVersion";
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    rc = sqlite3_step(stmt);
+    
+    if (rc != SQLITE_ROW) {
+        std::cout << "[FATAL] Failed to check DB Version" << std::endl;
+        sqlite3_finalize(stmt);
+        terminate(0);
+    }
+
+    int dbVersion = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+
+    if (dbVersion != DATABASE_VERSION) {
+        // we should be handling migrations here in the future
+        std::cout << "[FATAL] DB Version doesn't match Server Build" << std::endl;
+        terminate(0);
+    }
+}
+
+void Database::createMetaTable() {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+
+    const char* sql = R"(
+        CREATE TABLE "Meta"(
+        "Key" TEXT NOT NULL UNIQUE,
+        "Value" INTEGER NOT NULL);
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+        std::cout << "[FATAL] Failed to create meta table" << std::endl;
+        terminate(0);
+    }
+
+    sql = R"(
+        INSERT INTO "Meta" ("Key", "Value")
+        VALUES (?, ?);
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_bind_text(stmt, 1, "ProtocolVersion", -1, 0);
+    sqlite3_bind_int(stmt, 2, PROTOCOL_VERSION);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+        std::cout << "[FATAL] Failed to create meta table" << std::endl;
+        terminate(0);
+    }
+
+    sqlite3_reset(stmt);
+    sqlite3_bind_text(stmt, 1, "DatabaseVersion", -1, 0);
+    sqlite3_bind_int(stmt, 2, DATABASE_VERSION);
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    if (rc != SQLITE_DONE) {
+        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+        std::cout << "[FATAL] Failed to create meta table" << std::endl;
+        terminate(0);
+    }
+
+    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+    std::cout << "[INFO] Created new meta table" << std::endl;
+}
+
 void Database::createTables() {
+    std::lock_guard<std::mutex> lock(dbCrit);
 
     char* errMsg = 0;
     char* sql;
