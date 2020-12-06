@@ -10,6 +10,7 @@
     #ifndef NOMINMAX
     #define NOMINMAX
     #endif
+    #define M_PI 3.14159265358979323846
     #define _WINSOCK_DEPRECATED_NO_WARNINGS
     #include <winsock2.h>
     #include <windows.h>
