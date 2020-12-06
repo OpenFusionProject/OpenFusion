@@ -287,6 +287,11 @@ void NanoManager::summonNano(CNSocket *sock, int slot, bool silent) {
     if (slot > 2 || slot < -1)
         return; // sanity check
 
+    int16_t nanoID = slot == -1 ? 0 : plr->equippedNanos[slot];
+
+    if (slot != -1 && plr->Nanos[nanoID].iSkillID == 0)
+        return; // prevent powerless nanos from summoning
+
     plr->nanoDrainRate = 0;
     int16_t skillID = plr->Nanos[plr->activeNano].iSkillID;
 
@@ -299,14 +304,11 @@ void NanoManager::summonNano(CNSocket *sock, int slot, bool silent) {
                 nanoUnbuff(sock, targetData, pwr.bitFlag, pwr.timeBuffID, 0,(SkillTable[skillID].targetType == 3));
     }
 
-    int16_t nanoID = slot == -1 ? 0 : plr->equippedNanos[slot];
-
     if (nanoID > 36 || nanoID < 0)
         return; // sanity check
 
     plr->activeNano = nanoID;
-    sNano nano = plr->Nanos[nanoID];
-    skillID = nano.iSkillID;
+    skillID = plr->Nanos[nanoID].iSkillID;
 
     // passive nano buffing
     if (SkillTable[skillID].drainType == 2) {
@@ -494,6 +496,11 @@ int NanoManager::nanoStyle(int nanoID) {
     return NanoTable[nanoID].style;
 }
 
+/*
+ * targetData approach
+ * first integer is the count
+ * second to fifth integers are IDs, these can be either player iID or mob's iID
+ */
 std::vector<int> NanoManager::findTargets(Player* plr, int skillID, CNPacketData* data) {
     std::vector<int> tD(5);
 
@@ -564,10 +571,14 @@ bool doDebuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t target
 
     respdata[i].eCT = 4;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
-    respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag |= bitFlag;
-    mob->unbuffTimes[bitFlag] = getTime() + duration * 100;
-
-    std::cout << (int)mob->appearanceData.iNPC_ID << " was debuffed" << std::endl;
+    respdata[i].bProtected = 1;
+    if (mob->skillStyle < 0 && mob->state != MobState::RETREAT) { // only debuff if the enemy is not retreating and not casting corruption
+        mob->appearanceData.iConditionBitFlag |= bitFlag;
+        mob->unbuffTimes[bitFlag] = getTime() + duration * 100;
+        std::cout << (int)mob->appearanceData.iNPC_ID << " was debuffed" << std::endl;
+        respdata[i].bProtected = 0;
+    }
+    respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
 
     return true;
 }
@@ -623,12 +634,17 @@ bool doDamageNDebuff(CNSocket *sock, sSkillResult_Damage_N_Debuff *respdata, int
     int damage = MobManager::hitMob(sock, mob, 0); // using amount for something else
 
     respdata[i].eCT = 4;
-    respdata[i].iDamage = damage;
+    respdata[i].iDamage = duration / 10;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
     respdata[i].iHP = mob->appearanceData.iHP;
-    respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag |= bitFlag;
-    mob->unbuffTimes[bitFlag] = getTime() + duration * 100;
-    std::cout << (int)mob->appearanceData.iNPC_ID << " was debuffed" << std::endl;
+    respdata[i].bProtected = 1;
+    if (mob->skillStyle < 0 && mob->state != MobState::RETREAT) { // only debuff if the enemy is not retreating and not casting corruption
+        mob->appearanceData.iConditionBitFlag |= bitFlag;
+        mob->unbuffTimes[bitFlag] = getTime() + duration * 100;
+        std::cout << (int)mob->appearanceData.iNPC_ID << " was debuffed" << std::endl;
+        respdata[i].bProtected = 0;
+    }
+    respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
 
     return true;
 }

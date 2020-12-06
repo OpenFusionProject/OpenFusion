@@ -567,7 +567,7 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int eggId) {
 
     if (skillId == 183) {
         resplen = sizeof(sP_FE2CL_NPC_SKILL_HIT) + sizeof(sSkillResult_Damage);
-    } else if (skillId == 147) {
+    } else if (skillId == 150) {
         resplen = sizeof(sP_FE2CL_NPC_SKILL_HIT) + sizeof(sSkillResult_Heal_HP);
     } else {
         resplen = sizeof(sP_FE2CL_NPC_SKILL_HIT) + sizeof(sSkillResult_Buff);
@@ -588,7 +588,7 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int eggId) {
         if (plr->HP < 0)
             plr->HP = 0;
         skill->iHP = plr->HP;
-    } else if (skillId == 147) { // heal egg
+    } else if (skillId == 150) { // heal egg
         sSkillResult_Heal_HP* skill = (sSkillResult_Heal_HP*)(respbuf + sizeof(sP_FE2CL_NPC_SKILL_HIT));
         memset(respbuf, 0, resplen);
         skill->eCT = 1;
@@ -651,6 +651,12 @@ void NPCManager::eggStep(CNServer* serv, time_t currTime) {
                     plr->iConditionBitFlag &= ~CBFlag;
                     resp.iConditionBitFlag = plr->iConditionBitFlag |= groupFlags | plr->iSelfConditionBitFlag;
                     sock->sendPacket((void*)&resp, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+
+                    INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, resp2); // send a buff timeout to other players
+                    resp2.eCT = 1;
+                    resp2.iID = plr->iID;
+                    resp2.iConditionBitFlag = plr->iConditionBitFlag;
+                    PlayerManager::sendToViewable(sock, (void*)&resp2, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
                 }
             }
             // remove buff from the map
