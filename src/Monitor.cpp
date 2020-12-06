@@ -123,7 +123,7 @@ bool Monitor::acceptConnection(SOCKET fd, uint16_t revents) {
 
     if (revents & ~POLLIN) {
         std::cout << "[FATAL] Error on monitor listener?" << std::endl;
-        terminate();
+        terminate(0);
     }
 
     int sock = accept(listener, (struct sockaddr*)&address, &len);

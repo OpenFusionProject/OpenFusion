@@ -313,7 +313,7 @@ void CNServer::start() {
         int n = poll(fds.data(), fds.size(), 50);
         if (SOCKETERROR(n)) {
             std::cout << "[FATAL] poll() returned error" << std::endl;
-            terminate();
+            terminate(0);
         }
 
         oldnfds = fds.size();
@@ -329,7 +329,7 @@ void CNServer::start() {
                 // any sort of error on the listener
                 if (fds[i].revents & ~POLLIN) {
                     std::cout << "[FATAL] Error on listener socket" << std::endl;
-                    terminate();
+                    terminate(0);
                 }
 
                 SOCKET newConnectionSocket = accept(sock, (struct sockaddr *)&address, (socklen_t*)&addressSize);
