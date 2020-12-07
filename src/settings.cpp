@@ -81,5 +81,5 @@ void settings::init() {
     DISABLEFIRSTUSEFLAG = reader.GetInteger("shard", "disablefirstuseflag", DISABLEFIRSTUSEFLAG);
     MONITORENABLED = reader.GetBoolean("monitor", "enabled", MONITORENABLED);
     MONITORPORT = reader.GetInteger("monitor", "port", MONITORPORT);
-    MONITORINTERVAL = reader.GetInteger("monitor", "interval", MONITORINTERVAL);    
+    MONITORINTERVAL = reader.GetInteger("monitor", "interval", MONITORINTERVAL);
 }

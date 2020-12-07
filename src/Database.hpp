@@ -3,7 +3,6 @@
 #include "Player.hpp"
 #include <string>
 #include <vector>
-#include <map>
 
 #define DATABASE_VERSION 1
 
@@ -67,7 +66,6 @@ namespace Database {
     // getting players
     void getPlayer(Player* plr, int id);
     void updatePlayer(Player *player);
-    void updateBuddies(Player* player);
     void removeExpiredVehicles(Player* player);
     
     // buddies
@@ -89,5 +87,4 @@ namespace Database {
     void deleteEmails(int playerID, int64_t* indices);
     int getNextEmailIndex(int playerID);
     void sendEmail(EmailData* data, std::vector<sItemBase> attachments);
-
 }

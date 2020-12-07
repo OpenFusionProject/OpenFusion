@@ -28,7 +28,7 @@ void Database::open() {
         terminate(0);
     }
 
-    // foreign keys are off by default
+    // foreign keys in sqlite are off by default; enable them
     sqlite3_exec(db, "PRAGMA foreign_keys=ON", NULL, NULL, NULL);
     checkMetaTable();
     createTables();
@@ -51,6 +51,7 @@ void Database::open() {
 }
 
 void Database::close() {
+    // TODO: Save everything to db?
     sqlite3_close(db);
 }
 
@@ -61,9 +62,8 @@ void Database::checkMetaTable() {
         SELECT COUNT (*) FROM sqlite_master WHERE type="table" AND name="Meta";
         )";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-    int rc = sqlite3_step(stmt);
-    if (rc != SQLITE_ROW) {
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (sqlite3_step(stmt) != SQLITE_ROW) {
         std::cout << "[FATAL] Failed to check meta table"  << std::endl;
         terminate(0);
     }
@@ -78,7 +78,7 @@ void Database::checkMetaTable() {
     sql = R"(
         SELECT "Value" FROM "Meta" WHERE "Key" = "ProtocolVersion";
         )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     if (sqlite3_step(stmt) != SQLITE_ROW) {
         sqlite3_finalize(stmt);
@@ -95,10 +95,9 @@ void Database::checkMetaTable() {
     sql = R"(
         SELECT "Value" FROM "Meta" WHERE "Key" = "DatabaseVersion";
         )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-    rc = sqlite3_step(stmt);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     
-    if (rc != SQLITE_ROW) {
+    if (sqlite3_step(stmt) != SQLITE_ROW) {
         std::cout << "[FATAL] Failed to check DB Version" << std::endl;
         sqlite3_finalize(stmt);
         terminate(0);
@@ -117,18 +116,20 @@ void Database::checkMetaTable() {
 void Database::createMetaTable() {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+    sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
 
     const char* sql = R"(
         CREATE TABLE "Meta"(
         "Key" TEXT NOT NULL UNIQUE,
-        "Value" INTEGER NOT NULL);
+        "Value" INTEGER NOT NULL,
+        "Created"	INTEGER DEFAULT (strftime('%s', 'now'))
+        );
         )";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         sqlite3_finalize(stmt);
-        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
         std::cout << "[FATAL] Failed to create meta table" << std::endl;
         terminate(0);
     }
@@ -137,30 +138,30 @@ void Database::createMetaTable() {
         INSERT INTO "Meta" ("Key", "Value")
         VALUES (?, ?);
         )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-    sqlite3_bind_text(stmt, 1, "ProtocolVersion", -1, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_bind_text(stmt, 1, "ProtocolVersion", -1, NULL);
     sqlite3_bind_int(stmt, 2, PROTOCOL_VERSION);
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         sqlite3_finalize(stmt);
-        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
         std::cout << "[FATAL] Failed to create meta table" << std::endl;
         terminate(0);
     }
 
     sqlite3_reset(stmt);
-    sqlite3_bind_text(stmt, 1, "DatabaseVersion", -1, 0);
+    sqlite3_bind_text(stmt, 1, "DatabaseVersion", -1, NULL);
     sqlite3_bind_int(stmt, 2, DATABASE_VERSION);
     int rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
     if (rc != SQLITE_DONE) {
-        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
         std::cout << "[FATAL] Failed to create meta table" << std::endl;
         terminate(0);
     }
 
-    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+    sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
     std::cout << "[INFO] Created new meta table" << std::endl;
 }
 
@@ -172,158 +173,159 @@ void Database::createTables() {
 
     sql = R"(
         CREATE TABLE IF NOT EXISTS "Accounts" (
-        "AccountID"	INTEGER NOT NULL,
-        "Login"	    TEXT    NOT NULL UNIQUE,
-        "Password"	TEXT    NOT NULL,
-        "Selected"	INTEGER  DEFAULT 1 NOT NULL,
-        "AccountLevel" INTEGER NOT NULL,
-        "Created"	INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
-        "LastLogin"	INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
-        "BannedUntil" INTEGER DEFAULT 0 NOT NULL,
-        "BannedSince" INTEGER DEFAULT 0 NOT NULL,
-        PRIMARY KEY("AccountID" AUTOINCREMENT)
+            "AccountID"	INTEGER NOT NULL,
+            "Login"	    TEXT    NOT NULL UNIQUE,
+            "Password"	TEXT    NOT NULL,
+            "Selected"	INTEGER  DEFAULT 1 NOT NULL,
+            "AccountLevel" INTEGER NOT NULL,
+            "Created"	INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
+            "LastLogin"	INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
+            "BannedUntil" INTEGER DEFAULT 0 NOT NULL,
+            "BannedSince" INTEGER DEFAULT 0 NOT NULL,
+            PRIMARY KEY("AccountID" AUTOINCREMENT)
         );
 
-         CREATE TABLE IF NOT EXISTS "Players" (
-        "PlayerID"	INTEGER NOT NULL,
-        "AccountID"	INTEGER NOT NULL,
-        "Slot"	    INTEGER NOT NULL,
-        "Firstname"	TEXT    NOT NULL COLLATE NOCASE,
-        "LastName"	TEXT    NOT NULL COLLATE NOCASE,
-        "Created"	INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
-        "LastLogin"	INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
-        "Level"	    INTEGER DEFAULT 1 NOT NULL,
-        "Nano1"	    INTEGER DEFAULT 0 NOT NULL,
-        "Nano2"	    INTEGER DEFAULT 0 NOT NULL,
-        "Nano3"	    INTEGER DEFAULT 0 NOT NULL,
-        "AppearanceFlag" INTEGER DEFAULT 0 NOT NULL,
-        "TutorialFlag"	 INTEGER DEFAULT 0 NOT NULL,
-        "PayZoneFlag"	 INTEGER DEFAULT 0 NOT NULL,
-        "XCoordinates"	 INTEGER NOT NULL,
-        "YCoordinates"	 INTEGER NOT NULL,
-        "ZCoordinates"	 INTEGER NOT NULL,
-        "Angle"	    INTEGER NOT NULL,
-        "HP"	         INTEGER NOT NULL,
-        "NameCheck"	     INTEGER NOT NULL,     
-        "FusionMatter"	INTEGER DEFAULT 0 NOT NULL,
-        "Taros"	        INTEGER DEFAULT 0 NOT NULL,
-        "Quests"	BLOB    NOT NULL,
-        "BatteryW"	INTEGER DEFAULT 0 NOT NULL,
-        "BatteryN"	INTEGER DEFAULT 0 NOT NULL,
-        "Mentor"	INTEGER DEFAULT 5 NOT NULL,
-        "WarpLocationFlag"	    INTEGER DEFAULT 0 NOT NULL,
-        "SkywayLocationFlag"	BLOB NOT NULL,
-        "CurrentMissionID"	    INTEGER DEFAULT 0 NOT NULL,
-        "FirstUseFlag" BLOB NOT NULL,
-        PRIMARY KEY("PlayerID" AUTOINCREMENT),
-        FOREIGN KEY("AccountID") REFERENCES "Accounts"("AccountID") ON DELETE CASCADE,
-        UNIQUE ("AccountID", "Slot"),
-        UNIQUE ("Firstname", "LastName")
+        CREATE TABLE IF NOT EXISTS "Players" (
+            "PlayerID"	INTEGER NOT NULL,
+            "AccountID"	INTEGER NOT NULL,
+            "FirstName"	TEXT    NOT NULL COLLATE NOCASE,
+            "LastName"	TEXT    NOT NULL COLLATE NOCASE,
+            "NameCheck"	     INTEGER NOT NULL,  
+            "Slot"	    INTEGER NOT NULL,
+            "Created"	INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
+            "LastLogin"	INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
+            "Level"	    INTEGER DEFAULT 1 NOT NULL,
+            "Nano1"	    INTEGER DEFAULT 0 NOT NULL,
+            "Nano2"	    INTEGER DEFAULT 0 NOT NULL,
+            "Nano3"	    INTEGER DEFAULT 0 NOT NULL,
+            "AppearanceFlag" INTEGER DEFAULT 0 NOT NULL,
+            "TutorialFlag"	 INTEGER DEFAULT 0 NOT NULL,
+            "PayZoneFlag"	 INTEGER DEFAULT 0 NOT NULL,
+            "XCoordinates"	 INTEGER NOT NULL,
+            "YCoordinates"	 INTEGER NOT NULL,
+            "ZCoordinates"	 INTEGER NOT NULL,
+            "Angle"	    INTEGER NOT NULL,
+            "HP"	         INTEGER NOT NULL,
+            "FusionMatter"	INTEGER DEFAULT 0 NOT NULL,
+            "Taros"	        INTEGER DEFAULT 0 NOT NULL,
+            "BatteryW"	INTEGER DEFAULT 0 NOT NULL,
+            "BatteryN"	INTEGER DEFAULT 0 NOT NULL,
+            "Mentor"	INTEGER DEFAULT 5 NOT NULL,
+            "CurrentMissionID"	    INTEGER DEFAULT 0 NOT NULL,
+            "WarpLocationFlag"	    INTEGER DEFAULT 0 NOT NULL,
+            "SkywayLocationFlag"	BLOB NOT NULL,
+            "FirstUseFlag" BLOB NOT NULL,
+            "Quests"	BLOB    NOT NULL,
+            PRIMARY KEY("PlayerID" AUTOINCREMENT),
+            FOREIGN KEY("AccountID") REFERENCES "Accounts"("AccountID") ON DELETE CASCADE,
+            UNIQUE ("AccountID", "Slot"),
+            UNIQUE ("FirstName", "LastName")
         );
 
         CREATE TABLE IF NOT EXISTS "Appearances" (
-        "PlayerID"	INTEGER UNIQUE NOT NULL,
-        "Body"	    INTEGER DEFAULT 0 NOT NULL,
-        "EyeColor"	INTEGER DEFAULT 1 NOT NULL,
-        "FaceStyle"	INTEGER DEFAULT 1 NOT NULL,
-        "Gender"	INTEGER DEFAULT 1 NOT NULL,
-        "HairColor"	INTEGER DEFAULT 1 NOT NULL,
-        "HairStyle"	INTEGER DEFAULT 1 NOT NULL,
-        "Height"	INTEGER DEFAULT 0 NOT NULL,
-        "SkinColor"	INTEGER DEFAULT 1 NOT NULL,
-        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
+            "PlayerID"	INTEGER UNIQUE NOT NULL,
+            "Body"	    INTEGER DEFAULT 0 NOT NULL,
+            "EyeColor"	INTEGER DEFAULT 1 NOT NULL,
+            "FaceStyle"	INTEGER DEFAULT 1 NOT NULL,
+            "Gender"	INTEGER DEFAULT 1 NOT NULL,
+            "HairColor"	INTEGER DEFAULT 1 NOT NULL,
+            "HairStyle"	INTEGER DEFAULT 1 NOT NULL,
+            "Height"	INTEGER DEFAULT 0 NOT NULL,
+            "SkinColor"	INTEGER DEFAULT 1 NOT NULL,
+            FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS "Inventory" (
-	    "PlayerId"	INTEGER NOT NULL,
-	    "Slot"	    INTEGER NOT NULL,
-	    "Id"	    INTEGER NOT NULL,
-	    "Type"	    INTEGER NOT NULL,
-	    "Opt"	    INTEGER NOT NULL,
-	    "TimeLimit"	INTEGER DEFAULT 0 NOT NULL,
-        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
-        UNIQUE ("PlayerId", "Slot")
+	        "PlayerID"	INTEGER NOT NULL,
+	        "Slot"	    INTEGER NOT NULL,
+	        "ID"	    INTEGER NOT NULL,
+	        "Type"	    INTEGER NOT NULL,
+	        "Opt"	    INTEGER NOT NULL,
+	        "TimeLimit"	INTEGER DEFAULT 0 NOT NULL,
+            FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
+            UNIQUE ("PlayerID", "Slot")
         );
 
         CREATE TABLE IF NOT EXISTS "QuestItems" (
-	    "PlayerId"	INTEGER NOT NULL,
-	    "Slot"	    INTEGER NOT NULL,
-	    "Id"	    INTEGER NOT NULL,
-	    "Opt"	    INTEGER NOT NULL,
-        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
-        UNIQUE ("PlayerId", "Slot")
+	        "PlayerID"	INTEGER NOT NULL,
+	        "Slot"	    INTEGER NOT NULL,
+	        "ID"	    INTEGER NOT NULL,
+	        "Opt"	    INTEGER NOT NULL,
+            FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
+            UNIQUE ("PlayerID", "Slot")
         );      
 
         CREATE TABLE IF NOT EXISTS "Nanos" (
-	    "PlayerId"	INTEGER NOT NULL,
-	    "Id"	    INTEGER NOT NULL,
-	    "Skill"	    INTEGER NOT NULL,
-	    "Stamina"	INTEGER DEFAULT 150 NOT NULL,
-        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
-        UNIQUE ("PlayerId", "Id")
+	        "PlayerID"	INTEGER NOT NULL,
+	        "ID"	    INTEGER NOT NULL,
+	        "Skill"	    INTEGER NOT NULL,
+	        "Stamina"	INTEGER DEFAULT 150 NOT NULL,
+            FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
+            UNIQUE ("PlayerID", "ID")
         );
 
         CREATE TABLE IF NOT EXISTS "RunningQuests" (
-	    "PlayerId"	            INTEGER NOT NULL,
-	    "TaskId"	            INTEGER NOT NULL,
-	    "RemainingNPCCount1"	INTEGER NOT NULL,
-	    "RemainingNPCCount2"	INTEGER NOT NULL,
-	    "RemainingNPCCount3"	INTEGER NOT NULL,
-        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
+	        "PlayerID"	            INTEGER NOT NULL,
+	        "TaskID"	            INTEGER NOT NULL,
+	        "RemainingNPCCount1"	INTEGER NOT NULL,
+	        "RemainingNPCCount2"	INTEGER NOT NULL,
+	        "RemainingNPCCount3"	INTEGER NOT NULL,
+            FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS "Buddyships" (
-	    "PlayerAId"	INTEGER NOT NULL,
-	    "PlayerBId"	INTEGER NOT NULL,
-        FOREIGN KEY("PlayerAId") REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
-        FOREIGN KEY("PlayerBId") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
+	        "PlayerAID"	INTEGER NOT NULL,
+	        "PlayerBID"	INTEGER NOT NULL,
+            FOREIGN KEY("PlayerAID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
+            FOREIGN KEY("PlayerBID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS "Blocks" (
-	    "PlayerId"	        INTEGER NOT NULL,
-	    "BlockedPlayerId"	INTEGER NOT NULL,
-        FOREIGN KEY("PlayerId")       REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
-        FOREIGN KEY("BlockedPlayerId") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
+	        "PlayerID"	        INTEGER NOT NULL,
+	        "BlockedPlayerID"	INTEGER NOT NULL,
+            FOREIGN KEY("PlayerID")       REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
+            FOREIGN KEY("BlockedPlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS "EmailData" (
-	    "PlayerId"	INTEGER NOT NULL,
-	    "MsgIndex"	INTEGER NOT NULL,
-	    "ReadFlag"	INTEGER NOT NULL,
-	    "ItemFlag"	INTEGER NOT NULL,
-	    "SenderId"	INTEGER NOT NULL,
-	    "SenderFirstName"	TEXT NOT NULL COLLATE NOCASE,
-	    "SenderLastName"	TEXT NOT NULL COLLATE NOCASE,
-	    "SubjectLine"	    TEXT NOT NULL,
-	    "MsgBody"	        TEXT NOT NULL,
-	    "Taros"	        INTEGER NOT NULL,
-	    "SendTime"	    INTEGER NOT NULL,
-	    "DeleteTime"	INTEGER NOT NULL,
-        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
+	        "PlayerID"	INTEGER NOT NULL,
+	        "MsgIndex"	INTEGER NOT NULL,
+	        "ReadFlag"	INTEGER NOT NULL,
+	        "ItemFlag"	INTEGER NOT NULL,
+	        "SenderID"	INTEGER NOT NULL,
+	        "SenderFirstName"	TEXT NOT NULL COLLATE NOCASE,
+	        "SenderLastName"	TEXT NOT NULL COLLATE NOCASE,
+	        "SubjectLine"	    TEXT NOT NULL,
+	        "MsgBody"	        TEXT NOT NULL,
+	        "Taros"	        INTEGER NOT NULL,
+	        "SendTime"	    INTEGER NOT NULL,
+	        "DeleteTime"	INTEGER NOT NULL,
+            FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
+            UNIQUE("PlayerID", "MsgIndex")
         );
 
         CREATE TABLE IF NOT EXISTS "EmailItems" (
-	    "PlayerId"	INTEGER NOT NULL,
-	    "MsgIndex"	INTEGER NOT NULL,
-	    "Slot"	    INTEGER NOT NULL,
-	    "Id"	    INTEGER NOT NULL,
-	    "Type"	    INTEGER NOT NULL,
-	    "Opt"	    INTEGER NOT NULL,
-	    "TimeLimit"	INTEGER NOT NULL,
-        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
-        UNIQUE ("MsgIndex", "Slot")
+	        "PlayerID"	INTEGER NOT NULL,
+	        "MsgIndex"	INTEGER NOT NULL,
+	        "Slot"	    INTEGER NOT NULL,
+	        "ID"	    INTEGER NOT NULL,
+	        "Type"	    INTEGER NOT NULL,
+	        "Opt"	    INTEGER NOT NULL,
+	        "TimeLimit"	INTEGER NOT NULL,
+            FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE,
+            UNIQUE ("MsgIndex", "Slot")
         );
 
         CREATE TABLE IF NOT EXISTS "RaceResults"(
-        "EPID"      INTEGER NOT NULL,
-        "PlayerID"  INTEGER NOT NULL,
-        "Score"     INTEGER NOT NULL,
-        "Timestamp" INTEGER NOT NULL,    
-        FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
+            "EPID"      INTEGER NOT NULL,
+            "PlayerID"  INTEGER NOT NULL,
+            "Score"     INTEGER NOT NULL,
+            "Timestamp" INTEGER NOT NULL,    
+            FOREIGN KEY("PlayerID") REFERENCES "Players"("PlayerID") ON DELETE CASCADE
         )
         )";
 
-    int rc = sqlite3_exec(db, sql, 0, 0, &errMsg);
+    int rc = sqlite3_exec(db, sql, NULL, NULL, &errMsg);
     if (rc != SQLITE_OK) {
         std::cout << "[FATAL] Database failed to create tables: " << errMsg << std::endl;
         terminate(0);
@@ -335,8 +337,8 @@ int Database::getTableSize(std::string tableName) {
 
     const char* sql = "SELECT COUNT(*) FROM ?;";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-    sqlite3_bind_text(stmt, 1, tableName.c_str(), -1, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_bind_text(stmt, 1, tableName.c_str(), -1, NULL);
     sqlite3_step(stmt);
     int result = sqlite3_column_int(stmt, 0);
     sqlite3_finalize(stmt);
@@ -354,8 +356,8 @@ void Database::findAccount(Account* account, std::string login) {
         )";
     sqlite3_stmt* stmt;
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-    sqlite3_bind_text(stmt, 1, login.c_str(), -1, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_bind_text(stmt, 1, login.c_str(), -1, NULL);
     int rc = sqlite3_step(stmt);
     if (rc == SQLITE_ROW)
     {
@@ -377,10 +379,10 @@ int Database::addAccount(std::string login, std::string password) {
         )";
     sqlite3_stmt* stmt;
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-    sqlite3_bind_text(stmt, 1, login.c_str(), -1, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_bind_text(stmt, 1, login.c_str(), -1, NULL);
     std::string hashedPassword = BCrypt::generateHash(password);
-    sqlite3_bind_text(stmt, 2, hashedPassword.c_str(), -1, 0);
+    sqlite3_bind_text(stmt, 2, hashedPassword.c_str(), -1, NULL);
     sqlite3_bind_int(stmt, 3, settings::ACCLEVEL);
     int rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
@@ -403,12 +405,13 @@ void Database::banAccount(int accountId, int days) {
         )";
     sqlite3_stmt* stmt;
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, days * 86400); // convert days to seconds
     sqlite3_bind_int(stmt, 2, accountId);
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         std::cout << "[WARN] Database: failed to ban player" << std::endl;
     }
+    sqlite3_finalize(stmt);
 }
 
 void Database::updateSelected(int accountId, int slot) {
@@ -427,13 +430,14 @@ void Database::updateSelected(int accountId, int slot) {
 
     sqlite3_stmt* stmt;
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, slot);
     sqlite3_bind_int(stmt, 2, accountId);
     int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
     if (rc != SQLITE_DONE)
         std::cout << "[WARN] Database fail on updateSelected(). Error Code " << rc << std::endl;
-    sqlite3_finalize(stmt);
 }
 
 bool Database::validateCharacter(int characterID, int userID) {
@@ -448,7 +452,7 @@ bool Database::validateCharacter(int characterID, int userID) {
         )";
     sqlite3_stmt* stmt;
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, characterID);
     sqlite3_bind_int(stmt, 2, userID);
     int rc = sqlite3_step(stmt);
@@ -462,19 +466,19 @@ bool Database::isNameFree(std::string firstName, std::string lastName) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     const char* sql = R"(
-        SELECT "PlayerID"
+        SELECT COUNT(*)
         FROM "Players"
-        WHERE "Firstname" = ? AND "LastName" = ?
+        WHERE "FirstName" = ? AND "LastName" = ?
         LIMIT 1;        
         )";
     sqlite3_stmt* stmt;
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-    sqlite3_bind_text(stmt, 1, firstName.c_str(), -1, 0);
-    sqlite3_bind_text(stmt, 2, lastName.c_str(),  -1, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_bind_text(stmt, 1, firstName.c_str(), -1, NULL);
+    sqlite3_bind_text(stmt, 2, lastName.c_str(),  -1, NULL);
     int rc = sqlite3_step(stmt);
-
-    bool result = (rc != SQLITE_ROW);
+    
+    bool result = (rc == SQLITE_ROW && sqlite3_column_int(stmt, 0) == 0);
     sqlite3_finalize(stmt);
     return result;
 }
@@ -488,19 +492,19 @@ bool Database::isSlotFree(int accountId, int slotNum) {
     }
 
     const char* sql = R"(
-        SELECT "PlayerID"
+        SELECT COUNT (*)
         FROM "Players"
         WHERE "AccountID" = ? AND "Slot" = ?
-        LIMIT 1;        
+        LIMIT 1;
         )";
     sqlite3_stmt* stmt;
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, accountId);
     sqlite3_bind_int(stmt, 2, slotNum);
     int rc = sqlite3_step(stmt);
 
-    bool result = (rc != SQLITE_ROW);
+    bool result = (rc == SQLITE_ROW && sqlite3_column_int(stmt, 0) == 0);
     sqlite3_finalize(stmt);
     return result;
 }
@@ -508,23 +512,23 @@ bool Database::isSlotFree(int accountId, int slotNum) {
 int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) {
     std::lock_guard<std::mutex> lock(dbCrit);
     
-    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+    sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
 
     const char* sql = R"(
         INSERT INTO "Players"
-        ("AccountID", "Slot", "Firstname", "LastName", "XCoordinates" , "YCoordinates", "ZCoordinates", "Angle",
-         "HP", "NameCheck", "Quests", "SkywayLocationFlag", "FirstUseFlag")
+            ("AccountID", "Slot", "FirstName", "LastName", "XCoordinates" , "YCoordinates", "ZCoordinates", "Angle",
+             "HP", "NameCheck", "Quests", "SkywayLocationFlag", "FirstUseFlag")
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         )";   
     sqlite3_stmt* stmt;
     std::string firstName = U16toU8(save->szFirstName);
     std::string lastName =  U16toU8(save->szLastName);
     
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, AccountID);
     sqlite3_bind_int(stmt, 2, save->iSlotNum);
-    sqlite3_bind_text(stmt, 3, firstName.c_str(), -1, 0);
-    sqlite3_bind_text(stmt, 4, lastName.c_str(), -1, 0);
+    sqlite3_bind_text(stmt, 3, firstName.c_str(), -1, NULL);
+    sqlite3_bind_text(stmt, 4, lastName.c_str(), -1, NULL);
     sqlite3_bind_int(stmt, 5, settings::SPAWN_X);
     sqlite3_bind_int(stmt, 6, settings::SPAWN_Y);
     sqlite3_bind_int(stmt, 7, settings::SPAWN_Z);
@@ -537,14 +541,13 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
 
     // blobs
     unsigned char blobBuffer[sizeof(Player::aQuestFlag)] = { 0 };
-    sqlite3_bind_blob(stmt, 11, blobBuffer, sizeof(Player::aQuestFlag), 0);
-    sqlite3_bind_blob(stmt, 12, blobBuffer, sizeof(Player::aSkywayLocationFlag), 0);
-    sqlite3_bind_blob(stmt, 13, blobBuffer, sizeof(Player::iFirstUseFlag), 0);
-
-    int rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+    sqlite3_bind_blob(stmt, 11, blobBuffer, sizeof(Player::aQuestFlag), NULL);
+    sqlite3_bind_blob(stmt, 12, blobBuffer, sizeof(Player::aSkywayLocationFlag), NULL);
+    sqlite3_bind_blob(stmt, 13, blobBuffer, sizeof(Player::iFirstUseFlag), NULL);
+    
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
         return 0;
     }
 
@@ -552,75 +555,57 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
     
     sql = R"(
         INSERT INTO "Appearances"
-        ("PlayerID")
+            ("PlayerID")
         VALUES (?);
         )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, playerId);
 
-    rc = sqlite3_step(stmt);
+    int rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
     if (rc != SQLITE_DONE) {
-        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
         return 0;
     }
 
-    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+    sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
     return playerId;
 }
 
 bool Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character, int accountId) {
     std::lock_guard<std::mutex> lock(dbCrit);
-    
+
+    sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
+
     const char* sql = R"(
-        SELECT "PlayerID"
-        FROM "Players"
-        WHERE "PlayerID" = ? AND "AccountID" = ? AND "AppearanceFlag" = 0
-        LIMIT 1;        
-        )";
-    sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-    sqlite3_bind_int(stmt, 1, character->PCStyle.iPC_UID);
-    sqlite3_bind_int(stmt, 2, accountId);
-    int rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-
-    if ( rc != SQLITE_ROW)
-    {  
-        std::cout << "[WARN] Database: Invalid data submitted to finish character creation" << std::endl;
-        return false;
-    }
-
-    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
-
-    sql = R"(
         UPDATE "Players"
         SET "AppearanceFlag" = 1
-        WHERE "PlayerID" = ?;
+        WHERE "PlayerID" = ? AND "AccountID" = ? AND "AppearanceFlag" = 0;
         )";
+    sqlite3_stmt* stmt;
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, character->PCStyle.iPC_UID);
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
+    sqlite3_bind_int(stmt, 2, accountId);
 
-    if (rc != SQLITE_DONE)
+    if (sqlite3_step(stmt) != SQLITE_DONE)
     {
-        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+        sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
         return false;
     }
 
     sql = R"(
         UPDATE "Appearances"
         SET
-        "Body" = ? ,
-        "EyeColor" = ? ,
-        "FaceStyle" = ? ,
-        "Gender" = ? ,
-        "HairColor" = ? ,
-        "HairStyle" = ? ,
-        "Height" = ? ,
-        "SkinColor" = ?
+            "Body" = ? ,
+            "EyeColor" = ? ,
+            "FaceStyle" = ? ,
+            "Gender" = ? ,
+            "HairColor" = ? ,
+            "HairStyle" = ? ,
+            "Height" = ? ,
+            "SkinColor" = ?
         WHERE "PlayerID" = ? ;
         )";
     sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
@@ -633,20 +618,18 @@ bool Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character, int accountI
     sqlite3_bind_int(stmt, 6, character->PCStyle.iHairStyle);
     sqlite3_bind_int(stmt, 7, character->PCStyle.iHeight);
     sqlite3_bind_int(stmt, 8, character->PCStyle.iSkinColor);
-    sqlite3_bind_int(stmt, 9, character->PCStyle.iPC_UID);
+    sqlite3_bind_int(stmt, 9, character->PCStyle.iPC_UID);   
 
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-
-    if (rc != SQLITE_DONE)
+    if (sqlite3_step(stmt) != SQLITE_DONE)
     {
-        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+        sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
         return false;
     }
 
     sql = R"(
         INSERT INTO "Inventory"
-        ("PlayerID", "Slot", "Id", "Type", "Opt")
+            ("PlayerID", "Slot", "ID", "Type", "Opt")
         VALUES (?, ?, ?, ?, 1);
         )";
     sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
@@ -658,114 +641,87 @@ bool Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character, int accountI
         sqlite3_bind_int(stmt, 3, items[i]);
         sqlite3_bind_int(stmt, 4, i+1);
 
-        rc = sqlite3_step(stmt);       
-
-        if (rc != SQLITE_DONE)
+        if (sqlite3_step(stmt) != SQLITE_DONE)
         {
             sqlite3_finalize(stmt);
-            sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+            sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             return false;
         }
         sqlite3_reset(stmt);
     }
 
     sqlite3_finalize(stmt);
-    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+    sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
     return true;
 }
 
 bool Database::finishTutorial(int playerID, int accountID) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    const char* sql = R"(
-    SELECT "PlayerID"
-    FROM "Players"
-    WHERE "PlayerID" = ? AND "AccountID" = ? AND "TutorialFlag" = 0
-    LIMIT 1;        
-    )";
-    sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-    sqlite3_bind_int(stmt, 1, playerID);
-    sqlite3_bind_int(stmt, 2, accountID);
+    sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
 
-    if (sqlite3_step(stmt) != SQLITE_ROW)
+    const char* sql = R"(
+        UPDATE "Players"
+        SET
+            "TutorialFlag" = 1, 
+            "Nano1" = 1,
+            "Quests" = ?
+        WHERE "PlayerID" = ? AND "AccountID" = ? AND "TutorialFlag" = 0;
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    // save missions nr 1 & 2
+    unsigned char questBuffer[128] = { 0 };
+    questBuffer[0] = 3;
+    sqlite3_bind_blob(stmt, 1, questBuffer, sizeof(questBuffer), NULL);
+    sqlite3_bind_int(stmt, 2, playerID);
+    sqlite3_bind_int(stmt, 3, accountID);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
     {
-        std::cout << "[WARN] Database: Invalid data submitted to finish tutorial" << std::endl;
         sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
         return false;
     }
 
-    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
-
     // Lightning Gun
     sql = R"(
-    INSERT INTO "Inventory"
-    ("PlayerID", "Slot", "Id", "Type", "Opt")
-    VALUES (?, ?, ?, ?, 1);
-    )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+        INSERT INTO "Inventory"
+            ("PlayerID", "Slot", "ID", "Type", "Opt")
+        VALUES (?, 0, 328, 0, 1);
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     sqlite3_bind_int(stmt, 1, playerID);
-    sqlite3_bind_int(stmt, 2, 0);
-    sqlite3_bind_int(stmt, 3, 328);
-    sqlite3_bind_int(stmt, 4, 0);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+    {
+        sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+        return false;
+    }
+
+    // Nano Buttercup
+    sql = R"(
+        INSERT INTO "Nanos"
+            ("PlayerID", "ID", "Skill")
+        VALUES (?, 1, 1);
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    sqlite3_bind_int(stmt, 1, playerID);
 
     int rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
     if (rc != SQLITE_DONE)
     {
-        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
         return false;
     }
 
-    // Nano Buttercup
-
-    sql = R"(
-    INSERT INTO "Nanos"
-    ("PlayerID", "Id", "Skill")
-    VALUES (?, ?, ?);
-    )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-
-    sqlite3_bind_int(stmt, 1, playerID);
-    sqlite3_bind_int(stmt, 2, 1);
-    sqlite3_bind_int(stmt, 3, 1);
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-
-    if (rc != SQLITE_DONE)
-    {
-        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
-        return false;
-    }
-
-    sql = R"(
-    UPDATE "Players"
-    SET "TutorialFlag" = 1, 
-    "Nano1" = 1,
-    "Quests" = ?
-    WHERE "PlayerID" = ?;
-    )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-
-    // save missions nr 1 & 2
-    unsigned char questBuffer[128] = { 0 };
-    questBuffer[0] = 3;
-    sqlite3_bind_blob(stmt, 1, questBuffer, sizeof(questBuffer), 0);
-    sqlite3_bind_int(stmt, 2, playerID);
-
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-
-    if (rc != SQLITE_DONE)
-    {
-        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
-        return false;
-    }
-
-    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+    sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
     return true;
 }
 
@@ -781,11 +737,10 @@ int Database::deleteCharacter(int characterID, int userID) {
 
     sqlite3_stmt* stmt;
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, userID);
     sqlite3_bind_int(stmt, 2, characterID);
-    int rc = sqlite3_step(stmt);
-    if (rc != SQLITE_ROW)
+    if (sqlite3_step(stmt) != SQLITE_ROW)
     {
         sqlite3_finalize(stmt);
         return 0;
@@ -799,7 +754,7 @@ int Database::deleteCharacter(int characterID, int userID) {
     sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
     sqlite3_bind_int(stmt, 1, userID);
     sqlite3_bind_int(stmt, 2, characterID);
-    rc = sqlite3_step(stmt);
+    int rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
     if (rc != SQLITE_DONE)
@@ -812,16 +767,17 @@ void Database::getCharInfo(std::vector <sP_LS2CL_REP_CHAR_INFO>* result, int use
     std::lock_guard<std::mutex> lock(dbCrit);
 
     const char* sql = R"(
-        SELECT p.PlayerID, p.Slot, p.Firstname, p.LastName, p.Level, p.AppearanceFlag, p.TutorialFlag, p.PayZoneFlag,
-        p.XCoordinates, p.YCoordinates, p.ZCoordinates, p.NameCheck,
-        a.Body, a.EyeColor, a.FaceStyle, a.Gender, a.HairColor, a.HairStyle, a.Height, a.SkinColor  
+        SELECT
+            p.PlayerID, p.Slot, p.FirstName, p.LastName, p.Level, p.AppearanceFlag, p.TutorialFlag, p.PayZoneFlag,
+            p.XCoordinates, p.YCoordinates, p.ZCoordinates, p.NameCheck,
+            a.Body, a.EyeColor, a.FaceStyle, a.Gender, a.HairColor, a.HairStyle, a.Height, a.SkinColor  
         FROM "Players" as p 
         INNER JOIN "Appearances" as a ON p.PlayerID = a.PlayerID
         WHERE p.AccountID = ?
         )";
     sqlite3_stmt* stmt;
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, userID);
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -854,12 +810,12 @@ void Database::getCharInfo(std::vector <sP_LS2CL_REP_CHAR_INFO>* result, int use
 
         // request aEquip
         const char* sql2 = R"(
-            SELECT "Slot", "Type", "Id", "Opt", "TimeLimit" from Inventory
-            WHERE "PlayerID" = ? AND "Slot"< ?
+            SELECT "Slot", "Type", "ID", "Opt", "TimeLimit" from Inventory
+            WHERE "PlayerID" = ? AND "Slot" < ?
             )";
         sqlite3_stmt* stmt2;
 
-        sqlite3_prepare_v2(db, sql2, -1, &stmt2, 0);
+        sqlite3_prepare_v2(db, sql2, -1, &stmt2, NULL);
         sqlite3_bind_int(stmt2, 1, toAdd.sPC_Style.iPC_UID);
         sqlite3_bind_int(stmt2, 2, AEQUIP_COUNT);
 
@@ -882,12 +838,12 @@ void Database::evaluateCustomName(int characterID, CustomName decision) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     const char* sql = R"(
-    UPDATE "Players"
-    SET "NameCheck" = ?
-    WHERE "PlayerID" = ?;
-    )";
+        UPDATE "Players"
+        SET "NameCheck" = ?
+        WHERE "PlayerID" = ?;
+        )";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, int(decision));
     sqlite3_bind_int(stmt, 2, characterID);
 
@@ -900,19 +856,21 @@ bool Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save, int accountId) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     const char* sql = R"(
-    UPDATE "Players"
-    SET "Firstname" = ?,
-    "LastName" = ?, "NameCheck" = ?
-    WHERE "PlayerID" = ? AND "AccountID" = ?;
-    )";
+        UPDATE "Players"
+        SET
+            "FirstName" = ?,
+            "LastName" = ?,
+            "NameCheck" = ?
+        WHERE "PlayerID" = ? AND "AccountID" = ?;
+        )";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     std::string firstName = U16toU8(save->szFirstName);
     std::string lastName = U16toU8(save->szLastName);
 
-    sqlite3_bind_text(stmt, 1, firstName.c_str(), -1, 0);
-    sqlite3_bind_text(stmt, 2, lastName.c_str(), -1, 0);
+    sqlite3_bind_text(stmt, 1, firstName.c_str(), -1, NULL);
+    sqlite3_bind_text(stmt, 2, lastName.c_str(), -1, NULL);
     // if FNCode isn't 0, it's a wheel name
     int nameCheck = (settings::APPROVEALLNAMES || save->iFNCode) ? 1 : 0;
     sqlite3_bind_int(stmt, 3, nameCheck);
@@ -928,14 +886,15 @@ void Database::getPlayer(Player* plr, int id) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     const char* sql = R"(
-        SELECT p.AccountID, p.Slot, p.Firstname, p.LastName,
-        p.Level, p.Nano1, p.Nano2, p.Nano3,
-        p.AppearanceFlag, p.TutorialFlag, p.PayZoneFlag,
-        p.XCoordinates, p.YCoordinates, p.ZCoordinates, p.NameCheck,
-        p.Angle, p.HP, acc.AccountLevel, p.FusionMatter, p.Taros, p.Quests,
-        p.BatteryW, p.BatteryN, p.Mentor, p.WarpLocationFlag,
-        p.SkywayLocationFlag, p.CurrentMissionID, p.FirstUseFlag,
-        a.Body, a.EyeColor, a.FaceStyle, a.Gender, a.HairColor, a.HairStyle, a.Height, a.SkinColor  
+        SELECT
+            p.AccountID, p.Slot, p.FirstName, p.LastName,
+            p.Level, p.Nano1, p.Nano2, p.Nano3,
+            p.AppearanceFlag, p.TutorialFlag, p.PayZoneFlag,
+            p.XCoordinates, p.YCoordinates, p.ZCoordinates, p.NameCheck,
+            p.Angle, p.HP, acc.AccountLevel, p.FusionMatter, p.Taros, p.Quests,
+            p.BatteryW, p.BatteryN, p.Mentor, p.WarpLocationFlag,
+            p.SkywayLocationFlag, p.CurrentMissionID, p.FirstUseFlag,
+            a.Body, a.EyeColor, a.FaceStyle, a.Gender, a.HairColor, a.HairStyle, a.Height, a.SkinColor  
         FROM "Players" as p 
         INNER JOIN "Appearances" as a ON p.PlayerID = a.PlayerID
         INNER JOIN "Accounts" as acc ON p.AccountID = acc.AccountID
@@ -943,7 +902,7 @@ void Database::getPlayer(Player* plr, int id) {
         )";
     sqlite3_stmt* stmt;
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, id);
     if (sqlite3_step(stmt) != SQLITE_ROW) {
         sqlite3_finalize(stmt);
@@ -1006,13 +965,12 @@ void Database::getPlayer(Player* plr, int id) {
     plr->PCStyle.iSkinColor = sqlite3_column_int(stmt, 35);
 
     // get inventory
-
     sql = R"(
-        SELECT "Slot", "Type", "Id", "Opt", "TimeLimit" from Inventory
+        SELECT "Slot", "Type", "ID", "Opt", "TimeLimit" from Inventory
         WHERE "PlayerID" = ?;
         )";
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     sqlite3_bind_int(stmt, 1, id);
 
@@ -1047,11 +1005,15 @@ void Database::getPlayer(Player* plr, int id) {
     // get quest inventory
 
     sql = R"(
-        SELECT "Slot", "Id", "Opt" from QuestItems
+        SELECT
+            "Slot",
+            "ID",
+            "Opt"
+        FROM "QuestItems"
         WHERE "PlayerID" = ?
         )";
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     sqlite3_bind_int(stmt, 1, id);
 
@@ -1067,15 +1029,24 @@ void Database::getPlayer(Player* plr, int id) {
 
     // get nanos
     sql = R"(
-        SELECT "Id", "Skill", "Stamina" from "Nanos"
+        SELECT
+            "ID",
+            "Skill",
+            "Stamina"
+        FROM "Nanos"
         WHERE "PlayerID" = ?
         )";
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, id);
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         int id = sqlite3_column_int(stmt, 0);
+
+        // for extra safety
+        if (id > SIZEOF_NANO_BANK_SLOT)
+            continue;
+
         sNano* nano = &plr->Nanos[id];
         nano->iID = id;
         nano->iSkillID = sqlite3_column_int(stmt, 1);
@@ -1084,11 +1055,16 @@ void Database::getPlayer(Player* plr, int id) {
 
     // get active quests
     sql = R"(
-        SELECT "TaskId", "RemainingNPCCount1", "RemainingNPCCount2", "RemainingNPCCount3" from "RunningQuests"
+        SELECT
+            "TaskID",
+            "RemainingNPCCount1",
+            "RemainingNPCCount2",
+            "RemainingNPCCount3"
+        FROM "RunningQuests"
         WHERE "PlayerID" = ?
         )";
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, id);
 
     int i = 0;
@@ -1102,11 +1078,11 @@ void Database::getPlayer(Player* plr, int id) {
 
     // get buddies
     sql = R"(
-        SELECT "PlayerAId", "PlayerBId" from "Buddyships"
-        WHERE "PlayerAId" = ? OR "PlayerBId" = ?
+        SELECT "PlayerAID", "PlayerBID" from "Buddyships"
+        WHERE "PlayerAID" = ? OR "PlayerBID" = ?
         )";
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, id);
     sqlite3_bind_int(stmt, 2, id);
 
@@ -1122,11 +1098,11 @@ void Database::getPlayer(Player* plr, int id) {
 
     // get blocked players
     sql = R"(
-        SELECT "BlockedPlayerId" FROM "Blocks"
-        WHERE "PlayerId" = ?;
+        SELECT "BlockedPlayerID" FROM "Blocks"
+        WHERE "PlayerID" = ?;
         )";
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, id);
     
     // i remains from adding buddies!
@@ -1142,21 +1118,21 @@ void Database::getPlayer(Player* plr, int id) {
 void Database::updatePlayer(Player *player) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+    sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
 
     const char* sql = R"(
         UPDATE "Players"
         SET
-        "Level" = ? , "Nano1" = ?, "Nano2" = ?, "Nano3" = ?,
-        "XCoordinates" = ?, "YCoordinates" = ?, "ZCoordinates" = ?,
-        "Angle" = ?, "HP" = ?, "FusionMatter" = ?, "Taros" = ?, "Quests" = ?,
-        "BatteryW" = ?, "BatteryN" = ?, "WarplocationFlag" = ?,
-        "SkywayLocationFlag" = ?, "CurrentMissionID" = ?,
-        "PayZoneFlag" = ?, "FirstUseFlag" = ?
+            "Level" = ? , "Nano1" = ?, "Nano2" = ?, "Nano3" = ?,
+            "XCoordinates" = ?, "YCoordinates" = ?, "ZCoordinates" = ?,
+            "Angle" = ?, "HP" = ?, "FusionMatter" = ?, "Taros" = ?, "Quests" = ?,
+            "BatteryW" = ?, "BatteryN" = ?, "WarplocationFlag" = ?,
+            "SkywayLocationFlag" = ?, "CurrentMissionID" = ?,
+            "PayZoneFlag" = ?, "FirstUseFlag" = ?
         WHERE "PlayerID" = ?
         )";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, player->level);
     sqlite3_bind_int(stmt, 2, player->equippedNanos[0]);
     sqlite3_bind_int(stmt, 3, player->equippedNanos[1]);
@@ -1178,20 +1154,19 @@ void Database::updatePlayer(Player *player) {
     sqlite3_bind_int(stmt, 9, player->HP);
     sqlite3_bind_int(stmt, 10, player->fusionmatter);
     sqlite3_bind_int(stmt, 11, player->money);
-    sqlite3_bind_blob(stmt, 12, player->aQuestFlag, sizeof(player->aQuestFlag), 0);
+    sqlite3_bind_blob(stmt, 12, player->aQuestFlag, sizeof(player->aQuestFlag), NULL);
     sqlite3_bind_int(stmt, 13, player->batteryW);
     sqlite3_bind_int(stmt, 14, player->batteryN);
     sqlite3_bind_int(stmt, 15, player->iWarpLocationFlag);
-    sqlite3_bind_blob(stmt, 16, player->aSkywayLocationFlag, sizeof(player->aSkywayLocationFlag), 0);
+    sqlite3_bind_blob(stmt, 16, player->aSkywayLocationFlag, sizeof(player->aSkywayLocationFlag), NULL);
     sqlite3_bind_int(stmt, 17, player->CurrentMissionID);
     sqlite3_bind_int(stmt, 18, player->PCStyle2.iPayzoneFlag);
-    sqlite3_bind_blob(stmt, 19, player->iFirstUseFlag, sizeof(player->iFirstUseFlag), 0);
+    sqlite3_bind_blob(stmt, 19, player->iFirstUseFlag, sizeof(player->iFirstUseFlag), NULL);
     sqlite3_bind_int(stmt, 20, player->iID);
 
-    int rc = sqlite3_step(stmt);
-    if (rc != SQLITE_DONE) {
-        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
         sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);        
         std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
         return;
     }
@@ -1200,16 +1175,16 @@ void Database::updatePlayer(Player *player) {
     sql = R"(
         DELETE FROM "Inventory" WHERE "PlayerID" = ?;
         )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, player->iID);
-    sqlite3_step(stmt);
+    int rc = sqlite3_step(stmt);
 
     sql = R"(
         INSERT INTO "Inventory"
-        ("PlayerID", "Slot", "Type", "Opt" , "Id", "Timelimit")
+            ("PlayerID", "Slot", "Type", "Opt" , "ID", "Timelimit")
         VALUES (?, ?, ?, ?, ?, ?);
         )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     for (int i = 0; i < AEQUIP_COUNT; i++) {
         if (player->Equip[i].iID == 0)
@@ -1221,9 +1196,11 @@ void Database::updatePlayer(Player *player) {
         sqlite3_bind_int(stmt, 4, player->Equip[i].iOpt);
         sqlite3_bind_int(stmt, 5, player->Equip[i].iID);
         sqlite3_bind_int(stmt, 6, player->Equip[i].iTimeLimit);
+
+        rc = sqlite3_step(stmt);
         
-        if (sqlite3_step(stmt) != SQLITE_DONE) {
-            sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+        if (rc != SQLITE_DONE) {
+            sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
             std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
             return;
@@ -1243,7 +1220,7 @@ void Database::updatePlayer(Player *player) {
         sqlite3_bind_int(stmt, 6, player->Inven[i].iTimeLimit);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
-            sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+            sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
             std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
             return;
@@ -1263,7 +1240,7 @@ void Database::updatePlayer(Player *player) {
         sqlite3_bind_int(stmt, 6, player->Bank[i].iTimeLimit);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
-            sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+            sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
             std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
             return;
@@ -1276,16 +1253,16 @@ void Database::updatePlayer(Player *player) {
     sql = R"(
         DELETE FROM "QuestItems" WHERE "PlayerID" = ?;
         )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, player->iID);
     sqlite3_step(stmt);
 
     sql = R"(
         INSERT INTO "QuestItems"
-        ("PlayerID", "Slot", "Opt", "Id")
+            ("PlayerID", "Slot", "Opt", "ID")
         VALUES (?, ?, ?, ?);
         )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     for (int i = 0; i < AQINVEN_COUNT; i++) {
         if (player->QInven[i].iID == 0)
@@ -1297,7 +1274,7 @@ void Database::updatePlayer(Player *player) {
         sqlite3_bind_int(stmt, 4, player->QInven[i].iID);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
-            sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+            sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
             std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
             return;
@@ -1309,16 +1286,16 @@ void Database::updatePlayer(Player *player) {
     sql = R"(
         DELETE FROM "Nanos" WHERE "PlayerID" = ?;
         )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, player->iID);
     sqlite3_step(stmt);
 
     sql = R"(
         INSERT INTO "Nanos"
-        ("PlayerID", "Id", "SKill", "Stamina")
+            ("PlayerID", "ID", "SKill", "Stamina")
         VALUES (?, ?, ?, ?);
         )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     for (int i = 0; i < SIZEOF_NANO_BANK_SLOT; i++) {
         if (player->Nanos[i].iID == 0)
@@ -1330,7 +1307,7 @@ void Database::updatePlayer(Player *player) {
         sqlite3_bind_int(stmt, 4, player->Nanos[i].iStamina);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
-            sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+            sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
             std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
             return;
@@ -1342,16 +1319,16 @@ void Database::updatePlayer(Player *player) {
     sql = R"(
         DELETE FROM "RunningQuests" WHERE "PlayerID" = ?;
         )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, player->iID);
     sqlite3_step(stmt);
 
     sql = R"(
         INSERT INTO "RunningQuests"
-        ("PlayerID", "TaskId", "RemainingNPCCount1", "RemainingNPCCount2", "RemainingNPCCount3")
+            ("PlayerID", "TaskID", "RemainingNPCCount1", "RemainingNPCCount2", "RemainingNPCCount3")
         VALUES (?, ?, ?, ?, ?);
         )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
         if (player->tasks[i] == 0)
@@ -1363,7 +1340,7 @@ void Database::updatePlayer(Player *player) {
         sqlite3_bind_int(stmt, 5, player->RemainingNPCCount[i][2]);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
-            sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+            sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
             std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
             return;
@@ -1371,30 +1348,8 @@ void Database::updatePlayer(Player *player) {
         sqlite3_reset(stmt);
     }
 
-    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+    sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
     sqlite3_finalize(stmt);
-}
-
-// note: do not use. explicitly add/remove records instead.
-void Database::updateBuddies(Player* player) {
-    //db.begin_transaction();
-
-    //db.remove_all<Buddyship>( // remove all buddyships with this player involved
-    //    where(c(&Buddyship::PlayerAId) == player->iID || c(&Buddyship::PlayerBId) == player->iID)
-    //    );
-
-    //// iterate through player's buddies and add records for each non-zero entry
-    //for (int i = 0; i < 50; i++) {
-    //    if (player->buddyIDs[i] != 0) {
-    //        Buddyship record;
-    //        record.PlayerAId = player->iID;
-    //        record.PlayerBId = player->buddyIDs[i];
-    //        record.Status = 0; // still not sure how we'll handle blocking
-    //        db.insert(record);
-    //    }
-    //}
-
-    //db.commit();
 }
 
 void Database::removeExpiredVehicles(Player* player) {
@@ -1410,7 +1365,7 @@ void Database::removeExpiredVehicles(Player* player) {
     // we want to leave only 1 expired vehicle on player to delete it with the client packet
     std::vector<sItemBase*> toRemove;
 
-    // equiped vehicle
+    // equipped vehicle
     if (player->Equip[8].iOpt > 0 && player->Equip[8].iTimeLimit < currentTime) {
         toRemove.push_back(&player->Equip[8]);
         player->toRemoveVehicle.eIL = 0;
@@ -1438,10 +1393,10 @@ int Database::getNumBuddies(Player* player) {
 
     const char* sql = R"(
         SELECT COUNT(*) FROM "Buddyships"
-        WHERE "PlayerAId" = ? OR "PlayerBId" = ?;
+        WHERE "PlayerAID" = ? OR "PlayerBID" = ?;
         )";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, player->iID);
     sqlite3_bind_int(stmt, 2, player->iID);
     sqlite3_step(stmt);
@@ -1449,12 +1404,14 @@ int Database::getNumBuddies(Player* player) {
 
     sql = R"(
         SELECT COUNT(*) FROM "Blocks"
-        WHERE "PlayerId" = ?;
+        WHERE "PlayerID" = ?;
         )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, player->iID);
     sqlite3_step(stmt);
     result += sqlite3_column_int(stmt, 0);
+    
+    sqlite3_finalize(stmt);
 
     // again, for peace of mind
     return result > 50 ? 50 : result;
@@ -1464,17 +1421,17 @@ void Database::addBuddyship(int playerA, int playerB) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     const char* sql = R"(
-        INSERT INTO "Buddyships" 
-        ("PlayerAId", "PlayerBId")
+        INSERT INTO "Buddyships"
+            ("PlayerAID", "PlayerBID")
         VALUES (?, ?);
         )";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, playerA);
     sqlite3_bind_int(stmt, 2, playerB);
 
     if (sqlite3_step(stmt) != SQLITE_DONE)
-        std::cout << "[WARN] Database: failed to add buddies" << std::endl;
+        std::cout << "[WARN] Database: failed to add buddyship" << std::endl;
     sqlite3_finalize(stmt);
 }
 
@@ -1483,10 +1440,10 @@ void Database::removeBuddyship(int playerA, int playerB) {
 
     const char* sql = R"(
         DELETE FROM "Buddyships" 
-        WHERE ("PlayerAId" = ? AND "PlayerBId" = ?) OR ("PlayerAId" = ? AND "PlayerBId" = ?);
+        WHERE ("PlayerAID" = ? AND "PlayerBID" = ?) OR ("PlayerAID" = ? AND "PlayerBID" = ?);
         )";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, playerA);
     sqlite3_bind_int(stmt, 2, playerB);
     sqlite3_bind_int(stmt, 3, playerB);
@@ -1502,11 +1459,11 @@ void Database::addBlock(int playerId, int blockedPlayerId) {
 
     const char* sql = R"(
         INSERT INTO "Blocks" 
-        ("PlayerId", "BlockedPlayerId")
+            ("PlayerID", "BlockedPlayerID")
         VALUES (?, ?);
         )";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, playerId);
     sqlite3_bind_int(stmt, 2, blockedPlayerId);
 
@@ -1518,10 +1475,10 @@ void Database::addBlock(int playerId, int blockedPlayerId) {
 void Database::removeBlock(int playerId, int blockedPlayerId) {
     const char* sql = R"(
         DELETE FROM "Blocks" 
-        WHERE "PlayerId" = ? AND "BlockedPlayerId" = ?;
+        WHERE "PlayerID" = ? AND "BlockedPlayerID" = ?;
         )";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, playerId);
     sqlite3_bind_int(stmt, 2, blockedPlayerId);
 
@@ -1535,10 +1492,10 @@ int Database::getUnreadEmailCount(int playerID) {
 
     const char* sql = R"(
         SELECT COUNT (*) FROM "EmailData"
-        WHERE "PlayerId" = ? AND "ReadFlag" = 0;
+        WHERE "PlayerID" = ? AND "ReadFlag" = 0;
         )";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, playerID);
     sqlite3_step(stmt);
     return sqlite3_column_int(stmt, 0);
@@ -1550,16 +1507,17 @@ std::vector<Database::EmailData> Database::getEmails(int playerID, int page) {
     std::vector<Database::EmailData> emails;
 
     const char* sql = R"(
-        SELECT "MsgIndex", "ItemFlag", "ReadFlag", "SenderId", "SenderFirstName", "SenderLastName", "SubjectLine", "MsgBody", 
-        "Taros", "SendTime", "DeleteTime" 
+        SELECT
+            "MsgIndex", "ItemFlag", "ReadFlag", "SenderID", "SenderFirstName", "SenderLastName", "SubjectLine", "MsgBody", 
+            "Taros", "SendTime", "DeleteTime" 
         FROM "EmailData" 
-        WHERE "PlayerId" = ?
+        WHERE "PlayerID" = ?
         ORDER BY "MsgIndex" DESC
         LIMIT 5
         OFFSET ?;
         )";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, playerID);
     int offset = 5 * page - 5;
     sqlite3_bind_int(stmt, 2, offset);
@@ -1589,13 +1547,14 @@ Database::EmailData Database::getEmail(int playerID, int index) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     const char* sql = R"(
-        SELECT "ItemFlag", "ReadFlag", "SenderId", "SenderFirstName", "SenderLastName", "SubjectLine", "MsgBody", 
-        "Taros", "SendTime", "DeleteTime" 
+        SELECT
+            "ItemFlag", "ReadFlag", "SenderID", "SenderFirstName", "SenderLastName", "SubjectLine", "MsgBody", 
+            "Taros", "SendTime", "DeleteTime" 
         FROM "EmailData" 
-        WHERE "PlayerId" = ? AND "MsgIndex" = ?;
+        WHERE "PlayerID" = ? AND "MsgIndex" = ?;
         )";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, playerID);
     sqlite3_bind_int(stmt, 2, index);
 
@@ -1619,9 +1578,6 @@ Database::EmailData Database::getEmail(int playerID, int index) {
     result.SendTime = sqlite3_column_int64(stmt, 8);
     result.DeleteTime = sqlite3_column_int64(stmt, 9);
 
-    if (sqlite3_step(stmt) == SQLITE_ROW)
-        std::cout << "[WARN] Database: Player has multiple emails with the same index ?!" << std::endl;
-
     sqlite3_finalize(stmt);
     return result;
 }
@@ -1634,12 +1590,12 @@ sItemBase* Database::getEmailAttachments(int playerID, int index) {
         items[i] = { 0, 0, 0, 0 };
 
     const char* sql = R"(
-        SELECT "Slot", "Id", "Type", "Opt", "TimeLimit" 
+        SELECT "Slot", "ID", "Type", "Opt", "TimeLimit" 
         FROM "EmailItems"
-        WHERE "PlayerId" = ? AND "MsgIndex" = ?;
+        WHERE "PlayerID" = ? AND "MsgIndex" = ?;
         )";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, playerID);
     sqlite3_bind_int(stmt, 2, index);
 
@@ -1664,52 +1620,53 @@ void Database::updateEmailContent(EmailData* data) {
     
     const char* sql = R"(
         SELECT COUNT(*) FROM "EmailItems"
-        WHERE "PlayerId" = ? AND "MsgIndex" = ?;
+        WHERE "PlayerID" = ? AND "MsgIndex" = ?;
         )";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, data->PlayerId);
     sqlite3_bind_int(stmt, 2, data->MsgIndex);
     sqlite3_step(stmt);
     int attachmentsCount = sqlite3_column_int(stmt, 0);
 
     data->ItemFlag = (data->Taros > 0 || attachmentsCount > 0) ? 1 : 0; // set attachment flag dynamically
-    // TODO: CHANGE THIS TO UPDATE
-    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
     sql = R"(
-        DELETE FROM "EmailData"
-        WHERE "PlayerId" = ? AND "MsgIndex" = ?;
+        UPDATE "EmailData"
+        SET
+            "PlayerID" = ?,
+            "MsgIndex" = ?,
+            "ReadFlag" = ?,
+            "ItemFlag" = ?,
+            "SenderID" = ?,
+            "SenderFirstName" = ?,
+            "SenderLastName" = ?,
+            "SubjectLine" = ?,
+            "MsgBody" = ?,
+            "Taros" = ?,
+            "SendTime" = ?,
+            "DeleteTime" = ?
+        WHERE "PlayerID" = ? AND "MsgIndex" = ?;
         )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-    sqlite3_bind_int(stmt, 1, data->PlayerId);
-    sqlite3_bind_int(stmt, 2, data->MsgIndex);
-    sqlite3_step(stmt);
-
-    sql = R"(
-        INSERT INTO "EmailData" 
-        ("PlayerId", "MsgIndex", "ReadFlag", "ItemFlag", "SenderId", "SenderFirstName", "SenderLastName",
-        "SubjectLine", "MsgBody", "Taros", "SendTime", "DeleteTime" )
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-        )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, data->PlayerId);
     sqlite3_bind_int(stmt, 2, data->MsgIndex);
     sqlite3_bind_int(stmt, 3, data->ReadFlag);
     sqlite3_bind_int(stmt, 4, data->ItemFlag);
     sqlite3_bind_int(stmt, 5, data->SenderId);
-    sqlite3_bind_text(stmt, 6, data->SenderFirstName.c_str(), -1, 0);
-    sqlite3_bind_text(stmt, 7, data->SenderLastName.c_str(), -1, 0);
-    sqlite3_bind_text(stmt, 8, data->SubjectLine.c_str(), -1, 0);
-    sqlite3_bind_text(stmt, 9, data->MsgBody.c_str(), -1, 0);
+    sqlite3_bind_text(stmt, 6, data->SenderFirstName.c_str(), -1, NULL);
+    sqlite3_bind_text(stmt, 7, data->SenderLastName.c_str(), -1, NULL);
+    sqlite3_bind_text(stmt, 8, data->SubjectLine.c_str(), -1, NULL);
+    sqlite3_bind_text(stmt, 9, data->MsgBody.c_str(), -1, NULL);
     sqlite3_bind_int(stmt, 10, data->Taros);
     sqlite3_bind_int64(stmt, 11, data->SendTime);
     sqlite3_bind_int64(stmt, 12, data->DeleteTime);
+    sqlite3_bind_int(stmt, 13, data->PlayerId);
+    sqlite3_bind_int(stmt, 14, data->MsgIndex);
 
     if (sqlite3_step(stmt) != SQLITE_DONE)
         std::cout << "[WARN] Database: failed to update email" << std::endl;
 
-    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
     sqlite3_finalize(stmt);
 }
 
@@ -1718,53 +1675,49 @@ void Database::deleteEmailAttachments(int playerID, int index, int slot) {
 
     sqlite3_stmt* stmt;
 
-    if (slot == -1) { // delete all
-        const char* sql = R"(
-            DELETE FROM "EmailItems"
-            WHERE "PlayerId" = ? AND "MsgIndex" = ?;
-            )";
-        sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-        sqlite3_bind_int(stmt, 1, playerID);
-        sqlite3_bind_int(stmt, 2, index);
-        if (sqlite3_step(stmt) != SQLITE_DONE)
-            std::cout << "[wARN] Database: Failed to delete email attachemtns" << std::endl;
-    
-    } else { // delete single by comparing slot num
-        const char* sql = R"(
-            DELETE FROM "EmailItems"
-            WHERE "PlayerId" = ? AND "MsgIndex" = ? AND "Slot" = ?;
-            )";
-        sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-        sqlite3_bind_int(stmt, 1, playerID);
-        sqlite3_bind_int(stmt, 2, index);
+    std::string sql(R"(
+        DELETE FROM "EmailItems"
+        WHERE "PlayerID" = ? AND "MsgIndex" = ?
+        )");
+
+    if (slot != -1)
+        sql += " AND \"Slot\" = ? ";
+    sql += ";";
+
+    sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, NULL);
+    sqlite3_bind_int(stmt, 1, playerID);
+    sqlite3_bind_int(stmt, 2, index);
+    if (slot != -1)
         sqlite3_bind_int(stmt, 3, slot);
-        if (sqlite3_step(stmt) != SQLITE_DONE)
-            std::cout << "[wARN] Database: Failed to delete email attachemtns" << std::endl;
-    }
+
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+        std::cout << "[WARN] Database: Failed to delete email attachments" << std::endl;
     sqlite3_finalize(stmt);
 }
 
 void Database::deleteEmails(int playerID, int64_t* indices) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+    sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
     sqlite3_stmt* stmt;
 
     const char* sql = R"(
         DELETE FROM "EmailData"
-        WHERE "PlayerId" = ? AND "MsgIndex" = ?;
+        WHERE "PlayerID" = ? AND "MsgIndex" = ?;
         )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     for (int i = 0; i < 5; i++) {
         sqlite3_bind_int(stmt, 1, playerID);
         sqlite3_bind_int64(stmt, 2, indices[i]);
-        sqlite3_step(stmt);
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
+            std::cout << "[WARN] Database: Failed to delete an emil" << std::endl;
+        }
         sqlite3_reset(stmt);
     }
     sqlite3_finalize(stmt);
 
-    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+    sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
 }
 
 int Database::getNextEmailIndex(int playerID) {
@@ -1772,12 +1725,12 @@ int Database::getNextEmailIndex(int playerID) {
 
     const char* sql = R"(
         SELECT "MsgIndex" FROM "EmailData"
-        WHERE "PlayerId" = ?
+        WHERE "PlayerID" = ?
         ORDER BY "MsgIndex" DESC
         LIMIT 1
         )";
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, playerID);
     sqlite3_step(stmt);
     int index = sqlite3_column_int(stmt, 0);
@@ -1788,47 +1741,48 @@ int Database::getNextEmailIndex(int playerID) {
 void Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+    sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
 
     const char* sql = R"(
         INSERT INTO "EmailData" 
-        ("PlayerId", "MsgIndex", "ReadFlag", "ItemFlag", "SenderId", "SenderFirstName", "SenderLastName",
-        "SubjectLine", "MsgBody", "Taros", "SendTime", "DeleteTime")
+            ("PlayerID", "MsgIndex", "ReadFlag", "ItemFlag", "SenderID", "SenderFirstName", "SenderLastName",
+            "SubjectLine", "MsgBody", "Taros", "SendTime", "DeleteTime")
         VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         )";
     sqlite3_stmt* stmt;
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, data->PlayerId);
     sqlite3_bind_int(stmt, 2, data->MsgIndex);
     sqlite3_bind_int(stmt, 3, data->ReadFlag);
     sqlite3_bind_int(stmt, 4, data->ItemFlag);
     sqlite3_bind_int(stmt, 5, data->SenderId);
-    sqlite3_bind_text(stmt, 6, data->SenderFirstName.c_str(), -1, 0);
-    sqlite3_bind_text(stmt, 7, data->SenderLastName.c_str(), -1, 0);
-    sqlite3_bind_text(stmt, 8, data->SubjectLine.c_str(), -1, 0);
-    sqlite3_bind_text(stmt, 9, data->MsgBody.c_str(), -1, 0);
+    sqlite3_bind_text(stmt, 6, data->SenderFirstName.c_str(), -1, NULL);
+    sqlite3_bind_text(stmt, 7, data->SenderLastName.c_str(), -1, NULL);
+    sqlite3_bind_text(stmt, 8, data->SubjectLine.c_str(), -1, NULL);
+    sqlite3_bind_text(stmt, 9, data->MsgBody.c_str(), -1, NULL);
     sqlite3_bind_int(stmt, 10, data->Taros);
     sqlite3_bind_int64(stmt, 11, data->SendTime);
     sqlite3_bind_int64(stmt, 12, data->DeleteTime);
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         std::cout << "[WARN] Database: Failed to send email" << std::endl;
-        sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
         sqlite3_finalize(stmt);
         return;
     }
 
+    // send attachments
     int slot = 1;
     for (sItemBase item : attachments) {
         sql = R"(
             INSERT INTO EmailItems
-            ("PlayerId", "MsgIndex", "Slot", "Id", "Type", "Opt", "TimeLimit")
+                ("PlayerID", "MsgIndex", "Slot", "ID", "Type", "Opt", "TimeLimit")
             VALUES (?, ?, ?, ?, ?, ?, ?);
             )";
         sqlite3_stmt* stmt;
 
-        sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+        sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
         sqlite3_bind_int(stmt, 1, data->PlayerId);
         sqlite3_bind_int(stmt, 2, data->MsgIndex);
         sqlite3_bind_int(stmt, 3, slot++);
@@ -1839,13 +1793,13 @@ void Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
             std::cout << "[WARN] Database: Failed to send email" << std::endl;
-            sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+            sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
             return;
         }
         sqlite3_reset(stmt);
     }
     sqlite3_finalize(stmt);
-    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+    sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
 }
 

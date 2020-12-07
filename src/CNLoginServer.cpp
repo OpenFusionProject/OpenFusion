@@ -346,8 +346,8 @@ void CNLoginServer::characterCreate(CNSocket* sock, CNPacketData* data) {
     }
     if (!Database::finishCharacter(character, loginSessions[sock].userID))
     {
-    std::cout << "[WARN] Login Server: Database failed to finish character creation!" << std::endl;
-    return invalidCharacter(sock);
+        std::cout << "[WARN] Login Server: Database failed to finish character creation!" << std::endl;
+        return invalidCharacter(sock);
     }
     
     Player player = {};
