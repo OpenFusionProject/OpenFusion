@@ -45,6 +45,7 @@ void PlayerManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_ON, enterPlayerVehicle);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_OFF, exitPlayerVehicle);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_CHANGE_MENTOR, changePlayerGuide);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_FIRST_USE_FLAG_SET, setFirstUseFlag);
 }
 
 void PlayerManager::addPlayer(CNSocket* key, Player plr) {
@@ -257,9 +258,9 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
         response.PCLoadData2CL.aQuestFlag[i] = plr.aQuestFlag[i];
     }
 
-    // shut Computress up
-    response.PCLoadData2CL.iFirstUseFlag1 = UINT64_MAX;
-    response.PCLoadData2CL.iFirstUseFlag2 = UINT64_MAX;
+    // Computress tips
+    response.PCLoadData2CL.iFirstUseFlag1 = plr.iFirstUseFlag[0];
+    response.PCLoadData2CL.iFirstUseFlag2 = plr.iFirstUseFlag[1];
 
     plr.SerialKey = enter->iEnterSerialKey;
     plr.instanceID = INSTANCE_OVERWORLD; // the player should never be in an instance on enter
@@ -856,6 +857,24 @@ void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
     }
     // save it on player
     plr->mentor = pkt->iMentor;
+}
+
+void PlayerManager::setFirstUseFlag(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET))
+        return;
+
+    sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET* flag = (sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET*)data->buf;
+    Player* plr = getPlayer(sock);
+
+    if (flag->iFlagCode < 1 || flag->iFlagCode > 128) {
+        std::cout << "[WARN] Client submitted invalid first use flag number?!" << std::endl;
+        return;
+    }
+    
+    if (flag->iFlagCode <= 64)
+        plr->iFirstUseFlag[0] |= (1ULL << (flag->iFlagCode - 1));
+    else
+        plr->iFirstUseFlag[1] |= (1ULL << (flag->iFlagCode - 65));
 }
 
 #pragma region Helper methods
