@@ -121,7 +121,9 @@ void Database::createMetaTable() {
     const char* sql = R"(
         CREATE TABLE "Meta"(
         "Key" TEXT NOT NULL UNIQUE,
-        "Value" INTEGER NOT NULL);
+        "Value" INTEGER NOT NULL,
+        "Created"	INTEGER DEFAULT (strftime('%s', 'now'))
+        );
         )";
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
