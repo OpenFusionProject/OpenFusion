@@ -575,7 +575,6 @@ bool doDebuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t target
     if (mob->skillStyle < 0 && mob->state != MobState::RETREAT) { // only debuff if the enemy is not retreating and not casting corruption
         mob->appearanceData.iConditionBitFlag |= bitFlag;
         mob->unbuffTimes[bitFlag] = getTime() + duration * 100;
-        std::cout << (int)mob->appearanceData.iNPC_ID << " was debuffed" << std::endl;
         respdata[i].bProtected = 0;
     }
     respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
@@ -631,7 +630,7 @@ bool doDamageNDebuff(CNSocket *sock, sSkillResult_Damage_N_Debuff *respdata, int
 
     Mob* mob = MobManager::Mobs[targetID];
 
-    int damage = MobManager::hitMob(sock, mob, 0); // using amount for something else
+    MobManager::hitMob(sock, mob, 0); // just to gain aggro
 
     respdata[i].eCT = 4;
     respdata[i].iDamage = duration / 10;
@@ -641,7 +640,6 @@ bool doDamageNDebuff(CNSocket *sock, sSkillResult_Damage_N_Debuff *respdata, int
     if (mob->skillStyle < 0 && mob->state != MobState::RETREAT) { // only debuff if the enemy is not retreating and not casting corruption
         mob->appearanceData.iConditionBitFlag |= bitFlag;
         mob->unbuffTimes[bitFlag] = getTime() + duration * 100;
-        std::cout << (int)mob->appearanceData.iNPC_ID << " was debuffed" << std::endl;
         respdata[i].bProtected = 0;
     }
     respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
@@ -681,8 +679,6 @@ bool doHeal(CNSocket *sock, sSkillResult_Heal_HP *respdata, int i, int32_t targe
     respdata[i].iHP = plr->HP;
     respdata[i].iHealHP = healedAmount;
 
-    std::cout << (int)plr->iID << " was healed" << std::endl;
-
     return true;
 }
 
@@ -702,8 +698,6 @@ bool doDamage(CNSocket *sock, sSkillResult_Damage *respdata, int i, int32_t targ
     respdata[i].iDamage = damage;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
     respdata[i].iHP = mob->appearanceData.iHP;
-
-    std::cout << (int)mob->appearanceData.iNPC_ID << " was damaged" << std::endl;
 
     return true;
 }
@@ -752,8 +746,6 @@ bool doLeech(CNSocket *sock, sSkillResult_Heal_HP *healdata, int i, int32_t targ
     damagedata->iDamage = damage;
     damagedata->iID = mob->appearanceData.iNPC_ID;
     damagedata->iHP = mob->appearanceData.iHP;
-
-    std::cout << (int)mob->appearanceData.iNPC_ID << " was leeched" << std::endl;
 
     return true;
 }

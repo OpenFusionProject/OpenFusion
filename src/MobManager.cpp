@@ -443,6 +443,11 @@ void MobManager::deadStep(Mob *mob, time_t currTime) {
             RemovalQueue.push(mob->appearanceData.iNPC_ID);
             return;
         }
+
+        // pre-set spawn coordinates if not marked for removal
+        mob->appearanceData.iX = mob->spawnX;
+        mob->appearanceData.iY = mob->spawnY;
+        mob->appearanceData.iZ = mob->spawnZ;
     }
 
     // to guide their groupmates, group leaders still need to move despite being dead
@@ -457,9 +462,8 @@ void MobManager::deadStep(Mob *mob, time_t currTime) {
     mob->appearanceData.iHP = mob->maxHealth;
     mob->state = MobState::ROAMING;
 
-    // reset position
+    // if mob is a group leader/follower, spawn where the group is.
     if (mob->groupLeader != 0) {
-        // mob is a group leader/follower, spawn where the group is.
         if (Mobs.find(mob->groupLeader) != Mobs.end()) {
             Mob* leaderMob = Mobs[mob->groupLeader];
             mob->appearanceData.iX = leaderMob->appearanceData.iX + mob->offsetX;
@@ -467,14 +471,7 @@ void MobManager::deadStep(Mob *mob, time_t currTime) {
             mob->appearanceData.iZ = leaderMob->appearanceData.iZ;
         } else {
             std::cout << "[WARN] deadStep: mob cannot find it's leader!" << std::endl;
-            mob->appearanceData.iX = mob->spawnX;
-            mob->appearanceData.iY = mob->spawnY;
-            mob->appearanceData.iZ = mob->spawnZ;
         }
-    } else {
-        mob->appearanceData.iX = mob->spawnX;
-        mob->appearanceData.iY = mob->spawnY;
-        mob->appearanceData.iZ = mob->spawnZ;
     }
 
     INITSTRUCT(sP_FE2CL_NPC_NEW, pkt);
@@ -753,16 +750,11 @@ void MobManager::retreatStep(Mob *mob, time_t currTime) {
 
 void MobManager::step(CNServer *serv, time_t currTime) {
     for (auto& pair : Mobs) {
-
-        // skip chunks without players
-        if (pair.second->playersInView == 0) //(!ChunkManager::inPopulatedChunks(pair.second->viewableChunks))
-            continue;
-
         if (pair.second->playersInView < 0)
             std::cout << "[WARN] Weird playerview value " << pair.second->playersInView << std::endl;
 
-        // skip mob movement and combat if disabled
-        if (!simulateMobs && pair.second->state != MobState::DEAD
+        // skip mob movement and combat if disabled or not in view
+        if ((!simulateMobs || pair.second->playersInView == 0) && pair.second->state != MobState::DEAD
         && pair.second->state != MobState::RETREAT)
             continue;
 
@@ -1411,7 +1403,7 @@ void MobManager::followToCombat(Mob *mob) {
             }
             Mob* followerMob = Mobs[leadMob->groupMember[i]];
 
-            if (followerMob->state == MobState::COMBAT)
+            if (followerMob->state != MobState::ROAMING) // only roaming mobs should transition to combat
                 continue;
 
             followerMob->target = mob->target;
@@ -1423,6 +1415,10 @@ void MobManager::followToCombat(Mob *mob) {
             followerMob->roamY = followerMob->appearanceData.iY;
             followerMob->roamZ = followerMob->appearanceData.iZ;
         }
+
+        if (leadMob->state != MobState::ROAMING)
+            return;
+
         leadMob->target = mob->target;
         leadMob->state = MobState::COMBAT;
         leadMob->nextMovement = getTime();
@@ -1662,12 +1658,10 @@ bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, in
         return false;
     }
 
-    int damage = 0;
-
     respdata[i].eCT = 1;
     respdata[i].iDamage = duration / 10;
     respdata[i].iID = plr->iID;
-    respdata[i].iHP = plr->HP -= damage;
+    respdata[i].iHP = plr->HP;
     respdata[i].iStamina = plr->Nanos[plr->activeNano].iStamina;
     if (plr->iConditionBitFlag & CSB_BIT_FREEDOM)
         respdata[i].bProtected = 1;

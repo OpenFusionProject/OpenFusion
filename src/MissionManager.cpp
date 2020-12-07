@@ -118,10 +118,12 @@ void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
                 mobsAreKilled = true;
                 for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
                     if (plr->tasks[i] == missionData->iTaskNum) {
-                        for (int j = 0; j < 3; j++)
-                            if (plr->RemainingNPCCount[i][j] > 0)
+                        for (int j = 0; j < 3; j++) {
+                            if (plr->RemainingNPCCount[i][j] > 0) {
                                 mobsAreKilled = false;
-                        break;
+                                break;
+                            }
+                        }
                     }
                 }
             }
