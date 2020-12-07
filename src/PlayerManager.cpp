@@ -259,8 +259,14 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     }
 
     // Computress tips
-    response.PCLoadData2CL.iFirstUseFlag1 = plr.iFirstUseFlag[0];
-    response.PCLoadData2CL.iFirstUseFlag2 = plr.iFirstUseFlag[1];
+    if (settings::DISABLEFIRSTUSEFLAG) {
+        response.PCLoadData2CL.iFirstUseFlag1 = UINT64_MAX;
+        response.PCLoadData2CL.iFirstUseFlag2 = UINT64_MAX;
+    }
+    else {
+        response.PCLoadData2CL.iFirstUseFlag1 = plr.iFirstUseFlag[0];
+        response.PCLoadData2CL.iFirstUseFlag2 = plr.iFirstUseFlag[1];
+    }
 
     plr.SerialKey = enter->iEnterSerialKey;
     plr.instanceID = INSTANCE_OVERWORLD; // the player should never be in an instance on enter

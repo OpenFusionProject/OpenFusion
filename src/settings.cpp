@@ -30,6 +30,7 @@ std::string settings::GRUNTWORKJSON = "tdata/gruntwork.json";
 std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
 std::string settings::DBPATH = "database.db";
 int settings::ACCLEVEL = 1;
+bool settings::DISABLEFIRSTUSEFLAG = true;
 
 // monitor settings
 bool settings::MONITORENABLED = false;
@@ -77,7 +78,8 @@ void settings::init() {
     ACCLEVEL = reader.GetInteger("shard", "accountlevel", ACCLEVEL);
     EVENTMODE = reader.GetInteger("shard", "eventmode", EVENTMODE);
     EVENTCRATECHANCE = reader.GetInteger("shard", "eventcratechance", EVENTCRATECHANCE);
+    DISABLEFIRSTUSEFLAG = reader.GetInteger("shard", "disablefirstuseflag", DISABLEFIRSTUSEFLAG);
     MONITORENABLED = reader.GetBoolean("monitor", "enabled", MONITORENABLED);
     MONITORPORT = reader.GetInteger("monitor", "port", MONITORPORT);
-    MONITORINTERVAL = reader.GetInteger("monitor", "interval", MONITORINTERVAL);
+    MONITORINTERVAL = reader.GetInteger("monitor", "interval", MONITORINTERVAL);    
 }
