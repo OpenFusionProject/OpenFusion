@@ -212,8 +212,7 @@ void Database::createTables() {
         "BatteryN"	INTEGER DEFAULT 0 NOT NULL,
         "Mentor"	INTEGER DEFAULT 5 NOT NULL,
         "WarpLocationFlag"	    INTEGER DEFAULT 0 NOT NULL,
-        "SkywayLocationFlag1"	INTEGER DEFAULT 0 NOT NULL,
-        "SkywayLocationFlag2"	INTEGER DEFAULT 0 NOT NULL,
+        "SkywayLocationFlag"	BLOB NOT NULL,
         "CurrentMissionID"	    INTEGER DEFAULT 0 NOT NULL,
         PRIMARY KEY("PlayerID" AUTOINCREMENT),
         FOREIGN KEY("AccountID") REFERENCES "Accounts"("AccountID") ON DELETE CASCADE,
@@ -513,8 +512,8 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
     const char* sql = R"(
         INSERT INTO "Players"
         ("AccountID", "Slot", "Firstname", "LastName", "XCoordinates" , "YCoordinates", "ZCoordinates", "Angle",
-         "HP", "NameCheck", "Quests")
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+         "HP", "NameCheck", "Quests", "SkywayLocationFlag")
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         )";   
     sqlite3_stmt* stmt;
     std::string firstName = U16toU8(save->szFirstName);
@@ -535,9 +534,10 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
     int nameCheck = (settings::APPROVEALLNAMES || save->iFNCode) ? 1 : 0;
     sqlite3_bind_int(stmt, 10, nameCheck);
 
-    // 128 byte blob for completed quests
+    // blobs
     unsigned char blobBuffer[128] = { 0 };
-    sqlite3_bind_blob(stmt, 11, blobBuffer, sizeof(blobBuffer), 0);
+    sqlite3_bind_blob(stmt, 11, blobBuffer, 128, 0);
+    sqlite3_bind_blob(stmt, 12, blobBuffer, 16, 0);
 
     int rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
@@ -932,7 +932,7 @@ void Database::getPlayer(Player* plr, int id) {
         p.XCoordinates, p.YCoordinates, p.ZCoordinates, p.NameCheck,
         p.Angle, p.HP, acc.AccountLevel, p.FusionMatter, p.Taros, p.Quests,
         p.BatteryW, p.BatteryN, p.Mentor, p.WarpLocationFlag,
-        p.SkywayLocationFlag1, p.SkywayLocationFlag2, p.CurrentMissionID,
+        p.SkywayLocationFlag, p.CurrentMissionID,
         a.Body, a.EyeColor, a.FaceStyle, a.Gender, a.HairColor, a.HairStyle, a.Height, a.SkinColor  
         FROM "Players" as p 
         INNER JOIN "Appearances" as a ON p.PlayerID = a.PlayerID
@@ -988,18 +988,18 @@ void Database::getPlayer(Player* plr, int id) {
     plr->mentor = sqlite3_column_int(stmt, 23);
     plr->iWarpLocationFlag = sqlite3_column_int(stmt, 24);
     
-    plr->aSkywayLocationFlag[0] = sqlite3_column_int64(stmt, 25);
-    plr->aSkywayLocationFlag[1] = sqlite3_column_int64(stmt, 26);
-    plr->CurrentMissionID = sqlite3_column_int(stmt, 27);
+    memcpy(plr->aSkywayLocationFlag, sqlite3_column_blob(stmt, 25), sizeof(plr->aSkywayLocationFlag));
+    
+    plr->CurrentMissionID = sqlite3_column_int(stmt, 26);
 
-    plr->PCStyle.iBody = sqlite3_column_int(stmt, 28);
-    plr->PCStyle.iEyeColor = sqlite3_column_int(stmt, 29);
-    plr->PCStyle.iFaceStyle = sqlite3_column_int(stmt, 30);
-    plr->PCStyle.iGender = sqlite3_column_int(stmt, 31);
-    plr->PCStyle.iHairColor = sqlite3_column_int(stmt, 32);
-    plr->PCStyle.iHairStyle = sqlite3_column_int(stmt, 33);
-    plr->PCStyle.iHeight = sqlite3_column_int(stmt, 34);
-    plr->PCStyle.iSkinColor = sqlite3_column_int(stmt, 35);
+    plr->PCStyle.iBody = sqlite3_column_int(stmt, 27);
+    plr->PCStyle.iEyeColor = sqlite3_column_int(stmt, 28);
+    plr->PCStyle.iFaceStyle = sqlite3_column_int(stmt, 29);
+    plr->PCStyle.iGender = sqlite3_column_int(stmt, 30);
+    plr->PCStyle.iHairColor = sqlite3_column_int(stmt, 31);
+    plr->PCStyle.iHairStyle = sqlite3_column_int(stmt, 32);
+    plr->PCStyle.iHeight = sqlite3_column_int(stmt, 33);
+    plr->PCStyle.iSkinColor = sqlite3_column_int(stmt, 34);
 
     // get inventory
 
@@ -1147,7 +1147,7 @@ void Database::updatePlayer(Player *player) {
         "XCoordinates" = ?, "YCoordinates" = ?, "ZCoordinates" = ?,
         "Angle" = ?, "HP" = ?, "FusionMatter" = ?, "Taros" = ?, "Quests" = ?,
         "BatteryW" = ?, "BatteryN" = ?, "WarplocationFlag" = ?,
-        "SkywayLocationFlag1" = ?, "SkywayLocationFlag2" = ?, "CurrentMissionID" = ?,
+        "SkywayLocationFlag" = ?, "CurrentMissionID" = ?,
         "PayZoneFlag" = ?
         WHERE "PlayerID" = ?
         )";
@@ -1178,13 +1178,13 @@ void Database::updatePlayer(Player *player) {
     sqlite3_bind_int(stmt, 13, player->batteryW);
     sqlite3_bind_int(stmt, 14, player->batteryN);
     sqlite3_bind_int(stmt, 15, player->iWarpLocationFlag);
-    sqlite3_bind_int64(stmt, 16, player->aSkywayLocationFlag[0]);
-    sqlite3_bind_int64(stmt, 17, player->aSkywayLocationFlag[1]);
-    sqlite3_bind_int(stmt, 18, player->CurrentMissionID);
-    sqlite3_bind_int(stmt, 19, player->PCStyle2.iPayzoneFlag);
-    sqlite3_bind_int(stmt, 20, player->iID);
+    sqlite3_bind_blob(stmt, 16, player->aSkywayLocationFlag, sizeof(player->aSkywayLocationFlag), 0);
+    sqlite3_bind_int(stmt, 17, player->CurrentMissionID);
+    sqlite3_bind_int(stmt, 18, player->PCStyle2.iPayzoneFlag);
+    sqlite3_bind_int(stmt, 19, player->iID);
 
-    if (sqlite3_step(stmt) != SQLITE_DONE) {
+    int rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE) {
         sqlite3_exec(db, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
         sqlite3_finalize(stmt);
         std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
