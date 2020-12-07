@@ -67,7 +67,6 @@ namespace Database {
     // getting players
     void getPlayer(Player* plr, int id);
     void updatePlayer(Player *player);
-    void updateBuddies(Player* player);
     void removeExpiredVehicles(Player* player);
     
     // buddies
