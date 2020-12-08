@@ -218,7 +218,31 @@ void CNSocket::step() {
 
 void printSocketError(const char *call) {
 #ifdef _WIN32
-    // TODO: ycc plz implement
+    std::cerr << call << ": ";
+   
+    LPSTR lpMsgBuf = nullptr;  // string buffer
+    DWORD errCode = WSAGetLastError(); // error code
+
+    if (errCode == 0) {
+        std::cerr << "no error code" << std::endl;
+        return;
+    }
+
+    size_t bufSize = FormatMessageA( // actually get the error message
+        FORMAT_MESSAGE_ALLOCATE_BUFFER |
+        FORMAT_MESSAGE_FROM_SYSTEM |
+        FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL,
+        errCode, // in
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPTSTR)&lpMsgBuf, // out
+        0, NULL);
+
+    // convert buffer to string and output message to terminal
+    std::string msg(lpMsgBuf, bufSize);
+    std::cerr << msg; // newline included
+
+    LocalFree(lpMsgBuf); // free the buffer
 #else
     perror(call);
 #endif
