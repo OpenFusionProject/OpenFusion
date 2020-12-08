@@ -918,6 +918,7 @@ void PlayerManager::exitDuplicate(int accountId) {
 
             sock->kill();
             CNShardServer::_killConnection(sock);
+            break;
         }
     }
 }
