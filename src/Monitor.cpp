@@ -87,8 +87,10 @@ static bool transmit(std::list<SOCKET>::iterator& it, char *buff, int len) {
 void Monitor::tick(CNServer *serv, time_t delta) {
     std::lock_guard<std::mutex> lock(sockLock);
     char buff[256];
+    int n;
 
     auto it = sockets.begin();
+    outer:
     while (it != sockets.end()) {
         if (!transmit(it, (char*)"begin\n", 6))
             continue;
@@ -97,12 +99,12 @@ void Monitor::tick(CNServer *serv, time_t delta) {
             if (pair.second->hidden)
                 continue;
 
-            int n = std::snprintf(buff, sizeof(buff), "player %d %d %s\n",
+            n = std::snprintf(buff, sizeof(buff), "player %d %d %s\n",
                     pair.second->x, pair.second->y,
                     PlayerManager::getPlayerName(pair.second, false).c_str());
 
             if (!transmit(it, buff, n))
-                continue;
+                goto outer;
         }
 
         if (!transmit(it, (char*)"end\n", 4))
