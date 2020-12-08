@@ -15,6 +15,7 @@ SOCKET Monitor::init() {
     listener = socket(AF_INET, SOCK_STREAM, 0);
     if (SOCKETERROR(listener)) {
         std::cout << "Failed to create monitor socket" << std::endl;
+        printSocketError("socket");
         exit(1);
     }
 
@@ -25,6 +26,7 @@ SOCKET Monitor::init() {
 #endif
     if (SOCKETERROR(setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)))) {
         std::cout << "Failed to set SO_REUSEADDR on monitor socket" << std::endl;
+        printSocketError("setsockopt");
         exit(1);
     }
 
@@ -34,11 +36,13 @@ SOCKET Monitor::init() {
 
     if (SOCKETERROR(bind(listener, (struct sockaddr*)&address, sizeof(address)))) {
         std::cout << "Failed to bind to monitor port" << std::endl;
+        printSocketError("bind");
         exit(1);
     }
 
     if (SOCKETERROR(listen(listener, SOMAXCONN))) {
         std::cout << "Failed to listen on monitor port" << std::endl;
+        printSocketError("listen");
         exit(1);
     }
 
@@ -49,6 +53,7 @@ SOCKET Monitor::init() {
     if (fcntl(listener, F_SETFL, (fcntl(listener, F_GETFL, 0) | O_NONBLOCK)) != 0) {
 #endif
         std::cerr << "[FATAL] OpenFusion: fcntl failed" << std::endl;
+        printSocketError("fcntl");
         exit(EXIT_FAILURE);
     }
 
@@ -66,6 +71,8 @@ static bool transmit(std::list<SOCKET>::iterator& it, char *buff, int len) {
     while (n < len) {
         n += send(sock, buff+n, len-n, 0);
         if (SOCKETERROR(n)) {
+            printSocketError("send");
+
 #ifdef _WIN32
             shutdown(sock, SD_BOTH);
             closesocket(sock);
@@ -90,7 +97,7 @@ void Monitor::tick(CNServer *serv, time_t delta) {
     int n;
 
     auto it = sockets.begin();
-    outer:
+outer:
     while (it != sockets.end()) {
         if (!transmit(it, (char*)"begin\n", 6))
             continue;
@@ -129,8 +136,10 @@ bool Monitor::acceptConnection(SOCKET fd, uint16_t revents) {
     }
 
     int sock = accept(listener, (struct sockaddr*)&address, &len);
-    if (SOCKETERROR(sock))
+    if (SOCKETERROR(sock)) {
+        printSocketError("accept");
         return true;
+    }
 
     setSockNonblocking(listener, sock);
 

@@ -78,7 +78,7 @@ bool CNSocket::sendData(uint8_t* data, int size) {
                 maxTries--;
                 continue; // try again
             }
-            std::cout << "[FATAL] SOCKET ERROR: " << OF_ERRNO << std::endl;
+            printSocketError("send");
             return false; // error occured while sending bytes
         }
         sentBytes += sent;
@@ -180,6 +180,7 @@ void CNSocket::step() {
             activelyReading = true;
         } else if (OF_ERRNO != OF_EWOULD) {
             // serious socket issue, disconnect connection
+            printSocketError("recv");
             kill();
             return;
         }
@@ -192,6 +193,7 @@ void CNSocket::step() {
             readBufferIndex += recved;
         else if (OF_ERRNO != OF_EWOULD) {
             // serious socket issue, disconnect connection
+            printSocketError("recv");
             kill();
             return;
         }
@@ -214,6 +216,14 @@ void CNSocket::step() {
     }
 }
 
+void printSocketError(const char *call) {
+#ifdef _WIN32
+    // TODO: ycc plz implement
+#else
+    perror(call);
+#endif
+}
+
 bool setSockNonblocking(SOCKET listener, SOCKET newSock) {
 #ifdef _WIN32
     unsigned long mode = 1;
@@ -221,6 +231,7 @@ bool setSockNonblocking(SOCKET listener, SOCKET newSock) {
 #else
     if (fcntl(newSock, F_SETFL, (fcntl(newSock, F_GETFL, 0) | O_NONBLOCK)) != 0) {
 #endif
+        printSocketError("fcntl");
         std::cerr << "[WARN] OpenFusion: fcntl failed on new connection" << std::endl;
 #ifdef _WIN32
         shutdown(newSock, SD_BOTH);
@@ -241,6 +252,7 @@ void CNServer::init() {
     // create socket file descriptor
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (SOCKETINVALID(sock)) {
+        printSocketError("socket");
         std::cerr << "[FATAL] OpenFusion: socket failed" << std::endl;
         exit(EXIT_FAILURE);
     }
@@ -253,6 +265,7 @@ void CNServer::init() {
     if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) != 0) {
 #endif
         std::cerr << "[FATAL] OpenFusion: setsockopt failed" << std::endl;
+        printSocketError("setsockopt");
         exit(EXIT_FAILURE);
     }
     address.sin_family = AF_INET;
@@ -264,11 +277,13 @@ void CNServer::init() {
     // Bind to the port
     if (SOCKETERROR(bind(sock, (struct sockaddr *)&address, addressSize))) {
         std::cerr << "[FATAL] OpenFusion: bind failed" << std::endl;
+        printSocketError("bind");
         exit(EXIT_FAILURE);
     }
 
     if (SOCKETERROR(listen(sock, SOMAXCONN))) {
         std::cerr << "[FATAL] OpenFusion: listen failed" << std::endl;
+        printSocketError("listen");
         exit(EXIT_FAILURE);
     }
 
@@ -279,6 +294,7 @@ void CNServer::init() {
 #else
     if (fcntl(sock, F_SETFL, (fcntl(sock, F_GETFL, 0) | O_NONBLOCK)) != 0) {
 #endif
+        printSocketError("fcntl");
         std::cerr << "[FATAL] OpenFusion: fcntl failed" << std::endl;
         exit(EXIT_FAILURE);
     }
@@ -317,6 +333,7 @@ void CNServer::start() {
                 continue;
 #endif
             std::cout << "[FATAL] poll() returned error" << std::endl;
+            printSocketError("poll");
             terminate(0);
         }
 
@@ -337,8 +354,10 @@ void CNServer::start() {
                 }
 
                 SOCKET newConnectionSocket = accept(sock, (struct sockaddr *)&address, (socklen_t*)&addressSize);
-                if (SOCKETINVALID(newConnectionSocket))
+                if (SOCKETINVALID(newConnectionSocket)) {
+                    printSocketError("accept");
                     continue;
+                }
 
                 if (!setSockNonblocking(sock, newConnectionSocket))
                     continue;

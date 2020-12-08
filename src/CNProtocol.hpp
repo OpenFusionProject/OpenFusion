@@ -118,6 +118,7 @@ inline bool validInVarPacket(size_t base, int32_t npayloads, size_t plsize, size
     return true;
 }
 
+void printSocketError(const char *func);
 bool setSockNonblocking(SOCKET listener, SOCKET newSock);
 
 namespace CNSocketEncryption {
