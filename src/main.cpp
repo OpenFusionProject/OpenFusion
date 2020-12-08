@@ -120,6 +120,8 @@ int main() {
     shardThread = new std::thread(startShard, (CNShardServer*)shardServer);
 
     loginServer.start();
+    
+    std::cout << "[INFO] Server is up." << std::endl;
 
     shardServer->kill();
     shardThread->join();
