@@ -312,6 +312,10 @@ void CNServer::start() {
         // the timeout is to ensure shard timers are ticking
         int n = poll(fds.data(), fds.size(), 50);
         if (SOCKETERROR(n)) {
+#ifndef _WIN32
+            if (errno == EINTR)
+                continue;
+#endif
             std::cout << "[FATAL] poll() returned error" << std::endl;
             terminate(0);
         }
