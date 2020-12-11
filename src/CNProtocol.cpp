@@ -351,8 +351,6 @@ void CNServer::removePollFD(int i) {
 }
 
 void CNServer::start() {
-    int oldnfds;
-
     std::cout << "Starting server at *:" << port << std::endl;
     while (active) {
         // the timeout is to ensure shard timers are ticking
@@ -367,9 +365,7 @@ void CNServer::start() {
             terminate(0);
         }
 
-        oldnfds = fds.size();
-
-        for (int i = 0; i < oldnfds && n > 0; i++) {
+        for (int i = 0; i < fds.size() && n > 0; i++) {
             if (fds[i].revents == 0)
                 continue; // nothing in this one; don't decrement n
 
@@ -427,6 +423,9 @@ void CNServer::start() {
                     delete cSock;
 
                     removePollFD(i);
+
+                    // a new entry was moved to this position, so we check it again
+                    i--;
                 }
             }
         }
