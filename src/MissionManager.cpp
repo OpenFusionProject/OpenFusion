@@ -106,17 +106,39 @@ void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
     // failed timed missions give an iNPC_ID of 0
     if (missionData->iNPC_ID == 0) {
         TaskData* task = MissionManager::Tasks[missionData->iTaskNum];
-        // double-checking
-        if (task->task["m_iSTGrantTimer"] > 0) {
+        if (task->task["m_iSTGrantTimer"] > 0) { // its a timed mission
             Player* plr = PlayerManager::getPlayer(sock);
-            int failTaskID = task->task["m_iFOutgoingTask"];
-            if (failTaskID != 0) {
-                MissionManager::quitTask(sock, missionData->iTaskNum, false);
+            /*
+             * Enemy killing missions
+             * this is gross and should be cleaned up later
+             * once we comb over mission logic more throughly
+             */
+            bool mobsAreKilled = false;
+            if (task->task["m_iHTaskType"] == 5) {
+                mobsAreKilled = true;
+                for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+                    if (plr->tasks[i] == missionData->iTaskNum) {
+                        for (int j = 0; j < 3; j++) {
+                            if (plr->RemainingNPCCount[i][j] > 0) {
+                                mobsAreKilled = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!mobsAreKilled) {
                 
-                for (int i = 0; i < 6; i++)
-                    if (plr->tasks[i] == missionData->iTaskNum)
-                        plr->tasks[i] = failTaskID;
-                return;
+                int failTaskID = task->task["m_iFOutgoingTask"];
+                if (failTaskID != 0) {
+                    MissionManager::quitTask(sock, missionData->iTaskNum, false);
+                    
+                    for (int i = 0; i < 6; i++)
+                        if (plr->tasks[i] == missionData->iTaskNum)
+                            plr->tasks[i] = failTaskID;
+                    return;
+                }
             }
         }
     }
