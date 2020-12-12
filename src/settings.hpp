@@ -19,6 +19,7 @@ namespace settings {
     extern std::string NPCJSON;
     extern std::string XDTJSON;
     extern std::string MOBJSON;
+    extern std::string ACADEMYJSON;
     extern std::string PATHJSON;
     extern std::string DROPSJSON;
     extern std::string EGGSJSON;

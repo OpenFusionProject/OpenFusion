@@ -319,6 +319,40 @@ void TableData::init() {
         exit(1);
     }
 
+#ifdef ACADEMY
+    // load Academy NPCs from academy.json
+    try {
+        std::ifstream inFile(settings::ACADEMYJSON);
+        nlohmann::json npcData;
+
+        // read file into json
+        inFile >> npcData;
+        npcData = npcData["NPCs"];
+        for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
+            auto npc = _npc.value();
+            int instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
+
+            int team = NPCManager::NPCData[(int)npc["iNPCType"]]["m_iTeam"];
+
+            if (team == 2) {
+                NPCManager::NPCs[nextId] = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], NPCManager::NPCData[(int)npc["iNPCType"]], nextId);
+                MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
+            } else
+                NPCManager::NPCs[nextId] = new BaseNPC(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], nextId);
+
+            NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
+            nextId++;
+
+            if (npc["iNPCType"] == 641 || npc["iNPCType"] == 642)
+                NPCManager::RespawnPoints.push_back({ npc["iX"], npc["iY"], ((int)npc["iZ"]) + RESURRECT_HEIGHT, instanceID });
+        }
+    }
+    catch (const std::exception& err) {
+        std::cerr << "[FATAL] Malformed academy.json file! Reason:" << err.what() << std::endl;
+        exit(1);
+    }
+#endif
+
     loadDrops();
 
     loadEggs(&nextId);
