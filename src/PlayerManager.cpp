@@ -325,10 +325,7 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
  */
 void PlayerManager::sendNanoBookSubset(CNSocket *sock) {
 #ifdef ACADEMY
-//#if 0
     Player *plr = getPlayer(sock);
-
-#define P_FE2CL_REP_NANO_BOOK_SUBSET 822083892
 
     int16_t id = 0;
     INITSTRUCT(sP_FE2CL_REP_NANO_BOOK_SUBSET, pkt);
@@ -339,22 +336,11 @@ void PlayerManager::sendNanoBookSubset(CNSocket *sock) {
     while (id < NANO_COUNT) {
         pkt.elementOffset = id;
 
-        for (int i = id - pkt.elementOffset; id < NANO_COUNT && i < 10; id++, i = id - pkt.elementOffset) {
-            // change between these two lines to either get all nanos or none
-            //pkt.element[i] = plr->Nanos[id] = {id, 36, 150};
-            //pkt.element[i] = plr->Nanos[id] = {0};
-
-            // this one should be kept
+        for (int i = id - pkt.elementOffset; id < NANO_COUNT && i < 10; id++, i = id - pkt.elementOffset)
             pkt.element[i] = plr->Nanos[id];
 
-            std::cout << "adding " << (int) id << std::endl;
-        }
-
-        std::cout << "sending subset" << std::endl;
         sock->sendPacket((void*)&pkt, P_FE2CL_REP_NANO_BOOK_SUBSET, sizeof(sP_FE2CL_REP_NANO_BOOK_SUBSET));
     }
-
-    // TODO: possibly send a player refresh packet from here
 #endif
 }
 

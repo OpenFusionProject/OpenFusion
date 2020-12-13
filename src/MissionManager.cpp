@@ -147,14 +147,14 @@ void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
 
     response.iTaskNum = missionData->iTaskNum;
 
-    if (!endTask(sock, missionData->iTaskNum)) {
+    if (!endTask(sock, missionData->iTaskNum, missionData->iBox1Choice)) {
         return;
     }
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_END_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_END_SUCC));
 }
 
-bool MissionManager::endTask(CNSocket *sock, int32_t taskNum) {
+bool MissionManager::endTask(CNSocket *sock, int32_t taskNum, int choice) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     if (Tasks.find(taskNum) == Tasks.end())
@@ -165,7 +165,7 @@ bool MissionManager::endTask(CNSocket *sock, int32_t taskNum) {
 
     // mission rewards
     if (Rewards.find(taskNum) != Rewards.end()) {
-        if (giveMissionReward(sock, taskNum) == -1)
+        if (giveMissionReward(sock, taskNum, choice) == -1)
             return false; // we don't want to send anything
     }
     // don't take away quest items if we haven't finished the quest
@@ -360,7 +360,7 @@ void MissionManager::dropQuestItem(CNSocket *sock, int task, int count, int id, 
     sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
 }
 
-int MissionManager::giveMissionReward(CNSocket *sock, int task) {
+int MissionManager::giveMissionReward(CNSocket *sock, int task, int choice) {
     Reward *reward = Rewards[task];
     Player *plr = PlayerManager::getPlayer(sock);
 
@@ -369,6 +369,10 @@ int MissionManager::giveMissionReward(CNSocket *sock, int task) {
         if (reward->itemIds[i] != 0)
             nrewards++;
     }
+
+    // this handles multiple choice rewards in the Academy's Mt. Neverest missions
+    if (choice != 0)
+        nrewards = 1;
 
     int slots[4];
     for (int i = 0; i < nrewards; i++) {
@@ -427,9 +431,15 @@ int MissionManager::giveMissionReward(CNSocket *sock, int task) {
     resp->m_iBatteryN = plr->batteryN;
     resp->m_iBatteryW = plr->batteryW;
 
+    int offset = 0;
+
+    // choice is actually a bitfield
+    if (choice != 0)
+        offset = (int)log2((int)choice);
+
     for (int i = 0; i < nrewards; i++) {
-        item[i].sItem.iType = reward->itemTypes[i];
-        item[i].sItem.iID = reward->itemIds[i];
+        item[i].sItem.iType = reward->itemTypes[offset+i];
+        item[i].sItem.iID = reward->itemIds[offset+i];
         item[i].iSlotNum = slots[i];
         item[i].eIL = 1;
 

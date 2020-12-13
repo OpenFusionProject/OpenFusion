@@ -10,6 +10,11 @@
 // 56 real nanos, zeroeth entry, Van Kleiss
 #define NANO_COUNT 58
 
+// Academy-specific packets
+#define P_FE2CL_REP_NANO_BOOK_SUBSET 822083892
+// There are more, but we don't currently implement them
+// and they might all be unused anyway.
+
 #pragma pack(push)
 
 #pragma pack(4)
