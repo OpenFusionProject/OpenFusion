@@ -664,8 +664,8 @@ void BuddyManager::emailSend(CNSocket* sock, CNPacketData* data) {
 
     if (pkt->iCash || pkt->aItem[0].ItemInven.iID) {
         // if there are item or taro attachments
-        Player* otherPlr = PlayerManager::getPlayerFromID(pkt->iTo_PCUID);
-        if (plr->PCStyle2.iPayzoneFlag != otherPlr->PCStyle2.iPayzoneFlag) {
+        Database::DbPlayer otherPlayerData = Database::getDbPlayerById(pkt->iTo_PCUID);
+        if (otherPlayerData.PlayerID != -1 && plr->PCStyle2.iPayzoneFlag != otherPlayerData.PayZoneFlag) {
             // if the players are not in the same time period
             INITSTRUCT(sP_FE2CL_REP_PC_SEND_EMAIL_FAIL, resp);
             resp.iErrorCode = 9; //error code 9 tells the player they can't send attachments across time
