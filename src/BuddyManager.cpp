@@ -456,6 +456,16 @@ void BuddyManager::reqBuddyWarp(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
+    Player *plr = PlayerManager::getPlayer(sock);
+    if (otherPlr->PCStyle2.iPayzoneFlag != plr->PCStyle2.iPayzoneFlag) {
+        // players are not at the same point in time
+        INITSTRUCT(sP_FE2CL_REP_PC_BUDDY_WARP_FAIL, resp);
+        resp.iBuddyPCUID = pkt->iBuddyPCUID;
+        resp.iErrorCode = 0;
+        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BUDDY_WARP_FAIL, sizeof(sP_FE2CL_REP_PC_BUDDY_WARP_FAIL));
+        return;
+    }
+
     PlayerManager::sendPlayerTo(sock, otherPlr->x, otherPlr->y, otherPlr->z);
 }
 
@@ -651,6 +661,20 @@ void BuddyManager::emailSend(CNSocket* sock, CNPacketData* data) {
 
     // handle items
     std::vector<sItemBase> attachments;
+
+    if (pkt->iCash || pkt->aItem[0].ItemInven.iID) {
+        // if there are item or taro attachments
+        Player* otherPlr = PlayerManager::getPlayerFromID(pkt->iTo_PCUID);
+        if (plr->PCStyle2.iPayzoneFlag != otherPlr->PCStyle2.iPayzoneFlag) {
+            // if the players are not in the same time period
+            INITSTRUCT(sP_FE2CL_REP_PC_SEND_EMAIL_FAIL, resp);
+            resp.iErrorCode = 9; //error code 9 tells the player they can't send attachments across time
+            resp.iTo_PCUID = pkt->iTo_PCUID;
+            sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_SEND_EMAIL_FAIL, sizeof(sP_FE2CL_REP_PC_SEND_EMAIL_FAIL));
+            return;
+        }
+    }
+
     for (int i = 0; i < 4; i++) {
         sEmailItemInfoFromCL attachment = pkt->aItem[i];
         resp.aItem[i] = attachment;
