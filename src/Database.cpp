@@ -1128,7 +1128,7 @@ void Database::updatePlayer(Player *player) {
             "Angle" = ?, "HP" = ?, "FusionMatter" = ?, "Taros" = ?, "Quests" = ?,
             "BatteryW" = ?, "BatteryN" = ?, "WarplocationFlag" = ?,
             "SkywayLocationFlag" = ?, "CurrentMissionID" = ?,
-            "PayZoneFlag" = ?, "FirstUseFlag" = ?
+            "PayZoneFlag" = ?, "FirstUseFlag" = ?, "Mentor" = ?
         WHERE "PlayerID" = ?
         )";
     sqlite3_stmt* stmt;
@@ -1162,7 +1162,8 @@ void Database::updatePlayer(Player *player) {
     sqlite3_bind_int(stmt, 17, player->CurrentMissionID);
     sqlite3_bind_int(stmt, 18, player->PCStyle2.iPayzoneFlag);
     sqlite3_bind_blob(stmt, 19, player->iFirstUseFlag, sizeof(player->iFirstUseFlag), NULL);
-    sqlite3_bind_int(stmt, 20, player->iID);
+    sqlite3_bind_int(stmt, 20, player->mentor);
+    sqlite3_bind_int(stmt, 21, player->iID);
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         sqlite3_finalize(stmt);

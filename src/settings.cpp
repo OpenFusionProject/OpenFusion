@@ -78,7 +78,7 @@ void settings::init() {
     ACCLEVEL = reader.GetInteger("shard", "accountlevel", ACCLEVEL);
     EVENTMODE = reader.GetInteger("shard", "eventmode", EVENTMODE);
     EVENTCRATECHANCE = reader.GetInteger("shard", "eventcratechance", EVENTCRATECHANCE);
-    DISABLEFIRSTUSEFLAG = reader.GetInteger("shard", "disablefirstuseflag", DISABLEFIRSTUSEFLAG);
+    DISABLEFIRSTUSEFLAG = reader.GetBoolean("shard", "disablefirstuseflag", DISABLEFIRSTUSEFLAG);
     MONITORENABLED = reader.GetBoolean("monitor", "enabled", MONITORENABLED);
     MONITORPORT = reader.GetInteger("monitor", "port", MONITORPORT);
     MONITORINTERVAL = reader.GetInteger("monitor", "interval", MONITORINTERVAL);
