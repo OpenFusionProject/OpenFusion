@@ -87,7 +87,8 @@ void RacingManager::racingEnd(CNSocket* sock, CNPacketData* data) {
 
 	int timeDiff = now - EPRaces[sock].startTime;
 	int score = 500 * EPRaces[sock].ringCount - 10 * timeDiff;
-	int fm = score * plr->level * (1.0f / 36) * (1.0f / 3);
+	if (score < 0) score = 0; // lol
+	int fm = score * plr->level * (1.0f / 36) * 0.3f;
 
 	// we submit the ranking first...
 	Database::RaceRanking postRanking = {};
@@ -100,17 +101,21 @@ void RacingManager::racingEnd(CNSocket* sock, CNPacketData* data) {
 	Database::postRaceRanking(postRanking);
 
 	// ...then we get the top ranking, which may or may not be what we just submitted
-	Database::RaceRanking topRanking = Database::getTopRaceRanking(EPData[mapNum].EPID);
+	Database::RaceRanking topRankingGlobal = Database::getTopRaceRanking(EPData[mapNum].EPID, -1);
+	Database::RaceRanking topRankingPlayer = Database::getTopRaceRanking(EPData[mapNum].EPID, plr->iID);
 
 	INITSTRUCT(sP_FE2CL_REP_EP_RACE_END_SUCC, resp);
 
-	resp.iEPTopRank = 5; // top score is always 5 stars, since we're doing it relative to first place
-	resp.iEPTopRingCount = topRanking.RingCount;
-	resp.iEPTopScore = topRanking.Score;
-	resp.iEPTopTime = topRanking.Time;
+	resp.iEPTopRank = 1; // top score is always 5 stars, since we're doing it relative to first place
+	resp.iEPTopRingCount = topRankingPlayer.RingCount;
+	resp.iEPTopScore = topRankingPlayer.Score;
+	resp.iEPTopTime = topRankingPlayer.Time;
 	
 	resp.iEPRaceMode = EPRaces[sock].mode;
-	resp.iEPRank = (int)ceil((5.0 * score) / topRanking.Score); // [1, 5] out of 5, relative to top score
+	if (topRankingGlobal.Score == 0)
+		resp.iEPRank = 5; // don't divide by zero, just give them the single star they deserve
+	else
+		resp.iEPRank = 5 - ((score * 4.0) / topRankingGlobal.Score); // 5 - [0, 4] = [5, 1]
 	resp.iEPRingCnt = postRanking.RingCount;
 	resp.iEPScore = postRanking.Score;
 	resp.iEPRaceTime = postRanking.Time;

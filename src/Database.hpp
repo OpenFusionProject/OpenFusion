@@ -98,6 +98,6 @@ namespace Database {
     bool sendEmail(EmailData* data, std::vector<sItemBase> attachments);
 
     // racing
-    RaceRanking getTopRaceRanking(int epID);
+    RaceRanking getTopRaceRanking(int epID, int playerID);
     void postRaceRanking(RaceRanking ranking);
 }

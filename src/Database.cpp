@@ -1758,25 +1758,29 @@ bool Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
     return true;
 }
 
-Database::RaceRanking Database::getTopRaceRanking(int epID) {
+Database::RaceRanking Database::getTopRaceRanking(int epID, int playerID) {
     std::lock_guard<std::mutex> lock(dbCrit);
-    const char* sql = R"(
+    std::string sql(R"(
         SELECT
-            "EPID",
-            "PlayerID",
-            "Score",
-            "RingCount",
-            "Time",
-            "Timestamp"
-        FROM "RaceResults"
-        WHERE "EPID" = ?
-        ORDER BY "Score" DESC
+            EPID, PlayerID, Score, RingCount, Time, Timestamp
+        FROM RaceResults
+        WHERE EPID = ?
+        )");
+
+    if (playerID > -1)
+        sql += " AND PlayerID = ? ";
+
+    sql += R"(
+        ORDER BY Score DESC
         LIMIT 1;
         )";
+
     sqlite3_stmt* stmt;
 
-    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, epID);
+    if(playerID > -1)
+        sqlite3_bind_int(stmt, 2, playerID);
 
     Database::RaceRanking ranking = {};
     if (sqlite3_step(stmt) != SQLITE_ROW) {
@@ -1802,8 +1806,8 @@ void Database::postRaceRanking(Database::RaceRanking ranking) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     const char* sql = R"(
-        INSERT INTO "RaceResults" 
-            ("EPID", "PlayerID", "Score", "RingCount", "Time", "Timestamp")
+        INSERT INTO RaceResults
+            (EPID, PlayerID, Score, RingCount, Time, Timestamp)
         VALUES(?, ?, ?, ?, ?, ?);
         )";
     sqlite3_stmt* stmt;
