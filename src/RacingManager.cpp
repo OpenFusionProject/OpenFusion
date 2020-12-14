@@ -4,12 +4,13 @@
 #include "PlayerManager.hpp"
 #include "MissionManager.hpp"
 #include "ItemManager.hpp"
+#include "Database.hpp"
+#include "NPCManager.hpp"
 
 std::map<int32_t, EPInfo> RacingManager::EPData;
 std::map<CNSocket*, EPRace> RacingManager::EPRaces;
 
 void RacingManager::init() {
-
 	REGISTER_SHARD_PACKET(P_CL2FE_REQ_EP_RACE_START, racingStart);
 	REGISTER_SHARD_PACKET(P_CL2FE_REQ_EP_GET_RING, racingGetPod);
 	REGISTER_SHARD_PACKET(P_CL2FE_REQ_EP_RACE_CANCEL, racingCancel);
@@ -75,21 +76,45 @@ void RacingManager::racingEnd(CNSocket* sock, CNPacketData* data) {
 	sP_CL2FE_REQ_EP_RACE_END* req = (sP_CL2FE_REQ_EP_RACE_END*)data->buf;
 	Player* plr = PlayerManager::getPlayer(sock);
 
-	int timeDiff = getTime() / 1000 - EPRaces[sock].startTime;
+	if (NPCManager::NPCs.find(req->iEndEcomID) == NPCManager::NPCs.end())
+		return; // finish line agent not found
+
+	int mapNum = MAPNUM(NPCManager::NPCs[req->iEndEcomID]->instanceID);
+	if (EPData.find(mapNum) == EPData.end() || EPData[mapNum].EPID == 0)
+		return; // IZ not found
+
+	uint64_t now = getTime() / 1000;
+
+	int timeDiff = now - EPRaces[sock].startTime;
 	int score = 500 * EPRaces[sock].ringCount - 10 * timeDiff;
+	int fm = score * plr->level * (1.0f / 36) * (1.0f / 3);
+
+	// we submit the ranking first...
+	Database::RaceRanking postRanking = {};
+	postRanking.EPID = EPData[mapNum].EPID;
+	postRanking.PlayerID = plr->iID;
+	postRanking.RingCount = EPRaces[sock].ringCount;
+	postRanking.Score = score;
+	postRanking.Time = timeDiff;
+	postRanking.Timestamp = now;
+	Database::postRaceRanking(postRanking);
+
+	// ...then we get the top ranking, which may or may not be what we just submitted
+	Database::RaceRanking topRanking = Database::getTopRaceRanking(EPData[mapNum].EPID);
 
 	INITSTRUCT(sP_FE2CL_REP_EP_RACE_END_SUCC, resp);
-	resp.iEPRaceTime = timeDiff;
-	resp.iEPRaceMode = EPRaces[sock].mode;
-	resp.iEPRank = 3; // TODO
-	resp.iEPScore = score;
-	resp.iEPRewardFM = score * plr->level * 1.0f/36 * 1.0f/3; // TODO
-	resp.iEPRingCnt = EPRaces[sock].ringCount;
 
-	resp.iEPTopRank = 0; // TODO
-	resp.iEPTopRingCount = 0; // TODO
-	resp.iEPTopScore = 0; // TODO
-	resp.iEPTopTime = 0; // TODO
+	resp.iEPTopRank = 5; // top score is always 5 stars, since we're doing it relative to first place
+	resp.iEPTopRingCount = topRanking.RingCount;
+	resp.iEPTopScore = topRanking.Score;
+	resp.iEPTopTime = topRanking.Time;
+	
+	resp.iEPRaceMode = EPRaces[sock].mode;
+	resp.iEPRank = (int)ceil((5.0 * score) / topRanking.Score); // [1, 5] out of 5, relative to top score
+	resp.iEPRingCnt = postRanking.RingCount;
+	resp.iEPScore = postRanking.Score;
+	resp.iEPRaceTime = postRanking.Time;
+	resp.iEPRewardFM = fm;
 
 	MissionManager::updateFusionMatter(sock, resp.iEPRewardFM);
 
@@ -106,11 +131,12 @@ void RacingManager::racingEnd(CNSocket* sock, CNPacketData* data) {
 	item.iOpt = 1;
 	reward.sItem = item;
 
-	if (reward.iSlotNum >= 0) {
+	if (reward.iSlotNum > -1) {
 		resp.RewardItem = reward;
 		plr->Inven[reward.iSlotNum] = item;
 	}
 	
+	EPRaces.erase(sock);
 	sock->sendPacket((void*)&resp, P_FE2CL_REP_EP_RACE_END_SUCC, sizeof(sP_FE2CL_REP_EP_RACE_END_SUCC));
 }
 
