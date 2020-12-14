@@ -817,23 +817,20 @@ void TableData::flush() {
         if (NPCManager::NPCs.find(pair.first) == NPCManager::NPCs.end())
             continue;
 
-        int x, y, z, hp;
+        int x, y, z;
         if (npc->npcClass == NPC_MOB) {
             Mob *m = (Mob*)npc;
             x = m->spawnX;
             y = m->spawnY;
             z = m->spawnZ;
-            hp = m->maxHealth;
         } else {
             x = npc->appearanceData.iX;
             y = npc->appearanceData.iY;
             z = npc->appearanceData.iZ;
-            hp = npc->appearanceData.iHP;
         }
 
         // NOTE: this format deviates slightly from the one in mobs.json
         mob["iNPCType"] = (int)npc->appearanceData.iNPCType;
-        mob["iHP"] = hp;
         mob["iX"] = x;
         mob["iY"] = y;
         mob["iZ"] = z;
@@ -852,14 +849,13 @@ void TableData::flush() {
         if (NPCManager::NPCs.find(pair.first) == NPCManager::NPCs.end())
             continue;
 
-        int x, y, z, hp;
+        int x, y, z;
         std::vector<Mob*> followers;
         if (npc->npcClass == NPC_MOB) {
             Mob* m = (Mob*)npc;
             x = m->spawnX;
             y = m->spawnY;
             z = m->spawnZ;
-            hp = m->maxHealth;
             if (m->groupLeader != m->appearanceData.iNPC_ID) { // make sure this is a leader
                 std::cout << "[WARN] Non-leader mob found in running groups; ignoring\n";
                 continue;
@@ -878,12 +874,10 @@ void TableData::flush() {
             x = npc->appearanceData.iX;
             y = npc->appearanceData.iY;
             z = npc->appearanceData.iZ;
-            hp = npc->appearanceData.iHP;
         }
 
         // NOTE: this format deviates slightly from the one in mobs.json
         mob["iNPCType"] = (int)npc->appearanceData.iNPCType;
-        mob["iHP"] = hp;
         mob["iX"] = x;
         mob["iY"] = y;
         mob["iZ"] = z;
@@ -899,7 +893,6 @@ void TableData::flush() {
             // populate JSON entry
             nlohmann::json fol;
             fol["iNPCType"] = follower->appearanceData.iNPCType;
-            fol["iHP"] = follower->maxHealth;
             fol["iOffsetX"] = follower->offsetX;
             fol["iOffsetY"] = follower->offsetY;
 
