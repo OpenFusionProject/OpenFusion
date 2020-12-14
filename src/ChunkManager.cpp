@@ -463,7 +463,7 @@ void ChunkManager::createInstance(uint64_t instanceID) {
                         continue; // follower; don't copy individually
 
                     Mob* newMob = new Mob(baseNPC->appearanceData.iX, baseNPC->appearanceData.iY, baseNPC->appearanceData.iZ, baseNPC->appearanceData.iAngle,
-                        instanceID, baseNPC->appearanceData.iNPCType, ((Mob*)baseNPC)->maxHealth, NPCManager::NPCData[baseNPC->appearanceData.iNPCType], NPCManager::nextId++);
+                        instanceID, baseNPC->appearanceData.iNPCType, NPCManager::NPCData[baseNPC->appearanceData.iNPCType], NPCManager::nextId++);
                     NPCManager::NPCs[newMob->appearanceData.iNPC_ID] = newMob;
                     MobManager::Mobs[newMob->appearanceData.iNPC_ID] = newMob;
 
@@ -477,7 +477,7 @@ void ChunkManager::createInstance(uint64_t instanceID) {
                                 BaseNPC* baseFollower = NPCManager::NPCs[mobData->groupMember[i]]; // follower from template
                                 // new follower instance
                                 Mob* newMobFollower = new Mob(baseFollower->appearanceData.iX, baseFollower->appearanceData.iY, baseFollower->appearanceData.iZ, baseFollower->appearanceData.iAngle,
-                                    instanceID, baseFollower->appearanceData.iNPCType, ((Mob*)baseFollower)->maxHealth, NPCManager::NPCData[baseFollower->appearanceData.iNPCType], followerID);
+                                    instanceID, baseFollower->appearanceData.iNPCType, NPCManager::NPCData[baseFollower->appearanceData.iNPCType], followerID);
                                 // add follower to NPC maps
                                 NPCManager::NPCs[followerID] = newMobFollower;
                                 MobManager::Mobs[followerID] = newMobFollower;

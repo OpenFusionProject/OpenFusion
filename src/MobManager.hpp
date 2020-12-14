@@ -61,9 +61,9 @@ struct Mob : public BaseNPC {
     // temporary; until we're sure what's what
     nlohmann::json data;
 
-    Mob(int x, int y, int z, int angle, uint64_t iID, int type, int hp, nlohmann::json d, int32_t id)
+    Mob(int x, int y, int z, int angle, uint64_t iID, int type, nlohmann::json d, int32_t id)
         : BaseNPC(x, y, z, angle, iID, type, id),
-          maxHealth(hp),
+          maxHealth(d["m_iHP"]),
           sightRange(d["m_iSightRange"]) {
         state = MobState::ROAMING;
 
@@ -91,9 +91,8 @@ struct Mob : public BaseNPC {
 
     // constructor for /summon
     Mob(int x, int y, int z, uint64_t iID, int type, nlohmann::json d, int32_t id)
-        : Mob(x, y, z, 0, iID, type, 0, d, id) {
+        : Mob(x, y, z, 0, iID, type, d, id) {
         summoned = true; // will be despawned and deallocated when killed
-        appearanceData.iHP = maxHealth = d["m_iHP"];
     }
 
     ~Mob() {}

@@ -233,7 +233,7 @@ void TableData::init() {
         exit(1);
     }
 
-    // load temporary mob dump
+    // load mobs
     try {
         std::ifstream inFile(settings::MOBJSON);
         nlohmann::json npcData, groupData;
@@ -249,7 +249,7 @@ void TableData::init() {
             auto td = NPCManager::NPCData[(int)npc["iNPCType"]];
             uint64_t instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
 
-            Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], npc["iHP"], td, nextId);
+            Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], td, nextId);
 
             NPCManager::NPCs[nextId] = tmp;
             MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
@@ -265,7 +265,7 @@ void TableData::init() {
             auto td = NPCManager::NPCData[(int)leader["iNPCType"]];
             uint64_t instanceID = leader.find("iMapNum") == leader.end() ? INSTANCE_OVERWORLD : (int)leader["iMapNum"];
 
-            Mob* tmp = new Mob(leader["iX"], leader["iY"], leader["iZ"], leader["iAngle"], instanceID, leader["iNPCType"], leader["iHP"], td, nextId);
+            Mob* tmp = new Mob(leader["iX"], leader["iY"], leader["iZ"], leader["iAngle"], instanceID, leader["iNPCType"], td, nextId);
 
             NPCManager::NPCs[nextId] = tmp;
             MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
@@ -281,7 +281,7 @@ void TableData::init() {
                 for (nlohmann::json::iterator _fol = followers.begin(); _fol != followers.end(); _fol++) {
                     auto follower = _fol.value();
                     auto tdFol = NPCManager::NPCData[(int)follower["iNPCType"]];
-                    Mob* tmpFol = new Mob((int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], leader["iAngle"], instanceID, follower["iNPCType"], follower["iHP"], tdFol, nextId);
+                    Mob* tmpFol = new Mob((int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], leader["iAngle"], instanceID, follower["iNPCType"], tdFol, nextId);
 
                     NPCManager::NPCs[nextId] = tmpFol;
                     MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
@@ -702,7 +702,7 @@ void TableData::loadGruntwork(int32_t *nextId) {
             auto td = NPCManager::NPCData[(int)leader["iNPCType"]];
             uint64_t instanceID = leader.find("iMapNum") == leader.end() ? INSTANCE_OVERWORLD : (int)leader["iMapNum"];
 
-            Mob* tmp = new Mob(leader["iX"], leader["iY"], leader["iZ"], leader["iAngle"], instanceID, leader["iNPCType"], leader["iHP"], td, *nextId);
+            Mob* tmp = new Mob(leader["iX"], leader["iY"], leader["iZ"], leader["iAngle"], instanceID, leader["iNPCType"], td, *nextId);
 
             // re-enable respawning
             ((Mob*)tmp)->summoned = false;
@@ -721,7 +721,7 @@ void TableData::loadGruntwork(int32_t *nextId) {
                 for (nlohmann::json::iterator _fol = followers.begin(); _fol != followers.end(); _fol++) {
                     auto follower = _fol.value();
                     auto tdFol = NPCManager::NPCData[(int)follower["iNPCType"]];
-                    Mob* tmpFol = new Mob((int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], leader["iAngle"], instanceID, follower["iNPCType"], follower["iHP"], tdFol, *nextId);
+                    Mob* tmpFol = new Mob((int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], leader["iAngle"], instanceID, follower["iNPCType"], tdFol, *nextId);
 
                     // re-enable respawning
                     ((Mob*)tmp)->summoned = false;
