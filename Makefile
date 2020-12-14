@@ -19,7 +19,7 @@ WIN_CC=x86_64-w64-mingw32-gcc
 WIN_CXX=x86_64-w64-mingw32-g++
 WIN_CFLAGS=-O3 #-g3 -fsanitize=address
 WIN_CXXFLAGS=-D_WIN32_WINNT=0x0601 -Wall -Wno-unknown-pragmas -std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) -DGIT_VERSION=\"$(GIT_VERSION)\" #-g3 -fsanitize=address
-WIN_LDFLAGS=-static -lws2_32 -lwsock32 #-g3 -fsanitize=address
+WIN_LDFLAGS=-static -lws2_32 -lwsock32 -lsqlite3 #-g3 -fsanitize=address
 WIN_SERVER=bin/winfusion.exe
 
 CSRC=\
