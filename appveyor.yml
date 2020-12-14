@@ -41,6 +41,9 @@ for:
   matrix:
     only:
       - image: Visual Studio 2019
+  install:
+    - cmd: vcpkg install sqlite3:x64-windows
+    - cmd: vcpkg integrate install
   build_script:
     - ps: |
         $versions = "104", "728"
