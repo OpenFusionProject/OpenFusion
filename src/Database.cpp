@@ -183,7 +183,7 @@ void Database::createTables() {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     char* errMsg = 0;
-    char* sql;
+    const char* sql;
 
     sql = R"(
         CREATE TABLE IF NOT EXISTS "Accounts" (

@@ -936,7 +936,7 @@ std::string ChatManager::sanitizeText(std::string text, bool allowNewlines) {
         if (!allowNewlines && c == '\n')
             continue;
 
-        if (c >= ' ' && c <= '~' || c == '\n')
+        if ((c >= ' ' && c <= '~') || c == '\n')
             buf[i++] = c;
     }
     buf[i] = 0;
