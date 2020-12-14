@@ -86,5 +86,5 @@ namespace Database {
     void deleteEmailAttachments(int playerID, int index, int slot);
     void deleteEmails(int playerID, int64_t* indices);
     int getNextEmailIndex(int playerID);
-    void sendEmail(EmailData* data, std::vector<sItemBase> attachments);
+    bool sendEmail(EmailData* data, std::vector<sItemBase> attachments);
 }

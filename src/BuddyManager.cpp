@@ -742,7 +742,7 @@ void BuddyManager::emailSend(CNSocket* sock, CNPacketData* data) {
 
     // handle items
     std::vector<sItemBase> attachments;
-
+    std::vector<int> attSlots;
     for (int i = 0; i < 4; i++) {
         sEmailItemInfoFromCL attachment = pkt->aItem[i];
         resp.aItem[i] = attachment;
@@ -750,6 +750,7 @@ void BuddyManager::emailSend(CNSocket* sock, CNPacketData* data) {
             || attachment.ItemInven.iID <= 0 || attachment.ItemInven.iType < 0)
             continue; // sanity check
         attachments.push_back(attachment.ItemInven);
+        attSlots.push_back(attachment.iSlotNum);
         // delete item
         plr->Inven[attachment.iSlotNum] = { 0, 0, 0, 0 };
     }
@@ -771,7 +772,24 @@ void BuddyManager::emailSend(CNSocket* sock, CNPacketData* data) {
         0 // DeleteTime (unimplemented)
     };
 
-    Database::sendEmail(&email, attachments);
+    if (!Database::sendEmail(&email, attachments)) {
+        plr->money += cost; // give money back
+        // give items back
+        while (!attachments.empty()) {
+            sItemBase attachment = attachments.back();
+            plr->Inven[attSlots.back()] = attachment;
+
+            attachments.pop_back();
+            attSlots.pop_back();
+        }
+
+        // send error message
+        INITSTRUCT(sP_FE2CL_REP_PC_SEND_EMAIL_FAIL, errResp);
+        errResp.iErrorCode = 1;
+        errResp.iTo_PCUID = pkt->iTo_PCUID;
+        sock->sendPacket((void*)&errResp, P_FE2CL_REP_PC_SEND_EMAIL_FAIL, sizeof(sP_FE2CL_REP_PC_SEND_EMAIL_FAIL));
+        return;
+    }
 
     // HACK: use set value packet to force GUI taros update
     INITSTRUCT(sP_FE2CL_GM_REP_PC_SET_VALUE, tarosResp);

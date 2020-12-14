@@ -1739,7 +1739,7 @@ int Database::getNextEmailIndex(int playerID) {
     return (index > 0 ? index + 1 : 1);
 }
 
-void Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
+bool Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
@@ -1770,7 +1770,7 @@ void Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
         std::cout << "[WARN] Database: Failed to send email" << std::endl;
         sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
         sqlite3_finalize(stmt);
-        return;
+        return false;
     }
 
     // send attachments
@@ -1796,11 +1796,12 @@ void Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
             std::cout << "[WARN] Database: Failed to send email" << std::endl;
             sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
-            return;
+            return false;
         }
         sqlite3_reset(stmt);
     }
     sqlite3_finalize(stmt);
     sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
+    return true;
 }
 
