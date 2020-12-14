@@ -43,11 +43,12 @@ add_executable(openfusion ${SOURCES})
 
 set_target_properties(openfusion PROPERTIES OUTPUT_NAME ${BIN_NAME})
 
+target_link_libraries(openfusion sqlite3)
+
 # Use pthreads if not generating a VS solution or MinGW makefile (because MinGW will prefer Win32 threads)
 # Checking if the compiler ID is MSVC will allow us to open the project as a CMake project in VS.
 # It's not something you should do, but it's there if you need it...
 if (NOT CMAKE_GENERATOR MATCHES "Visual Studio" AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND NOT CMAKE_GENERATOR MATCHES "MinGW Makefiles")
 	find_package(Threads REQUIRED)
 	target_link_libraries(openfusion pthread)
-    target_link_libraries(openfusion dl)
 endif()

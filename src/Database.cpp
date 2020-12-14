@@ -1,15 +1,17 @@
 #include "Database.hpp"
 #include "Database.hpp"
-#include "contrib/bcrypt/BCrypt.hpp"
 #include "CNProtocol.hpp"
-#include <string>
-#include "contrib/JSON.hpp"
-#include "contrib/sqlite/sqlite3.h"
 #include "CNStructs.hpp"
 #include "settings.hpp"
 #include "Player.hpp"
 #include "CNStructs.hpp"
 #include "MissionManager.hpp"
+
+#include "contrib/JSON.hpp"
+#include "contrib/bcrypt/BCrypt.hpp"
+
+#include <string>
+#include <sqlite3.h>
 
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
     #include "mingw/mingw.mutex.h"
