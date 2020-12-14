@@ -44,7 +44,8 @@ for:
   build_script:
     - ps: |
         $versions = "104", "728"
-        $configurations = "Release", "Debug"
+        $configurations = "Release"
+        # "Debug" builds are disabled, since we don't really need them
 
         # AppVeyor uses VS2019 Community
         $vsPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community"
