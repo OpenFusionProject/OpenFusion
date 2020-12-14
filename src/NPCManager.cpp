@@ -502,6 +502,11 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
         if (Warps[warpId].limitTaskID != 0 || instanceID == 14) { // 14 is a special case for the Time Lab
             instanceID += ((uint64_t)plr->iIDGroup << 32); // upper 32 bits are leader ID
             ChunkManager::createInstance(instanceID);
+
+            // save Lair entrance coords as a pseudo-Resurrect 'Em
+            plr->recallX = Warps[warpId].x;
+            plr->recallY = Warps[warpId].y;
+            plr->recallZ = Warps[warpId].z;
         }
 
         if (plr->iID == plr->iIDGroup && plr->groupCnt == 1)

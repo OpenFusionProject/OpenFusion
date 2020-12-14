@@ -699,7 +699,6 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
         return;
 
     Player *plr = PlayerManager::getPlayer(sock);
-
     WarpLocation* target = PlayerManager::getRespawnPoint(plr);
 
     sP_CL2FE_REQ_PC_REGEN* reviveData = (sP_CL2FE_REQ_PC_REGEN*)data->buf;
@@ -707,7 +706,6 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_PC_REGEN, resp2);
 
     int activeSlot = -1;
-
     bool move = false;
 
     if (reviveData->iRegenType == 3 && plr->iConditionBitFlag & CSB_BIT_PHOENIX) {
@@ -734,49 +732,61 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
             activeSlot = i;
     }
 
+    int x, y, z;
+    if (move && target != nullptr) {
+        // go to Resurrect 'Em
+        x = target->x;
+        y = target->y;
+        z = target->z;
+    } else if (PLAYERID(plr->instanceID)) {
+        // respawn at entrance to the Lair
+        x = plr->recallX;
+        y = plr->recallY;
+        z = plr->recallZ;
+    } else {
+        // no other choice; respawn in place
+        x = plr->x;
+        y = plr->y;
+        z = plr->z;
+    }
+
     // Response parameters
     response.PCRegenData.iActiveNanoSlotNum = activeSlot;
-    if (move && target != nullptr) {
-        response.PCRegenData.iX = target->x;
-        response.PCRegenData.iY = target->y;
-        response.PCRegenData.iZ = target->z;
-    } else {
-        response.PCRegenData.iX = plr->x;
-        response.PCRegenData.iY = plr->y;
-        response.PCRegenData.iZ = plr->z;
-    }
+    response.PCRegenData.iX = x;
+    response.PCRegenData.iY = y;
+    response.PCRegenData.iZ = z;
     response.PCRegenData.iHP = plr->HP;
     response.iFusionMatter = plr->fusionmatter;
     response.bMoveLocation = 0;
-    response.PCRegenData.iMapNum = 0;
+    response.PCRegenData.iMapNum = MAPNUM(plr->instanceID);
 
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_REGEN_SUCC, sizeof(sP_FE2CL_REP_PC_REGEN_SUCC));
 
     // Update other players
     resp2.PCRegenDataForOtherPC.iPC_ID = plr->iID;
-    resp2.PCRegenDataForOtherPC.iX = plr->x;
-    resp2.PCRegenDataForOtherPC.iY = plr->y;
-    resp2.PCRegenDataForOtherPC.iZ = plr->z;
+    resp2.PCRegenDataForOtherPC.iX = x;
+    resp2.PCRegenDataForOtherPC.iY = y;
+    resp2.PCRegenDataForOtherPC.iZ = z;
     resp2.PCRegenDataForOtherPC.iHP = plr->HP;
     resp2.PCRegenDataForOtherPC.iAngle = plr->angle;
 
     Player *otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
-    if (otherPlr == nullptr)
-        return;
-    int bitFlag = GroupManager::getGroupFlags(otherPlr);
-    resp2.PCRegenDataForOtherPC.iConditionBitFlag = plr->iConditionBitFlag = plr->iSelfConditionBitFlag | bitFlag;
+    if (otherPlr != nullptr) {
+        int bitFlag = GroupManager::getGroupFlags(otherPlr);
+        resp2.PCRegenDataForOtherPC.iConditionBitFlag = plr->iConditionBitFlag = plr->iSelfConditionBitFlag | bitFlag;
 
-    resp2.PCRegenDataForOtherPC.iPCState = plr->iPCState;
-    resp2.PCRegenDataForOtherPC.iSpecialState = plr->iSpecialState;
-    resp2.PCRegenDataForOtherPC.Nano = plr->Nanos[plr->activeNano];
+        resp2.PCRegenDataForOtherPC.iPCState = plr->iPCState;
+        resp2.PCRegenDataForOtherPC.iSpecialState = plr->iSpecialState;
+        resp2.PCRegenDataForOtherPC.Nano = plr->Nanos[plr->activeNano];
 
-    sendToViewable(sock, (void*)&resp2, P_FE2CL_PC_REGEN, sizeof(sP_FE2CL_PC_REGEN));
+        sendToViewable(sock, (void*)&resp2, P_FE2CL_PC_REGEN, sizeof(sP_FE2CL_PC_REGEN));
+    }
 
-    if (!move || target == nullptr)
+    if (!move)
         return;
 
     ChunkManager::updatePlayerChunk(sock, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
-    updatePlayerPosition(sock, target->x, target->y, target->z, plr->instanceID, plr->angle);
+    updatePlayerPosition(sock, x, y, z, plr->instanceID, plr->angle);
 }
 
 void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {

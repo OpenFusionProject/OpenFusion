@@ -40,7 +40,7 @@ struct Player {
 
     int x, y, z, angle;
     int lastX, lastY, lastZ, lastAngle;
-    int recallX, recallY, recallZ, recallInstance;
+    int recallX, recallY, recallZ, recallInstance; // also Lair entrances
     uint64_t instanceID;
     sItemBase Equip[AEQUIP_COUNT];
     sItemBase Inven[AINVEN_COUNT];
