@@ -74,6 +74,8 @@ Some modern IDEs/text editors do this automatically. If all else fails, use Note
 
 ## Compiling 
 
+OpenFusion has one external dependency: SQLite. You can install it on Windows using `vcpkg`, and on Unix/Linux using your distribution's package manager. For a more indepth guide on how to set up vcpkg, [check this wiki page](https://github.com/OpenFusionProject/OpenFusion/wiki/Installing-SQLite-on-Windows-using-vcpkg).
+
 You have two choices for compiling OpenFusion: the included Makefile and the included CMakeLists file.
 
 ### Makefile
