@@ -64,12 +64,26 @@ void Database::checkMetaTable() {
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (sqlite3_step(stmt) != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
         std::cout << "[FATAL] Failed to check meta table"  << std::endl;
         terminate(0);
     }
 
     int count = sqlite3_column_int(stmt, 0);
     if (count == 0) {
+
+        // check if there's other non-internal tables first
+        sql = R"(
+            SELECT COUNT (*) FROM sqlite_master WHERE type="table" AND name NOT LIKE "sqlite_%";
+            )";
+        sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+        if (sqlite3_step(stmt) != SQLITE_ROW || sqlite3_column_int(stmt, 0) != 0) {
+            sqlite3_finalize(stmt);
+            std::cout << "[FATAL] Existing DB is outdated" << std::endl;
+            terminate(0);
+        }
+
+        // create meta table
         sqlite3_finalize(stmt);
         return createMetaTable();
     }
@@ -608,7 +622,7 @@ bool Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character, int accountI
             "SkinColor" = ?
         WHERE "PlayerID" = ? ;
         )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     sqlite3_bind_int(stmt, 1, character->PCStyle.iBody);
     sqlite3_bind_int(stmt, 2, character->PCStyle.iEyeColor);
@@ -618,7 +632,7 @@ bool Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character, int accountI
     sqlite3_bind_int(stmt, 6, character->PCStyle.iHairStyle);
     sqlite3_bind_int(stmt, 7, character->PCStyle.iHeight);
     sqlite3_bind_int(stmt, 8, character->PCStyle.iSkinColor);
-    sqlite3_bind_int(stmt, 9, character->PCStyle.iPC_UID);   
+    sqlite3_bind_int(stmt, 9, character->PCStyle.iPC_UID);
 
     if (sqlite3_step(stmt) != SQLITE_DONE)
     {
