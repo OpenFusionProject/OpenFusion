@@ -12,6 +12,22 @@
 
 #define RESURRECT_HEIGHT 400
 
+// placeholder; there's only one trigger type right now
+enum Trigger {
+    ON_KILLED
+};
+
+typedef void (*NPCEventHandler)(CNSocket*, BaseNPC*);
+
+struct NPCEvent {
+    int32_t npcType;
+    int trigger;
+    NPCEventHandler handler;
+
+    NPCEvent(int32_t t, int tr, NPCEventHandler hndlr)
+        : npcType(t), trigger(tr), handler(hndlr) {}
+};
+
 // this should really be called vec3 or something...
 struct WarpLocation {
     int x, y, z, instanceID, isInstance, limitTaskID, npcID;
@@ -40,6 +56,7 @@ namespace NPCManager {
     extern std::map<int32_t, BaseNPC*> NPCs;
     extern std::map<int32_t, WarpLocation> Warps;
     extern std::vector<WarpLocation> RespawnPoints;
+    extern std::vector<NPCEvent> NPCEvents;
     extern std::unordered_map<int, Egg*> Eggs;
     extern std::map<std::pair<CNSocket*, int32_t>, time_t> EggBuffs;
     extern std::unordered_map<int, EggType> EggTypes;

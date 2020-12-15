@@ -404,6 +404,11 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
     // delay the despawn animation
     mob->despawned = false;
 
+    // fire any triggered events
+    for (NPCEvent& event : NPCManager::NPCEvents)
+        if (event.trigger == ON_KILLED && event.npcType == mob->appearanceData.iNPCType)
+            event.handler(sock, mob);
+
     auto it = TransportManager::NPCQueues.find(mob->appearanceData.iNPC_ID);
     if (it == TransportManager::NPCQueues.end() || it->second.empty())
         return;

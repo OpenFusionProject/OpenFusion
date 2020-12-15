@@ -816,3 +816,57 @@ void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
         egg->appearanceData.iHP = 0;
     }
 }
+
+#pragma region NPCEvents
+
+// summon right arm and stage 2 body
+static void lordFuseStageTwo(CNSocket *sock, BaseNPC *npc) {
+    Mob *oldbody = (Mob*)npc; // adaptium, stun
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    std::cout << "Lord Fuse stage two" << std::endl;
+
+    // Fuse doesn't move; spawnX, etc. is shorter to write than *appearanceData*
+    // Blastons, Heal
+    Mob *newbody = (Mob*)NPCManager::summonNPC(oldbody->spawnX, oldbody->spawnY, oldbody->spawnZ, plr->instanceID, 2467);
+
+    newbody->appearanceData.iAngle = oldbody->appearanceData.iAngle;
+    NPCManager::updateNPCPosition(newbody->appearanceData.iNPC_ID, newbody->spawnX, newbody->spawnY, newbody->spawnZ,
+        plr->instanceID, oldbody->appearanceData.iAngle);
+
+    // right arm, Adaptium, Stun
+    Mob *arm = (Mob*)NPCManager::summonNPC(oldbody->spawnX - 600, oldbody->spawnY, oldbody->spawnZ, plr->instanceID, 2469);
+
+    arm->appearanceData.iAngle = oldbody->appearanceData.iAngle;
+    NPCManager::updateNPCPosition(arm->appearanceData.iNPC_ID, arm->spawnX, arm->spawnY, arm->spawnZ,
+        plr->instanceID, oldbody->appearanceData.iAngle);
+}
+
+// summon left arm and stage 3 body
+static void lordFuseStageThree(CNSocket *sock, BaseNPC *npc) {
+    Mob *oldbody = (Mob*)npc;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    std::cout << "Lord Fuse stage three" << std::endl;
+
+    // Cosmic, Damage Point
+    Mob *newbody = (Mob*)NPCManager::summonNPC(oldbody->spawnX, oldbody->spawnY, oldbody->spawnZ, plr->instanceID, 2468);
+
+    newbody->appearanceData.iAngle = oldbody->appearanceData.iAngle;
+    NPCManager::updateNPCPosition(newbody->appearanceData.iNPC_ID, newbody->spawnX, newbody->spawnY, newbody->spawnZ,
+        plr->instanceID, oldbody->appearanceData.iAngle);
+
+    // Blastons, Heal
+    Mob *arm = (Mob*)NPCManager::summonNPC(oldbody->spawnX + 600, oldbody->spawnY, oldbody->spawnZ, plr->instanceID, 2470);
+
+    arm->appearanceData.iAngle = oldbody->appearanceData.iAngle;
+    NPCManager::updateNPCPosition(arm->appearanceData.iNPC_ID, arm->spawnX, arm->spawnY, arm->spawnZ,
+        plr->instanceID, oldbody->appearanceData.iAngle);
+}
+
+std::vector<NPCEvent> NPCManager::NPCEvents = {
+    NPCEvent(2466, ON_KILLED, lordFuseStageTwo),
+    NPCEvent(2467, ON_KILLED, lordFuseStageThree),
+};
+
+#pragma endregion NPCEvents
