@@ -18,6 +18,7 @@ struct ChatCommand {
 
 namespace ChatManager {
     extern std::map<std::string, ChatCommand> commands;
+    extern std::vector<std::string> dump;
     void init();
 
     void registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help = "");

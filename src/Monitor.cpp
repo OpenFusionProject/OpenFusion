@@ -1,5 +1,6 @@
 #include "CNShardServer.hpp"
 #include "PlayerManager.hpp"
+#include "ChatManager.hpp"
 #include "CNStructs.hpp"
 #include "Monitor.hpp"
 #include "settings.hpp"
@@ -102,6 +103,7 @@ outer:
         if (!transmit(it, (char*)"begin\n", 6))
             continue;
 
+        // player
         for (auto& pair : PlayerManager::players) {
             if (pair.second->hidden)
                 continue;
@@ -114,11 +116,21 @@ outer:
                 goto outer;
         }
 
+        // chat
+        for (auto& str : ChatManager::dump) {
+            n = std::snprintf(buff, sizeof(buff), "chat %s\n", str.c_str());
+
+            if (!transmit(it, buff, n))
+                goto outer;
+        }
+
         if (!transmit(it, (char*)"end\n", 4))
             continue;
 
         it++;
     }
+
+    ChatManager::dump.clear();
 }
 
 bool Monitor::acceptConnection(SOCKET fd, uint16_t revents) {

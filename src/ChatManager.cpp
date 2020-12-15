@@ -14,6 +14,7 @@
 #include <math.h>
 
 std::map<std::string, ChatCommand> ChatManager::commands;
+std::vector<std::string> ChatManager::dump;
 
 std::vector<std::string> parseArgs(std::string full) {
     std::stringstream ss(full);
@@ -815,6 +816,7 @@ void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
     std::string fullChat = sanitizeText(U16toU8(chat->szFreeChat));
 
     std::cout << "[FreeChat] " << PlayerManager::getPlayerName(plr, false) << ": " << fullChat << std::endl;
+    dump.push_back(PlayerManager::getPlayerName(plr, true) + ": " + fullChat);
 
     if (fullChat.length() > 1 && fullChat[0] == CMD_PREFIX) { // PREFIX
         runCmd(fullChat, sock);
@@ -844,6 +846,7 @@ void ChatManager::menuChatHandler(CNSocket* sock, CNPacketData* data) {
     std::string fullChat = sanitizeText(U16toU8(chat->szFreeChat));
 
     std::cout << "[MenuChat] " << PlayerManager::getPlayerName(plr, false) << ": " << fullChat << std::endl;
+    dump.push_back(PlayerManager::getPlayerName(plr, true) + ": " + fullChat);
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, resp);
@@ -921,6 +924,7 @@ void ChatManager::announcementHandler(CNSocket* sock, CNPacketData* data) {
     }
     
     std::cout << "[Bcast " << announcement->iAreaType << "] " << PlayerManager::getPlayerName(plr, false) << ": " << U16toU8(msg.szAnnounceMsg) << std::endl;
+    dump.push_back("**" + PlayerManager::getPlayerName(plr, true) + ": " + U16toU8(msg.szAnnounceMsg) + "**");
 }
 
 // we only allow plain ascii, at least for now
