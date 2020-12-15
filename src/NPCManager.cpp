@@ -506,7 +506,8 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
             // save Lair entrance coords as a pseudo-Resurrect 'Em
             plr->recallX = Warps[warpId].x;
             plr->recallY = Warps[warpId].y;
-            plr->recallZ = Warps[warpId].z;
+            plr->recallZ = Warps[warpId].z + RESURRECT_HEIGHT;
+            plr->recallInstance = instanceID;
         }
 
         if (plr->iID == plr->iIDGroup && plr->groupCnt == 1)
