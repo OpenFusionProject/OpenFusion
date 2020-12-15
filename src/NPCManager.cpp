@@ -446,6 +446,30 @@ void NPCManager::npcUnsummonHandler(CNSocket* sock, CNPacketData* data) {
     NPCManager::destroyNPC(req->iNPC_ID);
 }
 
+// type must already be checked and updateNPCPosition() must be called on the result
+BaseNPC *NPCManager::summonNPC(int x, int y, int z, uint64_t instance, int type, bool respawn, bool baseInstance) {
+    uint64_t inst = baseInstance ? MAPNUM(instance) : instance;
+#define EXTRA_HEIGHT 0
+
+    assert(nextId < INT32_MAX);
+    int id = nextId++;
+    int team = NPCData[type]["m_iTeam"];
+    BaseNPC *npc = nullptr;
+
+    if (team == 2) {
+        npc = new Mob(x, y, z + EXTRA_HEIGHT, inst, type, NPCData[type], id);
+        MobManager::Mobs[id] = (Mob*)npc;
+
+        // re-enable respawning, if desired
+        ((Mob*)npc)->summoned = !respawn;
+    } else
+        npc = new BaseNPC(x, y, z + EXTRA_HEIGHT, 0, inst, type, id);
+
+    NPCs[id] = npc;
+
+    return npc;
+}
+
 void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_NPC_SUMMON))
         return; // malformed packet
@@ -457,19 +481,9 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     if (plr->accountLevel > 30 || req->iNPCType >= 3314 || req->iNPCCnt > 100)
         return;
 
-    int team = NPCData[req->iNPCType]["m_iTeam"];
-
     for (int i = 0; i < req->iNPCCnt; i++) {
-        assert(nextId < INT32_MAX);
-        int id = nextId++;
-
-        if (team == 2) {
-            NPCs[id] = new Mob(plr->x, plr->y, plr->z, plr->instanceID, req->iNPCType, NPCData[req->iNPCType], id);
-            MobManager::Mobs[id] = (Mob*)NPCs[id];
-        } else
-            NPCs[id] = new BaseNPC(plr->x, plr->y, plr->z, 0, plr->instanceID, req->iNPCType, id);
-
-        updateNPCPosition(id, plr->x, plr->y, plr->z, plr->instanceID, 0);
+        BaseNPC *npc = summonNPC(plr->x, plr->y, plr->z, plr->instanceID, req->iNPCType);
+        updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z, plr->instanceID, 0);
     }
 }
 

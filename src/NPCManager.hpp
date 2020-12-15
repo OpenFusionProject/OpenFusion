@@ -67,6 +67,7 @@ namespace NPCManager {
     void npcCombineItems(CNSocket* sock, CNPacketData* data);
 
     void handleWarp(CNSocket* sock, int32_t warpId);
+    BaseNPC *summonNPC(int x, int y, int z, uint64_t instance, int type, bool respawn=false, bool baseInstance=false);
 
     BaseNPC* getNearestNPC(std::set<Chunk*>* chunks, int X, int Y, int Z);
 

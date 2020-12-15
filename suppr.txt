@@ -1,9 +1,8 @@
 leak:TableData::init
 leak:NPCManager::updateNPCPosition
-leak:NPCManager::npcSummonHandler
+leak:NPCManager::summonNPC
 leak:NanoManager::doBuff
 leak:NanoManager::doDebuff
 leak:NanoManager::doDamageNDebuff
-leak:summonWCommand
 leak:TableData::loadGruntwork
 leak:nlohmann::basic_json
