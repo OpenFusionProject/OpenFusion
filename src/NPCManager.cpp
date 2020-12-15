@@ -431,7 +431,28 @@ void NPCManager::npcCombineItems(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_ITEM_COMBINATION_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_COMBINATION_SUCC));
 }
 
-void NPCManager::npcBarkHandler(CNSocket* sock, CNPacketData* data) {} // stubbed for now
+void NPCManager::npcBarkHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_BARKER))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_BARKER* req = (sP_CL2FE_REQ_BARKER*)data->buf;
+
+    // get bark IDs from task data
+    TaskData* td = MissionManager::Tasks[req->iMissionTaskID];
+    std::vector<int> barks;
+    for (int i = 0; i < 4; i++) {
+        if (td->task["m_iHBarkerTextID"][i] != 0) // non-zeroes only
+            barks.push_back(td->task["m_iHBarkerTextID"][i]);
+    }
+
+    if (barks.empty())
+        return; // no barks
+
+    INITSTRUCT(sP_FE2CL_REP_BARKER, resp);
+    resp.iNPC_ID = req->iNPC_ID;
+    resp.iMissionStringID = barks[rand() % barks.size()];
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_BARKER, sizeof(sP_FE2CL_REP_BARKER));
+}
 
 void NPCManager::npcUnsummonHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_NPC_UNSUMMON))
