@@ -632,10 +632,6 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
             return;
     }
 
-    // some mobs don't move (and we mustn't divide/modulus by zero)
-    if (mob->idleRange == 0)
-        return;
-
     // no random roaming if the mob already has a set path
     if (mob->staticPath)
         return;
@@ -655,6 +651,10 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
     int xStart = mob->spawnX - mob->idleRange/2;
     int yStart = mob->spawnY - mob->idleRange/2;
     int speed = mob->data["m_iWalkSpeed"];
+
+    // some mobs don't move (and we mustn't divide/modulus by zero)
+    if (mob->idleRange == 0 || speed == 0)
+        return;
 
     int farX, farY;
     int distance; // for short walk detection
