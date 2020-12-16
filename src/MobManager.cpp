@@ -552,7 +552,7 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
             return;
     }
 
-    int distanceToTravel = 20000;
+    int distanceToTravel = INT_MAX;
     int speed = mob->data["m_iRunSpeed"];
     // movement logic: move when out of range but don't move while casting a skill
     if (distance > mobRange && mob->skillStyle == -1) {
@@ -593,7 +593,10 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
         NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
     }
 
-    // attack logic
+    /* attack logic 
+     * 2/5 represents 400 ms which is the time interval mobs use per movement logic step
+     * if the mob is one move interval away, we should just start attacking anyways.
+     */
     if (distance <= mobRange || distanceToTravel < speed*2/5) {
         if (mob->nextAttack == 0 || currTime >= mob->nextAttack) {
             mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
@@ -1671,6 +1674,7 @@ bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, in
             pkt.eTBU = 1; // eTimeBuffUpdate
             pkt.eTBT = 2;
             pkt.iConditionBitFlag = plr->iConditionBitFlag |= bitFlag;
+            pkt.TimeBuff.iValue = amount;
             sock->sendPacket((void*)&pkt, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
         }
 
@@ -1824,8 +1828,8 @@ bool doBatteryDrain(Mob *mob, sSkillResult_BatteryDrain *respdata, int i, int32_
         respdata[i].iDrainN = amount * (18 + (int)mob->data["m_iNpcLevel"]) / 36;
     }
 
-    respdata[i].iBatteryW = plr->batteryW -= respdata[i].iDrainW;
-    respdata[i].iBatteryN = plr->batteryN -= respdata[i].iDrainN;
+    respdata[i].iBatteryW = plr->batteryW -= (respdata[i].iDrainW<plr->batteryW)?respdata[i].iDrainW:plr->batteryW;
+    respdata[i].iBatteryN = plr->batteryN -= (respdata[i].iDrainN<plr->batteryN)?respdata[i].iDrainN:plr->batteryN;
     respdata[i].iStamina = plr->Nanos[plr->activeNano].iStamina;
     respdata[i].iConditionBitFlag = plr->iConditionBitFlag;
 
