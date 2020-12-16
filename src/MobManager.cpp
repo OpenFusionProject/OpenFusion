@@ -556,28 +556,16 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
         if (mob->target == nullptr)
             return;
     }
-    /*
-     * If the mob is close enough to attack, do so. If not, get closer.
-     * No, I'm not 100% sure this is how it's supposed to work.
-     */
-    if (distance <= mobRange) {
-        // attack logic
-        if (mob->nextAttack == 0) {
-            mob->nextAttack = currTime + (int)mob->data["m_iInitalTime"] * 100; //I *think* this is what this is
-            npcAttackPc(mob, currTime);
-        } else if (mob->nextAttack != 0 && currTime >= mob->nextAttack) {
-            mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
-            npcAttackPc(mob, currTime);
-        }
-    } else if (mob->skillStyle == -1) { // don't move while casting a skill
-        // movement logic
+
+    int distanceToTravel = 20000;
+    int speed = mob->data["m_iRunSpeed"];
+    // movement logic: move when out of range but don't move while casting a skill
+    if (distance > mobRange && mob->skillStyle == -1) {
         if (mob->nextMovement != 0 && currTime < mob->nextMovement)
             return;
         mob->nextMovement = currTime + 400;
         if (currTime >= mob->nextAttack)
             mob->nextAttack = 0;
-
-        int speed = mob->data["m_iRunSpeed"];
 
         // halve movement speed if snared
         if (mob->appearanceData.iConditionBitFlag & CSB_BIT_DN_MOVE_SPEED)
@@ -590,7 +578,10 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
             targetY += mob->offsetY*distance/(mob->idleRange + 1);
         }
 
-        auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, targetX, targetY, std::min(distance-mobRange+1, speed*2/5));
+        distanceToTravel = std::min(distance-mobRange+1, speed*2/5);
+        auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, targetX, targetY, distanceToTravel);
+        if (distanceToTravel < speed*2/5 && currTime >= mob->nextAttack)
+            mob->nextAttack = 0;
 
         NPCManager::updateNPCPosition(mob->appearanceData.iNPC_ID, targ.first, targ.second, mob->appearanceData.iZ, mob->instanceID, mob->appearanceData.iAngle);
 
@@ -605,6 +596,14 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
 
         // notify all nearby players
         NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
+    }
+
+    // attack logic
+    if (distance <= mobRange || distanceToTravel < speed*2/5) {
+        if (mob->nextAttack == 0 || currTime >= mob->nextAttack) {
+            mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
+            npcAttackPc(mob, currTime);
+        }
     }
 
     // retreat if the player leaves combat range
@@ -989,7 +988,7 @@ std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool
 
     // base calculation
     int damage = attackPower * attackPower / (attackPower + defensePower);
-    damage = std::max(10 + attackPower / 10, damage - (defensePower - attackPower / 2) * difficulty / 72);
+    damage = std::max(10 + attackPower / 10, damage - (defensePower - attackPower / 6) * difficulty / 100);
     damage = damage * (rand() % 40 + 80) / 100;
 
     // Adaptium/Blastons/Cosmix
@@ -999,9 +998,9 @@ std::pair<int,int> MobManager::getDamage(int attackPower, int defensePower, bool
         if (defenderStyle - attackerStyle == 2)
             defenderStyle -= 3;
         if (attackerStyle < defenderStyle) 
-            damage = damage * 3 / 2;
+            damage = damage * 5 / 4;
         else
-            damage = damage * 2 / 3;
+            damage = damage * 4 / 5;
     }
 
     // weapon boosts
