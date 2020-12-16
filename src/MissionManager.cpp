@@ -76,13 +76,18 @@ void MissionManager::taskStart(CNSocket* sock, CNPacketData* data) {
 
     TaskData& task = *Tasks[missionData->iTaskNum];
 
+    // Give player their delivery items at the start, or reset them to 0 at the start.
+    for (int i = 0; i < 3; i++)
+        if (task["m_iSTItemID"][i] != 0)
+            dropQuestItem(sock, missionData->iTaskNum, task["m_iSTItemNumNeeded"][i], task["m_iSTItemID"][i], 0);
+    std::cout << "Mission requested task: " << missionData->iTaskNum << std::endl;
     response.iTaskNum = missionData->iTaskNum;
     response.iRemainTime = task["m_iSTGrantTimer"];
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
 
     // HACK: auto-succeed escort task
     if (task["m_iHTaskType"] == 6) {
-        std::cout << "Sending Eduardo success packet" << std::endl;
+        std::cout << "Skipping escort mission" << std::endl;
         INITSTRUCT(sP_FE2CL_REP_PC_TASK_END_SUCC, response);
 
         endTask(sock, missionData->iTaskNum);
@@ -90,11 +95,6 @@ void MissionManager::taskStart(CNSocket* sock, CNPacketData* data) {
 
         sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_END_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_END_SUCC));
     }
-
-    // Give player their delivery items at the start.
-    for (int i = 0; i < 3; i++)
-        if (task["m_iSTItemID"][i] != 0 && task["m_iSTItemNumNeeded"][i] > 0)
-            dropQuestItem(sock, missionData->iTaskNum, task["m_iSTItemNumNeeded"][i], task["m_iSTItemID"][i], 0);
 }
 
 void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
@@ -273,7 +273,7 @@ void MissionManager::quitTask(CNSocket* sock, int32_t taskNum, bool manual) {
          * slot later items will be placed in.
          */
         for (int j = 0; j < AQINVEN_COUNT; j++)
-            if (plr->QInven[j].iID == task["m_iSUItem"][i] || plr->QInven[j].iID == task["m_iCSUItemID"][i])
+            if (plr->QInven[j].iID == task["m_iSUItem"][i] || plr->QInven[j].iID == task["m_iCSUItemID"][i] || plr->QInven[j].iID == task["m_iSTItemID"][i])
                 memset(&plr->QInven[j], 0, sizeof(sItemBase));
     }
 
