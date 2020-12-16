@@ -64,4 +64,9 @@ namespace ItemManager {
     void checkItemExpire(CNSocket* sock, Player* player);
     void setItemStats(Player* plr);
     void updateEquips(CNSocket* sock, Player* plr);
+
+#ifdef ACADEMY
+    extern std::map<int32_t, int32_t> NanoCapsules; // crate id -> nano id
+    void nanoCapsuleHandler(CNSocket* sock, sP_CL2FE_REQ_ITEM_CHEST_OPEN* chest);
+#endif
 }

@@ -570,6 +570,15 @@ void TableData::loadDrops() {
             itemCount++;
         }
 
+#ifdef ACADEMY
+        nlohmann::json capsules = dropData["NanoCapsules"];
+
+        for (nlohmann::json::iterator _capsule = capsules.begin(); _capsule != capsules.end(); _capsule++) {
+            auto capsule = _capsule.value();
+            ItemManager::NanoCapsules[(int)capsule["Crate"]] = (int)capsule["Nano"];
+        }
+#endif
+
         std::cout << "[INFO] Loaded " << ItemManager::Crates.size() << " Crates containing "
                   << itemCount << " items" << std::endl;
 

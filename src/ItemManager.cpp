@@ -17,6 +17,10 @@ std::map<int32_t, Crate> ItemManager::Crates;
 // pair Itemset, Rarity -> vector of pointers (map iterators) to records in ItemData
 std::map<std::pair<int32_t, int32_t>, std::vector<std::map<std::pair<int32_t, int32_t>, ItemManager::Item>::iterator>> ItemManager::CrateItems;
 
+#ifdef ACADEMY
+std::map<int32_t, int32_t> ItemManager::NanoCapsules; // crate id -> nano id
+#endif
+
 void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_DELETE, itemDeleteHandler);
@@ -834,8 +838,20 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
         return; // ignore the malformed packet
 
     sP_CL2FE_REQ_ITEM_CHEST_OPEN *chest = (sP_CL2FE_REQ_ITEM_CHEST_OPEN *)data->buf;
-    Player *plr = PlayerManager::getPlayer(sock);
 
+    // sanity check
+    if (chest->ChestItem.iType != 9) {
+        std::cout << "[WARN] Player tried to open a crate with incorrect iType ?!" << std::endl;
+        return;
+    }
+
+#ifdef ACADEMY
+    // check if chest isn't a nano capsule
+    if (NanoCapsules.find(chest->ChestItem.iID) != NanoCapsules.end())
+        return nanoCapsuleHandler(sock, chest);
+#endif
+
+    Player *plr = PlayerManager::getPlayer(sock);
     // chest opening acknowledgement packet
     INITSTRUCT(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, resp);
     resp.iSlotNum = chest->iSlotNum;
@@ -863,12 +879,6 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
 
     item->iSlotNum = chest->iSlotNum;
     item->eIL = chest->eIL;
-
-    // item reward
-    if (chest->ChestItem.iType != 9) {
-        std::cout << "[WARN] Player tried to open a crate with incorrect iType ?!" << std::endl;
-        return;
-    }
 
     int itemSetId = -1, rarity = -1, ret = -1;
     bool failing = false;
@@ -901,7 +911,6 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
         item->sItem.iID = 119 + (rand() % 3);
         item->sItem.iOpt = 1;
     }
-
     // update player
     plr->Inven[chest->iSlotNum] = item->sItem;
 
@@ -1084,3 +1093,58 @@ void ItemManager::updateEquips(CNSocket* sock, Player* plr) {
         PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
     }
 }
+
+#ifdef ACADEMY
+void ItemManager::nanoCapsuleHandler(CNSocket* sock, sP_CL2FE_REQ_ITEM_CHEST_OPEN* chest) { 
+    Player* plr = PlayerManager::getPlayer(sock);
+    int32_t nanoId = NanoCapsules[chest->ChestItem.iID];
+
+    // chest opening acknowledgement packet
+    INITSTRUCT(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, resp);
+    resp.iSlotNum = chest->iSlotNum;
+
+    // in order to remove capsule form inventory, we have to send item reward packet with empty item
+    const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+
+    // we know it's only one trailing struct, so we can skip full validation
+    uint8_t respbuf[resplen]; // not a variable length array, don't worry
+    sP_FE2CL_REP_REWARD_ITEM* reward = (sP_FE2CL_REP_REWARD_ITEM*)respbuf;
+    sItemReward* item = (sItemReward*)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
+
+    // don't forget to zero the buffer!
+    memset(respbuf, 0, resplen);
+
+    // maintain stats
+    reward->m_iCandy = plr->money;
+    reward->m_iFusionMatter = plr->fusionmatter;
+    reward->iFatigue = 100; // prevents warning message
+    reward->iFatigue_Level = 1;
+    reward->iItemCnt = 1; // remember to update resplen if you change this
+    reward->m_iBatteryN = plr->batteryN;
+    reward->m_iBatteryW = plr->batteryW;
+
+    item->iSlotNum = chest->iSlotNum;
+    item->eIL = chest->eIL;
+    
+    // update player serverside
+    plr->Inven[chest->iSlotNum] = item->sItem;
+
+    // transmit item
+    sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
+
+    // transmit chest opening acknowledgement packet
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, sizeof(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC));
+
+    // check if player doesn't already have this nano
+    if (plr->Nanos[nanoId].iID != 0) {
+        INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
+        msg.iDuringTime = 4;
+        std::string text = "You have already aquired this nano!";
+        U8toU16(text, msg.szAnnounceMsg, sizeof(text));
+        sock->sendPacket((void*)&msg, P_FE2CL_GM_REP_PC_ANNOUNCE, sizeof(sP_FE2CL_GM_REP_PC_ANNOUNCE));
+        return;
+    }
+    NanoManager::addNano(sock, nanoId, -1, false);
+}
+#endif
