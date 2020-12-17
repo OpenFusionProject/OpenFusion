@@ -29,6 +29,7 @@ private:
     static void handlePacket(CNSocket* sock, CNPacketData* data);
     static std::map<CNSocket*, CNLoginData> loginSessions;
     static std::map<int32_t, CNSocket*> shardSessions;
+    static std::map<CNSocket*, int32_t> duplicateConnections;
 
     static void login(CNSocket* sock, CNPacketData* data);
     static void nameCheck(CNSocket* sock, CNPacketData* data);

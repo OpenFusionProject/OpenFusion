@@ -12,6 +12,8 @@
 std::map<CNSocket*, CNLoginData> CNLoginServer::loginSessions;
 /// account Id -> sock
 std::map<int32_t, CNSocket*> CNLoginServer::shardSessions;
+/// Socket -> AccountId
+std::map<CNSocket*, int32_t> CNLoginServer::duplicateConnections;
 std::mutex lsCrit;
 
 CNLoginServer::CNLoginServer(uint16_t p) {
@@ -138,14 +140,10 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
     if (findUser.BannedUntil > getTimestamp())
         return loginFail(LoginError::LOGIN_ERROR, userLogin, sock);
 
-    /* 
-     * calling this here to timestamp login attempt,
-     * in order to make duplicate exit sanity check work
-     */
-    Database::updateSelected(findUser.AccountID, findUser.Selected);
-
-    if (CNLoginServer::isAccountInUse(findUser.AccountID))
+    if (CNLoginServer::isAccountInUse(findUser.AccountID)) {
+        duplicateConnections[sock] = findUser.AccountID;
         return loginFail(LoginError::ID_ALREADY_IN_USE, userLogin, sock);
+    }
 
     loginSessions[sock] = CNLoginData();
     loginSessions[sock].userID = findUser.AccountID;
@@ -517,12 +515,16 @@ void CNLoginServer::duplicateExit(CNSocket* sock, CNPacketData* data) {
     Database::Account account = {};
     Database::findAccount(&account, U16toU8(exit->szID));
 
-    // sanity check
+    // sanity checks
     if (account.AccountID == 0) {
         std::cout << "[WARN] P_CL2LS_REQ_PC_EXIT_DUPLICATE submitted unknown username: " << exit->szID << std::endl;
         return;
     }
-
+    if (duplicateConnections.find(sock) == duplicateConnections.end() || duplicateConnections[sock] != account.AccountID) {
+        std::cout << "[WARN] P_CL2LS_REQ_PC_EXIT_DUPLICATE submitted non-existing duplicate connection" << std::endl;
+        return;
+    }
+    duplicateConnections.erase(sock);
     exitDuplicate(account.AccountID);
 }
 #pragma endregion
@@ -537,6 +539,7 @@ void CNLoginServer::killConnection(CNSocket* cns) {
         std::cout << "Login Server: Account [" << loginSessions[cns].userID << "] disconnected from login server" << std::endl;
     )
     loginSessions.erase(cns);
+    duplicateConnections.erase(cns);
 }
 
 void CNLoginServer::onStep() {
