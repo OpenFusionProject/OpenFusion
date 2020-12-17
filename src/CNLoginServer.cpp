@@ -568,8 +568,10 @@ bool CNLoginServer::isAccountInUse(int accountId) {
             return true;
     }
     // check shard server connections
-    std::lock_guard<std::mutex> lock(lsCrit);
-    return (shardSessions.find(accountId) != shardSessions.end());
+    lsCrit.lock();
+    bool result = shardSessions.find(accountId) != shardSessions.end();
+    lsCrit.unlock();
+    return(result);
 }
 
 void CNLoginServer::exitDuplicate(int accountId) {
@@ -585,8 +587,10 @@ void CNLoginServer::exitDuplicate(int accountId) {
         }
     }
     // shard server
-    std::lock_guard<std::mutex> lock(lsCrit);
-    if (shardSessions.find(accountId) == shardSessions.end())
+    lsCrit.lock();
+    bool found = shardSessions.find(accountId) != shardSessions.end();
+    lsCrit.unlock();
+    if (!found)
         return;
     CNSocket* sock = shardSessions[accountId];
     PlayerManager::exitDuplicate(sock);
