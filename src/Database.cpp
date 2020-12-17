@@ -128,9 +128,28 @@ void Database::checkMetaTable() {
     sqlite3_finalize(stmt);
 
     if (dbVersion != DATABASE_VERSION) {
-        // we should be handling migrations here in the future
-        std::cout << "[FATAL] DB Version doesn't match Server Build" << std::endl;
-        exit(1);
+        // migrations
+        if (dbVersion == 1) {
+            // Version 1 - > 2
+            sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
+
+            int rc = sqlite3_exec(db, "ALTER TABLE Accounts ADD BanReason TEXT", NULL, NULL, NULL);
+            if (rc != SQLITE_OK) {
+                std::cout << "[FATAL] Failed to apply Database migration" << std::endl;
+                exit(1);
+            }
+            rc = sqlite3_exec(db, "UPDATE Meta SET Value = 2 WHERE Key = 'DatabaseVersion';", NULL, NULL, NULL);
+            if (rc != SQLITE_OK) {
+                std::cout << "[FATAL] Failed to apply Database migration" << std::endl;
+                exit(1);
+            }
+
+            sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
+        }
+        else {
+            std::cout << "[FATAL] Invalid DB Version" << std::endl;
+            exit(1);
+        }
     }
 }
 
@@ -203,6 +222,7 @@ void Database::createTables() {
             LastLogin    INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
             BannedUntil  INTEGER DEFAULT 0 NOT NULL,
             BannedSince  INTEGER DEFAULT 0 NOT NULL,
+            BanReason    TEXT,
             PRIMARY KEY(AccountID AUTOINCREMENT)
         );
 
@@ -370,7 +390,7 @@ void Database::findAccount(Account* account, std::string login) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     const char* sql = R"(
-        SELECT AccountID, Password, Selected, BannedUntil
+        SELECT AccountID, Password, Selected, BannedUntil, BanReason
         FROM Accounts
         WHERE Login = ?
         LIMIT 1;
@@ -386,6 +406,7 @@ void Database::findAccount(Account* account, std::string login) {
         account->Password = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
         account->Selected = sqlite3_column_int(stmt, 2);
         account->BannedUntil = sqlite3_column_int64(stmt, 3);
+        account->BanReason = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
     }
     sqlite3_finalize(stmt);
 }
