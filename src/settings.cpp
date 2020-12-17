@@ -5,11 +5,11 @@
 // defaults :)
 int settings::VERBOSITY = 1;
 
-int settings::LOGINPORT = 8001;
+int settings::LOGINPORT = 23000;
 bool settings::APPROVEALLNAMES = true;
 int settings::DBSAVEINTERVAL = 240;
 
-int settings::SHARDPORT = 8002;
+int settings::SHARDPORT = 23001;
 std::string settings::SHARDSERVERIP = "127.0.0.1";
 time_t settings::TIMEOUT = 60000;
 int settings::VIEWDISTANCE = 25600;
