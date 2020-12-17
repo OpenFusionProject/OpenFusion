@@ -11,6 +11,8 @@ build/
 .vs/
 .idea/
 *.db
+*-shm
+*-wal
 version.h
 infer-out
 gmon.out

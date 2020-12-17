@@ -31,6 +31,10 @@ void Database::open() {
 
     // foreign keys in sqlite are off by default; enable them
     sqlite3_exec(db, "PRAGMA foreign_keys=ON;", NULL, NULL, NULL);
+
+    // just in case a DB operation collides with an external manual modification
+    sqlite3_busy_timeout(db, 2000);
+
     checkMetaTable();
     createTables();
 
@@ -63,13 +67,14 @@ void Database::checkMetaTable() {
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (sqlite3_step(stmt) != SQLITE_ROW) {
+        std::cout << "[FATAL] Failed to check meta table" << sqlite3_errmsg(db) << std::endl;
         sqlite3_finalize(stmt);
-        std::cout << "[FATAL] Failed to check meta table"  << std::endl;
         exit(1);
     }
 
     int count = sqlite3_column_int(stmt, 0);
     if (count == 0) {
+        sqlite3_finalize(stmt);
         // check if there's other non-internal tables first
         sql = R"(
             SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%';
@@ -86,6 +91,8 @@ void Database::checkMetaTable() {
         return createMetaTable();
     }
 
+    sqlite3_finalize(stmt);
+
     // check protocol version
     sql = R"(
         SELECT Value FROM Meta WHERE Key = 'ProtocolVersion';
@@ -93,8 +100,8 @@ void Database::checkMetaTable() {
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     if (sqlite3_step(stmt) != SQLITE_ROW) {
+        std::cout << "[FATAL] Failed to check DB Protocol Version: " << sqlite3_errmsg(db) << std::endl;
         sqlite3_finalize(stmt);
-        std::cout << "[FATAL] Failed to check DB Protocol Version" << std::endl;
         exit(1);
     }
 
@@ -104,13 +111,15 @@ void Database::checkMetaTable() {
         exit(1);
     }
 
+    sqlite3_finalize(stmt);
+
     sql = R"(
         SELECT Value FROM Meta WHERE Key = 'DatabaseVersion';
         )";
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     if (sqlite3_step(stmt) != SQLITE_ROW) {
-        std::cout << "[FATAL] Failed to check DB Version" << std::endl;
+        std::cout << "[FATAL] Failed to check DB Version: " << sqlite3_errmsg(db) << std::endl;
         sqlite3_finalize(stmt);
         exit(1);
     }
@@ -140,11 +149,12 @@ void Database::createMetaTable() {
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (sqlite3_step(stmt) != SQLITE_DONE) {
+        std::cout << "[FATAL] Failed to create meta table: " << sqlite3_errmsg(db) << std::endl;
         sqlite3_finalize(stmt);
         sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-        std::cout << "[FATAL] Failed to create meta table" << std::endl;
         exit(1);
     }
+    sqlite3_finalize(stmt);
 
     sql = R"(
         INSERT INTO Meta (Key, Value)
@@ -155,9 +165,9 @@ void Database::createMetaTable() {
     sqlite3_bind_int(stmt, 2, PROTOCOL_VERSION);
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
+        std::cout << "[FATAL] Failed to create meta table: " << sqlite3_errmsg(db) << std::endl;
         sqlite3_finalize(stmt);
         sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-        std::cout << "[FATAL] Failed to create meta table" << std::endl;
         exit(1);
     }
 
@@ -166,10 +176,9 @@ void Database::createMetaTable() {
     sqlite3_bind_int(stmt, 2, DATABASE_VERSION);
     int rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
-
     if (rc != SQLITE_DONE) {
+        std::cout << "[FATAL] Failed to create meta table: " << sqlite3_errmsg(db) << std::endl;
         sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-        std::cout << "[FATAL] Failed to create meta table" << std::endl;
         exit(1);
     }
 
@@ -370,6 +379,7 @@ void Database::findAccount(Account* account, std::string login) {
 
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_text(stmt, 1, login.c_str(), -1, NULL);
+
     int rc = sqlite3_step(stmt);
     if (rc == SQLITE_ROW) {
         account->AccountID = sqlite3_column_int(stmt, 0);
@@ -394,13 +404,14 @@ int Database::addAccount(std::string login, std::string password) {
     std::string hashedPassword = BCrypt::generateHash(password);
     sqlite3_bind_text(stmt, 2, hashedPassword.c_str(), -1, NULL);
     sqlite3_bind_int(stmt, 3, settings::ACCLEVEL);
+
     int rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
-
     if (rc != SQLITE_DONE) {
         std::cout << "[WARN] Database: failed to add new account" << std::endl;
         return 0;
     }
+
     return sqlite3_last_insert_rowid(db);
 }
 
@@ -419,7 +430,7 @@ void Database::banAccount(int accountId, int days) {
     sqlite3_bind_int(stmt, 1, days * 86400); // convert days to seconds
     sqlite3_bind_int(stmt, 2, accountId);
     if (sqlite3_step(stmt) != SQLITE_DONE) {
-        std::cout << "[WARN] Database: failed to ban player" << std::endl;
+        std::cout << "[WARN] Database: failed to ban player: " << sqlite3_errmsg(db) << std::endl;
     }
     sqlite3_finalize(stmt);
 }
@@ -448,7 +459,7 @@ void Database::updateSelected(int accountId, int slot) {
     sqlite3_finalize(stmt);
 
     if (rc != SQLITE_DONE)
-        std::cout << "[WARN] Database fail on updateSelected(). Error Code " << rc << std::endl;
+        std::cout << "[WARN] Database fail on updateSelected(): " << sqlite3_errmsg(db) << std::endl;
 }
 
 bool Database::validateCharacter(int characterID, int userID) {
@@ -498,7 +509,7 @@ bool Database::isSlotFree(int accountId, int slotNum) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     if (slotNum < 1 || slotNum > 4) {
-        std::cout << "[WARN] Invalid slot number passed to isSlotFree()! "<<slotNum << std::endl;
+        std::cout << "[WARN] Invalid slot number passed to isSlotFree()! " << slotNum << std::endl;
         return false;
     }
 
@@ -565,6 +576,8 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
 
     int playerId = sqlite3_last_insert_rowid(db);
 
+    sqlite3_finalize(stmt);
+
     sql = R"(
         INSERT INTO Appearances (PlayerID)
         VALUES (?);
@@ -605,6 +618,8 @@ bool Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character, int accountI
         return false;
     }
 
+    sqlite3_finalize(stmt);
+
     sql = R"(
         UPDATE Appearances
         SET
@@ -635,6 +650,8 @@ bool Database::finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character, int accountI
         sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
         return false;
     }
+
+    sqlite3_finalize(stmt);
 
     sql = R"(
         INSERT INTO Inventory (PlayerID, Slot, ID, Type, Opt)
@@ -690,6 +707,8 @@ bool Database::finishTutorial(int playerID, int accountID) {
         return false;
     }
 
+    sqlite3_finalize(stmt);
+
     // Lightning Gun
     sql = R"(
         INSERT INTO Inventory
@@ -705,6 +724,8 @@ bool Database::finishTutorial(int playerID, int accountID) {
         sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
         return false;
     }
+
+    sqlite3_finalize(stmt);
 
     // Nano Buttercup
     sql = R"(
@@ -748,6 +769,8 @@ int Database::deleteCharacter(int characterID, int userID) {
         return 0;
     }
     int slot = sqlite3_column_int(stmt, 0);
+
+    sqlite3_finalize(stmt);
 
     sql = R"(
         DELETE FROM Players
@@ -851,7 +874,7 @@ void Database::evaluateCustomName(int characterID, CustomName decision) {
     sqlite3_bind_int(stmt, 2, characterID);
 
     if (sqlite3_step(stmt) != SQLITE_DONE)
-        std::cout << "[WARN] Database: Failed to update nameCheck" << std::endl;
+        std::cout << "[WARN] Database: Failed to update nameCheck: " << sqlite3_errmsg(db) << std::endl;
     sqlite3_finalize(stmt);
 }
 
@@ -909,7 +932,7 @@ void Database::getPlayer(Player* plr, int id) {
     sqlite3_bind_int(stmt, 1, id);
     if (sqlite3_step(stmt) != SQLITE_ROW) {
         sqlite3_finalize(stmt);
-        std::cout << "[WARN] Database: Failed to load character [" << id << "]" << std::endl;
+        std::cout << "[WARN] Database: Failed to load character [" << id << "]: " << sqlite3_errmsg(db) << std::endl;
         return;
     }
 
@@ -967,6 +990,8 @@ void Database::getPlayer(Player* plr, int id) {
     plr->PCStyle.iHeight = sqlite3_column_int(stmt, 34);
     plr->PCStyle.iSkinColor = sqlite3_column_int(stmt, 35);
 
+    sqlite3_finalize(stmt);
+
     // get inventory
     sql = R"(
         SELECT Slot, Type, ID, Opt, TimeLimit
@@ -1005,6 +1030,8 @@ void Database::getPlayer(Player* plr, int id) {
         item->iTimeLimit = sqlite3_column_int(stmt, 4);
     }
 
+    sqlite3_finalize(stmt);
+
     Database::removeExpiredVehicles(plr);
 
     // get quest inventory
@@ -1027,6 +1054,7 @@ void Database::getPlayer(Player* plr, int id) {
         item->iOpt = sqlite3_column_int(stmt, 2);
     }
 
+    sqlite3_finalize(stmt);
 
     // get nanos
     sql = R"(
@@ -1051,6 +1079,8 @@ void Database::getPlayer(Player* plr, int id) {
         nano->iStamina = sqlite3_column_int(stmt, 2);
     }
 
+    sqlite3_finalize(stmt);
+
     // get active quests
     sql = R"(
         SELECT
@@ -1074,6 +1104,8 @@ void Database::getPlayer(Player* plr, int id) {
         i++;
     }
 
+    sqlite3_finalize(stmt);
+
     // get buddies
     sql = R"(
         SELECT PlayerAID, PlayerBID
@@ -1094,6 +1126,8 @@ void Database::getPlayer(Player* plr, int id) {
         plr->isBuddyBlocked[i] = false;
         i++;
     }
+
+    sqlite3_finalize(stmt);
 
     // get blocked players
     sql = R"(
@@ -1165,11 +1199,13 @@ void Database::updatePlayer(Player *player) {
     sqlite3_bind_int(stmt, 21, player->iID);
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
+        std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
         sqlite3_finalize(stmt);
         sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-        std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
         return;
     }
+
+    sqlite3_finalize(stmt);
 
     // update inventory
     sql = R"(
@@ -1178,6 +1214,8 @@ void Database::updatePlayer(Player *player) {
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, player->iID);
     int rc = sqlite3_step(stmt);
+
+    sqlite3_finalize(stmt);
 
     sql = R"(
         INSERT INTO Inventory
@@ -1200,9 +1238,9 @@ void Database::updatePlayer(Player *player) {
         rc = sqlite3_step(stmt);
 
         if (rc != SQLITE_DONE) {
+            std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
             sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
-            std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
             return;
         }
         sqlite3_reset(stmt);
@@ -1220,9 +1258,9 @@ void Database::updatePlayer(Player *player) {
         sqlite3_bind_int(stmt, 6, player->Inven[i].iTimeLimit);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
+            std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
             sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
-            std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
             return;
         }
         sqlite3_reset(stmt);
@@ -1240,14 +1278,15 @@ void Database::updatePlayer(Player *player) {
         sqlite3_bind_int(stmt, 6, player->Bank[i].iTimeLimit);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
+            std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
             sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
-            std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
             return;
         }
         sqlite3_reset(stmt);
     }
 
+    sqlite3_finalize(stmt);
 
     // Update Quest Inventory
     sql = R"(
@@ -1256,6 +1295,8 @@ void Database::updatePlayer(Player *player) {
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, player->iID);
     sqlite3_step(stmt);
+
+    sqlite3_finalize(stmt);
 
     sql = R"(
         INSERT INTO QuestItems (PlayerID, Slot, Opt, ID)
@@ -1273,13 +1314,15 @@ void Database::updatePlayer(Player *player) {
         sqlite3_bind_int(stmt, 4, player->QInven[i].iID);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
+            std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
             sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
-            std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
             return;
         }
         sqlite3_reset(stmt);
     }
+
+    sqlite3_finalize(stmt);
 
     // Update Nanos
     sql = R"(
@@ -1288,6 +1331,8 @@ void Database::updatePlayer(Player *player) {
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, player->iID);
     sqlite3_step(stmt);
+
+    sqlite3_finalize(stmt);
 
     sql = R"(
         INSERT INTO Nanos (PlayerID, ID, SKill, Stamina)
@@ -1305,13 +1350,15 @@ void Database::updatePlayer(Player *player) {
         sqlite3_bind_int(stmt, 4, player->Nanos[i].iStamina);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
+            std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
             sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
-            std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
             return;
         }
         sqlite3_reset(stmt);
     }
+
+    sqlite3_finalize(stmt);
 
     // Update Running Quests
     sql = R"(
@@ -1320,6 +1367,8 @@ void Database::updatePlayer(Player *player) {
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, player->iID);
     sqlite3_step(stmt);
+
+    sqlite3_finalize(stmt);
 
     sql = R"(
         INSERT INTO RunningQuests
@@ -1338,9 +1387,9 @@ void Database::updatePlayer(Player *player) {
         sqlite3_bind_int(stmt, 5, player->RemainingNPCCount[i][2]);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
+            std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
             sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
-            std::cout << "[WARN] Database: Failed to save player to database" << std::endl;
             return;
         }
         sqlite3_reset(stmt);
@@ -1401,6 +1450,8 @@ int Database::getNumBuddies(Player* player) {
     sqlite3_step(stmt);
     int result = sqlite3_column_int(stmt, 0);
 
+    sqlite3_finalize(stmt);
+
     sql = R"(
         SELECT COUNT(*)
         FROM Blocks
@@ -1430,7 +1481,7 @@ void Database::addBuddyship(int playerA, int playerB) {
     sqlite3_bind_int(stmt, 2, playerB);
 
     if (sqlite3_step(stmt) != SQLITE_DONE)
-        std::cout << "[WARN] Database: failed to add buddyship" << std::endl;
+        std::cout << "[WARN] Database: failed to add buddyship: " << sqlite3_errmsg(db) << std::endl;
     sqlite3_finalize(stmt);
 }
 
@@ -1466,7 +1517,7 @@ void Database::addBlock(int playerId, int blockedPlayerId) {
     sqlite3_bind_int(stmt, 2, blockedPlayerId);
 
     if (sqlite3_step(stmt) != SQLITE_DONE)
-        std::cout << "[WARN] Database: failed to block player" << std::endl;
+        std::cout << "[WARN] Database: failed to block player: " << sqlite3_errmsg(db) << std::endl;
     sqlite3_finalize(stmt);
 }
 
@@ -1496,7 +1547,11 @@ int Database::getUnreadEmailCount(int playerID) {
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, playerID);
     sqlite3_step(stmt);
-    return sqlite3_column_int(stmt, 0);
+    int ret = sqlite3_column_int(stmt, 0);
+
+    sqlite3_finalize(stmt);
+
+    return ret;
 }
 
 std::vector<Database::EmailData> Database::getEmails(int playerID, int page) {
@@ -1612,6 +1667,7 @@ sItemBase* Database::getEmailAttachments(int playerID, int index) {
         items[slot].iTimeLimit = sqlite3_column_int(stmt, 4);
     }
 
+    sqlite3_finalize(stmt);
     return items;
 }
 
@@ -1631,6 +1687,8 @@ void Database::updateEmailContent(EmailData* data) {
     int attachmentsCount = sqlite3_column_int(stmt, 0);
 
     data->ItemFlag = (data->Taros > 0 || attachmentsCount > 0) ? 1 : 0; // set attachment flag dynamically
+
+    sqlite3_finalize(stmt);
 
     sql = R"(
         UPDATE EmailData
@@ -1666,7 +1724,7 @@ void Database::updateEmailContent(EmailData* data) {
     sqlite3_bind_int(stmt, 14, data->MsgIndex);
 
     if (sqlite3_step(stmt) != SQLITE_DONE)
-        std::cout << "[WARN] Database: failed to update email" << std::endl;
+        std::cout << "[WARN] Database: failed to update email: " << sqlite3_errmsg(db) << std::endl;
 
     sqlite3_finalize(stmt);
 }
@@ -1692,7 +1750,7 @@ void Database::deleteEmailAttachments(int playerID, int index, int slot) {
         sqlite3_bind_int(stmt, 3, slot);
 
     if (sqlite3_step(stmt) != SQLITE_DONE)
-        std::cout << "[WARN] Database: Failed to delete email attachments" << std::endl;
+        std::cout << "[WARN] Database: Failed to delete email attachments: " << sqlite3_errmsg(db) << std::endl;
     sqlite3_finalize(stmt);
 }
 
@@ -1712,7 +1770,7 @@ void Database::deleteEmails(int playerID, int64_t* indices) {
         sqlite3_bind_int(stmt, 1, playerID);
         sqlite3_bind_int64(stmt, 2, indices[i]);
         if (sqlite3_step(stmt) != SQLITE_DONE) {
-            std::cout << "[WARN] Database: Failed to delete an emil" << std::endl;
+            std::cout << "[WARN] Database: Failed to delete an email: " << sqlite3_errmsg(db) << std::endl;
         }
         sqlite3_reset(stmt);
     }
@@ -1737,6 +1795,7 @@ int Database::getNextEmailIndex(int playerID) {
     sqlite3_step(stmt);
     int index = sqlite3_column_int(stmt, 0);
 
+    sqlite3_finalize(stmt);
     return (index > 0 ? index + 1 : 1);
 }
 
@@ -1769,11 +1828,13 @@ bool Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
     sqlite3_bind_int64(stmt, 12, data->DeleteTime);
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
-        std::cout << "[WARN] Database: Failed to send email" << std::endl;
+        std::cout << "[WARN] Database: Failed to send email: " << sqlite3_errmsg(db) << std::endl;
         sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
         sqlite3_finalize(stmt);
         return false;
     }
+
+    sqlite3_finalize(stmt);
 
     // send attachments
     int slot = 1;
@@ -1795,7 +1856,7 @@ bool Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
         sqlite3_bind_int(stmt, 7, item.iTimeLimit);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
-            std::cout << "[WARN] Database: Failed to send email" << std::endl;
+            std::cout << "[WARN] Database: Failed to send email: " << sqlite3_errmsg(db) << std::endl;
             sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
             return false;

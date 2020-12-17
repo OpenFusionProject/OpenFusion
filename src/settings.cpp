@@ -57,8 +57,8 @@ void settings::init() {
     VERBOSITY = reader.GetInteger("", "verbosity", VERBOSITY);
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);
     SHARDPORT = reader.GetInteger("shard", "port", SHARDPORT);
+    DBSAVEINTERVAL = reader.GetInteger("login", "dbsaveinterval", DBSAVEINTERVAL);
     SHARDSERVERIP = reader.Get("shard", "ip", "127.0.0.1");
-    DBSAVEINTERVAL = reader.GetInteger("shard", "dbsaveinterval", DBSAVEINTERVAL);
     TIMEOUT = reader.GetInteger("shard", "timeout", TIMEOUT);
     VIEWDISTANCE = reader.GetInteger("shard", "viewdistance", VIEWDISTANCE);
     SIMULATEMOBS = reader.GetBoolean("shard", "simulatemobs", SIMULATEMOBS);
