@@ -661,19 +661,24 @@ void MobManager::roamingStep(Mob *mob, time_t currTime) {
     if (mob->idleRange == 0 || speed == 0)
         return;
 
-    int farX, farY;
-    int distance; // for short walk detection
+    int farX, farY, distance;
+    int minDistance = mob->idleRange / 2;
 
-    /*
-     * We don't want the mob to just take one step and stop, so we make sure
-     * it has walked a half-decent distance.
-     */
-    do {
-        farX = xStart + rand() % mob->idleRange;
-        farY = yStart + rand() % mob->idleRange;
+    // pick a random destination
+    farX = xStart + rand() % mob->idleRange;
+    farY = yStart + rand() % mob->idleRange;
 
-        distance = std::hypot(mob->appearanceData.iX - farX, mob->appearanceData.iY - farY);
-    } while (distance < 500);
+    distance = std::abs(std::max(farX - mob->appearanceData.iX, farY - mob->appearanceData.iY));
+    if (distance == 0)
+        distance += 1; // hack to avoid FPE
+
+    // if it's too short a walk, go further in that direction
+    farX = mob->appearanceData.iX + (farX - mob->appearanceData.iX) * minDistance / distance;
+    farY = mob->appearanceData.iY + (farY - mob->appearanceData.iY) * minDistance / distance;
+
+    // but don't got out of bounds
+    farX = std::clamp(farX, xStart, xStart + mob->idleRange);
+    farY = std::clamp(farY, yStart, yStart + mob->idleRange);
 
     // halve movement speed if snared
     if (mob->appearanceData.iConditionBitFlag & CSB_BIT_DN_MOVE_SPEED)

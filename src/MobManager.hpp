@@ -70,7 +70,7 @@ struct Mob : public BaseNPC {
         data = d;
 
         regenTime = data["m_iRegenTime"];
-        idleRange = (int)data["m_iIdleRange"] * 2; // TODO: tuning?
+        idleRange = (int)data["m_iIdleRange"];
         dropType = data["m_iDropType"];
         level = data["m_iNpcLevel"];
 

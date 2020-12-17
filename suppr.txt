@@ -1,4 +1,5 @@
 leak:TableData::init
+leak:ChunkManager::newChunk
 leak:NPCManager::updateNPCPosition
 leak:NPCManager::summonNPC
 leak:NanoManager::doBuff
