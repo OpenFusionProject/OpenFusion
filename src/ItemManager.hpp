@@ -34,6 +34,7 @@ namespace ItemManager {
     // pair <Itemset, Rarity> -> vector of pointers (map iterators) to records in ItemData (it looks a lot scarier than it is)
     extern std::map<std::pair<int32_t, int32_t>,
         std::vector<std::map<std::pair<int32_t, int32_t>, Item>::iterator>> CrateItems;
+    extern std::map<std::string, std::pair<int32_t, int32_t>> CodeItems; // code -> <id, type>
 
     void init();
 

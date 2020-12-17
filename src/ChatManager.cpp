@@ -8,6 +8,7 @@
 #include "MobManager.hpp"
 #include "MissionManager.hpp"
 #include "ChunkManager.hpp"
+#include "ItemManager.hpp"
 
 #include <sstream>
 #include <iterator>
@@ -716,6 +717,49 @@ void unhideCommand(std::string full, std::vector<std::string>& args, CNSocket* s
     ChatManager::sendServerMessage(sock, "[HIDE] Successfully un-hidden from the map.");
 }
 
+void redeemCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    if (args.size() < 2) {
+        ChatManager::sendServerMessage(sock, "/redeem: no code specified");
+        return;
+    }
+
+    std::string  code = args[1];
+    if (ItemManager::CodeItems.find(code) == ItemManager::CodeItems.end()) {
+        ChatManager::sendServerMessage(sock, "/redeem: Unknown code");
+        return;
+    }
+
+    Player* plr = PlayerManager::getPlayer(sock);
+    int slotNum = ItemManager::findFreeSlot(plr);
+
+    // no space
+    if (slotNum == -1) {
+        ChatManager::sendServerMessage(sock, "/redeem: Inventory full");
+        return;
+    }
+
+    std::pair<int32_t, int32_t> item = ItemManager::CodeItems[code];
+    INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp);
+
+    resp.eIL = 1;
+    resp.iSlotNum = slotNum;
+    // just in case it's a vehicle
+    if (item.second == 10) {
+        // set time limit: current time + 7days
+        resp.Item.iTimeLimit = getTimestamp() + 604800;
+    }
+    resp.Item.iID = item.first;
+    resp.Item.iType = item.second;
+    // I think it is safe? :eyes
+    resp.Item.iOpt = 1;
+
+    // save serverside
+    plr->Inven[resp.iSlotNum] = resp.Item;
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_GIVE_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC));
+    ChatManager::sendServerMessage(sock, "You have redeemed a code item");
+}
+
 void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
@@ -748,6 +792,7 @@ void ChatManager::init() {
     registerCommand("lair", 50, lairUnlockCommand, "get the required mission for the nearest fusion lair");
     registerCommand("hide", 100, hideCommand, "hide yourself from the global player map");
     registerCommand("unhide", 100, unhideCommand, "un-hide yourself from the global player map");
+    registerCommand("redeem", 100, redeemCommand, "redeem a code item");
 }
 
 void ChatManager::registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {
