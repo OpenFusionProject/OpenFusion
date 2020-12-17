@@ -21,6 +21,5 @@ namespace TableData {
     void loadDrops();
     void loadEggs(int32_t* nextId);
     void constructPathSkyway(nlohmann::json::iterator);
-    void constructPathSlider(nlohmann::json, int, int);
     void constructPathNPC(nlohmann::json::iterator, int id=0);
 }

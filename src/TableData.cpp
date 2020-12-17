@@ -336,22 +336,49 @@ void TableData::loadPaths(int* nextId) {
         std::cout << "[INFO] Loaded " << TransportManager::SkywayPaths.size() << " skyway paths" << std::endl;
 
         // slider circuit
-        int stops = 0;
-        int pos = 0;
         nlohmann::json pathDataSlider = pathData["slider"];
-        for (nlohmann::json::iterator _sliderPoint = pathDataSlider.begin(); _sliderPoint != pathDataSlider.end(); _sliderPoint++) {
-            auto sliderPoint = _sliderPoint.value();
-            if (sliderPoint["stop"]) { // check if this point in the circuit is a stop
+        // lerp between keyframes
+        std::queue<WarpLocation> route;
+        // initial point
+        nlohmann::json::iterator _point = pathDataSlider.begin(); // iterator
+        auto point = _point.value();
+        WarpLocation from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
+        int stopTime = point["stop"] ? SLIDER_STOP_TICKS : 0; // arbitrary stop length
+        // remaining points
+        for (_point++; _point != pathDataSlider.end(); _point++) { // loop through all point Bs
+            point = _point.value();
+            for (int i = 0; i < stopTime + 1; i++) { // repeat point if it's a stop
+                route.push(from); // add point A to the queue
+            }
+            WarpLocation to = { point["iX"] , point["iY"] , point["iZ"] }; // point B coords
+            // we may need to change this later; right now, the speed is cut before and after stops (no accel)
+            float curve = 1;
+            if (stopTime > 0) { // point A is a stop
+                curve = 0.375f;//2.0f;
+            } else if (point["stop"]) { // point B is a stop
+                curve = 0.375f;//0.35f;
+            }
+            int preLerp = route.size();
+            TransportManager::lerp(&route, from, to, SLIDER_SPEED * curve, 1); // lerp from A to B (arbitrary speed)
+            int postLerp = route.size() - preLerp;
+            from = to; // update point A
+            stopTime = point["stop"] ? SLIDER_STOP_TICKS : 0; // set stop ticks for next point A
+        }
+        //
+        int l = route.size();
+        int numSlidersApprox = 16; // maybe add a config option for this?
+        for (int pos = 0; pos < l; pos++) {
+            WarpLocation point = route.front();
+            if (pos % (l / numSlidersApprox) == 0) { // space them out uniformaly
                 // spawn a slider
-                BaseNPC* slider = new BaseNPC(sliderPoint["iX"], sliderPoint["iY"], sliderPoint["iZ"], 0, INSTANCE_OVERWORLD, 1, (*nextId)++, NPC_BUS);
+                BaseNPC* slider = new BaseNPC(point.x, point.y, point.z, 0, INSTANCE_OVERWORLD, 1, (*nextId)++, NPC_BUS);
                 NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
                 NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->appearanceData.iX, slider->appearanceData.iY, slider->appearanceData.iZ, INSTANCE_OVERWORLD, 0);
-                // set slider path to a rotation of the circuit
-                constructPathSlider(pathDataSlider, pos, slider->appearanceData.iNPC_ID);
-
-                stops++;
+                TransportManager::NPCQueues[slider->appearanceData.iNPC_ID] = route;
             }
-            pos++;
+            // rotate
+            route.pop();
+            route.push(point);
         }
 
         // npc paths
@@ -563,33 +590,6 @@ void TableData::constructPathSkyway(nlohmann::json::iterator _pathData) {
         last = coords; // update start pos
     }
     TransportManager::SkywayPaths[pathData["iRouteID"]] = points;
-}
-
-void TableData::constructPathSlider(nlohmann::json points, int rotations, int sliderID) {
-    std::queue<WarpLocation> route;
-    std::rotate(points.begin(), points.begin() + rotations, points.end()); // rotate points
-    nlohmann::json::iterator _point = points.begin(); // iterator
-    auto point = _point.value();
-    WarpLocation from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
-    int stopTime = point["stop"] ? SLIDER_STOP_TICKS : 0; // arbitrary stop length
-    for (_point++; _point != points.end(); _point++) { // loop through all point Bs
-        point = _point.value();
-        for (int i = 0; i < stopTime + 1; i++) // repeat point if it's a stop
-            route.push(from); // add point A to the queue
-        WarpLocation to = { point["iX"] , point["iY"] , point["iZ"] }; // point B coords
-        // we may need to change this later; right now, the speed is cut before and after stops (no accel)
-        float curve = 1;
-        if (stopTime > 0) { // point A is a stop
-            curve = 0.375f;//2.0f;
-        } else if (point["stop"]) { // point B is a stop
-            curve = 0.375f;//0.35f;
-        }
-        TransportManager::lerp(&route, from, to, SLIDER_SPEED * curve, 1); // lerp from A to B (arbitrary speed)
-        from = to; // update point A
-        stopTime = point["stop"] ? SLIDER_STOP_TICKS : 0;
-    }
-    std::rotate(points.rbegin(), points.rbegin() + rotations, points.rend()); // undo rotation
-    TransportManager::NPCQueues[sliderID] = route;
 }
 
 void TableData::constructPathNPC(nlohmann::json::iterator _pathData, int32_t id) {
