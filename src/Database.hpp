@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#define DATABASE_VERSION 1
+#define DATABASE_VERSION 2
 
 namespace Database {
 
@@ -13,6 +13,7 @@ namespace Database {
         std::string Password;
         int Selected;
         time_t BannedUntil;
+        std::string BanReason;
     };
     struct EmailData {
         int PlayerId;
