@@ -13,6 +13,10 @@
 #include <string>
 #include <sqlite3.h>
 
+#include <iostream>
+#include <fstream>
+#include <sstream>
+
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
     #include "mingw/mingw.mutex.h"
 #else
@@ -127,30 +131,35 @@ void Database::checkMetaTable() {
     int dbVersion = sqlite3_column_int(stmt, 0);
     sqlite3_finalize(stmt);
 
-    if (dbVersion != DATABASE_VERSION) {
-        // migrations
-        if (dbVersion == 1) {
-            // Version 1 - > 2
-            sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
+    if (dbVersion > DATABASE_VERSION) {
+        std::cout << "[FATAL] Server Build is incompatible with DB Version" << std::endl;
+        exit(1);
+    }
 
-            int rc = sqlite3_exec(db, "ALTER TABLE Accounts ADD BanReason TEXT", NULL, NULL, NULL);
-            if (rc != SQLITE_OK) {
-                std::cout << "[FATAL] Failed to apply Database migration" << std::endl;
-                exit(1);
-            }
-            rc = sqlite3_exec(db, "UPDATE Meta SET Value = 2 WHERE Key = 'DatabaseVersion';", NULL, NULL, NULL);
-            if (rc != SQLITE_OK) {
-                std::cout << "[FATAL] Failed to apply Database migration" << std::endl;
-                exit(1);
-            }
+    while (dbVersion != DATABASE_VERSION){
+        // db migrations
+        std::cout << "[INFO] Migrating Database to Version " << dbVersion + 1 << std::endl;
 
-            sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
-        }
-        else {
-            std::cout << "[FATAL] Invalid DB Version" << std::endl;
+        std::string path = "sql/migrations/" + std::to_string(dbVersion) + ".sql";
+        std::ifstream file(path);
+        if (!file.is_open()) {
+            std::cout << "[FATAL] Failed to migrate database: Couldn't open migration file" << std::endl;
             exit(1);
         }
-    }
+
+        std::ostringstream stream;
+        stream << file.rdbuf();
+        std::string sql = stream.str();
+        int rc = sqlite3_exec(db, sql.c_str(), NULL, NULL, NULL);
+
+        if (rc != SQLITE_OK) {
+            std::cout << "[FATAL] Failed to migrate database" << std::endl;
+            exit(1);
+        }
+
+        dbVersion++;
+        std::cout << "[INFO] Successfull Database Migration to Version " << dbVersion << std::endl;
+    }    
 }
 
 void Database::createMetaTable() {
