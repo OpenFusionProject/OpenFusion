@@ -197,7 +197,7 @@ void TableData::init() {
             auto nano = _nano.value();
             NanoData nanoData;
             nanoData.style = nano["m_iStyle"];
-            NanoManager::NanoTable[nano["m_iNanoNumber"]] = nanoData;
+            NanoManager::NanoTable[NanoManager::NanoTable.size()] = nanoData;
         }
 
         std::cout << "[INFO] Loaded " << NanoManager::NanoTable.size() << " nanos" << std::endl;
