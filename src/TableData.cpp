@@ -11,6 +11,7 @@
 #include "contrib/JSON.hpp"
 
 #include <fstream>
+#include <cmath>
 
 std::map<int32_t, std::vector<WarpLocation>> TableData::RunningSkywayRoutes;
 std::map<int32_t, int> TableData::RunningNPCRotations;
@@ -358,18 +359,22 @@ void TableData::loadPaths(int* nextId) {
             } else if (point["stop"]) { // point B is a stop
                 curve = 0.375f;//0.35f;
             }
-            int preLerp = route.size();
             TransportManager::lerp(&route, from, to, SLIDER_SPEED * curve, 1); // lerp from A to B (arbitrary speed)
-            int postLerp = route.size() - preLerp;
             from = to; // update point A
             stopTime = point["stop"] ? SLIDER_STOP_TICKS : 0; // set stop ticks for next point A
         }
-        //
-        int l = route.size();
-        int numSlidersApprox = 16; // maybe add a config option for this?
-        for (int pos = 0; pos < l; pos++) {
+        // Uniform distance calculation
+        int passedDistance = 0;
+        // initial point
+        int pos = 0;
+        WarpLocation lastPoint = route.front();
+        route.pop();
+        route.push(lastPoint);
+        for (pos = 1; pos < route.size(); pos++) {
             WarpLocation point = route.front();
-            if (pos % (l / numSlidersApprox) == 0) { // space them out uniformaly
+            passedDistance += hypot(point.x - lastPoint.x, point.y - lastPoint.y);
+            if (passedDistance >= SLIDER_GAP_SIZE) { // space them out uniformaly
+                passedDistance -= SLIDER_GAP_SIZE; // step down
                 // spawn a slider
                 BaseNPC* slider = new BaseNPC(point.x, point.y, point.z, 0, INSTANCE_OVERWORLD, 1, (*nextId)++, NPC_BUS);
                 NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
@@ -379,6 +384,7 @@ void TableData::loadPaths(int* nextId) {
             // rotate
             route.pop();
             route.push(point);
+            lastPoint = point;
         }
 
         // npc paths

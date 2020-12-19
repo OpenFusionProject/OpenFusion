@@ -7,6 +7,7 @@
 
 const int SLIDER_SPEED = 1200;
 const int SLIDER_STOP_TICKS = 16;
+const int SLIDER_GAP_SIZE = 45000;
 
 struct WarpLocation;
 
