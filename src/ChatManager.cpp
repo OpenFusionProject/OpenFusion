@@ -873,11 +873,14 @@ void ChatManager::announcementHandler(CNSocket* sock, CNPacketData* data) {
 // we only allow plain ascii, at least for now
 std::string ChatManager::sanitizeText(std::string text, bool allowNewlines) {
     int i;
-    char buf[128];
+    const int BUFSIZE = 512;
+    char buf[BUFSIZE];
+
+    assert(text.size() < BUFSIZE);
 
     i = 0;
     for (char c : text) {
-        if (i >= 127)
+        if (i >= BUFSIZE-1)
             break;
 
         if (!allowNewlines && c == '\n')
