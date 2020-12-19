@@ -29,6 +29,14 @@ namespace Database {
         uint64_t SendTime;
         uint64_t DeleteTime;
     };
+    struct RaceRanking {
+        int EPID;
+        int PlayerID;
+        int Score;
+        int RingCount;
+        uint64_t Time;
+        uint64_t Timestamp;
+    };
     
     void open();
     void close();
@@ -88,4 +96,8 @@ namespace Database {
     void deleteEmails(int playerID, int64_t* indices);
     int getNextEmailIndex(int playerID);
     bool sendEmail(EmailData* data, std::vector<sItemBase> attachments);
+
+    // racing
+    RaceRanking getTopRaceRanking(int epID);
+    void postRaceRanking(RaceRanking ranking);
 }

@@ -1758,3 +1758,71 @@ bool Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
     return true;
 }
 
+Database::RaceRanking Database::getTopRaceRanking(int epID) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+    const char* sql = R"(
+        SELECT
+            "EPID",
+            "PlayerID",
+            "Score",
+            "RingCount",
+            "Time",
+            "Timestamp"
+        FROM "RaceResults"
+        WHERE "EPID" = ?
+        ORDER BY "Score" DESC
+        LIMIT 1;
+        )";
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_bind_int(stmt, 1, epID);
+
+    Database::RaceRanking ranking = {};
+    if (sqlite3_step(stmt) != SQLITE_ROW) {
+        // this race hasn't been run before, so return a blank ranking
+        sqlite3_finalize(stmt);
+        return ranking;
+    }
+
+    assert(epID == sqlite3_column_int(stmt, 0)); // EPIDs should always match
+
+    ranking.EPID = epID;
+    ranking.PlayerID = sqlite3_column_int(stmt, 1);
+    ranking.Score = sqlite3_column_int(stmt, 2);
+    ranking.RingCount = sqlite3_column_int(stmt, 3);
+    ranking.Time = sqlite3_column_int64(stmt, 4);
+    ranking.Timestamp = sqlite3_column_int64(stmt, 5);
+
+    sqlite3_finalize(stmt);
+    return ranking;
+}
+
+void Database::postRaceRanking(Database::RaceRanking ranking) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    const char* sql = R"(
+        INSERT INTO "RaceResults" 
+            ("EPID", "PlayerID", "Score", "RingCount", "Time", "Timestamp")
+        VALUES(?, ?, ?, ?, ?, ?);
+        )";
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_bind_int(stmt, 1, ranking.EPID);
+    sqlite3_bind_int(stmt, 2, ranking.PlayerID);
+    sqlite3_bind_int(stmt, 3, ranking.Score);
+    sqlite3_bind_int(stmt, 4, ranking.RingCount);
+    sqlite3_bind_int64(stmt, 5, ranking.Time);
+    sqlite3_bind_int64(stmt, 6, ranking.Timestamp);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        std::cout << "[WARN] Database: Failed to post race result" << std::endl;
+    }
+
+    sqlite3_finalize(stmt);
+    return;
+}
+
+
+
