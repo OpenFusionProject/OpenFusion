@@ -1836,17 +1836,17 @@ bool Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
 
     sqlite3_finalize(stmt);
 
+    sql = R"(
+        INSERT INTO EmailItems
+            (PlayerID, MsgIndex, Slot, ID, Type, Opt, TimeLimit)
+        VALUES (?, ?, ?, ?, ?, ?, ?);
+        )";
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
     // send attachments
     int slot = 1;
     for (sItemBase item : attachments) {
-        sql = R"(
-            INSERT INTO EmailItems
-                (PlayerID, MsgIndex, Slot, ID, Type, Opt, TimeLimit)
-            VALUES (?, ?, ?, ?, ?, ?, ?);
-            )";
-        sqlite3_stmt* stmt;
-
-        sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
         sqlite3_bind_int(stmt, 1, data->PlayerId);
         sqlite3_bind_int(stmt, 2, data->MsgIndex);
         sqlite3_bind_int(stmt, 3, slot++);
