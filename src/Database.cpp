@@ -162,7 +162,7 @@ void Database::checkMetaTable() {
         int rc = sqlite3_exec(db, sql.c_str(), NULL, NULL, NULL);
 
         if (rc != SQLITE_OK) {
-            std::cout << "[FATAL] Failed to migrate database" << std::endl;
+            std::cout << "[FATAL] Failed to migrate database: " << sqlite3_errmsg(db) << std::endl;
             exit(1);
         }
 
@@ -179,8 +179,7 @@ void Database::createMetaTable() {
     const char* sql = R"(
         CREATE TABLE Meta(
             Key TEXT NOT NULL UNIQUE,
-            Value INTEGER NOT NULL,
-            Created	INTEGER DEFAULT (strftime('%s', 'now'))
+            Value INTEGER NOT NULL
         );
         )";
     sqlite3_stmt* stmt;
