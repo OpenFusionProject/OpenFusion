@@ -144,15 +144,14 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
         return loginFail(LoginError::ID_AND_PASSWORD_DO_NOT_MATCH, userLogin, sock);
 
     // is the account banned
-    if (findUser.BannedUntil > getTimestamp())
-    {
+    if (findUser.BannedUntil > getTimestamp()) {
         // send a custom error message
         INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
 
         // ceiling devision
         int64_t remainingDays = (findUser.BannedUntil-getTimestamp()) / 86400 + ((findUser.BannedUntil - getTimestamp()) % 86400 != 0);
 
-        std::string text = "Your account has been banned by game master\nReason: ";
+        std::string text = "Your account has been banned. \nReason: ";
         text += findUser.BanReason;
         text += "\nBan expires in " + std::to_string(remainingDays) + " day";
         if (remainingDays > 1)
@@ -161,7 +160,7 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
         U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
         msg.iDuringTime = 99999999;
         sock->sendPacket((void*)&msg, P_FE2CL_GM_REP_PC_ANNOUNCE, sizeof(sP_FE2CL_GM_REP_PC_ANNOUNCE));
-        // don't send fail packet to softlock sucker's client
+        // don't send fail packet
         return;
     }
 

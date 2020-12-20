@@ -7,7 +7,7 @@ ALTER TABLE RaceResults ADD Time INTEGER NOT NULL;
 INSERT INTO Meta (Key, Value) VALUES ('Created', 0);
 INSERT INTO Meta (Key, Value) VALUES ('LastMigration', strftime('%s', 'now'));
 UPDATE Meta SET Value = (SELECT Created FROM Meta WHERE Key = 'ProtocolVersion') Where Key = 'Created';
--- Get rid of 'Created' Collumn
+-- Get rid of 'Created' Column
 CREATE TABLE Temp(Key TEXT NOT NULL UNIQUE, Value INTEGER NOT NULL);
 INSERT INTO Temp SELECT Key, Value FROM Meta;
 DROP TABLE Meta;
