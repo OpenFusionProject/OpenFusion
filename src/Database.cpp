@@ -16,7 +16,6 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <filesystem>
 
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
     #include "mingw/mingw.mutex.h"
@@ -137,14 +136,13 @@ void Database::checkMetaTable() {
         exit(1);
     } else if (dbVersion < DATABASE_VERSION) {
         // we're gonna migrate; back up the DB
-        try {
-            std::cout << "[INFO] Backing up database" << std::endl;
-            std::filesystem::copy_file(settings::DBPATH, settings::DBPATH + ".old." + std::to_string(dbVersion));
-        }
-        catch (std::filesystem::filesystem_error& e) {
-            std::cout << "[FATAL] Failed to backup database before migration" << std::endl;
-            exit(1);
-        }
+        std::cout << "[INFO] Backing up database" << std::endl;
+        // copy db file over using binary streams
+        std::ifstream  src(settings::DBPATH, std::ios::binary);
+        std::ofstream  dst(settings::DBPATH + ".old." + std::to_string(dbVersion), std::ios::binary);
+        dst << src.rdbuf();
+        src.close();
+        dst.close();
     }
 
     while (dbVersion != DATABASE_VERSION) {
