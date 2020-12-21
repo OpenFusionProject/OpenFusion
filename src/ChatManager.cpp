@@ -719,7 +719,7 @@ void unhideCommand(std::string full, std::vector<std::string>& args, CNSocket* s
 
 void redeemCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     if (args.size() < 2) {
-        ChatManager::sendServerMessage(sock, "/redeem: no code specified");
+        ChatManager::sendServerMessage(sock, "/redeem: No code specified");
         return;
     }
 
@@ -730,34 +730,42 @@ void redeemCommand(std::string full, std::vector<std::string>& args, CNSocket* s
     }
 
     Player* plr = PlayerManager::getPlayer(sock);
-    int slotNum = ItemManager::findFreeSlot(plr);
+    int itemCount = ItemManager::CodeItems[code].size();
+    int slots[4];
 
-    // no space
-    if (slotNum == -1) {
-        ChatManager::sendServerMessage(sock, "/redeem: Inventory full");
-        return;
+    for (int i = 0; i < itemCount; i++) {
+        slots[i] = ItemManager::findFreeSlot(plr);
+        if (slots[i] == -1) {
+            ChatManager::sendServerMessage(sock, "/redeem: Not enough space in inventory");
+
+            // delete any temp items we might have set
+            for (int j = 0; j < i; j++) {
+                plr->Inven[slots[j]] = { 0, 0, 0, 0 }; // empty
+            }
+            return;
+        }
+
+        plr->Inven[slots[i]] = { 999, 999, 999, 0 }; // temp item; overwritten later
     }
+    
+    for (int i = 0; i < itemCount; i++) {
+        std::pair<int32_t, int32_t> item = ItemManager::CodeItems[code][i];
+        INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp);
 
-    std::pair<int32_t, int32_t> item = ItemManager::CodeItems[code];
-    INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp);
+        resp.eIL = 1;
+        resp.iSlotNum = slots[i];
+        resp.Item.iID = item.first;
+        resp.Item.iType = item.second;
+        // I think it is safe? :eyes
+        resp.Item.iOpt = 1;
 
-    resp.eIL = 1;
-    resp.iSlotNum = slotNum;
-    // just in case it's a vehicle
-    if (item.second == 10) {
-        // set time limit: current time + 7days
-        resp.Item.iTimeLimit = getTimestamp() + 604800;
+        // save serverside
+        plr->Inven[resp.iSlotNum] = resp.Item;
+
+        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_GIVE_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC));
     }
-    resp.Item.iID = item.first;
-    resp.Item.iType = item.second;
-    // I think it is safe? :eyes
-    resp.Item.iOpt = 1;
-
-    // save serverside
-    plr->Inven[resp.iSlotNum] = resp.Item;
-
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_GIVE_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC));
-    ChatManager::sendServerMessage(sock, "You have redeemed a code item");
+    std::string msg = itemCount == 1 ? "You have redeemed a code item" : "You have redeemed code items";
+    ChatManager::sendServerMessage(sock, msg);
 }
 
 void ChatManager::init() {

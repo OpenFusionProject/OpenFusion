@@ -16,7 +16,7 @@ std::map<int32_t, std::vector<int>> ItemManager::RarityRatios;
 std::map<int32_t, Crate> ItemManager::Crates;
 // pair Itemset, Rarity -> vector of pointers (map iterators) to records in ItemData
 std::map<std::pair<int32_t, int32_t>, std::vector<std::map<std::pair<int32_t, int32_t>, ItemManager::Item>::iterator>> ItemManager::CrateItems;
-std::map<std::string, std::pair<int32_t, int32_t>> ItemManager::CodeItems;
+std::map<std::string, std::vector<std::pair<int32_t, int32_t>>> ItemManager::CodeItems;
 
 #ifdef ACADEMY
 std::map<int32_t, int32_t> ItemManager::NanoCapsules; // crate id -> nano id

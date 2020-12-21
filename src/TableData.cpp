@@ -578,11 +578,16 @@ void TableData::loadDrops() {
             ItemManager::NanoCapsules[(int)capsule["Crate"]] = (int)capsule["Nano"];
         }
 #endif
-        nlohmann::json codes = dropData["Codes"];
+        nlohmann::json codes = dropData["CodeItems"];
         for (nlohmann::json::iterator _code = codes.begin(); _code != codes.end(); _code++) {
             auto code = _code.value();
+            std::string codeStr = code["Code"];
             std::pair<int32_t, int32_t> item = std::make_pair((int)code["Id"], (int)code["Type"]);
-            ItemManager::CodeItems[code["Code"]] = item;
+
+            if (ItemManager::CodeItems.find(codeStr) == ItemManager::CodeItems.end())
+                ItemManager::CodeItems[codeStr] = std::vector<std::pair<int32_t, int32_t>>();
+
+            ItemManager::CodeItems[codeStr].push_back(item);
         }
 
         std::cout << "[INFO] Loaded " << ItemManager::Crates.size() << " Crates containing "
