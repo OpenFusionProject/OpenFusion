@@ -33,6 +33,8 @@ for:
             Rename-Item -Path "bin/fusion" -newName "$version-fusion"
             Write-Output "Built version $version"
         }
+        Copy-Item -Path "sql" -Destination "bin/sql" -Recurse
+        Copy-Item -Path "config.ini" -Destination "bin"
   artifacts:
     - path: bin
       name: ubuntu20_04-bin-x64
@@ -75,6 +77,8 @@ for:
                 }
                 Rename-Item -Path "bin/$configuration" -newName "$version-$configuration"
                 Write-Output "Built version $version $configuration"
+                Copy-Item -Path "sql" -Destination "bin/$version-$configuration/sql" -Recurse
+                Copy-Item -Path "config.ini" -Destination "bin/$version-$configuration"
             }
         }
   artifacts:
