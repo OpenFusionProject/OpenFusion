@@ -498,8 +498,10 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_NPC_SUMMON* req = (sP_CL2FE_REQ_NPC_SUMMON*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    int limit = NPCData.back()["m_iNpcNumber"];
+
     // permission & sanity check
-    if (plr->accountLevel > 30 || req->iNPCType >= 3314 || req->iNPCCnt > 100)
+    if (plr->accountLevel > 30 || req->iNPCType >= limit || req->iNPCCnt > 100)
         return;
 
     for (int i = 0; i < req->iNPCCnt; i++) {
