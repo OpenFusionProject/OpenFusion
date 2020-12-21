@@ -577,19 +577,27 @@ bool Database::finishTutorial(int playerID, int accountID) {
     const char* sql = R"(
         UPDATE Players SET
             TutorialFlag = 1,
-            Nano1 = 1,
+            Nano1 = ?,
             Quests = ?
         WHERE PlayerID = ? AND AccountID = ? AND TutorialFlag = 0;
         )";
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
-    // save missions nr 1 & 2
     unsigned char questBuffer[128] = { 0 };
+
+#ifndef ACADEMY
+    // save missions nr 1 & 2; equip Buttercup
     questBuffer[0] = 3;
-    sqlite3_bind_blob(stmt, 1, questBuffer, sizeof(questBuffer), NULL);
-    sqlite3_bind_int(stmt, 2, playerID);
-    sqlite3_bind_int(stmt, 3, accountID);
+    sqlite3_bind_int(stmt, 1, 1);
+#else
+    // no, none of that
+    sqlite3_bind_int(stmt, 1, 0);
+#endif
+
+    sqlite3_bind_blob(stmt, 2, questBuffer, sizeof(questBuffer), NULL);
+    sqlite3_bind_int(stmt, 3, playerID);
+    sqlite3_bind_int(stmt, 4, accountID);
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         sqlite3_finalize(stmt);
@@ -599,6 +607,7 @@ bool Database::finishTutorial(int playerID, int accountID) {
 
     sqlite3_finalize(stmt);
 
+#ifndef ACADEMY
     // Lightning Gun
     sql = R"(
         INSERT INTO Inventory
@@ -634,6 +643,7 @@ bool Database::finishTutorial(int playerID, int accountID) {
         sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
         return false;
     }
+#endif
 
     sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
     return true;
