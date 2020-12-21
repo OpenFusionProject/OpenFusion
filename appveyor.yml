@@ -1,8 +1,10 @@
 version: 'openfusion-{branch}-{build}'
 
+build_cloud: GCE us-east1-b n2-standard-8
+
 image:
-  - Visual Studio 2019
-  - Ubuntu2004
+  - GCP-Windows-VS2019
+  - GCP-Linux-Ubuntu1804
 
 platform:
   - x64
@@ -14,7 +16,7 @@ for:
 -
   matrix:
     only:
-      - image: Ubuntu2004
+      - image: GCP-Linux-Ubuntu1804
   build_script:
     - ps: |
         $versions = "104", "728", "1013"
@@ -26,7 +28,7 @@ for:
                 Write-Error "make clean failed for version $version" -ErrorAction Stop
             }
             Write-Output "Building version $version"
-            Invoke-Expression "make PROTOCOL_VERSION=$version"
+            Invoke-Expression "make -j8 PROTOCOL_VERSION=$version"
             if ($LASTEXITCODE -ne "0") {
                 Write-Error "make failed for version $version" -ErrorAction Stop
             }
@@ -37,12 +39,12 @@ for:
         Copy-Item -Path "config.ini" -Destination "bin"
   artifacts:
     - path: bin
-      name: ubuntu20_04-bin-x64
+      name: linux-bin-x64
       type: zip
 -
   matrix:
     only:
-      - image: Visual Studio 2019
+      - image: GCP-Windows-VS2019
   install:
     - cmd: vcpkg install sqlite3:x64-windows
     - cmd: vcpkg integrate install
@@ -71,7 +73,7 @@ for:
 
             foreach ($configuration in $configurations) {
                 Write-Output "Building version $version $configuration"
-                Invoke-Expression "msbuild build\OpenFusion.sln /p:Configuration=$configuration"
+                Invoke-Expression "msbuild -m:8 build\OpenFusion.sln /p:Configuration=$configuration"
                 if ($LASTEXITCODE -ne "0") {
                     Write-Error "msbuild build failed for version $version" -ErrorAction Stop
                 }
@@ -83,5 +85,5 @@ for:
         }
   artifacts:
     - path: bin
-      name: windows-vs2019-bin-x64
+      name: windows-bin-x64
       type: zip
