@@ -462,13 +462,12 @@ void MissionManager::updateFusionMatter(CNSocket* sock, int fusion) {
     if (plr->level == 4 && plr->PCStyle2.iPayzoneFlag == 0)
         return;
 
-    // TODO: lower the player's FM immediately on level up in the Academy
-#ifndef ACADEMY
     // check if it is enough for the nano mission
     int fmNano = AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"];
     if (plr->fusionmatter < fmNano)
         return;
 
+#ifndef ACADEMY
     // check if the nano task is already started
     for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
         TaskData& task = *Tasks[plr->tasks[i]];
@@ -482,6 +481,20 @@ void MissionManager::updateFusionMatter(CNSocket* sock, int fusion) {
     INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_SUCC, response);
     response.iTaskNum = AvatarGrowth[plr->level]["m_iNanoQuestTaskID"];
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
+#else
+    if (plr->level >= 36)
+        return;
+
+    plr->fusionmatter -= (int)MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"];
+    plr->level++;
+
+    INITSTRUCT(sP_FE2CL_REP_PC_CHANGE_LEVEL, response);
+
+    response.iPC_ID = plr->iID;
+    response.iPC_Level = plr->level;
+
+    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+    PlayerManager::sendToViewable(sock, (void*)&response, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
 #endif
 
     // play the beam animation for other players
@@ -541,7 +554,7 @@ void MissionManager::mobKilled(CNSocket *sock, int mobid) {
 
 void MissionManager::saveMission(Player* player, int missionId) {
     // sanity check missionID so we don't get exceptions
-    if (missionId < 0 || missionId>1023) {
+    if (missionId < 0 || missionId > 1023) {
         std::cout << "[WARN] Client submitted invalid missionId: " <<missionId<< std::endl;
         return;
     }
