@@ -17,7 +17,7 @@ for:
       - image: Ubuntu2004
   build_script:
     - ps: |
-        $versions = "104", "728"
+        $versions = "104", "728", "1013"
 
         foreach ($version in $versions) {
             Write-Output "Cleaning old output"
@@ -48,7 +48,7 @@ for:
     - cmd: vcpkg integrate install
   build_script:
     - ps: |
-        $versions = "104", "728"
+        $versions = "104", "728", "1013"
         $configurations = "Release"
         # "Debug" builds are disabled, since we don't really need them
 
