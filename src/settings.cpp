@@ -15,10 +15,18 @@ time_t settings::TIMEOUT = 60000;
 int settings::VIEWDISTANCE = 25600;
 bool settings::SIMULATEMOBS = true;
 
-// default spawn point is Sector V (future)
+// default spawn point
+#ifndef ACADEMY
+// Sector V (future)
 int settings::SPAWN_X = 632032;
 int settings::SPAWN_Y = 187177;
 int settings::SPAWN_Z = -5500;
+#else
+int settings::SPAWN_X = 19835;
+int settings::SPAWN_Y = 108682;
+int settings::SPAWN_Z = 8450;
+#endif
+
 int settings::SPAWN_ANGLE = 130;
 std::string settings::NPCJSON = "tdata/NPCs.json";
 std::string settings::XDTJSON = "tdata/xdt.json";
