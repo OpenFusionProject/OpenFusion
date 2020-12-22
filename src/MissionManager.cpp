@@ -601,7 +601,7 @@ void MissionManager::failInstancedMissions(CNSocket* sock) {
             int failTaskID = task->task["m_iFOutgoingTask"];
             if (failTaskID != 0) {
                 MissionManager::quitTask(sock, taskNum, false);
-                plr->tasks[i] = failTaskID;
+                //plr->tasks[i] = failTaskID; // this causes the client to freak out and send a dupe task
             }
         }
     }
