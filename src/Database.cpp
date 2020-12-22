@@ -1825,8 +1825,4 @@ void Database::postRaceRanking(Database::RaceRanking ranking) {
     }
 
     sqlite3_finalize(stmt);
-    return;
 }
-
-
-

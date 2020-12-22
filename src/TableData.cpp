@@ -547,7 +547,7 @@ void TableData::loadDrops() {
 
             // find the instance data corresponding to the EPID
             int EPMap = -1;
-            for (auto& it = RacingManager::EPData.begin(); it != RacingManager::EPData.end(); it++) {
+            for (auto it = RacingManager::EPData.begin(); it != RacingManager::EPData.end(); it++) {
                 if (it->second.EPID == raceEPID) {
                     EPMap = it->first;
                 }
