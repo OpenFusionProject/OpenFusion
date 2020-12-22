@@ -1,5 +1,4 @@
 #include "Database.hpp"
-#include "Database.hpp"
 #include "CNProtocol.hpp"
 #include "CNStructs.hpp"
 #include "settings.hpp"
@@ -995,13 +994,18 @@ void Database::getPlayer(Player* plr, int id) {
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, id);
 
-    int i = 0;
-    while (sqlite3_step(stmt) == SQLITE_ROW && i < ACTIVE_MISSION_COUNT) {
-        plr->tasks[i] = sqlite3_column_int(stmt, 0);
+    std::set<int> tasksSet; // used to prevent duplicate tasks from loading in
+    for (int i = 0; sqlite3_step(stmt) == SQLITE_ROW && i < ACTIVE_MISSION_COUNT; i++) {
+
+        int taskID = sqlite3_column_int(stmt, 0);
+        if (tasksSet.find(taskID) != tasksSet.end())
+            continue;
+
+        plr->tasks[i] = taskID;
+        tasksSet.insert(taskID);
         plr->RemainingNPCCount[i][0] = sqlite3_column_int(stmt, 1);
         plr->RemainingNPCCount[i][1] = sqlite3_column_int(stmt, 2);
         plr->RemainingNPCCount[i][2] = sqlite3_column_int(stmt, 3);
-        i++;
     }
 
     sqlite3_finalize(stmt);
@@ -1017,7 +1021,7 @@ void Database::getPlayer(Player* plr, int id) {
     sqlite3_bind_int(stmt, 1, id);
     sqlite3_bind_int(stmt, 2, id);
 
-    i = 0;
+    int i = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW && i < 50) {
         int PlayerAId = sqlite3_column_int(stmt, 0);
         int PlayerBId = sqlite3_column_int(stmt, 1);
