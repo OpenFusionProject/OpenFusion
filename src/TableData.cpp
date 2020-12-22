@@ -539,6 +539,52 @@ void TableData::loadDrops() {
         std::cout << "[INFO] Loaded " << ItemManager::Crates.size() << " Crates containing "
                   << itemCount << " items" << std::endl;
 
+        // Racing rewards
+        nlohmann::json racing = dropData["Racing"];
+        for (nlohmann::json::iterator _race = racing.begin(); _race != racing.end(); _race++) {
+            auto race = _race.value();
+            int raceEPID = race["EPID"];
+
+            // find the instance data corresponding to the EPID
+            int EPMap = -1;
+            for (auto& it = RacingManager::EPData.begin(); it != RacingManager::EPData.end(); it++) {
+                if (it->second.EPID == raceEPID) {
+                    EPMap = it->first;
+                }
+            }
+
+            if (EPMap == -1) { // not found
+                char buff[255];
+                sprintf(buff, "EP with ID %d not found", raceEPID);
+                throw TableException(std::string(buff));
+            }
+
+            // time limit isn't stored in the XDT, so we include it in the reward table instead
+            RacingManager::EPData[EPMap].maxTime = race["TimeLimit"];
+
+            // score cutoffs
+            std::vector<int> rankScores;
+            for (nlohmann::json::iterator _rankScore = race["RankScores"].begin(); _rankScore != race["RankScores"].end(); _rankScore++) {
+                rankScores.push_back((int)_rankScore.value());
+            }
+
+            // reward IDs for each rank
+            std::vector<int> rankRewards;
+            for (nlohmann::json::iterator _rankReward = race["Rewards"].begin(); _rankReward != race["Rewards"].end(); _rankReward++) {
+                rankRewards.push_back((int)_rankReward.value());
+            }
+
+            if (rankScores.size() != 5 || rankScores.size() != rankRewards.size()) {
+                char buff[255];
+                sprintf(buff, "Race in EP %d doesn't have exactly 5 score/reward pairs", raceEPID);
+                throw TableException(std::string(buff));
+            }
+
+            RacingManager::EPRewards[raceEPID] = std::make_pair(rankScores, rankRewards);
+        }
+
+        std::cout << "[INFO] Loaded rewards for " << RacingManager::EPRewards.size() << " IZ races" << std::endl;
+
     }
     catch (const std::exception& err) {
         std::cerr << "[FATAL] Malformed drops.json file! Reason:" << err.what() << std::endl;

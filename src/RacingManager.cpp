@@ -9,6 +9,7 @@
 
 std::map<int32_t, EPInfo> RacingManager::EPData;
 std::map<CNSocket*, EPRace> RacingManager::EPRaces;
+std::map<int32_t, std::pair<std::vector<int>, std::vector<int>>> RacingManager::EPRewards;
 
 void RacingManager::init() {
 	REGISTER_SHARD_PACKET(P_CL2FE_REQ_EP_RACE_START, racingStart);

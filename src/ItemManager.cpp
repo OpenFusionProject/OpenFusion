@@ -971,7 +971,7 @@ int ItemManager::getCrateItem(sItemBase& result, int itemSetId, int rarity, int 
     std::pair key = std::make_pair(itemSetId, rarity);
 
     if (CrateItems.find(key) == CrateItems.end()) {
-        std::cout << "[WARN] Item Set ID " << itemSetId << " Rarity " << rarity << " items have not been found" << std::endl;
+        std::cout << "[WARN] Item Set ID " << itemSetId << " Rarity " << rarity << " does not exist" << std::endl;
         return -1;
     }
 
@@ -986,8 +986,7 @@ int ItemManager::getCrateItem(sItemBase& result, int itemSetId, int rarity, int 
     }
 
     if (items.size() == 0) {
-        std::cout << "[WARN] Gender inequality! Set ID " << itemSetId << " Rarity " << rarity << " contains only "
-                  << (playerGender == 2 ? "boys" : "girls") << " items?!" << std::endl;
+        std::cout << "[WARN] Set ID " << itemSetId << " Rarity " << rarity << " contains no valid items" << std::endl;
         return -1;
     }
 
