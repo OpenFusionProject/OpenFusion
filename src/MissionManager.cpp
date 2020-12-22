@@ -18,14 +18,16 @@ void MissionManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_STOP, quitMission);
 }
 
-bool MissionManager::startTask(Player* plr, int TaskID, bool NanoMission) {
+bool MissionManager::startTask(Player* plr, int TaskID) {
     if (MissionManager::Tasks.find(TaskID) == MissionManager::Tasks.end()) {
         std::cout << "[WARN] Player submitted unknown task!?" << std::endl;
         return false;
     }
 
-    // client freaks out if nano mission isn't sent first after reloging, so it's easiest to set it here
-    if (NanoMission && plr->tasks[0] != 0) {
+    TaskData& task = *MissionManager::Tasks[TaskID];
+
+    // client freaks out if nano mission isn't sent first after relogging, so it's easiest to set it here
+    if (task["m_iSTNanoID"] != 0 && plr->tasks[0] != 0) {
             // lets move task0 to different spot
             int moveToSlot = 1;
             for (; moveToSlot < ACTIVE_MISSION_COUNT; moveToSlot++)
@@ -40,7 +42,6 @@ bool MissionManager::startTask(Player* plr, int TaskID, bool NanoMission) {
             }
     }
 
-    TaskData& task = *MissionManager::Tasks[TaskID];
     int i;
     for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
         if (plr->tasks[i] == 0) {
@@ -67,7 +68,7 @@ void MissionManager::taskStart(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_SUCC, response);
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (!startTask(plr, missionData->iTaskNum, false)) {
+    if (!startTask(plr, missionData->iTaskNum)) {
         // TODO: TASK_FAIL?
         response.iTaskNum = missionData->iTaskNum;
         sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
@@ -486,7 +487,7 @@ void MissionManager::updateFusionMatter(CNSocket* sock, int fusion) {
     }
 
     // start the nano mission
-    startTask(plr, AvatarGrowth[plr->level]["m_iNanoQuestTaskID"], true);
+    startTask(plr, AvatarGrowth[plr->level]["m_iNanoQuestTaskID"]);
 
     INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_SUCC, response);
     response.iTaskNum = AvatarGrowth[plr->level]["m_iNanoQuestTaskID"];

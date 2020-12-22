@@ -684,7 +684,7 @@ void lairUnlockCommand(std::string full, std::vector<std::string>& args, CNSocke
     }
 
     INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_SUCC, taskResp);
-    MissionManager::startTask(plr, taskID, false);
+    MissionManager::startTask(plr, taskID);
     taskResp.iTaskNum = taskID;
     taskResp.iRemainTime = 0;
     sock->sendPacket((void*)&taskResp, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
