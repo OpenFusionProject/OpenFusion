@@ -106,7 +106,7 @@ void RacingManager::racingEnd(CNSocket* sock, CNPacketData* data) {
 	postRanking.RingCount = EPRaces[sock].ringCount;
 	postRanking.Score = score;
 	postRanking.Time = timeDiff;
-	postRanking.Timestamp = now;
+	postRanking.Timestamp = getTimestamp();
 	Database::postRaceRanking(postRanking);
 
 	// ...then we get the top ranking, which may or may not be what we just submitted
