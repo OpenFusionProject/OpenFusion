@@ -24,13 +24,20 @@ void RacingManager::racingStart(CNSocket* sock, CNPacketData* data) {
 
 	sP_CL2FE_REQ_EP_RACE_START* req = (sP_CL2FE_REQ_EP_RACE_START*)data->buf;
 
+	if (NPCManager::NPCs.find(req->iStartEcomID) == NPCManager::NPCs.end())
+		return; // starting line agent not found
+
+	int mapNum = MAPNUM(NPCManager::NPCs[req->iStartEcomID]->instanceID);
+	if (EPData.find(mapNum) == EPData.end() || EPData[mapNum].EPID == 0)
+		return; // IZ not found
+
 	// make ongoing race entry
 	EPRace race = { 0, req->iEPRaceMode, req->iEPTicketItemSlotNum, getTime() / 1000 };
 	EPRaces[sock] = race;
 
 	INITSTRUCT(sP_FE2CL_REP_EP_RACE_START_SUCC, resp);
 	resp.iStartTick = 0; // ignored
-	resp.iLimitTime = 60 * 20; // TODO: calculate(?) this properly
+	resp.iLimitTime = EPData[mapNum].maxTime;
 
 	sock->sendPacket((void*)&resp, P_FE2CL_REP_EP_RACE_START_SUCC, sizeof(sP_FE2CL_REP_EP_RACE_START_SUCC));
 }
@@ -44,11 +51,12 @@ void RacingManager::racingGetPod(CNSocket* sock, CNPacketData* data) {
 
 	sP_CL2FE_REQ_EP_GET_RING* req = (sP_CL2FE_REQ_EP_GET_RING*)data->buf;
 
+	// without an anticheat system, we really don't have a choice but to honor the request
 	EPRaces[sock].ringCount++;
 	
 	INITSTRUCT(sP_FE2CL_REP_EP_GET_RING_SUCC, resp);
 
-	resp.iRingLID = req->iRingLID;
+	resp.iRingLID = req->iRingLID; // could be used to check for proximity in the future
 	resp.iRingCount_Get = EPRaces[sock].ringCount;
 
 	sock->sendPacket((void*)&resp, P_FE2CL_REP_EP_GET_RING_SUCC, sizeof(sP_FE2CL_REP_EP_GET_RING_SUCC));
@@ -102,24 +110,34 @@ void RacingManager::racingEnd(CNSocket* sock, CNPacketData* data) {
 	Database::postRaceRanking(postRanking);
 
 	// ...then we get the top ranking, which may or may not be what we just submitted
-	Database::RaceRanking topRankingGlobal = Database::getTopRaceRanking(EPData[mapNum].EPID, -1);
 	Database::RaceRanking topRankingPlayer = Database::getTopRaceRanking(EPData[mapNum].EPID, plr->iID);
 
 	INITSTRUCT(sP_FE2CL_REP_EP_RACE_END_SUCC, resp);
 
-	resp.iEPTopRank = 1; // top score is always 5 stars, since we're doing it relative to first place
+	// get rank scores and rewards
+	std::vector<int>* rankScores = &EPRewards[EPData[mapNum].EPID].first;
+	std::vector<int>* rankRewards = &EPRewards[EPData[mapNum].EPID].second;
+
+	// top ranking
+	int topRank = 0;
+	while (rankScores->at(topRank) > topRankingPlayer.Score)
+		topRank++;
+
+	resp.iEPTopRank = topRank + 1;
 	resp.iEPTopRingCount = topRankingPlayer.RingCount;
 	resp.iEPTopScore = topRankingPlayer.Score;
 	resp.iEPTopTime = topRankingPlayer.Time;
 	
-	resp.iEPRaceMode = EPRaces[sock].mode;
-	if (topRankingGlobal.Score == 0)
-		resp.iEPRank = 5; // don't divide by zero, just give them the single star they deserve
-	else
-		resp.iEPRank = 5 - ((score * 4.0) / topRankingGlobal.Score); // 5 - [0, 4] = [5, 1]
+	// this ranking
+	int rank = 0;
+	while (rankScores->at(rank) > postRanking.Score)
+		rank++;
+
+	resp.iEPRank = rank + 1;
 	resp.iEPRingCnt = postRanking.RingCount;
 	resp.iEPScore = postRanking.Score;
 	resp.iEPRaceTime = postRanking.Time;
+	resp.iEPRaceMode = EPRaces[sock].mode;
 	resp.iEPRewardFM = fm;
 
 	MissionManager::updateFusionMatter(sock, resp.iEPRewardFM);
@@ -132,12 +150,12 @@ void RacingManager::racingEnd(CNSocket* sock, CNPacketData* data) {
 	reward.iSlotNum = ItemManager::findFreeSlot(plr);
 	reward.eIL = 1;
 	sItemBase item;
-	item.iID = 96;
+	item.iID = rankRewards->at(rank); // rank scores and rewards line up
 	item.iType = 0;
 	item.iOpt = 1;
 	reward.sItem = item;
 
-	if (reward.iSlotNum > -1) {
+	if (reward.iSlotNum > -1 && reward.sItem.iID != 0) {
 		resp.RewardItem = reward;
 		plr->Inven[reward.iSlotNum] = item;
 	}
