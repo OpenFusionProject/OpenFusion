@@ -608,9 +608,8 @@ void TableData::loadDrops() {
             }
 
             if (EPMap == -1) { // not found
-                char buff[255];
-                sprintf(buff, "EP with ID %d not found", raceEPID);
-                throw TableException(std::string(buff));
+                std::cout << "[WARN] EP with ID " << raceEPID << " not found, skipping" << std::endl;
+                continue;
             }
 
             // time limit isn't stored in the XDT, so we include it in the reward table instead
