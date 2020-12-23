@@ -3,7 +3,7 @@
 [![AppVeyor](https://ci.appveyor.com/api/projects/status/github/OpenFusionProject/OpenFusion?svg=true)](https://ci.appveyor.com/project/OpenFusionProject/openfusion)
 [![Discord](https://img.shields.io/badge/chat-on%20discord-7289da.svg?logo=discord)](https://discord.gg/DYavckB)
 
-OpenFusion is a reverse-engineered server for FusionFall. It currently primarily targets version `beta-20100104` and has some support for version `beta-20100728` of the original game.
+OpenFusion is a reverse-engineered server for FusionFall. It currently primarily targets version `beta-20100104` and has some support for version `beta-20100728` and ``beta-20111013`` of the original game.
 
 Further documentation pending.
 
@@ -11,15 +11,15 @@ Further documentation pending.
 
 tl;dr:
 
-1. Download the client+server bundle from [here](https://github.com/OpenFusionProject/OpenFusion/releases/download/1.2.1/OpenFusion.zip).
-2. Run `FreeClient/installUnity.bat` once
+1. Download the client+server bundle from [here](https://github.com/OpenFusionProject/OpenFusion/releases/download/1.3/OpenFusionClient-1.3.zip).
+2. Extract it to a folder of your choice.
+3. Run OpenFusionClient.exe
 
-From then on, any time you want to run the "game":
+To host your own server:
 
-3. Run `OpenFusion/winfusion.exe` (optional if you're using the public server)
-4. Run `FreeClient/OpenFusionClient.exe`
-
-Currently the client by default connects to a public server hosted by Cake. Change the loginInfo.php to point to your own server if you want to host your own.
+1. Grab ``OpenFusionServer-1.3-original.zip`` or ``OpenFusionServer-1.3-academy.zip`` from [here](https://github.com/OpenFusionProject/OpenFusion/releases/tag/1.3).
+2. Extract it to a folder of your choice.
+3. Add a new server to the client: the default port is 23000, so the full IP with default settings would be 127.0.0.1:23000.
 
 If you want, [compiled binaries (artifacts) for each new commit can be found on AppVeyor.](https://ci.appveyor.com/project/OpenFusionProject/openfusion)
 
