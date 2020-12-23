@@ -723,7 +723,18 @@ void redeemCommand(std::string full, std::vector<std::string>& args, CNSocket* s
         return;
     }
 
-    std::string  code = args[1];
+    // convert string to all lowercase
+    const char* codeRaw = args[1].c_str();
+    if (args[1].size() > 256) { // prevent overflow
+        ChatManager::sendServerMessage(sock, "/redeem: Code too long");
+        return;
+    }
+
+    char buf[256];
+    for (int i = 0; i < args[1].size(); i++)
+        buf[i] = std::tolower(codeRaw[i]);
+    std::string code(buf, args[1].size());
+
     if (ItemManager::CodeItems.find(code) == ItemManager::CodeItems.end()) {
         ChatManager::sendServerMessage(sock, "/redeem: Unknown code");
         return;
