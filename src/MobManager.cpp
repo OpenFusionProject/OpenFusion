@@ -1172,6 +1172,8 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
         Chunk* chunk = *it;
         for (CNSocket *s : chunk->players) {
             Player *plr = PlayerManager::getPlayer(s);
+            
+            int lvldiff = plr->level - mob->level;
 
             if (plr->HP <= 0)
                 continue;
@@ -1181,7 +1183,7 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
             if (plr->iConditionBitFlag & CSB_BIT_UP_STEALTH)
                 mobRange /= 3;
 
-            if (plr->iSpecialState & (CN_SPECIAL_STATE_FLAG__INVISIBLE|CN_SPECIAL_STATE_FLAG__INVULNERABLE))
+            if (plr->iSpecialState & (CN_SPECIAL_STATE_FLAG__INVISIBLE|CN_SPECIAL_STATE_FLAG__INVULNERABLE) || lvldiff > 10)
                 mobRange = -1;
 
             // height is relevant for aggro distance because of platforming
