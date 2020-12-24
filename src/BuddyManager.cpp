@@ -534,7 +534,8 @@ void BuddyManager::reqBuddyWarp(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    PlayerManager::sendPlayerTo(sock, otherPlr->x, otherPlr->y, otherPlr->z);
+    // otherPlr->instanceID should always be INSTANCE_OVERWORLD at this point
+    PlayerManager::sendPlayerTo(sock, otherPlr->x, otherPlr->y, otherPlr->z, otherPlr->instanceID);
 }
 
 void BuddyManager::emailUpdateCheck(CNSocket* sock, CNPacketData* data) {
