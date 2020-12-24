@@ -559,6 +559,12 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
                 if (otherPlr == nullptr || sockTo == nullptr)
                     continue;
 
+                // save Lair entrance coords for everyone else as well
+                otherPlr->recallX = Warps[warpId].x;
+                otherPlr->recallY = Warps[warpId].y;
+                otherPlr->recallZ = Warps[warpId].z + RESURRECT_HEIGHT;
+                otherPlr->recallInstance = instanceID;
+
                 PlayerManager::sendPlayerTo(sockTo, Warps[warpId].x, Warps[warpId].y, Warps[warpId].z, instanceID);
             }
         }
