@@ -230,7 +230,7 @@ void NanoManager::nanoPotionHandler(CNSocket* sock, CNPacketData* data) {
 
 #pragma region Helper methods
 void NanoManager::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spendfm) {
-    if (nanoID > NANO_COUNT)
+    if (nanoID >= NANO_COUNT)
         return;
 
     Player *plr = PlayerManager::getPlayer(sock);
@@ -308,7 +308,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot, bool silent) {
                 nanoUnbuff(sock, targetData, pwr.bitFlag, pwr.timeBuffID, 0,(SkillTable[skillID].targetType == 3));
     }
 
-    if (nanoID > NANO_COUNT || nanoID < 0)
+    if (nanoID >= NANO_COUNT || nanoID < 0)
         return; // sanity check
 
     plr->activeNano = nanoID;
@@ -343,7 +343,7 @@ void NanoManager::summonNano(CNSocket *sock, int slot, bool silent) {
 }
 
 void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
-    if (skill->iNanoID > NANO_COUNT)
+    if (skill->iNanoID >= NANO_COUNT)
         return;
 
     Player *plr = PlayerManager::getPlayer(sock);
@@ -416,7 +416,7 @@ void NanoManager::setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
 }
 
 void NanoManager::resetNanoSkill(CNSocket* sock, int16_t nanoID) {
-    if (nanoID > NANO_COUNT)
+    if (nanoID >= NANO_COUNT)
         return;
 
     Player *plr = PlayerManager::getPlayer(sock);
