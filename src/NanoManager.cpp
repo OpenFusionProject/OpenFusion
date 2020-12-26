@@ -189,6 +189,8 @@ void NanoManager::nanoRecallHandler(CNSocket* sock, CNPacketData* data) {
 
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(recallData->iGroupMemberID);
+    if (otherPlr == nullptr)
+        return;
 
     if ((int32_t)plr->instanceID == otherPlr->recallInstance)
         PlayerManager::sendPlayerTo(sock, otherPlr->recallX, otherPlr->recallY, otherPlr->recallZ, otherPlr->recallInstance);
