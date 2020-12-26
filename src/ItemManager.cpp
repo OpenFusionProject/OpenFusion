@@ -428,6 +428,9 @@ void ItemManager::itemTradeOfferAcceptHandler(CNSocket* sock, CNPacketData* data
     plr->isTradeConfirm = false;
     plr2->isTradeConfirm = false;
 
+    plr->moneyInTrade = 0;
+    plr2->moneyInTrade = 0;
+
     memset(&plr->Trade, 0, sizeof(plr->Trade));
     memset(&plr2->Trade, 0, sizeof(plr2->Trade));
 
