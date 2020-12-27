@@ -671,7 +671,7 @@ bool doHeal(CNSocket *sock, sSkillResult_Heal_HP *respdata, int i, int32_t targe
         return false;
     }
 
-    int healedAmount = PC_MAXHEALTH(plr->level) * amount / 1500;
+    int healedAmount = PC_MAXHEALTH(plr->level) * amount / 1000;
 
     // do not heal dead players
     if (plr->HP <= 0)
