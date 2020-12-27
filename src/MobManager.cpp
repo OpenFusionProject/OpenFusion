@@ -395,6 +395,16 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
 
             for (int i = 0; i < otherPlayer->groupCnt; i++) {
                 CNSocket* sockTo = PlayerManager::getSockFromID(otherPlayer->groupIDs[i]);
+                if (sockTo == nullptr)
+                    continue;
+
+                Player *otherPlr = PlayerManager::getPlayer(sockTo);
+
+                // only contribute to group members' kills if they're close enough
+                int dist = std::hypot(plr->x - otherPlr->x + 1, plr->y - otherPlr->y + 1);
+                if (dist > 5000)
+                    continue;
+
                 giveReward(sockTo, mob);
                 MissionManager::mobKilled(sockTo, mob->appearanceData.iNPCType);
             }
