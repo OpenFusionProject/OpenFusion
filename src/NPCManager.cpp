@@ -531,6 +531,9 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
     if (Warps.find(warpId) == Warps.end())
         return;
 
+    // remove the player's vehicle
+    plr->iPCState &= ~8;
+
     // std::cerr << "Warped to Map Num:" << Warps[warpId].instanceID << " NPC ID " << Warps[warpId].npcID << std::endl;
     if (Warps[warpId].isInstance) {
         uint64_t instanceID = Warps[warpId].instanceID;
@@ -564,6 +567,9 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
                 otherPlr->recallY = Warps[warpId].y;
                 otherPlr->recallZ = Warps[warpId].z + RESURRECT_HEIGHT;
                 otherPlr->recallInstance = instanceID;
+
+                // remove their vehicle if they're on one
+                otherPlr->iPCState &= ~8;
 
                 PlayerManager::sendPlayerTo(sockTo, Warps[warpId].x, Warps[warpId].y, Warps[warpId].z, instanceID);
             }
