@@ -73,7 +73,7 @@ for:
 
             foreach ($configuration in $configurations) {
                 Write-Output "Building version $version $configuration"
-                Invoke-Expression "msbuild -m:8 build\OpenFusion.sln /p:Configuration=$configuration"
+                Invoke-Expression "msbuild build\OpenFusion.sln /maxcpucount:8 /p:BuildInParallel=true /p:CL_MPCount=8 /p:UseMultiToolTask=true /p:Configuration=$configuration"
                 if ($LASTEXITCODE -ne "0") {
                     Write-Error "msbuild build failed for version $version" -ErrorAction Stop
                 }
