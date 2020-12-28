@@ -792,6 +792,16 @@ void redeemCommand(std::string full, std::vector<std::string>& args, CNSocket* s
     ChatManager::sendServerMessage(sock, msg);
 }
 
+void unwarpableCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player *plr = PlayerManager::getPlayer(sock);
+    plr->unwarpable = true;
+}
+
+void warpableCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player *plr = PlayerManager::getPlayer(sock);
+    plr->unwarpable = false;
+}
+
 void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
@@ -824,6 +834,8 @@ void ChatManager::init() {
     registerCommand("lair", 50, lairUnlockCommand, "get the required mission for the nearest fusion lair");
     registerCommand("hide", 100, hideCommand, "hide yourself from the global player map");
     registerCommand("unhide", 100, unhideCommand, "un-hide yourself from the global player map");
+    registerCommand("unwarpable", 100, unwarpableCommand, "prevent buddies from warping to you");
+    registerCommand("warpable", 100, warpableCommand, "re-allow buddies to warp to you");
     registerCommand("redeem", 100, redeemCommand, "redeem a code item");
 }
 

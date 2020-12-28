@@ -74,6 +74,7 @@ struct Player {
 
     bool notify;
     bool hidden;
+    bool unwarpable;
 
     bool buddiesSynced;
     int64_t buddyIDs[50];

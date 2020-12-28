@@ -528,6 +528,10 @@ void BuddyManager::reqBuddyWarp(CNSocket* sock, CNPacketData* data) {
     if (otherPlr->onMonkey)
         goto fail;
 
+    // does the player disallow warping?
+    if (otherPlr->unwarpable)
+        goto fail;
+
     // otherPlr->instanceID should always be INSTANCE_OVERWORLD at this point
     PlayerManager::sendPlayerTo(sock, otherPlr->x, otherPlr->y, otherPlr->z, otherPlr->instanceID);
     return;
