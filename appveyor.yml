@@ -39,7 +39,7 @@ for:
         Copy-Item -Path "config.ini" -Destination "bin"
   artifacts:
     - path: bin
-      name: linux-bin-x64
+      name: ubuntu18_04-bin-x64
       type: zip
 -
   matrix:
@@ -85,5 +85,5 @@ for:
         }
   artifacts:
     - path: bin
-      name: windows-bin-x64
+      name: windows-vs2019-bin-x64
       type: zip
