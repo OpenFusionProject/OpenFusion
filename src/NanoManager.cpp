@@ -192,6 +192,14 @@ void NanoManager::nanoRecallHandler(CNSocket* sock, CNPacketData* data) {
     if (otherPlr == nullptr)
         return;
 
+    // ensure the group member is still in the same IZ
+    if (otherPlr->instanceID != plr->instanceID)
+        return;
+
+    // do not allow hypothetical recall points in lairs to mess with the respawn logic
+    if (PLAYERID(plr->instanceID) != 0)
+        return;
+
     if ((int32_t)plr->instanceID == otherPlr->recallInstance)
         PlayerManager::sendPlayerTo(sock, otherPlr->recallX, otherPlr->recallY, otherPlr->recallZ, otherPlr->recallInstance);
     else {
