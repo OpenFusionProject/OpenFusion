@@ -8,6 +8,7 @@
 #include "TableData.hpp"
 #include "ChatManager.hpp"
 #include "GroupManager.hpp"
+#include "RacingManager.hpp"
 
 #include <cmath>
 #include <algorithm>
@@ -611,8 +612,13 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
         plr->instanceID = INSTANCE_OVERWORLD;
         MissionManager::failInstancedMissions(sock); // fail any instanced missions
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
+
         ChunkManager::updatePlayerChunk(sock, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
         PlayerManager::updatePlayerPosition(sock, resp.iX, resp.iY, resp.iZ, INSTANCE_OVERWORLD, plr->angle);
+
+        // remove the player's ongoing race, if any
+        if (RacingManager::EPRaces.find(sock) != RacingManager::EPRaces.end())
+            RacingManager::EPRaces.erase(sock);
     }
 }
 
