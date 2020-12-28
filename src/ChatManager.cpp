@@ -371,10 +371,23 @@ void instanceCommand(std::string full, std::vector<std::string>& args, CNSocket*
     // move player to specified instance
     // validate instance ID
     char* instanceS;
-    int instance = std::strtol(args[1].c_str(), &instanceS, 10);
+    uint64_t instance = std::strtoll(args[1].c_str(), &instanceS, 10);
     if (*instanceS) {
         ChatManager::sendServerMessage(sock, "[INST] Invalid instance ID: " + args[1]);
         return;
+    }
+
+    if (args.size() >= 3) {
+        char* playeridS;
+        uint64_t playerid = std::strtoll(args[2].c_str(), &playeridS, 10);
+
+        if (playerid != 0) {
+            instance |= playerid << 32ULL;
+            ChunkManager::createInstance(instance);
+
+            // a precaution
+            plr->recallInstance = 0;
+        }
     }
 
     PlayerManager::sendPlayerTo(sock, plr->x, plr->y, plr->z, instance);
