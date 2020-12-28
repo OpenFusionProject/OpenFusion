@@ -505,6 +505,7 @@ void BuddyManager::reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
 void BuddyManager::reqBuddyWarp(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_BUDDY_WARP))
         return; // malformed packet
+    Player *plr = PlayerManager::getPlayer(sock);
 
     sP_CL2FE_REQ_PC_BUDDY_WARP* pkt = (sP_CL2FE_REQ_PC_BUDDY_WARP*)data->buf;
 
@@ -515,27 +516,27 @@ void BuddyManager::reqBuddyWarp(CNSocket* sock, CNPacketData* data) {
     if (otherPlr == nullptr)
         return; // buddy offline
 
-    if (otherPlr->instanceID != INSTANCE_OVERWORLD) {
-        // player is instanced; no warp allowed
-        INITSTRUCT(sP_FE2CL_REP_PC_BUDDY_WARP_FAIL, resp);
-        resp.iBuddyPCUID = pkt->iBuddyPCUID;
-        resp.iErrorCode = 0;
-        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BUDDY_WARP_FAIL, sizeof(sP_FE2CL_REP_PC_BUDDY_WARP_FAIL));
-        return;
-    }
+    // if the player is instanced; no warp allowed
+    if (otherPlr->instanceID != INSTANCE_OVERWORLD)
+        goto fail;
 
-    Player *plr = PlayerManager::getPlayer(sock);
-    if (otherPlr->PCStyle2.iPayzoneFlag != plr->PCStyle2.iPayzoneFlag) {
-        // players are not at the same point in time
-        INITSTRUCT(sP_FE2CL_REP_PC_BUDDY_WARP_FAIL, resp);
-        resp.iBuddyPCUID = pkt->iBuddyPCUID;
-        resp.iErrorCode = 0;
-        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BUDDY_WARP_FAIL, sizeof(sP_FE2CL_REP_PC_BUDDY_WARP_FAIL));
-        return;
-    }
+    // check if the players are at the same point in time (or in the training area or not)
+    if (otherPlr->PCStyle2.iPayzoneFlag != plr->PCStyle2.iPayzoneFlag)
+        goto fail;
+
+    // do not warp to players on monkeys
+    if (otherPlr->onMonkey)
+        goto fail;
 
     // otherPlr->instanceID should always be INSTANCE_OVERWORLD at this point
     PlayerManager::sendPlayerTo(sock, otherPlr->x, otherPlr->y, otherPlr->z, otherPlr->instanceID);
+    return;
+
+fail:
+    INITSTRUCT(sP_FE2CL_REP_PC_BUDDY_WARP_FAIL, resp);
+    resp.iBuddyPCUID = pkt->iBuddyPCUID;
+    resp.iErrorCode = 0;
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BUDDY_WARP_FAIL, sizeof(sP_FE2CL_REP_PC_BUDDY_WARP_FAIL));
 }
 
 void BuddyManager::emailUpdateCheck(CNSocket* sock, CNPacketData* data) {
