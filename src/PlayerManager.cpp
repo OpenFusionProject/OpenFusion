@@ -137,7 +137,8 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
     if (I != INSTANCE_OVERWORLD) {
         INITSTRUCT(sP_FE2CL_INSTANCE_MAP_INFO, pkt);
         pkt.iInstanceMapNum = (int32_t)MAPNUM(I); // lower 32 bits are mapnum
-        if (RacingManager::EPData.find(pkt.iInstanceMapNum) != RacingManager::EPData.end()) {
+        if (I != fromInstance // do not retransmit MAP_INFO on recall
+        && RacingManager::EPData.find(pkt.iInstanceMapNum) != RacingManager::EPData.end()) {
             EPInfo* ep = &RacingManager::EPData[pkt.iInstanceMapNum];
             pkt.iEP_ID = ep->EPID;
             pkt.iMapCoordX_Min = ep->zoneX * 51200;
@@ -146,8 +147,6 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
             pkt.iMapCoordY_Max = (ep->zoneY + 1) * 51200;
             pkt.iMapCoordZ_Min = INT32_MIN;
             pkt.iMapCoordZ_Max = INT32_MAX;
-        } else {
-            std::cout << "[WARN] Map number " << pkt.iInstanceMapNum << " unknown\n";
         }
         sock->sendPacket((void*)&pkt, P_FE2CL_INSTANCE_MAP_INFO, sizeof(sP_FE2CL_INSTANCE_MAP_INFO));
     } else {
