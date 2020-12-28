@@ -6,6 +6,7 @@
 #include "MissionManager.hpp"
 #include "GroupManager.hpp"
 #include "TransportManager.hpp"
+#include "RacingManager.hpp"
 
 #include <cmath>
 #include <limits.h>
@@ -1188,7 +1189,8 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
 
             int mobRange = mob->sightRange;
 
-            if (plr->iConditionBitFlag & CSB_BIT_UP_STEALTH)
+            if (plr->iConditionBitFlag & CSB_BIT_UP_STEALTH
+            || RacingManager::EPRaces.find(s) != RacingManager::EPRaces.end())
                 mobRange /= 3;
 
             if (plr->iSpecialState & (CN_SPECIAL_STATE_FLAG__INVISIBLE|CN_SPECIAL_STATE_FLAG__INVULNERABLE))
