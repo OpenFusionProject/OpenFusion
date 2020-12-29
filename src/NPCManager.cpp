@@ -532,7 +532,7 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
     if (Warps.find(warpId) == Warps.end())
         return;
 
-    if (plr->iPCState | 8) {
+    if (plr->iPCState & 8) {
         // remove the player's vehicle
         plr->iPCState &= ~8;
 
@@ -582,7 +582,7 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
                 otherPlr->recallInstance = instanceID;
 
                 // remove their vehicle if they're on one
-                if (otherPlr->iPCState | 8) {
+                if (otherPlr->iPCState & 8) {
                     // remove the player's vehicle
                     otherPlr->iPCState &= ~8;
 

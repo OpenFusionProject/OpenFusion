@@ -101,10 +101,6 @@ void PlayerManager::removePlayer(CNSocket* key) {
             it++;
     }
 
-    // remove the player's ongoing race, if any
-    if (RacingManager::EPRaces.find(key) != RacingManager::EPRaces.end())
-        RacingManager::EPRaces.erase(key);
-
     std::cout << players.size() << " players" << std::endl;
 }
 
@@ -175,8 +171,8 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
     // post-warp: check if the source instance has no more players in it and delete it if so
     ChunkManager::destroyInstanceIfEmpty(fromInstance);
 
-    // clean up EPRaces if we were likely in an IZ
-    if (fromInstance != INSTANCE_OVERWORLD
+    // clean up EPRaces if we were likely in an IZ and left
+    if (fromInstance != INSTANCE_OVERWORLD && fromInstance != I
     && RacingManager::EPRaces.find(sock) != RacingManager::EPRaces.end())
         RacingManager::EPRaces.erase(sock);
 }
