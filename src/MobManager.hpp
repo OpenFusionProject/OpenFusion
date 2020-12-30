@@ -187,6 +187,7 @@ namespace MobManager {
     int8_t addBullet(Player* plr, bool isGrenade);
 
     void followToCombat(Mob *mob);
+    void groupRetreat(Mob *mob);
     void useAbilities(Mob *mob, time_t currTime);
     void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, int style);
 }

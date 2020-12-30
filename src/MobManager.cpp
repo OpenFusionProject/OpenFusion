@@ -147,8 +147,11 @@ void MobManager::npcAttackPc(Mob *mob, time_t currTime) {
     if (plr->HP <= 0) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        if (!aggroCheck(mob, currTime))
+        if (!aggroCheck(mob, currTime)) {
             clearDebuff(mob);
+            if (mob->groupLeader != 0)
+                groupRetreat(mob);
+        }
     }
 }
 
@@ -513,8 +516,11 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
     if (PlayerManager::players.find(mob->target) == PlayerManager::players.end()) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        if (!aggroCheck(mob, currTime))
+        if (!aggroCheck(mob, currTime)) {
             clearDebuff(mob);
+            if (mob->groupLeader != 0)
+                groupRetreat(mob);
+        }
         return;
     }
 
@@ -525,8 +531,11 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
      || (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE)) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        if (!aggroCheck(mob, currTime))
+        if (!aggroCheck(mob, currTime)) {
             clearDebuff(mob);
+            if (mob->groupLeader != 0)
+                groupRetreat(mob);
+        }
         return;
     }
 
@@ -635,6 +644,8 @@ void MobManager::combatStep(Mob *mob, time_t currTime) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
         clearDebuff(mob);
+        if (mob->groupLeader != 0)
+            groupRetreat(mob);
     }
 }
 
@@ -1466,6 +1477,30 @@ void MobManager::followToCombat(Mob *mob) {
     }
 }
 
+void MobManager::groupRetreat(Mob *mob) {
+    if (Mobs.find(mob->groupLeader) != Mobs.end()) {
+        Mob* leadMob = Mobs[mob->groupLeader];
+        for (int i = 0; i < 4; i++) {
+            if (leadMob->groupMember[i] == 0)
+                break;
+
+            if (Mobs.find(leadMob->groupMember[i]) == Mobs.end()) {
+                std::cout << "[WARN] roamingStep: leader can't find a group member!" << std::endl;
+                continue;
+            }
+            Mob* followerMob = Mobs[leadMob->groupMember[i]];
+
+            followerMob->target = nullptr;
+            followerMob->state = MobState::RETREAT;
+            clearDebuff(followerMob);
+        }
+
+        leadMob->target = nullptr;
+        leadMob->state = MobState::RETREAT;
+        clearDebuff(leadMob);
+    }
+}
+
 void MobManager::useAbilities(Mob *mob, time_t currTime) {
     /*
      * targetData approach
@@ -1666,8 +1701,11 @@ void MobManager::dealCorruption(Mob *mob, std::vector<int> targetData, int skill
         if (plr->HP <= 0) {
             mob->target = nullptr;
             mob->state = MobState::RETREAT;
-            if (!aggroCheck(mob, getTime()))
+            if (!aggroCheck(mob, getTime())) {
                 clearDebuff(mob);
+                if (mob->groupLeader != 0)
+                    groupRetreat(mob);
+            }
         }
     }
 
@@ -1722,8 +1760,11 @@ bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, in
     if (plr->HP <= 0) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        if (!aggroCheck(mob, getTime()))
+        if (!aggroCheck(mob, getTime())) {
             clearDebuff(mob);
+            if (mob->groupLeader != 0)
+                groupRetreat(mob);
+        }
     }
 
     return true;
@@ -1772,8 +1813,11 @@ bool doDamage(Mob *mob, sSkillResult_Damage *respdata, int i, int32_t targetID, 
     if (plr->HP <= 0) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        if (!aggroCheck(mob, getTime()))
+        if (!aggroCheck(mob, getTime())) {
             clearDebuff(mob);
+            if (mob->groupLeader != 0)
+                groupRetreat(mob);
+        }
     }
 
     return true;
@@ -1826,8 +1870,11 @@ bool doLeech(Mob *mob, sSkillResult_Heal_HP *healdata, int i, int32_t targetID, 
     if (plr->HP <= 0) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        if (!aggroCheck(mob, getTime()))
+        if (!aggroCheck(mob, getTime())) {
             clearDebuff(mob);
+            if (mob->groupLeader != 0)
+                groupRetreat(mob);
+        }
     }
 
     return true;
