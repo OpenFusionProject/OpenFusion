@@ -265,20 +265,20 @@ void MissionManager::quitTask(CNSocket* sock, int32_t taskNum, bool manual) {
     TaskData& task = *Tasks[taskNum];
 
     // clean up quest items
-    for (i = 0; i < 3; i++) {
-        if (task["m_iSUItem"][i] == 0 && task["m_iCSUItemID"][i] == 0)
-            continue;
+    if (manual) {
+        for (i = 0; i < 3; i++) {
+            if (task["m_iSUItem"][i] == 0 && task["m_iCSUItemID"][i] == 0)
+                continue;
 
-        /*
-         * It's ok to do this only server-side, because the server decides which
-         * slot later items will be placed in.
-         */
-        for (int j = 0; j < AQINVEN_COUNT; j++)
-            if (plr->QInven[j].iID == task["m_iSUItem"][i] || plr->QInven[j].iID == task["m_iCSUItemID"][i] || plr->QInven[j].iID == task["m_iSTItemID"][i])
-                memset(&plr->QInven[j], 0, sizeof(sItemBase));
-    }
-
-    if (!manual) {
+            /*
+             * It's ok to do this only server-side, because the server decides which
+             * slot later items will be placed in.
+             */
+            for (int j = 0; j < AQINVEN_COUNT; j++)
+                if (plr->QInven[j].iID == task["m_iSUItem"][i] || plr->QInven[j].iID == task["m_iCSUItemID"][i] || plr->QInven[j].iID == task["m_iSTItemID"][i])
+                    memset(&plr->QInven[j], 0, sizeof(sItemBase));
+        }
+    } else {
         INITSTRUCT(sP_FE2CL_REP_PC_TASK_END_FAIL, failResp);
         failResp.iErrorCode = 1;
         failResp.iTaskNum = taskNum;
@@ -308,6 +308,7 @@ int MissionManager::findQSlot(Player *plr, int id) {
 }
 
 void MissionManager::dropQuestItem(CNSocket *sock, int task, int count, int id, int mobid) {
+    std::cout << "Altered item id " << id << " by " << count << " for task id " << task << std::endl;
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
     assert(resplen < CN_PACKET_BUFFER_SIZE);
     // we know it's only one trailing struct, so we can skip full validation
