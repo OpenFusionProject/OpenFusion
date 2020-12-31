@@ -23,7 +23,7 @@ namespace ItemManager {
     };
     struct Item {
         bool tradeable, sellable;
-        int buyPrice, sellPrice, stackSize, level, rarity, pointDamage, groupDamage, defense, gender; // TODO: implement more as needed
+        int buyPrice, sellPrice, stackSize, level, rarity, pointDamage, groupDamage, fireRate, defense, gender; // TODO: implement more as needed
     };
     // hopefully this is fine since it's never modified after load
     extern std::map<std::pair<int32_t, int32_t>, Item> ItemData; // <id, type> -> data

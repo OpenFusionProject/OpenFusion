@@ -62,6 +62,21 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         return;
     }
 
+    // rapid fire anti-cheat
+    time_t currTime = getTime();
+    if (currTime - plr->lastShot < plr->fireRate * 80)
+        plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // gain suspicion for rapid firing
+    else if (currTime - plr->lastShot < plr->fireRate * 180 && plr->suspicionRating > 0)
+        plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // lose suspicion for delayed firing
+
+    plr->lastShot = currTime;
+
+    if (pkt->iNPCCnt > 3) // 3+ targets should never be possible
+        plr->suspicionRating += 10000;
+
+    if (plr->suspicionRating > 10000) // kill the socket when the player is too suspicious
+        sock->kill();
+
     // initialize response struct
     size_t resplen = sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC) + pkt->iNPCCnt * sizeof(sAttackResult);
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
@@ -1388,6 +1403,18 @@ void MobManager::projectileHit(CNSocket* sock, CNPacketData* data) {
         std::cout << "[WARN] bad sP_FE2CL_PC_GRENADE_STYLE_HIT packet size\n";
         return;
     }
+
+    // rapid fire anti-cheat
+    time_t currTime = getTime();
+    if (currTime - plr->lastShot < plr->fireRate * 80)
+        plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // gain suspicion for rapid firing
+    else if (currTime - plr->lastShot < plr->fireRate * 180 && plr->suspicionRating > 0)
+        plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // lose suspicion for delayed firing
+
+    plr->lastShot = currTime;
+
+    if (plr->suspicionRating > 10000) // kill the socket when the player is too suspicious
+        sock->kill();
 
     /*
      * initialize response struct

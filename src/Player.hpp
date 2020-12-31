@@ -57,6 +57,7 @@ struct Player {
 
     int pointDamage;
     int groupDamage;
+    int fireRate;
     int defense;
 
     int64_t aQuestFlag[16];
@@ -85,4 +86,7 @@ struct Player {
     ChunkPos chunkPos;
     std::set<Chunk*>* viewableChunks;
     time_t lastHeartbeat;
+
+    int suspicionRating;
+    time_t lastShot;
 };
