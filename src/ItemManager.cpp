@@ -1074,6 +1074,7 @@ void ItemManager::setItemStats(Player* plr) {
 
     plr->pointDamage = 8 + plr->level * 2;
     plr->groupDamage = 8 + plr->level * 2;
+    plr->fireRate = 0;
     plr->defense = 16 + plr->level * 4;
 
     Item* itemStatsDat;
@@ -1086,6 +1087,7 @@ void ItemManager::setItemStats(Player* plr) {
         }
         plr->pointDamage += itemStatsDat->pointDamage;
         plr->groupDamage += itemStatsDat->groupDamage;
+        plr->fireRate += itemStatsDat->fireRate;
         plr->defense += itemStatsDat->defense;
     }
 }

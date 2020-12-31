@@ -157,6 +157,7 @@ void TableData::init() {
                     itemData.level = item["m_iMinReqLev"];
                     itemData.pointDamage = item["m_iPointRat"];
                     itemData.groupDamage = item["m_iGroupRat"];
+                    itemData.fireRate = item["m_iDelayTime"];
                     itemData.defense = item["m_iDefenseRat"];
                     itemData.gender = item["m_iReqSex"];
                 } else {
