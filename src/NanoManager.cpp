@@ -600,16 +600,18 @@ bool doDebuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t target
 
 bool doBuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
     Player *plr = nullptr;
+    CNSocket *sockTo = nullptr;
 
     for (auto& pair : PlayerManager::players) {
         if (pair.second->iID == targetID) {
+            sockTo = pair.first;
             plr = pair.second;
             break;
         }
     }
 
     // player not found
-    if (plr == nullptr) {
+    if (sockTo == nullptr || plr == nullptr) {
         std::cout << "[WARN] doBuff: player ID not found" << std::endl;
         return false;
     }
@@ -631,7 +633,7 @@ bool doBuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t targetID
         if (amount > 0)
             pkt.TimeBuff.iValue = amount;
 
-        sock->sendPacket((void*)&pkt, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+        sockTo->sendPacket((void*)&pkt, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
     }
 
     return true;
