@@ -36,9 +36,6 @@ void GroupManager::requestGroup(CNSocket* sock, CNPacketData* data) {
     if (otherPlr == nullptr)
         return;
 
-    if (otherPlr == nullptr)
-        return;
-
     // fail if the group is full or the other player is already in a group
     if (plr->groupCnt > 1 || plr->iIDGroup != plr->iID || otherPlr->groupCnt >= 4) {
         INITSTRUCT(sP_FE2CL_PC_GROUP_INVITE_FAIL, resp);
