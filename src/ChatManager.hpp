@@ -21,6 +21,7 @@ namespace ChatManager {
     extern std::vector<std::string> dump;
     void init();
 
+    bool runCmd(std::string full, CNSocket* sock);
     void registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help = "");
 
     void chatHandler(CNSocket* sock, CNPacketData* data);

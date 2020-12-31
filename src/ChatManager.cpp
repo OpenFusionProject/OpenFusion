@@ -24,7 +24,7 @@ std::vector<std::string> parseArgs(std::string full) {
     return std::vector<std::string>(begin, end);
 }
 
-bool runCmd(std::string full, CNSocket* sock) {
+bool ChatManager::runCmd(std::string full, CNSocket* sock) {
     std::vector<std::string> args = parseArgs(full);
     std::string cmd = args[0].substr(1, args[0].size() - 1);
 
@@ -851,14 +851,18 @@ void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     std::string fullChat = sanitizeText(U16toU8(chat->szFreeChat));
-
-    std::cout << "[FreeChat] " << PlayerManager::getPlayerName(plr, false) << ": " << fullChat << std::endl;
-    dump.push_back(PlayerManager::getPlayerName(plr, true) + ": " + fullChat);
-
     if (fullChat.length() > 1 && fullChat[0] == CMD_PREFIX) { // PREFIX
         runCmd(fullChat, sock);
         return;
     }
+
+    if (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__MUTE_FREECHAT)
+        return;
+
+    std::string logLine = "[FreeChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
+
+    std::cout << logLine << std::endl;
+    dump.push_back(logLine);
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC, resp);
@@ -881,9 +885,10 @@ void ChatManager::menuChatHandler(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     std::string fullChat = sanitizeText(U16toU8(chat->szFreeChat));
+    std::string logLine = "[MenuChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
 
-    std::cout << "[MenuChat] " << PlayerManager::getPlayerName(plr, false) << ": " << fullChat << std::endl;
-    dump.push_back(PlayerManager::getPlayerName(plr, true) + ": " + fullChat);
+    std::cout << logLine << std::endl;
+    dump.push_back(logLine);
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, resp);
@@ -959,9 +964,10 @@ void ChatManager::announcementHandler(CNSocket* sock, CNPacketData* data) {
     default:
         break;
     }
-    
-    std::cout << "[Bcast " << announcement->iAreaType << "] " << PlayerManager::getPlayerName(plr, false) << ": " << U16toU8(msg.szAnnounceMsg) << std::endl;
-    dump.push_back("**" + PlayerManager::getPlayerName(plr, true) + ": " + U16toU8(msg.szAnnounceMsg) + "**");
+
+    std::string logLine = "[Bcast " + std::to_string(announcement->iAreaType) + "] " + PlayerManager::getPlayerName(plr, false) + ": " + U16toU8(msg.szAnnounceMsg);
+    std::cout << logLine << std::endl;
+    dump.push_back("**" + logLine + "**");
 }
 
 // we only allow plain ascii, at least for now

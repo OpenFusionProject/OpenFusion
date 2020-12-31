@@ -214,7 +214,7 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
         sock->sendPacket((void*)&*it, P_LS2CL_REP_CHAR_INFO, sizeof(sP_LS2CL_REP_CHAR_INFO));
 
     DEBUGLOG(
-        std::string message = "Login Server: Loaded " + std::to_string(resp.iCharCount) + "character";
+        std::string message = "Login Server: Loaded " + std::to_string(resp.iCharCount) + " character";
         if ((int)resp.iCharCount > 1)
             message += "s";
         std::cout << message << std::endl;

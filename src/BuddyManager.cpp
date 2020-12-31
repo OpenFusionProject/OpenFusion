@@ -138,20 +138,13 @@ void BuddyManager::reqBuddyByName(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_REP_PC_FIND_NAME_MAKE_BUDDY_SUCC, resp);
 
-    CNSocket* otherSock = nullptr;
-
-    for (auto& pair : PlayerManager::players) {
-        Player* plr = pair.second;
-        if (strcmp(U16toU8(plr->PCStyle.szFirstName).c_str(), U16toU8(pkt->szFirstName).c_str()) == 0
-            && strcmp(U16toU8(plr->PCStyle.szLastName).c_str(), U16toU8(pkt->szLastName).c_str()) == 0
-            && !playerHasBuddyWithID(plrReq, plr->iID)) {
-            otherSock = pair.first;
-            break;
-        }
-    }
-
+    CNSocket* otherSock = PlayerManager::getSockFromName(U16toU8(pkt->szFirstName), U16toU8(pkt->szLastName));
     if (otherSock == nullptr)
         return; // no player found
+
+    Player *otherPlr = PlayerManager::getPlayer(otherSock);
+    if (playerHasBuddyWithID(plrReq, otherPlr->iID))
+        return;
 
     resp.iPCUID = plrReq->PCStyle.iPC_UID;
     resp.iNameCheckFlag = plrReq->PCStyle.iNameCheck;
@@ -159,7 +152,6 @@ void BuddyManager::reqBuddyByName(CNSocket* sock, CNPacketData* data) {
     memcpy(resp.szFirstName, plrReq->PCStyle.szFirstName, sizeof(plrReq->PCStyle.szFirstName));
     memcpy(resp.szLastName, plrReq->PCStyle.szLastName, sizeof(plrReq->PCStyle.szLastName));
     otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_FIND_NAME_MAKE_BUDDY_SUCC, sizeof(sP_FE2CL_REP_PC_FIND_NAME_MAKE_BUDDY_SUCC));
-
 }
 
 // Accepting buddy request
@@ -317,11 +309,26 @@ void BuddyManager::reqBuddyFreechat(CNSocket* sock, CNPacketData* data) {
     if (otherSock == nullptr)
         return; // buddy offline
 
+    Player *otherPlr = PlayerManager::getPlayer(otherSock);
+
     resp.iFromPCUID = plr->PCStyle.iPC_UID;
     resp.iToPCUID = pkt->iBuddyPCUID;
     resp.iEmoteCode = pkt->iEmoteCode;
 
     std::string fullChat = ChatManager::sanitizeText(U16toU8(pkt->szFreeChat));
+
+    if (fullChat.length() > 1 && fullChat[0] == CMD_PREFIX) { // PREFIX
+        ChatManager::runCmd(fullChat, sock);
+        return;
+    }
+
+    if (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__MUTE_FREECHAT)
+        return;
+
+    std::string logLine = "[BuddyChat] " + PlayerManager::getPlayerName(plr) + " (to " + PlayerManager::getPlayerName(otherPlr) + "): " + fullChat;
+    std::cout << logLine << std::endl;
+    ChatManager::dump.push_back(logLine);
+
     U8toU16(fullChat, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC)); // confirm send to sender
@@ -343,11 +350,18 @@ void BuddyManager::reqBuddyMenuchat(CNSocket* sock, CNPacketData* data) {
     if (otherSock == nullptr)
         return; // buddy offline
 
+    Player *otherPlr = PlayerManager::getPlayer(otherSock);
+
     resp.iFromPCUID = plr->PCStyle.iPC_UID;
     resp.iToPCUID = pkt->iBuddyPCUID;
     resp.iEmoteCode = pkt->iEmoteCode;
     
     std::string fullChat = ChatManager::sanitizeText(U16toU8(pkt->szFreeChat));
+    std::string logLine = "[BuddyMenuChat] " + PlayerManager::getPlayerName(plr) + " (to " + PlayerManager::getPlayerName(otherPlr) + "): " + fullChat;
+
+    std::cout << logLine << std::endl;
+    ChatManager::dump.push_back(logLine);
+
     U8toU16(fullChat, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC)); // confirm send to sender

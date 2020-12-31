@@ -5,6 +5,7 @@
 #include "NanoManager.hpp"
 #include "NPCManager.hpp"
 #include "Player.hpp"
+#include "ChatManager.hpp"
 
 #include <string.h> // for memset()
 #include <assert.h>
@@ -808,30 +809,34 @@ void ItemManager::itemTradeChatHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_TRADE_EMOTES_CHAT* pacdat = (sP_CL2FE_REQ_PC_TRADE_EMOTES_CHAT*)data->buf;
 
     INITSTRUCT(sP_FE2CL_REP_PC_TRADE_EMOTES_CHAT, resp);
+    Player *plr = PlayerManager::getPlayer(sock);
 
     resp.iID_Request = pacdat->iID_Request;
     resp.iID_From = pacdat->iID_From;
     resp.iID_To = pacdat->iID_To;
 
-    memcpy(resp.szFreeChat, pacdat->szFreeChat, sizeof(pacdat->szFreeChat));
-
-    resp.iEmoteCode = pacdat->iEmoteCode;
+    std::string fullChat = ChatManager::sanitizeText(U16toU8(pacdat->szFreeChat));
+    U8toU16(fullChat, resp.szFreeChat, sizeof(resp.szFreeChat));
 
     int iID_Check;
-
     if (pacdat->iID_Request == pacdat->iID_From) {
         iID_Check = pacdat->iID_To;
     } else {
         iID_Check = pacdat->iID_From;
     }
 
-    CNSocket* otherSock = sock;
+    CNSocket* otherSock = PlayerManager::getSockFromID(iID_Check);;
+    if (otherSock == nullptr)
+        return;
 
-    for (auto pair : PlayerManager::players) {
-        if (pair.second->iID == iID_Check) {
-            otherSock = pair.first;
-        }
-    }
+    Player *otherPlr = PlayerManager::getPlayer(otherSock);
+
+    std::string logLine = "[TradeChat] " + PlayerManager::getPlayerName(plr) + " (to " + PlayerManager::getPlayerName(otherPlr) + "): " + fullChat;
+
+    std::cout << logLine << std::endl;
+    ChatManager::dump.push_back(logLine);
+
+    resp.iEmoteCode = pacdat->iEmoteCode;
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_EMOTES_CHAT, sizeof(sP_FE2CL_REP_PC_TRADE_EMOTES_CHAT));
     otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_EMOTES_CHAT, sizeof(sP_FE2CL_REP_PC_TRADE_EMOTES_CHAT));

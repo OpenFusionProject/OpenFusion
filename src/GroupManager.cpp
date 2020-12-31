@@ -172,6 +172,18 @@ void GroupManager::chatGroup(CNSocket* sock, CNPacketData* data) {
 
     std::string fullChat = ChatManager::sanitizeText(U16toU8(chat->szFreeChat));
 
+    if (fullChat.length() > 1 && fullChat[0] == CMD_PREFIX) { // PREFIX
+        ChatManager::runCmd(fullChat, sock);
+        return;
+    }
+
+    if (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__MUTE_FREECHAT)
+        return;
+
+    std::string logLine = "[GroupChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
+    std::cout << logLine << std::endl;
+    ChatManager::dump.push_back(logLine);
+
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC, resp);
 
@@ -194,6 +206,10 @@ void GroupManager::menuChatGroup(CNSocket* sock, CNPacketData* data) {
         return;
 
     std::string fullChat = ChatManager::sanitizeText(U16toU8(chat->szFreeChat));
+    std::string logLine = "[GroupMenuChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
+
+    std::cout << logLine << std::endl;
+    ChatManager::dump.push_back(logLine);
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC, resp);

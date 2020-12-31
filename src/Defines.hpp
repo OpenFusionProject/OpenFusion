@@ -1,13 +1,6 @@
 /* enum definitions from the client */
 #pragma once
 
-/*
- * TODO: It might be a good idea to make this file build-specific, but
- * I'm pretty sure there were seldom any new packets added, and they're
- * probably always going to be the non-essential things that we won't be
- * implementing just yet anyway.
- */
-
 // floats
 const float VALUE_BATTERY_EMPTY_PENALTY = 0.5f;
 const float CN_EP_RANK_1 = 0.8f;
@@ -15,6 +8,21 @@ const float CN_EP_RANK_2 = 0.7f;
 const float CN_EP_RANK_3 = 0.5f;
 const float CN_EP_RANK_4 = 0.3f;
 const float CN_EP_RANK_5 = 0.29f;
+
+// methods of finding players for GM commands
+enum eCN_GM_TargetSearchBy {
+	eCN_GM_TargetSearchBy__PC_ID, // player id
+	eCN_GM_TargetSearchBy__PC_Name, // firstname, lastname
+	eCN_GM_TargetSearchBy__PC_UID // account id
+};
+
+enum eCN_GM_TeleportType {
+	eCN_GM_TeleportMapType__XYZ,
+	eCN_GM_TeleportMapType__MapXYZ,
+	eCN_GM_TeleportMapType__MyLocation,
+	eCN_GM_TeleportMapType__SomeoneLocation,
+	eCN_GM_TeleportMapType__Unstick
+};
 
 // NPC classes
 enum NPCClass {
