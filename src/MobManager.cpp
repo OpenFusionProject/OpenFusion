@@ -974,6 +974,10 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
             }
         }
 
+        // check if the player has fallen out of the world
+        if (plr->z < -30000)
+            dealGooDamage(sock, PC_MAXHEALTH(36) * 2);
+
         if (transmit) {
             INITSTRUCT(sP_FE2CL_REP_PC_TICK, pkt);
 
