@@ -54,7 +54,7 @@ namespace MissionManager {
     int giveMissionReward(CNSocket *sock, int task, int choice=0);
     void updateFusionMatter(CNSocket* sock, int fusion);
 
-    void mobKilled(CNSocket *sock, int mobid);
+    void mobKilled(CNSocket *sock, int mobid, int rolledQItem);
 
     bool endTask(CNSocket *sock, int32_t taskNum, int choice=0);
     void saveMission(Player* player, int missionId);

@@ -167,9 +167,9 @@ namespace MobManager {
     void npcAttackPc(Mob *mob, time_t currTime);
     int hitMob(CNSocket *sock, Mob *mob, int damage);
     void killMob(CNSocket *sock, Mob *mob);
-    void giveReward(CNSocket *sock, Mob *mob);
-    void getReward(sItemBase *reward, MobDrop *drop, MobDropChance *chance);
-    void giveEventReward(CNSocket* sock, Player* player);
+    void giveReward(CNSocket *sock, Mob *mob, int rolledBoosts, int rolledPotions, int rolledCrate, int rolledCrateType, int rolledEvent);
+    void getReward(sItemBase *reward, MobDrop *drop, MobDropChance *chance, int rolled);
+    void giveEventReward(CNSocket* sock, Player* player, int rolled);
 
     std::pair<int,int> lerp(int, int, int, int, int);
     std::pair<int,int> getDamage(int, int, bool, bool, int, int, int);

@@ -152,7 +152,8 @@ void MobManager::npcAttackPc(Mob *mob, time_t currTime) {
     }
 }
 
-void MobManager::giveReward(CNSocket *sock, Mob* mob) {
+void MobManager::giveReward(CNSocket *sock, Mob* mob, int rolledBoosts, int rolledPotions,
+                            int rolledCrate, int rolledCrateType, int rolledEvent) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
@@ -200,9 +201,9 @@ void MobManager::giveReward(CNSocket *sock, Mob* mob) {
 
     // give boosts 1 in 3 times
     if (drop.boosts > 0) {
-        if (rand() % 3 == 0)
+        if (rolledPotions % 3 == 0)
             plr->batteryN += drop.boosts;
-        if (rand() % 3 == 0)
+        if (rolledBoosts % 3 == 0)
             plr->batteryW += drop.boosts;
     }
     // caps
@@ -230,7 +231,7 @@ void MobManager::giveReward(CNSocket *sock, Mob* mob) {
         return; // this also prevents holiday crate drops, but oh well
     } else {
         chance = &MobDropChances[drop.dropChanceType];
-        awardDrop = (rand() % 1000 < chance->dropChance);
+        awardDrop = (rolledCrate % 1000 < chance->dropChance);
     }
 
     // no drop
@@ -240,7 +241,7 @@ void MobManager::giveReward(CNSocket *sock, Mob* mob) {
         sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, sizeof(sP_FE2CL_REP_REWARD_ITEM));
     } else {
         // item reward
-        getReward(&item->sItem, &drop, chance);
+        getReward(&item->sItem, &drop, chance, rolledCrateType);
         item->iSlotNum = slot;
         item->eIL = 1; // Inventory Location. 1 means player inventory.
 
@@ -252,10 +253,10 @@ void MobManager::giveReward(CNSocket *sock, Mob* mob) {
 
     // event crates
     if (settings::EVENTMODE != 0)
-        giveEventReward(sock, plr);
+        giveEventReward(sock, plr, rolledEvent);
 }
 
-void MobManager::getReward(sItemBase *reward, MobDrop* drop, MobDropChance* chance) {
+void MobManager::getReward(sItemBase *reward, MobDrop* drop, MobDropChance* chance, int rolled) {
     reward->iType = 9;
     reward->iOpt = 1;
 
@@ -264,7 +265,7 @@ void MobManager::getReward(sItemBase *reward, MobDrop* drop, MobDropChance* chan
         total += ratio;
 
     // randomizing a crate
-    int randomNum = rand() % total;
+    int randomNum = rolled % total;
     int i = 0;
     int sum = 0;
     do {
@@ -275,7 +276,7 @@ void MobManager::getReward(sItemBase *reward, MobDrop* drop, MobDropChance* chan
     while (sum<=randomNum);
 }
 
-void MobManager::giveEventReward(CNSocket* sock, Player* player) {
+void MobManager::giveEventReward(CNSocket* sock, Player* player, int rolled) {
     // random drop chance
     if (rand() % 100 > settings::EVENTCRATECHANCE)
         return;
@@ -385,9 +386,16 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
     if (sock != nullptr) {
         Player* plr = PlayerManager::getPlayer(sock);
 
+        int rolledBoosts = rand();
+        int rolledPotions = rand();
+        int rolledCrate = rand();
+        int rolledCrateType = rand();
+        int rolledEvent = rand();
+        int rolledQItem = rand();
+
         if (plr->groupCnt == 1 && plr->iIDGroup == plr->iID) {
-            giveReward(sock, mob);
-            MissionManager::mobKilled(sock, mob->appearanceData.iNPCType);
+            giveReward(sock, mob, rolledBoosts, rolledPotions, rolledCrate, rolledCrateType, rolledEvent);
+            MissionManager::mobKilled(sock, mob->appearanceData.iNPCType, rolledQItem);
         } else {
             Player* otherPlayer = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
@@ -406,8 +414,8 @@ void MobManager::killMob(CNSocket *sock, Mob *mob) {
                 if (dist > 5000)
                     continue;
 
-                giveReward(sockTo, mob);
-                MissionManager::mobKilled(sockTo, mob->appearanceData.iNPCType);
+                giveReward(sockTo, mob, rolledBoosts, rolledPotions, rolledCrate, rolledCrateType, rolledEvent);
+                MissionManager::mobKilled(sockTo, mob->appearanceData.iNPCType, rolledQItem);
             }
         }
     }
