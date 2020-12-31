@@ -44,6 +44,11 @@ void TableData::init() {
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
             int instanceID = npc.find("mapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["mapNum"];
+#ifdef ACADEMY
+            // do not spawn NPCs in the future
+            if (npc["x"] > 512000 && npc["y"] < 256000)
+                continue;
+#endif
             BaseNPC *tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], npc["angle"], instanceID, npc["id"], nextId);
 
             NPCManager::NPCs[nextId] = tmp;
@@ -262,6 +267,12 @@ void TableData::init() {
             auto td = NPCManager::NPCData[(int)npc["iNPCType"]];
             uint64_t instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
 
+#ifdef ACADEMY
+            // do not spawn NPCs in the future
+            if (npc["iX"] > 512000 && npc["iY"] < 256000)
+                continue;
+#endif
+
             Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], td, nextId);
 
             NPCManager::NPCs[nextId] = tmp;
@@ -277,6 +288,12 @@ void TableData::init() {
             auto leader = _group.value();
             auto td = NPCManager::NPCData[(int)leader["iNPCType"]];
             uint64_t instanceID = leader.find("iMapNum") == leader.end() ? INSTANCE_OVERWORLD : (int)leader["iMapNum"];
+
+#ifdef ACADEMY
+            // do not spawn NPCs in the future
+            if (leader["iX"] > 512000 && leader["iY"] < 256000)
+                continue;
+#endif
 
             Mob* tmp = new Mob(leader["iX"], leader["iY"], leader["iZ"], leader["iAngle"], instanceID, leader["iNPCType"], td, nextId);
 
