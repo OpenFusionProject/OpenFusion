@@ -609,6 +609,7 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
         resp.iZ = Warps[warpId].z;
         resp.iCandy = plr->money;
         resp.eIL = 4; // do not take away any items
+        uint64_t fromInstance = plr->instanceID; // pre-warp instance, saved for post-warp
         plr->instanceID = INSTANCE_OVERWORLD;
         MissionManager::failInstancedMissions(sock); // fail any instanced missions
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
@@ -619,6 +620,9 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
         // remove the player's ongoing race, if any
         if (RacingManager::EPRaces.find(sock) != RacingManager::EPRaces.end())
             RacingManager::EPRaces.erase(sock);
+
+        // post-warp: check if the source instance has no more players in it and delete it if so
+        ChunkManager::destroyInstanceIfEmpty(fromInstance);
     }
 }
 

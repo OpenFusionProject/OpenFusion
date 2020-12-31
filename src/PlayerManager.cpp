@@ -139,6 +139,17 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
 
     uint64_t fromInstance = plr->instanceID; // pre-warp instance, saved for post-warp
 
+    if (I == INSTANCE_OVERWORLD || (I != fromInstance && fromInstance != 0)) {
+        // annoying but necessary to set the flag back
+        INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC, resp);
+        resp.iX = X;
+        resp.iY = Y;
+        resp.iZ = Z;
+        resp.iCandy = plr->money;
+        resp.eIL = 4; // do not take away any items
+        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
+    }
+
     if (I != INSTANCE_OVERWORLD) {
         INITSTRUCT(sP_FE2CL_INSTANCE_MAP_INFO, pkt);
         pkt.iInstanceMapNum = (int32_t)MAPNUM(I); // lower 32 bits are mapnum
@@ -153,16 +164,8 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
             pkt.iMapCoordZ_Min = INT32_MIN;
             pkt.iMapCoordZ_Max = INT32_MAX;
         }
+
         sock->sendPacket((void*)&pkt, P_FE2CL_INSTANCE_MAP_INFO, sizeof(sP_FE2CL_INSTANCE_MAP_INFO));
-    } else {
-        // annoying but necessary to set the flag back
-        INITSTRUCT(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC, resp);
-        resp.iX = X;
-        resp.iY = Y;
-        resp.iZ = Z;
-        resp.iCandy = plr->money;
-        resp.eIL = 4; // do not take away any items
-        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
     }
 
     INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, pkt2);
