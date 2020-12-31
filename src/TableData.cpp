@@ -46,8 +46,10 @@ void TableData::init() {
             int instanceID = npc.find("mapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["mapNum"];
 #ifdef ACADEMY
             // do not spawn NPCs in the future
-            if (npc["x"] > 512000 && npc["y"] < 256000)
+            if (npc["x"] > 512000 && npc["y"] < 256000) {
+                nextId++;
                 continue;
+            }
 #endif
             BaseNPC *tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], npc["angle"], instanceID, npc["id"], nextId);
 
@@ -269,8 +271,10 @@ void TableData::init() {
 
 #ifdef ACADEMY
             // do not spawn NPCs in the future
-            if (npc["iX"] > 512000 && npc["iY"] < 256000)
+            if (npc["iX"] > 512000 && npc["iY"] < 256000) {
+                nextId++;
                 continue;
+            }
 #endif
 
             Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], td, nextId);
@@ -288,11 +292,15 @@ void TableData::init() {
             auto leader = _group.value();
             auto td = NPCManager::NPCData[(int)leader["iNPCType"]];
             uint64_t instanceID = leader.find("iMapNum") == leader.end() ? INSTANCE_OVERWORLD : (int)leader["iMapNum"];
+            auto followers = leader["aFollowers"];
 
 #ifdef ACADEMY
             // do not spawn NPCs in the future
-            if (leader["iX"] > 512000 && leader["iY"] < 256000)
+            if (leader["iX"] > 512000 && leader["iY"] < 256000) {
+                nextId++;
+                nextId += followers.size();
                 continue;
+            }
 #endif
 
             Mob* tmp = new Mob(leader["iX"], leader["iY"], leader["iZ"], leader["iAngle"], instanceID, leader["iNPCType"], td, nextId);
@@ -305,7 +313,6 @@ void TableData::init() {
 
             nextId++;
 
-            auto followers = leader["aFollowers"];
             if (followers.size() < 5) {
                 int followerCount = 0;
                 for (nlohmann::json::iterator _fol = followers.begin(); _fol != followers.end(); _fol++) {
