@@ -64,13 +64,11 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
     // rapid fire anti-cheat
     time_t currTime = getTime();
-    if (currTime - plr->lastShot < plr->fireRate * 80) {
+    if (currTime - plr->lastShot < plr->fireRate * 80)
         plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // gain suspicion for rapid firing
-        std::cout << "suspicion rating: " << plr->suspicionRating << std::endl;
-    } else if (currTime - plr->lastShot < plr->fireRate * 180 && plr->suspicionRating > 0) {
+    else if (currTime - plr->lastShot < plr->fireRate * 180 && plr->suspicionRating > 0)
         plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // lose suspicion for delayed firing
-        std::cout << "suspicion rating: " << plr->suspicionRating << std::endl;
-    }
+
     plr->lastShot = currTime;
 
     if (pkt->iNPCCnt > 3) // 3+ targets should never be possible
@@ -1404,13 +1402,11 @@ void MobManager::projectileHit(CNSocket* sock, CNPacketData* data) {
 
     // rapid fire anti-cheat
     time_t currTime = getTime();
-    if (currTime - plr->lastShot < plr->fireRate * 80) {
+    if (currTime - plr->lastShot < plr->fireRate * 80)
         plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // gain suspicion for rapid firing
-        std::cout << "suspicion rating: " << plr->suspicionRating << std::endl;
-    } else if (currTime - plr->lastShot < plr->fireRate * 180 && plr->suspicionRating > 0) {
+    else if (currTime - plr->lastShot < plr->fireRate * 180 && plr->suspicionRating > 0)
         plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // lose suspicion for delayed firing
-        std::cout << "suspicion rating: " << plr->suspicionRating << std::endl;
-    }
+
     plr->lastShot = currTime;
 
     if (plr->suspicionRating > 10000) // kill the socket when the player is too suspicious
