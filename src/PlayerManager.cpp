@@ -1067,7 +1067,7 @@ void PlayerManager::kickPlayer(CNSocket *sock, CNPacketData *data) {
 
     Player *otherPlr = getPlayer(otherSock);
 
-    if (otherPlr->accountLevel > plr->accountLevel) {
+    if (plr->accountLevel > otherPlr->accountLevel) {
         ChatManager::sendServerMessage(sock, "player has higher access level");
         return;
     }
@@ -1131,7 +1131,7 @@ void PlayerManager::teleportPlayer(CNSocket *sock, CNPacketData *data) {
 
     switch (req->eTeleportType) {
     case eCN_GM_TeleportMapType__MyLocation:
-        sendPlayerTo(targetSock, plr->x, plr->y, plr->z);
+        sendPlayerTo(targetSock, plr->x, plr->y, plr->z, instance);
         break;
     case eCN_GM_TeleportMapType__MapXYZ:
         instance = req->iToMap;

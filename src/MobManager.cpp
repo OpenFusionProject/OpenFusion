@@ -1048,6 +1048,10 @@ void MobManager::pcAttackChars(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_REQ_PC_ATTACK_CHARs* pkt = (sP_CL2FE_REQ_PC_ATTACK_CHARs*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
+    // only GMs can use this this variant
+    if (plr->accountLevel > 30)
+        return;
+
     // Unlike the attack mob packet, attacking players packet has an 8-byte trail (Instead of 4 bytes).
     if (!validInVarPacket(sizeof(sP_CL2FE_REQ_PC_ATTACK_CHARs), pkt->iTargetCnt, sizeof(int32_t) * 2, data->size)) {
         std::cout << "[WARN] bad sP_CL2FE_REQ_PC_ATTACK_CHARs packet size\n";
