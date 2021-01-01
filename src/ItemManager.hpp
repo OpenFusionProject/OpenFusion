@@ -44,15 +44,16 @@ namespace ItemManager {
     void itemUseHandler(CNSocket* sock, CNPacketData* data);
     // Bank
     void itemBankOpenHandler(CNSocket* sock, CNPacketData* data);
-    void itemTradeOfferHandler(CNSocket* sock, CNPacketData* data);
-    void itemTradeOfferAcceptHandler(CNSocket* sock, CNPacketData* data);
-    void itemTradeOfferRefusalHandler(CNSocket* sock, CNPacketData* data);
-    void itemTradeConfirmHandler(CNSocket* sock, CNPacketData* data);
-    void itemTradeConfirmCancelHandler(CNSocket* sock, CNPacketData* data);
-    void itemTradeRegisterItemHandler(CNSocket* sock, CNPacketData* data);
-    void itemTradeUnregisterItemHandler(CNSocket* sock, CNPacketData* data);
-    void itemTradeRegisterCashHandler(CNSocket* sock, CNPacketData* data);
-    void itemTradeChatHandler(CNSocket* sock, CNPacketData* data);
+    void tradeOffer(CNSocket* sock, CNPacketData* data);
+    void tradeOfferAccept(CNSocket* sock, CNPacketData* data);
+    void tradeOfferRefusal(CNSocket* sock, CNPacketData* data);
+    void tradeConfirm(CNSocket* sock, CNPacketData* data);
+    bool doTrade(Player* plr, Player* plr2);
+    void tradeConfirmCancel(CNSocket* sock, CNPacketData* data);
+    void tradeRegisterItem(CNSocket* sock, CNPacketData* data);
+    void tradeUnregisterItem(CNSocket* sock, CNPacketData* data);
+    void tradeRegisterCash(CNSocket* sock, CNPacketData* data);
+    void tradeChat(CNSocket* sock, CNPacketData* data);
     void chestOpenHandler(CNSocket* sock, CNPacketData* data);
 
     // crate opening logic with all helper functions
