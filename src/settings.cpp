@@ -29,15 +29,22 @@ int settings::SPAWN_Z = 8450;
 
 int settings::SPAWN_ANGLE = 130;
 std::string settings::NPCJSON = "tdata/NPCs.json";
-std::string settings::XDTJSON = "tdata/xdt.json";
 std::string settings::MOBJSON = "tdata/mobs.json";
-std::string settings::ACADEMYJSON = "tdata/academy.json";
 std::string settings::PATHJSON = "tdata/paths.json";
-std::string settings::DROPSJSON = "tdata/drops.json";
 std::string settings::EGGSJSON = "tdata/eggs.json";
 std::string settings::GRUNTWORKJSON = "tdata/gruntwork.json";
 std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
 std::string settings::DBPATH = "database.db";
+std::string settings::ACADEMYJSON = "tdata/1013/academy.json";
+
+#if PROTOCOL_VERSION == 1013
+std::string settings::XDTJSON = "tdata/1013/xdt.json";
+std::string settings::DROPSJSON = "tdata/1013/drops.json";
+#else
+std::string settings::DROPSJSON = "tdata/drops.json";
+std::string settings::XDTJSON = "tdata/xdt.json";
+#endif
+
 int settings::ACCLEVEL = 1;
 bool settings::DISABLEFIRSTUSEFLAG = true;
 
