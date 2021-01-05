@@ -54,50 +54,55 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     // sanity check
-    if (plr->Equip[itemmove->iFromSlotNum].iType != 0 && itemmove->eFrom == 0 && itemmove->eTo == 0) {
-        // this packet should never happen unless it is a weapon, tell the client to do nothing and do nothing ourself
-        resp.eTo = itemmove->eFrom;
-        resp.iToSlotNum = itemmove->iFromSlotNum;
-        resp.ToSlotItem = plr->Equip[itemmove->iToSlotNum];
-        resp.eFrom = itemmove->eTo;
-        resp.iFromSlotNum = itemmove->iToSlotNum;
-        resp.FromSlotItem = plr->Equip[itemmove->iFromSlotNum];
-
-        sock->sendPacket((void*)&resp, P_FE2CL_PC_ITEM_MOVE_SUCC, sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC));
+    if (itemmove->iToSlotNum < 0 || itemmove->iFromSlotNum < 0)
         return;
-    }
-
-    // sanity check
-    if (itemmove->iToSlotNum > ABANK_COUNT || itemmove->iToSlotNum < 0)
-        return;
+    // NOTE: sending a no-op, "move in-place" packet is not necessary
 
     // get the fromItem
     sItemBase *fromItem;
     switch ((SlotType)itemmove->eFrom) {
-        case SlotType::EQUIP:
-            fromItem = &plr->Equip[itemmove->iFromSlotNum];
-            break;
-        case SlotType::INVENTORY:
-            fromItem = &plr->Inven[itemmove->iFromSlotNum];
-            break;
-        case SlotType::BANK:
-            fromItem = &plr->Bank[itemmove->iFromSlotNum];
-            break;
-        default:
-            std::cout << "[WARN] MoveItem submitted unknown Item Type?! " << itemmove->eFrom << std::endl;
+    case SlotType::EQUIP:
+        if (itemmove->iFromSlotNum >= AEQUIP_COUNT)
             return;
+
+        fromItem = &plr->Equip[itemmove->iFromSlotNum];
+        break;
+    case SlotType::INVENTORY:
+        if (itemmove->iFromSlotNum >= AINVEN_COUNT)
+            return;
+
+        fromItem = &plr->Inven[itemmove->iFromSlotNum];
+        break;
+    case SlotType::BANK:
+        if (itemmove->iFromSlotNum >= ABANK_COUNT)
+            return;
+
+        fromItem = &plr->Bank[itemmove->iFromSlotNum];
+        break;
+    default:
+        std::cout << "[WARN] MoveItem submitted unknown Item Type?! " << itemmove->eFrom << std::endl;
+        return;
     }
 
     // get the toItem
     sItemBase* toItem;
     switch ((SlotType)itemmove->eTo) {
     case SlotType::EQUIP:
+        if (itemmove->iToSlotNum >= AEQUIP_COUNT)
+            return;
+
         toItem = &plr->Equip[itemmove->iToSlotNum];
         break;
     case SlotType::INVENTORY:
+        if (itemmove->iToSlotNum >= AINVEN_COUNT)
+            return;
+
         toItem = &plr->Inven[itemmove->iToSlotNum];
         break;
     case SlotType::BANK:
+        if (itemmove->iToSlotNum >= ABANK_COUNT)
+            return;
+
         toItem = &plr->Bank[itemmove->iToSlotNum];
         break;
     default:
@@ -105,7 +110,21 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
+    // if equipping an item, validate that it's of the correct type for the slot
+    if ((SlotType)itemmove->eTo == SlotType::EQUIP) {
+        if (fromItem->iType == 10 && itemmove->iToSlotNum != 8)
+            return; // vehicle in wrong slot
+        else if (fromItem->iType != 10
+              && !(fromItem->iType == 0 && itemmove->iToSlotNum == 7)
+              && fromItem->iType != itemmove->iToSlotNum)
+            return; // something other than a vehicle or a weapon in a non-matching slot
+        else if (itemmove->iToSlotNum >= AEQUIP_COUNT) // TODO: reject slots >= 9?
+            return; // invalid slot
+    }
+
     // save items to response
+    resp.eTo = itemmove->eFrom;
+    resp.eFrom = itemmove->eTo;
     resp.ToSlotItem = *toItem;
     resp.FromSlotItem = *fromItem;
 
@@ -167,10 +186,6 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     }
 
     // send response
-    resp.eTo = itemmove->eFrom;
-    resp.eFrom = itemmove->eTo;
-
-
     sock->sendPacket((void*)&resp, P_FE2CL_PC_ITEM_MOVE_SUCC, sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC));
 }
 
