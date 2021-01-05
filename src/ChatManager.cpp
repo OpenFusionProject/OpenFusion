@@ -802,6 +802,40 @@ void warpableCommand(std::string full, std::vector<std::string>& args, CNSocket*
     plr->unwarpable = false;
 }
 
+void registerallCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    plr->iWarpLocationFlag = UINT32_MAX;
+    plr->aSkywayLocationFlag[0] = UINT64_MAX;
+    plr->aSkywayLocationFlag[1] = UINT64_MAX;
+
+    // update the client
+    INITSTRUCT(sP_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC, resp);
+
+    resp.iWarpLocationFlag = plr->iWarpLocationFlag;
+    resp.aWyvernLocationFlag[0] = plr->aSkywayLocationFlag[0];
+    resp.aWyvernLocationFlag[1] = plr->aSkywayLocationFlag[1];
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC, sizeof(sP_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC));
+}
+
+void unregisterallCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    plr->iWarpLocationFlag = 0;
+    plr->aSkywayLocationFlag[0] = 0;
+    plr->aSkywayLocationFlag[1] = 0;
+
+    // update the client
+    INITSTRUCT(sP_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC, resp);
+
+    resp.iWarpLocationFlag = plr->iWarpLocationFlag;
+    resp.aWyvernLocationFlag[0] = plr->aSkywayLocationFlag[0];
+    resp.aWyvernLocationFlag[1] = plr->aSkywayLocationFlag[1];
+
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC, sizeof(sP_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC));
+}
+
 void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
@@ -836,6 +870,8 @@ void ChatManager::init() {
     registerCommand("unhide", 100, unhideCommand, "un-hide yourself from the global player map");
     registerCommand("unwarpable", 100, unwarpableCommand, "prevent buddies from warping to you");
     registerCommand("warpable", 100, warpableCommand, "re-allow buddies to warp to you");
+    registerCommand("registerall", 50, registerallCommand, "register all SCAMPER and MSS destinations");
+    registerCommand("unregisterall", 50, unregisterallCommand, "clear all SCAMPER and MSS destinations");
     registerCommand("redeem", 100, redeemCommand, "redeem a code item");
 }
 
