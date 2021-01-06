@@ -1,6 +1,7 @@
 #include <iostream>
 #include "settings.hpp"
 #include "contrib/INIReader.hpp"
+#include "CNStructs.hpp" // for ACADEMY
 
 // defaults :)
 int settings::VERBOSITY = 1;
@@ -17,11 +18,12 @@ bool settings::SIMULATEMOBS = true;
 
 // default spawn point
 #ifndef ACADEMY
-// Sector V (future)
+// Sector V (The Future)
 int settings::SPAWN_X = 632032;
 int settings::SPAWN_Y = 187177;
 int settings::SPAWN_Z = -5500;
 #else
+// Null Void (Training Area)
 int settings::SPAWN_X = 19835;
 int settings::SPAWN_Y = 108682;
 int settings::SPAWN_Z = 8450;
