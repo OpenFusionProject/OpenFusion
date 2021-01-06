@@ -648,7 +648,7 @@ BaseNPC* NPCManager::getNearestNPC(std::set<Chunk*>* chunks, int X, int Y, int Z
     return npc;
 }
 
-int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int eggId) {
+int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
@@ -713,7 +713,7 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int eggId) {
 
     // save the buff serverside;
     // if you get the same buff again, new duration will override the previous one
-    time_t until = getTime() + (time_t)NanoManager::SkillTable[skillId].durationTime[0] * 25;
+    time_t until = getTime() + (time_t)duration * 1000;
     EggBuffs[key] = until;
 
     return 0;
@@ -818,7 +818,7 @@ void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
 
     // buff the player
     if (type->effectId != 0)
-        eggBuffPlayer(sock, type->effectId, eggId);
+        eggBuffPlayer(sock, type->effectId, eggId, type->duration);
 
     /*
      * SHINY_PICKUP_SUCC is only causing a GUI effect in the client

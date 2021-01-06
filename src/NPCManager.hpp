@@ -89,7 +89,7 @@ namespace NPCManager {
     BaseNPC* getNearestNPC(std::set<Chunk*>* chunks, int X, int Y, int Z);
 
     /// returns -1 on fail
-    int eggBuffPlayer(CNSocket* sock, int skillId, int duration);
+    int eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration);
     void eggStep(CNServer* serv, time_t currTime);
     void npcDataToEggData(sNPCAppearanceData* npc, sShinyAppearanceData* egg);
     void eggPickup(CNSocket* sock, CNPacketData* data);

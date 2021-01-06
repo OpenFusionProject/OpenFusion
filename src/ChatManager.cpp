@@ -476,7 +476,7 @@ void buffCommand(std::string full, std::vector<std::string>& args, CNSocket* soc
     if (*tmp)
         return;
 
-    if (NPCManager::eggBuffPlayer(sock, skillId, duration)<0)
+    if (NPCManager::eggBuffPlayer(sock, skillId, 0, duration)<0)
         ChatManager::sendServerMessage(sock, "/buff: unknown skill Id");
     
 }
