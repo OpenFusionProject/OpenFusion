@@ -648,14 +648,15 @@ void BuddyManager::emailReceiveItemSingle(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM* pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (pkt->iSlotNum < 0 || pkt->iSlotNum >= AINVEN_COUNT || pkt->iSlotNum < 1 || pkt->iSlotNum > 4)
+        return; // sanity check
+
     // get email item from db and delete it
     sItemBase* attachments = Database::getEmailAttachments(plr->iID, pkt->iEmailIndex);
     sItemBase itemFrom = attachments[pkt->iEmailItemSlot - 1];
     Database::deleteEmailAttachments(plr->iID, pkt->iEmailIndex, pkt->iEmailItemSlot);
 
     // move item to player inventory
-    if (pkt->iSlotNum < 0 || pkt->iSlotNum >= AINVEN_COUNT)
-        return; // sanity check
     sItemBase& itemTo = plr->Inven[pkt->iSlotNum];
     itemTo.iID = itemFrom.iID;
     itemTo.iOpt = itemFrom.iOpt;
@@ -745,6 +746,39 @@ void BuddyManager::emailSend(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_SEND_EMAIL* pkt = (sP_CL2FE_REQ_PC_SEND_EMAIL*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    // sanity checks
+    bool invalid = false;
+    int itemCount = 0;
+
+    for (int i = 0; i < 4; i++) {
+        int slot = pkt->aItem[i].iSlotNum;
+        if (slot < 0 || slot >= AINVEN_COUNT) {
+            invalid = true;
+            break;
+        }
+
+        sItemBase *item = &pkt->aItem[i].ItemInven;
+        sItemBase *real = &plr->Inven[slot];
+
+        if (item->iID == 0)
+            continue;
+
+        itemCount++;
+        if (item->iType != real->iType || item->iID != real->iID
+        || item->iOpt < 0 || item->iOpt > real->iOpt) {
+            invalid = true;
+            break;
+        }
+    }
+
+    if (pkt->iCash < 0 || pkt->iCash > plr->money + 50 + 20 * itemCount || invalid) {
+        INITSTRUCT(sP_FE2CL_REP_PC_SEND_EMAIL_FAIL, errResp);
+        errResp.iErrorCode = 1;
+        errResp.iTo_PCUID = pkt->iTo_PCUID;
+        sock->sendPacket((void*)&errResp, P_FE2CL_REP_PC_SEND_EMAIL_FAIL, sizeof(sP_FE2CL_REP_PC_SEND_EMAIL_FAIL));
+        return;
+    }
+
     INITSTRUCT(sP_FE2CL_REP_PC_SEND_EMAIL_SUCC, resp);
 
     if (pkt->iCash || pkt->aItem[0].ItemInven.iID) {
@@ -766,10 +800,12 @@ void BuddyManager::emailSend(CNSocket* sock, CNPacketData* data) {
     std::vector<int> attSlots;
     for (int i = 0; i < 4; i++) {
         sEmailItemInfoFromCL attachment = pkt->aItem[i];
+
+        // skip empty slots
+        if (attachment.ItemInven.iID == 0)
+            continue;
+
         resp.aItem[i] = attachment;
-        if (attachment.iSlotNum < 0 || attachment.iSlotNum >= AINVEN_COUNT
-            || attachment.ItemInven.iID <= 0 || attachment.ItemInven.iType < 0)
-            continue; // sanity check
         attachments.push_back(attachment.ItemInven);
         attSlots.push_back(attachment.iSlotNum);
         // delete item
