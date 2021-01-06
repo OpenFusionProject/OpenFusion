@@ -181,7 +181,7 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
     sItemBase* item = &plr->Inven[req->iInvenSlotNum];
     ItemManager::Item* itemData = ItemManager::getItemData(item->iID, item->iType);
 
-    if (itemData == nullptr || !itemData->sellable) { // sanity + sellable check
+    if (itemData == nullptr || !itemData->sellable || plr->Inven[req->iInvenSlotNum].iOpt < req->iItemCnt) { // sanity + sellable check
         std::cout << "[WARN] Item id " << item->iID << " with type " << item->iType << " not found (sell)" << std::endl;
         INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, failResp);
         failResp.iErrorCode = 0;
@@ -318,10 +318,11 @@ void NPCManager::npcVendorBuyBattery(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     int cost = req->Item.iOpt * 100;
-    if ((req->Item.iID == 3 ? (plr->batteryW >= 9999) : (plr->batteryN >= 9999)) || plr->money < cost) { // sanity check
+    if ((req->Item.iID == 3 ? (plr->batteryW >= 9999) : (plr->batteryN >= 9999)) || plr->money < cost || req->Item.iOpt < 0) { // sanity check
         INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL, failResp);
         failResp.iErrorCode = 0;
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL));
+        return;
     }
 
     cost = plr->batteryW + plr->batteryN;
