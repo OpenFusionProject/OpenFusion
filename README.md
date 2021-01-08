@@ -115,6 +115,8 @@ Because the server is still in development, ordinary players are allowed access 
 * `/nano_unequip [slot] (0-2)`
 * `/nano_active [slot] (0-2)`
 
+For a more detailed list of commands, you can check the Github wiki [here](https://github.com/OpenFusionProject/OpenFusion/wiki/Ingame-Command-list).
+
 ## Accounts
 
 A basic account system has been added, when logging in if the username doesn't exist in the database, a new account with the provided password will be made and you'll be automatically logged in. Otherwise a login attempt will be made. A username must be between 4 and 32 characters, and a password must be between 8 and 32 characters otherwise the account will be rejected.
