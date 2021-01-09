@@ -1228,6 +1228,14 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
             || RacingManager::EPRaces.find(s) != RacingManager::EPRaces.end())
                 mobRange /= 3;
 
+            // 0.33x - 1.66x the range
+            int levelDifference = plr->level - mob->level;
+            if (levelDifference > -10)
+                mobRange = levelDifference < 10 ? mobRange - (levelDifference * mobRange / 15) : mobRange / 3;
+
+            if (mob->state != MobState::ROAMING && plr->inCombat) // freshly out of aggro mobs
+                mobRange = mob->sightRange * 2; // should not be impacted by the above
+
             if (plr->iSpecialState & (CN_SPECIAL_STATE_FLAG__INVISIBLE|CN_SPECIAL_STATE_FLAG__INVULNERABLE))
                 mobRange = -1;
 
