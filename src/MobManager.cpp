@@ -1779,7 +1779,7 @@ bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, in
             pkt.eTBU = 1; // eTimeBuffUpdate
             pkt.eTBT = 2;
             pkt.iConditionBitFlag = plr->iConditionBitFlag |= bitFlag;
-            pkt.TimeBuff.iValue = amount;
+            pkt.TimeBuff.iValue = amount * 5;
             sock->sendPacket((void*)&pkt, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
         }
 
