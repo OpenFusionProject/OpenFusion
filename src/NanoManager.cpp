@@ -588,7 +588,8 @@ bool doDebuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t target
     respdata[i].eCT = 4;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
     respdata[i].bProtected = 1;
-    if (mob->skillStyle < 0 && mob->state != MobState::RETREAT) { // only debuff if the enemy is not retreating and not casting corruption
+    if (mob->skillStyle < 0 && mob->state != MobState::RETREAT 
+    && !(mob->appearanceData.iConditionBitFlag & CSB_BIT_FREEDOM)) { // only debuff if the enemy is not retreating, casting corruption or in freedom
         mob->appearanceData.iConditionBitFlag |= bitFlag;
         mob->unbuffTimes[bitFlag] = getTime() + duration * 100;
         respdata[i].bProtected = 0;
@@ -655,7 +656,8 @@ bool doDamageNDebuff(CNSocket *sock, sSkillResult_Damage_N_Debuff *respdata, int
     respdata[i].iID = mob->appearanceData.iNPC_ID;
     respdata[i].iHP = mob->appearanceData.iHP;
     respdata[i].bProtected = 1;
-    if (mob->skillStyle < 0 && mob->state != MobState::RETREAT) { // only debuff if the enemy is not retreating and not casting corruption
+    if (mob->skillStyle < 0 && mob->state != MobState::RETREAT 
+    && !(mob->appearanceData.iConditionBitFlag & CSB_BIT_FREEDOM)) { // only debuff if the enemy is not retreating, casting corruption or in freedom
         mob->appearanceData.iConditionBitFlag |= bitFlag;
         mob->unbuffTimes[bitFlag] = getTime() + duration * 100;
         respdata[i].bProtected = 0;

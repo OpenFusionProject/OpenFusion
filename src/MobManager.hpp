@@ -190,4 +190,5 @@ namespace MobManager {
     void groupRetreat(Mob *mob);
     void useAbilities(Mob *mob, time_t currTime);
     void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, int style);
+    void enterCombat(CNSocket *sock, Mob *mob);
 }
