@@ -1731,6 +1731,10 @@ void MobManager::enterCombat(CNSocket *sock, Mob *mob) {
     for (auto& pwr : MobPowers)
         if (pwr.skillType == NanoManager::SkillTable[skillID].skillType)
             pwr.handle(mob, targetData, skillID, NanoManager::SkillTable[skillID].durationTime[0], NanoManager::SkillTable[skillID].powerIntensity[0]);
+
+    for (NPCEvent& event : NPCManager::NPCEvents) // trigger an ON_COMBAT
+        if (event.trigger == ON_COMBAT && event.npcType == mob->appearanceData.iNPCType)
+            event.handler(sock, mob);
 }
 
 #pragma region Mob Powers
