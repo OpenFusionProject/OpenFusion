@@ -1796,6 +1796,27 @@ bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, in
 }
 
 bool doHeal(Mob *mob, sSkillResult_Heal_HP *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
+    if (MobManager::Mobs.find(targetID) == MobManager::Mobs.end()) {
+        std::cout << "[WARN] doDebuff: mob ID not found" << std::endl;
+        return false;
+    }
+
+    Mob* targetMob = MobManager::Mobs[targetID];
+
+    int healedAmount = amount * targetMob->maxHealth / 1000;
+    targetMob->appearanceData.iHP += healedAmount;
+    if (targetMob->appearanceData.iHP > targetMob->maxHealth)
+        targetMob->appearanceData.iHP = targetMob->maxHealth;
+
+    respdata[i].eCT = 4;
+    respdata[i].iID = targetMob->appearanceData.iNPC_ID;
+    respdata[i].iHP = targetMob->appearanceData.iHP;
+    respdata[i].iHealHP = healedAmount;
+
+    return true;
+}
+
+bool doReturnHeal(Mob *mob, sSkillResult_Heal_HP *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
     int healedAmount = amount * mob->maxHealth / 1000;
     mob->appearanceData.iHP += healedAmount;
     if (mob->appearanceData.iHP > mob->maxHealth)
@@ -1995,7 +2016,7 @@ void mobPower(Mob *mob, std::vector<int> targetData,
 std::vector<MobPower> MobPowers = {
     MobPower(EST_STUN,             CSB_BIT_STUN,              ECSB_STUN,              mobPower<sSkillResult_Damage_N_Debuff, doDamageNDebuff>),
     MobPower(EST_HEAL_HP,          CSB_BIT_NONE,              ECSB_NONE,              mobPower<sSkillResult_Heal_HP,                  doHeal>),
-    MobPower(EST_RETURNHOMEHEAL,   CSB_BIT_NONE,              ECSB_NONE,              mobPower<sSkillResult_Heal_HP,                  doHeal>),
+    MobPower(EST_RETURNHOMEHEAL,   CSB_BIT_NONE,              ECSB_NONE,              mobPower<sSkillResult_Heal_HP,            doReturnHeal>),
     MobPower(EST_SNARE,            CSB_BIT_DN_MOVE_SPEED,     ECSB_DN_MOVE_SPEED,     mobPower<sSkillResult_Damage_N_Debuff, doDamageNDebuff>),
     MobPower(EST_DAMAGE,           CSB_BIT_NONE,              ECSB_NONE,              mobPower<sSkillResult_Damage,                 doDamage>),
     MobPower(EST_BATTERYDRAIN,     CSB_BIT_NONE,              ECSB_NONE,              mobPower<sSkillResult_BatteryDrain,     doBatteryDrain>),
