@@ -442,6 +442,7 @@ int MissionManager::giveMissionReward(CNSocket *sock, int task, int choice) {
     for (int i = 0; i < nrewards; i++) {
         item[i].sItem.iType = reward->itemTypes[offset+i];
         item[i].sItem.iID = reward->itemIds[offset+i];
+        item[i].sItem.iOpt = 1;
         item[i].iSlotNum = slots[i];
         item[i].eIL = 1;
 

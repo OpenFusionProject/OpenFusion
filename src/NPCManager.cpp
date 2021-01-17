@@ -142,9 +142,10 @@ void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
         return;
     }
     // if vehicle
-    if (req->Item.iType == 10)
+    if (req->Item.iType == 10) {
         // set time limit: current time + 7days
         req->Item.iTimeLimit = getTimestamp() + 604800;
+    }
 
     if (slot != req->iInvenSlotNum) {
         // possible item stacking?
@@ -921,7 +922,7 @@ static void lordFuseStageThree(CNSocket *sock, BaseNPC *npc) {
 
     std::cout << "Lord Fuse stage three" << std::endl;
 
-    // Cosmic, Damage Point
+    // Cosmix, Damage Point
     Mob *newbody = (Mob*)NPCManager::summonNPC(oldbody->spawnX, oldbody->spawnY, oldbody->spawnZ, plr->instanceID, 2468);
 
     newbody->appearanceData.iAngle = oldbody->appearanceData.iAngle;

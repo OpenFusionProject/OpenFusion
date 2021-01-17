@@ -532,6 +532,11 @@ bool ItemManager::doTrade(Player* plr, Player* plr2) {
             if (plrInven[plr->Trade[i].iInvenNum].iID == 0) // pulling a fast one on us
                 return false;
 
+            if (plr->Trade[i].iOpt < 1) {
+                std::cout << "[WARN] Player tried trading an iOpt < 1 amount" << std::endl;
+                plr->Trade[i].iOpt = 1;
+            }
+
             // for stacked items
             plrInven[plr->Trade[i].iInvenNum].iOpt -= plr->Trade[i].iOpt;
 
@@ -547,6 +552,11 @@ bool ItemManager::doTrade(Player* plr, Player* plr2) {
         if (plr2->Trade[i].iID != 0) {
             if (plr2Inven[plr2->Trade[i].iInvenNum].iID == 0) // pulling a fast one on us
                 return false;
+
+            if (plr2->Trade[i].iOpt < 1) {
+                std::cout << "[WARN] Player tried trading an iOpt < 1 amount" << std::endl;
+                plr2->Trade[i].iOpt = 1;
+            }
 
             // for stacked items
             plr2Inven[plr2->Trade[i].iInvenNum].iOpt -= plr2->Trade[i].iOpt;
