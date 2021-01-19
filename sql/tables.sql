@@ -28,9 +28,9 @@ CREATE TABLE IF NOT EXISTS Players (
     AppearanceFlag     INTEGER DEFAULT 0 NOT NULL,
     TutorialFlag       INTEGER DEFAULT 0 NOT NULL,
     PayZoneFlag        INTEGER DEFAULT 0 NOT NULL,
-    XCoordinates       INTEGER NOT NULL,
-    YCoordinates       INTEGER NOT NULL,
-    ZCoordinates       INTEGER NOT NULL,
+    XCoordinate       INTEGER NOT NULL,
+    YCoordinate       INTEGER NOT NULL,
+    ZCoordinate       INTEGER NOT NULL,
     Angle              INTEGER NOT NULL,
     HP                 INTEGER NOT NULL,
     FusionMatter       INTEGER DEFAULT 0 NOT NULL,
@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS EmailItems (
     Opt         INTEGER NOT NULL,
     TimeLimit   INTEGER NOT NULL,
     FOREIGN KEY(PlayerID) REFERENCES Players(PlayerID) ON DELETE CASCADE,
-    UNIQUE (MsgIndex, Slot)
+    UNIQUE (PlayerID, MsgIndex, Slot)
 );
 
 CREATE TABLE IF NOT EXISTS RaceResults(
@@ -152,3 +152,10 @@ CREATE TABLE IF NOT EXISTS RaceResults(
     Timestamp INTEGER NOT NULL,
     FOREIGN KEY(PlayerID) REFERENCES Players(PlayerID) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS RedeemedCodes(
+    PlayerID    INTEGER NOT NULL,
+    Code        TEXT NOT NULL,
+    FOREIGN KEY(PlayerID) REFERENCES Players(PlayerID) ON DELETE CASCADE,
+    UNIQUE (PlayerID, Code)
+)

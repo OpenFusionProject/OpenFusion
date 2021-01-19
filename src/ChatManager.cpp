@@ -1,6 +1,7 @@
 #include "CNShardServer.hpp"
 #include "CNStructs.hpp"
 #include "ChatManager.hpp"
+#include "Database.hpp"
 #include "PlayerManager.hpp"
 #include "TransportManager.hpp"
 #include "TableData.hpp"
@@ -754,6 +755,12 @@ void redeemCommand(std::string full, std::vector<std::string>& args, CNSocket* s
     }
 
     Player* plr = PlayerManager::getPlayer(sock);
+
+    if (Database::isCodeRedeemed(plr->iID, code)) {
+        ChatManager::sendServerMessage(sock, "/redeem: You have already redeemed this code item");
+        return;
+    }
+
     int itemCount = ItemManager::CodeItems[code].size();
     int slots[4];
 
@@ -772,6 +779,8 @@ void redeemCommand(std::string full, std::vector<std::string>& args, CNSocket* s
         plr->Inven[slots[i]] = { 999, 999, 999, 0 }; // temp item; overwritten later
     }
     
+    Database::recordCodeRedemption(plr->iID, code);
+
     for (int i = 0; i < itemCount; i++) {
         std::pair<int32_t, int32_t> item = ItemManager::CodeItems[code][i];
         INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp);

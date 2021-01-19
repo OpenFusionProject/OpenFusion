@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#define DATABASE_VERSION 2
+#define DATABASE_VERSION 3
 
 namespace Database {
 
@@ -100,4 +100,8 @@ namespace Database {
     // racing
     RaceRanking getTopRaceRanking(int epID, int playerID);
     void postRaceRanking(RaceRanking ranking);
+
+    // code items
+    bool isCodeRedeemed(int playerId, std::string code);
+    void recordCodeRedemption(int playerId, std::string code);
 }

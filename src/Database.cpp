@@ -428,7 +428,7 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
     const char* sql = R"(
         INSERT INTO Players
             (AccountID, Slot, FirstName, LastName,
-             XCoordinates, YCoordinates, ZCoordinates, Angle,
+             XCoordinate, YCoordinate, ZCoordinate, Angle,
              HP, NameCheck, Quests, SkywayLocationFlag, FirstUseFlag)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         )";
@@ -693,7 +693,7 @@ void Database::getCharInfo(std::vector <sP_LS2CL_REP_CHAR_INFO>* result, int use
     const char* sql = R"(
         SELECT
             p.PlayerID, p.Slot, p.FirstName, p.LastName, p.Level, p.AppearanceFlag, p.TutorialFlag, p.PayZoneFlag,
-            p.XCoordinates, p.YCoordinates, p.ZCoordinates, p.NameCheck,
+            p.XCoordinate, p.YCoordinate, p.ZCoordinate, p.NameCheck,
             a.Body, a.EyeColor, a.FaceStyle, a.Gender, a.HairColor, a.HairStyle, a.Height, a.SkinColor
         FROM Players as p
         INNER JOIN Appearances as a ON p.PlayerID = a.PlayerID
@@ -815,7 +815,7 @@ void Database::getPlayer(Player* plr, int id) {
             p.AccountID, p.Slot, p.FirstName, p.LastName,
             p.Level, p.Nano1, p.Nano2, p.Nano3,
             p.AppearanceFlag, p.TutorialFlag, p.PayZoneFlag,
-            p.XCoordinates, p.YCoordinates, p.ZCoordinates, p.NameCheck,
+            p.XCoordinate, p.YCoordinate, p.ZCoordinate, p.NameCheck,
             p.Angle, p.HP, acc.AccountLevel, p.FusionMatter, p.Taros, p.Quests,
             p.BatteryW, p.BatteryN, p.Mentor, p.WarpLocationFlag,
             p.SkywayLocationFlag, p.CurrentMissionID, p.FirstUseFlag,
@@ -1061,7 +1061,7 @@ void Database::updatePlayer(Player *player) {
         UPDATE Players
         SET
             Level = ? , Nano1 = ?, Nano2 = ?, Nano3 = ?,
-            XCoordinates = ?, YCoordinates = ?, ZCoordinates = ?,
+            XCoordinate = ?, YCoordinate = ?, ZCoordinate = ?,
             Angle = ?, HP = ?, FusionMatter = ?, Taros = ?, Quests = ?,
             BatteryW = ?, BatteryN = ?, WarplocationFlag = ?,
             SkywayLocationFlag = ?, CurrentMissionID = ?,
@@ -1838,5 +1838,43 @@ void Database::postRaceRanking(Database::RaceRanking ranking) {
         std::cout << "[WARN] Database: Failed to post race result" << std::endl;
     }
 
+    sqlite3_finalize(stmt);
+}
+
+bool Database::isCodeRedeemed (int playerId, std::string code) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    const char* sql = R"(
+        SELECT COUNT(*)
+        FROM RedeemedCodes
+        WHERE PlayerID = ? AND Code = ?
+        LIMIT 1;
+        )";
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_bind_int(stmt, 1, playerId);
+    sqlite3_bind_text(stmt, 2, code.c_str(), -1, NULL);
+    sqlite3_step(stmt);
+    int result = sqlite3_column_int(stmt, 0);
+
+    sqlite3_finalize(stmt);
+    return result;
+}
+
+void Database::recordCodeRedemption(int playerId, std::string code) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    const char* sql = R"(
+        INSERT INTO RedeemedCodes (PlayerID, Code)
+        VALUES (?, ?);
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_bind_int(stmt, 1, playerId);
+    sqlite3_bind_text(stmt, 2, code.c_str(), -1, NULL);
+    
+    if (sqlite3_step(stmt) != SQLITE_DONE)
+        std::cout << "[WARN] Database: recording of code redemption failed: " << sqlite3_errmsg(db) << std::endl;
     sqlite3_finalize(stmt);
 }
