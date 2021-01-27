@@ -240,7 +240,7 @@ void NanoManager::nanoPotionHandler(CNSocket* sock, CNPacketData* data) {
 
 #pragma region Helper methods
 void NanoManager::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spendfm) {
-    if (nanoID >= NANO_COUNT)
+    if (nanoID <= 0 || nanoID >= NANO_COUNT)
         return;
 
     Player *plr = PlayerManager::getPlayer(sock);

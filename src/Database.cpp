@@ -906,7 +906,7 @@ void Database::getPlayer(Player* plr, int id) {
         int slot = sqlite3_column_int(stmt, 0);
 
         // for extra safety
-        if (slot > AEQUIP_COUNT + AINVEN_COUNT + ABANK_COUNT) {
+        if (slot < 0 || slot > AEQUIP_COUNT + AINVEN_COUNT + ABANK_COUNT) {
             std::cout << "[WARN] Database: Invalid item slot in db?! " << std::endl;
             continue;
         }
@@ -947,6 +947,10 @@ void Database::getPlayer(Player* plr, int id) {
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         int slot = sqlite3_column_int(stmt, 0);
 
+        // for extra safety
+        if (slot < 0)
+            continue;
+
         sItemBase* item = &plr->QInven[slot];
         item->iType = 8;
         item->iID = sqlite3_column_int(stmt, 1);
@@ -969,7 +973,7 @@ void Database::getPlayer(Player* plr, int id) {
         int id = sqlite3_column_int(stmt, 0);
 
         // for extra safety
-        if (id > NANO_COUNT)
+        if (id < 0 || id > NANO_COUNT)
             continue;
 
         sNano* nano = &plr->Nanos[id];
