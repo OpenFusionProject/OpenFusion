@@ -1,25 +1,28 @@
-![](res/radiorave_logo.png)
+![OpenFusion Logo](res/radiorave_logo.png)
 
+[![Current Release](https://img.shields.io/github/v/release/OpenFusionProject/OpenFusion)](https://github.com/OpenFusionProject/OpenFusion/releases/latest)
 [![AppVeyor](https://ci.appveyor.com/api/projects/status/github/OpenFusionProject/OpenFusion?svg=true)](https://ci.appveyor.com/project/OpenFusionProject/openfusion)
 [![Discord](https://img.shields.io/badge/chat-on%20discord-7289da.svg?logo=discord)](https://discord.gg/DYavckB)
+[![License](https://img.shields.io/github/license/OpenFusionProject/OpenFusion)](https://github.com/OpenFusionProject/OpenFusion/blob/master/LICENSE.md)
 
-OpenFusion is a reverse-engineered server for FusionFall. It currently primarily targets version `beta-20100104` and has some support for version `beta-20100728` and ``beta-20111013`` of the original game.
-
-Further documentation pending.
+OpenFusion is a reverse-engineered server for FusionFall. It primarily targets versions `beta-20100104` and `beta-20111013` of the original game, with [limited support](https://github.com/OpenFusionProject/OpenFusion/wiki/FusionFall-Version-Support) for others.
 
 ## Usage
 
-tl;dr:
+### Getting Started
 
-1. Download the client+server bundle from [here](https://github.com/OpenFusionProject/OpenFusion/releases/download/1.3/OpenFusionClient-1.3.zip).
-2. Extract it to a folder of your choice.
-3. Run OpenFusionClient.exe
+1. Download the client from [here](https://github.com/OpenFusionProject/OpenFusion/releases/download/1.3/OpenFusionClient-1.3.zip).
+2. Extract it to a folder of your choice. Note: if you are upgrading from an older version, it is preferable to start with a fresh folder rather than overwriting a previous install.
+3. Run OpenFusionClient.exe - you will be given a choice between two public servers by default. Select the one you wish to play and click connect.
+4. To create an account, simply enter the details you wish to use at the login screen then click Log In. Do *not* click register, as this will just lead to a blank screen.
+5. Make a new character, and enjoy the game! Your progress will be saved automatically, and you can resume playing by entering the login details you used in step 4.
 
-To host your own server:
+### Hosting a server
 
-1. Grab ``OpenFusionServer-1.3-original.zip`` or ``OpenFusionServer-1.3-academy.zip`` from [here](https://github.com/OpenFusionProject/OpenFusion/releases/tag/1.3).
-2. Extract it to a folder of your choice.
-3. Add a new server to the client: the default port is 23000, so the full IP with default settings would be 127.0.0.1:23000.
+1. Grab `OpenFusionServer-1.3-original.zip` or `OpenFusionServer-1.3-academy.zip` from [here](https://github.com/OpenFusionProject/OpenFusion/releases/tag/1.3).
+2. Extract it to a folder of your choice, then run `winfusion.exe` (Windows) or `fusion` (Linux) to start the server.
+3. Add a new server to the client's list: the default port is 23000, so the full IP with default settings would be 127.0.0.1:23000.
+4. Once you've added the server to the list, connect to it and log in. If you're having trouble with this, refer to steps 4 and 5 from the previous section.
 
 If you want, [compiled binaries (artifacts) for each new commit can be found on AppVeyor.](https://ci.appveyor.com/project/OpenFusionProject/openfusion)
 
@@ -40,7 +43,7 @@ The original game made use of the player's actual web browser to launch the game
 
 The browser/Electron client opens a web page with an `<embed>` tag of MIME type `application/vnd.unity`, where the `src` param is the address of the game's `.unity3d` entrypoint.
 
-This triggers the browser to load an NPAPI plugin that handles this MIME type, the Unity Web Player, which the browser looks for in `C:\Users\USERNAME\AppData\LocalLow\Unity\WebPlayer`.
+This triggers the browser to load an NPAPI plugin that handles this MIME type, the Unity Web Player, which the browser looks for in `C:\Users\%USERNAME%\AppData\LocalLow\Unity\WebPlayer`.
 The Web Player was previously copied there by `installUnity.bat`.
 
 Note that the version of the web player distributed with OpenFusion expects a standard `UnityWeb` magic number for all assets, instead of Retro's modified `streamed` magic number.
@@ -48,33 +51,26 @@ This will potentially become relevant later, as people start experimenting and m
 
 The web player will execute the game code, which will request the following files from the server: `/assetInfo.php` and `/loginInfo.php`.
 
-`FreeClient/resources/app/files/assetInfo.php` contains the address from which to fetch the rest of the game's assets (the "dongresources").
+`/assetInfo.php` contains the address from which to fetch the rest of the game's assets (the "dongresources").
 Normally those would be hosted on the same web server as the gateway, but the OpenFusion distribution (in it's default configuration) doesn't use a web server at all!
 It loads the web pages locally using the `file://` schema, and fetches the game's assets from Turner's CDN (which is still hosting them to this day!).
 
-`FreeClient/resources/app/files/loginInfo.php` contains the IP:port pair of the FusionFall login server, which the client will connect to. This login server drives the client while it's in the Character Selection menu, as well as Character Creation and the Tutorial.
+`/loginInfo.php` contains the IP:port pair of the FusionFall login server, which the client will connect to. This login server drives the client while it's in the Character Selection menu, as well as Character Creation and the Tutorial.
 
 When the player clicks "ENTER THE GAME" (or completes the tutorial), the login server sends it the address of the shard server, which the client will then connect to and remain connected to during gameplay.
 
 ## Configuration
 
-You can change the ports the FusionFall server listens on in `Server/config.ini`. Make sure the login server port is in sync with `loginInfo.php`.
-The shard port needs no such synchronization.
-You can also configure the distance at which you'll be able to see other players, though by default it's already as high as you'll want it.
+You can change the ports the FusionFall server listens on in `config.ini`. Make sure the login server port is in sync with what you enter into the client's server list - the shard port needs no such synchronization.
 
-If you want to play with friends, you can change the IP in `loginInfo.php` to a login server hosted elsewhere.
+This config file also has several other options you can tweak, including log verbosity, database saving interval, default account/permission level, and more. See the comments within [the config file itself](https://github.com/OpenFusionProject/OpenFusion/blob/master/config.ini) for more details.
+
+If you want to play with friends, simply enter the login server details into the `Add Server` dialogue in OpenFusionClient.
 This just works if you're all under the same LAN, but if you want to play over the internet you'll need to open a port, use a service like Hamachi or nGrok, or host the server on a VPS (just like any other gameserver).
-
-If you're in a region in which Turner's CDN doesn't still have the game's assets cached, you won't be able to play the game in its default configuration.
-You'll need to obtain the necessary assets elsewhere and set up your own local web server to host them, because unlike web browsers, the game itself cannot interpret the `file://` schema, and will thus need the assets hosted on an actual HTTP server.
-Don't forget to point `assetInfo.php` to where you're hosting the assets and change the `src` param of both the `<embed>` tag and the `<object>` tag in `FreeClient/resources/app/files/index.html` to where you're hosting the `.unity3d` entrypoint.
-
-If you change `loginInfo.php` or `assetInfo.php`, make sure not to put any newline characters (or any other whitespace) at the end of the file(s).
-Some modern IDEs/text editors do this automatically. If all else fails, use Notepad.
 
 ## Compiling 
 
-OpenFusion has one external dependency: SQLite. You can install it on Windows using `vcpkg`, and on Unix/Linux using your distribution's package manager. For a more indepth guide on how to set up vcpkg, [check this wiki page](https://github.com/OpenFusionProject/OpenFusion/wiki/Installing-SQLite-on-Windows-using-vcpkg).
+OpenFusion has one external dependency: SQLite. You can install it on Windows using `vcpkg`, and on Unix/Linux using your distribution's package manager. For a more indepth guide on how to set up vcpkg, [read this guide on the wiki](https://github.com/OpenFusionProject/OpenFusion/wiki/Installing-SQLite-on-Windows-using-vcpkg).
 
 You have two choices for compiling OpenFusion: the included Makefile and the included CMakeLists file.
 
@@ -84,7 +80,7 @@ A detailed compilation guide is available for Windows users in the wiki [using M
 
 ### CMake
 
-A detailed guide is available [in the wiki](https://github.com/OpenFusionProject/OpenFusion/wiki/Compilation-with-CMake-or-Visual-Studio) for people using regular old CMake or the version of CMake that comes with Visual Studio. tl;dr: `cmake -B build`
+A detailed guide is available [on the wiki](https://github.com/OpenFusionProject/OpenFusion/wiki/Compilation-with-CMake-or-Visual-Studio) for people using regular old CMake or the version of CMake that comes with Visual Studio. tl;dr: `cmake -B build`
 
 ## Contributing
 
@@ -115,8 +111,4 @@ Because the server is still in development, ordinary players are allowed access 
 * `/nano_unequip [slot] (0-2)`
 * `/nano_active [slot] (0-2)`
 
-For a more detailed list of commands, you can check the Github wiki [here](https://github.com/OpenFusionProject/OpenFusion/wiki/Ingame-Command-list).
-
-## Accounts
-
-A basic account system has been added, when logging in if the username doesn't exist in the database, a new account with the provided password will be made and you'll be automatically logged in. Otherwise a login attempt will be made. A username must be between 4 and 32 characters, and a password must be between 8 and 32 characters otherwise the account will be rejected.
+### A full list of commands can be found [here](https://github.com/OpenFusionProject/OpenFusion/wiki/Ingame-Command-list).
