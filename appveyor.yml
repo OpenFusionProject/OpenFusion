@@ -4,7 +4,7 @@ build_cloud: GCE us-east1-b n2-standard-8
 
 image:
   - GCP-Windows-VS2019
-  - GCP-Linux-Ubuntu1804
+  - GCP-Linux-Ubuntu2004
 
 platform:
   - x64
@@ -16,7 +16,7 @@ for:
 -
   matrix:
     only:
-      - image: GCP-Linux-Ubuntu1804
+      - image: GCP-Linux-Ubuntu2004
   build_script:
     - ps: |
         $versions = "104", "728", "1013"
@@ -39,7 +39,7 @@ for:
         Copy-Item -Path "config.ini" -Destination "bin"
   artifacts:
     - path: bin
-      name: ubuntu18_04-bin-x64
+      name: ubuntu20_04-bin-x64
       type: zip
 -
   matrix:
