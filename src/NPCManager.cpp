@@ -504,7 +504,7 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     int limit = NPCData.back()["m_iNpcNumber"];
 
     // permission & sanity check
-    if (plr->accountLevel > 30 || req->iNPCType >= limit || req->iNPCCnt > 100)
+    if (plr->accountLevel > 30 || req->iNPCType > limit || req->iNPCCnt > 100)
         return;
 
     for (int i = 0; i < req->iNPCCnt; i++) {
