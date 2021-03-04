@@ -118,42 +118,39 @@ void CNSocket::kill() {
 #endif
 }
 
-// we don't own buf, TODO: queue packets up to send in step()
 void CNSocket::sendPacket(void* buf, uint32_t type, size_t size) {
     if (!alive)
         return;
 
-    size_t bodysize = size + sizeof(uint32_t);
-    uint8_t* fullpkt = (uint8_t*)xmalloc(bodysize+4);
-    uint8_t* body = fullpkt+4;
+    uint8_t fullpkt[CN_PACKET_BUFFER_SIZE]; // length, type, body
+    uint8_t* body = fullpkt + 4; // packet without length (type, body)
+    size_t bodysize = size + 4;
+
+    // set packet length
     memcpy(fullpkt, (void*)&bodysize, 4);
 
     // copy packet type to the front of the buffer & then the actual buffer
-    memcpy(body, (void*)&type, sizeof(uint32_t));
-    memcpy(body+sizeof(uint32_t), buf, size);
+    memcpy(body, (void*)&type, 4);
+    memcpy(body+4, buf, size);
 
     // encrypt the packet
     switch (activeKey) {
-        case SOCKETKEY_E:
-            CNSocketEncryption::encryptData((uint8_t*)body, (uint8_t*)(&EKey), bodysize);
-            break;
-        case SOCKETKEY_FE:
-            CNSocketEncryption::encryptData((uint8_t*)body, (uint8_t*)(&FEKey), bodysize);
-            break;
-        default: {
-            free(fullpkt);
-            DEBUGLOG(
-                std::cout << "[WARN]: UNSET KEYTYPE FOR SOCKET!! ABORTING SEND" << std::endl;
-            )
-            return;
-        }
+    case SOCKETKEY_E:
+        CNSocketEncryption::encryptData((uint8_t*)body, (uint8_t*)(&EKey), bodysize);
+        break;
+    case SOCKETKEY_FE:
+        CNSocketEncryption::encryptData((uint8_t*)body, (uint8_t*)(&FEKey), bodysize);
+        break;
+    default:
+        DEBUGLOG(
+            std::cout << "[WARN]: UNSET KEYTYPE FOR SOCKET!! ABORTING SEND" << std::endl;
+        )
+        return;
     }
 
     // send packet data!
     if (alive && !sendData(fullpkt, bodysize+4))
         kill();
-
-    free(fullpkt);
 }
 
 void CNSocket::setActiveKey(ACTIVEKEY key) {

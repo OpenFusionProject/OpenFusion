@@ -52,16 +52,6 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
     int32_t *pktdata = (int32_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_PC_ATTACK_NPCs));
 
-    /*
-     * Due to the possibility of multiplication overflow (and regular buffer overflow),
-     * both incoming and outgoing variable-length packets must be validated, at least if
-     * the number of trailing structs isn't well known (ie. it's from the client).
-     */
-    if (!validOutVarPacket(sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC), pkt->iNPCCnt, sizeof(sAttackResult))) {
-        std::cout << "[WARN] bad sP_FE2CL_PC_ATTACK_NPCs_SUCC packet size\n";
-        return;
-    }
-
     // rapid fire anti-cheat
     time_t currTime = getTime();
     if (currTime - plr->lastShot < plr->fireRate * 80)
@@ -76,6 +66,16 @@ void MobManager::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
     if (plr->suspicionRating > 10000) // kill the socket when the player is too suspicious
         sock->kill();
+
+    /*
+     * Due to the possibility of multiplication overflow (and regular buffer overflow),
+     * both incoming and outgoing variable-length packets must be validated, at least if
+     * the number of trailing structs isn't well known (ie. it's from the client).
+     */
+    if (!validOutVarPacket(sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC), pkt->iNPCCnt, sizeof(sAttackResult))) {
+        std::cout << "[WARN] bad sP_FE2CL_PC_ATTACK_NPCs_SUCC packet size\n";
+        return;
+    }
 
     // initialize response struct
     size_t resplen = sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC) + pkt->iNPCCnt * sizeof(sAttackResult);
