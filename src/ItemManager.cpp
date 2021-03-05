@@ -530,7 +530,9 @@ bool ItemManager::doTrade(Player* plr, Player* plr2) {
     for (int i = 0; i < 5; i++) {
         // remove items offered by us
         if (plr->Trade[i].iID != 0) {
-            if (plrInven[plr->Trade[i].iInvenNum].iID == 0) // pulling a fast one on us
+            if (plrInven[plr->Trade[i].iInvenNum].iID == 0
+                || plr->Trade[i].iID != plrInven[plr->Trade[i].iInvenNum].iID
+                || plr->Trade[i].iType != plrInven[plr->Trade[i].iInvenNum].iType) // pulling a fast one on us
                 return false;
 
             if (plr->Trade[i].iOpt < 1) {
@@ -551,7 +553,9 @@ bool ItemManager::doTrade(Player* plr, Player* plr2) {
         }
 
         if (plr2->Trade[i].iID != 0) {
-            if (plr2Inven[plr2->Trade[i].iInvenNum].iID == 0) // pulling a fast one on us
+            if (plr2Inven[plr2->Trade[i].iInvenNum].iID == 0
+                || plr2->Trade[i].iID != plr2Inven[plr2->Trade[i].iInvenNum].iID
+                || plr2->Trade[i].iType != plr2Inven[plr2->Trade[i].iInvenNum].iType) // pulling a fast one on us
                 return false;
 
             if (plr2->Trade[i].iOpt < 1) {
