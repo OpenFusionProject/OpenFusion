@@ -166,9 +166,10 @@ private:
 
 public:
     SOCKET sock;
+    sockaddr_in sockaddr;
     PacketHandler pHandler;
 
-    CNSocket(SOCKET s, PacketHandler ph);
+    CNSocket(SOCKET s, struct sockaddr_in &addr, PacketHandler ph);
 
     void setEKey(uint64_t k);
     void setFEKey(uint64_t k);

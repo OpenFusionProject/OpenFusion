@@ -63,7 +63,7 @@ CNPacketData::CNPacketData(void* b, uint32_t t, int l): buf(b), size(l), type(t)
 
 // ========================================================[[ CNSocket ]]========================================================
 
-CNSocket::CNSocket(SOCKET s, PacketHandler ph): sock(s), pHandler(ph) {
+CNSocket::CNSocket(SOCKET s, struct sockaddr_in &addr, PacketHandler ph): sock(s), sockaddr(addr), pHandler(ph) {
     EKey = (uint64_t)(*(uint64_t*)&CNSocketEncryption::defaultKey[0]);
 }
 
@@ -390,7 +390,7 @@ void CNServer::start() {
                 addPollFD(newConnectionSocket);
 
                 // add connection to list!
-                CNSocket* tmp = new CNSocket(newConnectionSocket, pHandler);
+                CNSocket* tmp = new CNSocket(newConnectionSocket, address, pHandler);
                 connections[newConnectionSocket] = tmp;
                 newConnection(tmp);
 

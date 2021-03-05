@@ -458,13 +458,22 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
         std::cout << "Login Server: Selected character [" << selection->iPC_UID << "]" << std::endl;
         std::cout << "Connecting to shard server" << std::endl;
     )
-  
-    // copy IP to resp (this struct uses ASCII encoding so we don't have to goof around converting encodings)
-    const char* SHARD_IP = settings::SHARDSERVERIP.c_str();
-    memcpy(resp.g_FE_ServerIP, SHARD_IP, strlen(SHARD_IP));
-    resp.g_FE_ServerIP[strlen(SHARD_IP)] = '\0';
+
+    const char* shard_ip = settings::SHARDSERVERIP.c_str();
+
+    /*
+     * Work around the issue of not being able to connect to a local server if
+     * the shard IP has been configured to an address the local machine can't
+     * reach itself from.
+     */
+    if (sock->sockaddr.sin_addr.s_addr == htonl(INADDR_LOOPBACK))
+        shard_ip = "127.0.0.1";
+
+    memcpy(resp.g_FE_ServerIP, shard_ip, strlen(shard_ip));
+
+    resp.g_FE_ServerIP[strlen(shard_ip)] = '\0';
     resp.g_FE_ServerPort = settings::SHARDPORT;
-    
+
     // pass player to CNSharedData
     Player passPlayer = {};
     Database::getPlayer(&passPlayer, selection->iPC_UID);
@@ -477,7 +486,7 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
     CNSharedData::setPlayer(resp.iEnterSerialKey, passPlayer);
 
     sock->sendPacket((void*)&resp, P_LS2CL_REP_SHARD_SELECT_SUCC, sizeof(sP_LS2CL_REP_SHARD_SELECT_SUCC));
-    
+
     // update current slot in DB
     Database::updateSelected(loginSessions[sock].userID, passPlayer.slot);
 }
