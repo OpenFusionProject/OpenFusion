@@ -171,10 +171,12 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    // prepare a fail packet
+    INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, failResp);
+    failResp.iErrorCode = 0;
+
     if (req->iInvenSlotNum < 0 || req->iInvenSlotNum >= AINVEN_COUNT || req->iItemCnt < 0) {
         std::cout << "[WARN] Client failed to sell item in slot " << req->iInvenSlotNum << std::endl;
-        INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, failResp);
-        failResp.iErrorCode = 0;
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL));
         return;
     }
@@ -184,8 +186,12 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
 
     if (itemData == nullptr || !itemData->sellable || plr->Inven[req->iInvenSlotNum].iOpt < req->iItemCnt) { // sanity + sellable check
         std::cout << "[WARN] Item id " << item->iID << " with type " << item->iType << " not found (sell)" << std::endl;
-        INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, failResp);
-        failResp.iErrorCode = 0;
+        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL));
+        return;
+    }
+
+    // fail to sell croc-potted items
+    if (plr->Inven[req->iInvenSlotNum].iOpt >= 1 << 16) {
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL));
         return;
     }

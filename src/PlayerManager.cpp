@@ -1082,6 +1082,9 @@ void PlayerManager::kickPlayer(CNSocket *sock, CNPacketData *data) {
 
     // send to target player
     otherSock->sendPacket((void*)&response, P_FE2CL_REP_PC_EXIT_SUCC, sizeof(sP_FE2CL_REP_PC_EXIT_SUCC));
+
+    // ensure that the connection has terminated
+    otherSock->kill();
 }
 
 void PlayerManager::warpToPlayer(CNSocket *sock, CNPacketData *data) {
