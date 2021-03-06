@@ -762,10 +762,10 @@ void redeemCommand(std::string full, std::vector<std::string>& args, CNSocket* s
     }
 
     int itemCount = ItemManager::CodeItems[code].size();
-    int slots[4];
+    std::vector<int> slots;
 
     for (int i = 0; i < itemCount; i++) {
-        slots[i] = ItemManager::findFreeSlot(plr);
+        slots.push_back(ItemManager::findFreeSlot(plr));
         if (slots[i] == -1) {
             ChatManager::sendServerMessage(sock, "/redeem: Not enough space in inventory");
 
