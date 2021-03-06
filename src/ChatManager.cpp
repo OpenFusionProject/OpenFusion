@@ -845,6 +845,86 @@ void unregisterallCommand(std::string full, std::vector<std::string>& args, CNSo
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC, sizeof(sP_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC));
 }
 
+void banCommand(std::string full, std::vector<std::string>& args, CNSocket *sock) {
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    if (args.size() < 2) {
+        ChatManager::sendServerMessage(sock, "Usage: /ban PlayerID [reason...]");
+        return;
+    }
+
+    char *rest;
+    int playerId = std::strtol(args[1].c_str(), &rest, 10);
+    if (*rest) {
+        ChatManager::sendServerMessage(sock, "Invalid PlayerID: " + args[1]);
+        return;
+    }
+
+    std::string reason;
+    if (args.size() == 2) {
+        reason = "no reason given";
+    } else {
+        reason = args[2];
+        for (int i = 3; i < args.size(); i++)
+            reason += " " + args[i];
+    }
+
+    // ban the account that player belongs to
+    if (!Database::banPlayer(playerId, reason)) {
+        // propagating a more descriptive error message from banPlayer() would be too much work
+        ChatManager::sendServerMessage(sock, "Failed to ban target player. Check server logs.");
+        return;
+    }
+
+    ChatManager::sendServerMessage(sock, "Banned target player.");
+    std::cout << "[INFO] " << PlayerManager::getPlayerName(plr) << " banned player " << playerId << std::endl;
+
+    // if the player is online, kick them
+    CNSocket *otherSock = PlayerManager::getSockFromID(playerId);
+    if (otherSock == nullptr) {
+        ChatManager::sendServerMessage(sock, "Player wasn't online. Didn't need to kick.");
+        return;
+    }
+
+    Player *otherPlr = PlayerManager::getPlayer(otherSock);
+
+    INITSTRUCT(sP_FE2CL_REP_PC_EXIT_SUCC, pkt);
+
+    pkt.iID = otherPlr->iID;
+    pkt.iExitCode = 3; // "a GM has terminated your connection"
+
+    // send to target player
+    otherSock->sendPacket((void*)&pkt, P_FE2CL_REP_PC_EXIT_SUCC, sizeof(sP_FE2CL_REP_PC_EXIT_SUCC));
+
+    // ensure that the connection has terminated
+    otherSock->kill();
+
+    ChatManager::sendServerMessage(sock, PlayerManager::getPlayerName(otherPlr) + " was online. Kicked.");
+}
+
+void unbanCommand(std::string full, std::vector<std::string>& args, CNSocket *sock) {
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    if (args.size() < 2) {
+        ChatManager::sendServerMessage(sock, "Usage: /unban PlayerID");
+        return;
+    }
+
+    char *rest;
+    int playerId = std::strtol(args[1].c_str(), &rest, 10);
+    if (*rest) {
+        ChatManager::sendServerMessage(sock, "Invalid PlayerID: " + args[1]);
+        return;
+    }
+
+    if (Database::unbanPlayer(playerId)) {
+        ChatManager::sendServerMessage(sock, "Unbanned player.");
+        std::cout << "[INFO] " << PlayerManager::getPlayerName(plr) << " unbanned player " << playerId << std::endl;
+    } else {
+        ChatManager::sendServerMessage(sock, "Failed to unban player. Check server logs.");
+    }
+}
+
 void ChatManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
@@ -873,6 +953,8 @@ void ChatManager::init() {
     registerCommand("players", 30, playersCommand, "print all players on the server");
     registerCommand("summonGroup", 30, summonGroupCommand, "summon group NPCs");
     registerCommand("summonGroupW", 30, summonGroupCommand, "permanently summon group NPCs");
+    registerCommand("ban", 30, banCommand, "ban the account the given PlayerID belongs to");
+    registerCommand("unban", 30, unbanCommand, "unban the account the given PlayerID belongs to");
     registerCommand("whois", 50, whoisCommand, "describe nearest NPC");
     registerCommand("lair", 50, lairUnlockCommand, "get the required mission for the nearest fusion lair");
     registerCommand("hide", 100, hideCommand, "hide yourself from the global player map");

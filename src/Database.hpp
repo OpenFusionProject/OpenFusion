@@ -48,7 +48,12 @@ namespace Database {
     void findAccount(Account* account, std::string login);
     /// returns ID, 0 if something failed
     int addAccount(std::string login, std::string password);
-    void banAccount(int accountId, int days);
+    bool banAccount(int accountId, int days, std::string& reason);
+    bool unbanAccount(int accountId);
+    bool banPlayer(int playerId, std::string& reason);
+    bool unbanPlayer(int playerId);
+
+    int getAccountIDFromPlayerID(int playerId, int *accountLevel=nullptr);
     void updateSelected(int accountId, int playerId);
     
     bool validateCharacter(int characterID, int userID);

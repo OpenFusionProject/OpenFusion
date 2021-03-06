@@ -304,24 +304,121 @@ int Database::addAccount(std::string login, std::string password) {
     return sqlite3_last_insert_rowid(db);
 }
 
-void Database::banAccount(int accountId, int days) {
-    std::lock_guard<std::mutex> lock(dbCrit);
-
+// NOTE: internal function; does not lock dbCrit
+bool Database::banAccount(int accountId, int days, std::string& reason) {
     const char* sql = R"(
         UPDATE Accounts SET
             BannedSince = (strftime('%s', 'now')),
-            BannedUntil = (strftime('%s', 'now')) + ?
+            BannedUntil = (strftime('%s', 'now')) + ?,
+            BanReason = ?
         WHERE AccountID = ?;
         )";
     sqlite3_stmt* stmt;
 
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
     sqlite3_bind_int(stmt, 1, days * 86400); // convert days to seconds
-    sqlite3_bind_int(stmt, 2, accountId);
+    sqlite3_bind_text(stmt, 2, reason.c_str(), -1, NULL);
+    sqlite3_bind_int(stmt, 3, accountId);
+
     if (sqlite3_step(stmt) != SQLITE_DONE) {
-        std::cout << "[WARN] Database: failed to ban player: " << sqlite3_errmsg(db) << std::endl;
+        std::cout << "[WARN] Database: failed to ban account: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_finalize(stmt);
+        return false;
     }
+
     sqlite3_finalize(stmt);
+    return true;
+}
+
+// NOTE: internal function; does not lock dbCrit
+bool Database::unbanAccount(int accountId) {
+    const char* sql = R"(
+        UPDATE Accounts SET
+            BannedSince = 0,
+            BannedUntil = 0,
+            BanReason = ''
+        WHERE AccountID = ?;
+        )";
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    sqlite3_bind_int(stmt, 1, accountId);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        std::cout << "[WARN] Database: failed to unban account: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sqlite3_finalize(stmt);
+    return true;
+}
+
+// expressed in days
+#define THIRTY_YEARS 10957
+
+bool Database::banPlayer(int playerId, std::string& reason) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    int accountLevel;
+    int accountId = getAccountIDFromPlayerID(playerId, &accountLevel);
+    if (accountId < 0) {
+        return false;
+    }
+
+    if (accountLevel <= 30) {
+        std::cout << "[WARN] Cannot ban a GM." << std::endl;
+        return false;
+    }
+
+    // do the ban
+    if (!banAccount(accountId, THIRTY_YEARS, reason)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool Database::unbanPlayer(int playerId) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    int accountId = getAccountIDFromPlayerID(playerId);
+    if (accountId < 0)
+        return false;
+
+    return unbanAccount(accountId);
+}
+
+int Database::getAccountIDFromPlayerID(int playerId, int *accountLevel) {
+    const char *sql = R"(
+        SELECT Players.AccountID, AccountLevel
+        FROM Players
+        JOIN Accounts ON Players.AccountID = Accounts.AccountID
+        WHERE PlayerID = ?;
+        )";
+    sqlite3_stmt *stmt;
+
+    // get AccountID from PlayerID
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_bind_int(stmt, 1, playerId);
+
+    if (sqlite3_step(stmt) != SQLITE_ROW) {
+        std::cout << "[WARN] Database: failed to get AccountID from PlayerID: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    int accountId = sqlite3_column_int(stmt, 0);
+
+    // optional secondary return value, for checking GM status
+    if (accountLevel != nullptr)
+        *accountLevel = sqlite3_column_int(stmt, 1);
+
+    sqlite3_finalize(stmt);
+
+    return accountId;
 }
 
 void Database::updateSelected(int accountId, int slot) {
@@ -1845,7 +1942,7 @@ void Database::postRaceRanking(Database::RaceRanking ranking) {
     sqlite3_finalize(stmt);
 }
 
-bool Database::isCodeRedeemed (int playerId, std::string code) {
+bool Database::isCodeRedeemed(int playerId, std::string code) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     const char* sql = R"(
