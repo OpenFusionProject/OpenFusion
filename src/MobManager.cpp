@@ -360,14 +360,7 @@ int MobManager::hitMob(CNSocket *sock, Mob *mob, int damage) {
 
     if (mob->state == MobState::ROAMING) {
         assert(mob->target == nullptr);
-        mob->target = sock;
-        mob->state = MobState::COMBAT;
-        mob->nextMovement = getTime();
-        mob->nextAttack = 0;
-
-        mob->roamX = mob->appearanceData.iX;
-        mob->roamY = mob->appearanceData.iY;
-        mob->roamZ = mob->appearanceData.iZ;
+        enterCombat(sock, mob);
 
         if (mob->groupLeader != 0)
             followToCombat(mob);
@@ -1235,6 +1228,14 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
             || RacingManager::EPRaces.find(s) != RacingManager::EPRaces.end())
                 mobRange /= 3;
 
+            // 0.33x - 1.66x the range
+            int levelDifference = plr->level - mob->level;
+            if (levelDifference > -10)
+                mobRange = levelDifference < 10 ? mobRange - (levelDifference * mobRange / 15) : mobRange / 3;
+
+            if (mob->state != MobState::ROAMING && plr->inCombat) // freshly out of aggro mobs
+                mobRange = mob->sightRange * 2; // should not be impacted by the above
+
             if (plr->iSpecialState & (CN_SPECIAL_STATE_FLAG__INVISIBLE|CN_SPECIAL_STATE_FLAG__INVULNERABLE))
                 mobRange = -1;
 
@@ -1253,14 +1254,7 @@ bool MobManager::aggroCheck(Mob *mob, time_t currTime) {
 
     if (closest != nullptr) {
         // found closest player. engage.
-        mob->target = closest;
-        mob->state = MobState::COMBAT;
-        mob->nextMovement = currTime;
-        mob->nextAttack = 0;
-
-        mob->roamX = mob->appearanceData.iX;
-        mob->roamY = mob->appearanceData.iY;
-        mob->roamZ = mob->appearanceData.iZ;
+        enterCombat(closest, mob);
 
         if (mob->groupLeader != 0)
             followToCombat(mob);
@@ -1484,27 +1478,13 @@ void MobManager::followToCombat(Mob *mob) {
             if (followerMob->state != MobState::ROAMING) // only roaming mobs should transition to combat
                 continue;
 
-            followerMob->target = mob->target;
-            followerMob->state = MobState::COMBAT;
-            followerMob->nextMovement = getTime();
-            followerMob->nextAttack = 0;
-
-            followerMob->roamX = followerMob->appearanceData.iX;
-            followerMob->roamY = followerMob->appearanceData.iY;
-            followerMob->roamZ = followerMob->appearanceData.iZ;
+            enterCombat(mob->target, followerMob);
         }
 
         if (leadMob->state != MobState::ROAMING)
             return;
 
-        leadMob->target = mob->target;
-        leadMob->state = MobState::COMBAT;
-        leadMob->nextMovement = getTime();
-        leadMob->nextAttack = 0;
-
-        leadMob->roamX = leadMob->appearanceData.iX;
-        leadMob->roamY = leadMob->appearanceData.iY;
-        leadMob->roamZ = leadMob->appearanceData.iZ;
+        enterCombat(mob->target, leadMob);
     }
 }
 
@@ -1744,6 +1724,27 @@ void MobManager::dealCorruption(Mob *mob, std::vector<int> targetData, int skill
     NPCManager::sendToViewable(mob, (void*)&respbuf, P_FE2CL_NPC_SKILL_CORRUPTION_HIT, resplen);
 }
 
+void MobManager::enterCombat(CNSocket *sock, Mob *mob) {
+    mob->target = sock;
+    mob->state = MobState::COMBAT;
+    mob->nextMovement = getTime();
+    mob->nextAttack = 0;
+
+    mob->roamX = mob->appearanceData.iX;
+    mob->roamY = mob->appearanceData.iY;
+    mob->roamZ = mob->appearanceData.iZ;
+
+    int skillID = (int)mob->data["m_iPassiveBuff"]; // cast passive
+    std::vector<int> targetData = {1, mob->appearanceData.iNPC_ID, 0, 0, 0};
+    for (auto& pwr : MobPowers)
+        if (pwr.skillType == NanoManager::SkillTable[skillID].skillType)
+            pwr.handle(mob, targetData, skillID, NanoManager::SkillTable[skillID].durationTime[0], NanoManager::SkillTable[skillID].powerIntensity[0]);
+
+    for (NPCEvent& event : NPCManager::NPCEvents) // trigger an ON_COMBAT
+        if (event.trigger == ON_COMBAT && event.npcType == mob->appearanceData.iNPCType)
+            event.handler(sock, mob);
+}
+
 #pragma region Mob Powers
 namespace MobManager {
 bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
@@ -1778,7 +1779,7 @@ bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, in
             pkt.eTBU = 1; // eTimeBuffUpdate
             pkt.eTBT = 2;
             pkt.iConditionBitFlag = plr->iConditionBitFlag |= bitFlag;
-            pkt.TimeBuff.iValue = amount;
+            pkt.TimeBuff.iValue = amount * 5;
             sock->sendPacket((void*)&pkt, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
         }
 
@@ -1803,6 +1804,27 @@ bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, in
 }
 
 bool doHeal(Mob *mob, sSkillResult_Heal_HP *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
+    if (MobManager::Mobs.find(targetID) == MobManager::Mobs.end()) {
+        std::cout << "[WARN] doDebuff: mob ID not found" << std::endl;
+        return false;
+    }
+
+    Mob* targetMob = MobManager::Mobs[targetID];
+
+    int healedAmount = amount * targetMob->maxHealth / 1000;
+    targetMob->appearanceData.iHP += healedAmount;
+    if (targetMob->appearanceData.iHP > targetMob->maxHealth)
+        targetMob->appearanceData.iHP = targetMob->maxHealth;
+
+    respdata[i].eCT = 4;
+    respdata[i].iID = targetMob->appearanceData.iNPC_ID;
+    respdata[i].iHP = targetMob->appearanceData.iHP;
+    respdata[i].iHealHP = healedAmount;
+
+    return true;
+}
+
+bool doReturnHeal(Mob *mob, sSkillResult_Heal_HP *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
     int healedAmount = amount * mob->maxHealth / 1000;
     mob->appearanceData.iHP += healedAmount;
     if (mob->appearanceData.iHP > mob->maxHealth)
@@ -1862,18 +1884,6 @@ bool doLeech(Mob *mob, sSkillResult_Heal_HP *healdata, int i, int32_t targetID, 
         return false;
     }
 
-    sSkillResult_Damage *damagedata = (sSkillResult_Damage*)(((uint8_t*)healdata) + sizeof(sSkillResult_Heal_HP));
-
-    int healedAmount = amount * mob->maxHealth / 1000;
-    mob->appearanceData.iHP += healedAmount;
-    if (mob->appearanceData.iHP > mob->maxHealth)
-        mob->appearanceData.iHP = mob->maxHealth;
-
-    healdata->eCT = 4;
-    healdata->iID = mob->appearanceData.iNPC_ID;
-    healdata->iHP = mob->appearanceData.iHP;
-    healdata->iHealHP = healedAmount;
-
     Player *plr = nullptr;
 
     for (auto& pair : PlayerManager::players) {
@@ -1889,7 +1899,20 @@ bool doLeech(Mob *mob, sSkillResult_Heal_HP *healdata, int i, int32_t targetID, 
         return false;
     }
 
-    int damage = amount * PC_MAXHEALTH(plr->level) / 1000;
+    sSkillResult_Damage *damagedata = (sSkillResult_Damage*)(((uint8_t*)healdata) + sizeof(sSkillResult_Heal_HP));
+
+    int healedAmount = amount * PC_MAXHEALTH(plr->level) / 1000;
+
+    mob->appearanceData.iHP += healedAmount;
+    if (mob->appearanceData.iHP > mob->maxHealth)
+        mob->appearanceData.iHP = mob->maxHealth;
+
+    healdata->eCT = 4;
+    healdata->iID = mob->appearanceData.iNPC_ID;
+    healdata->iHP = mob->appearanceData.iHP;
+    healdata->iHealHP = healedAmount;
+
+    int damage = healedAmount;
 
     if (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE)
         damage = 0;
@@ -1949,6 +1972,15 @@ bool doBatteryDrain(Mob *mob, sSkillResult_BatteryDrain *respdata, int i, int32_
     return true;
 }
 
+bool doBuff(Mob *mob, sSkillResult_Buff *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
+    respdata[i].eCT = 4;
+    respdata[i].iID = mob->appearanceData.iNPC_ID;
+    mob->appearanceData.iConditionBitFlag |= bitFlag;
+    respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
+
+    return true;
+}
+
 template<class sPAYLOAD,
          bool (*work)(Mob*,sPAYLOAD*,int,int32_t,int32_t,int16_t,int16_t,int16_t)>
 void mobPower(Mob *mob, std::vector<int> targetData,
@@ -1992,11 +2024,13 @@ void mobPower(Mob *mob, std::vector<int> targetData,
 std::vector<MobPower> MobPowers = {
     MobPower(EST_STUN,             CSB_BIT_STUN,              ECSB_STUN,              mobPower<sSkillResult_Damage_N_Debuff, doDamageNDebuff>),
     MobPower(EST_HEAL_HP,          CSB_BIT_NONE,              ECSB_NONE,              mobPower<sSkillResult_Heal_HP,                  doHeal>),
-    MobPower(EST_RETURNHOMEHEAL,   CSB_BIT_NONE,              ECSB_NONE,              mobPower<sSkillResult_Heal_HP,                  doHeal>),
+    MobPower(EST_RETURNHOMEHEAL,   CSB_BIT_NONE,              ECSB_NONE,              mobPower<sSkillResult_Heal_HP,            doReturnHeal>),
     MobPower(EST_SNARE,            CSB_BIT_DN_MOVE_SPEED,     ECSB_DN_MOVE_SPEED,     mobPower<sSkillResult_Damage_N_Debuff, doDamageNDebuff>),
     MobPower(EST_DAMAGE,           CSB_BIT_NONE,              ECSB_NONE,              mobPower<sSkillResult_Damage,                 doDamage>),
     MobPower(EST_BATTERYDRAIN,     CSB_BIT_NONE,              ECSB_NONE,              mobPower<sSkillResult_BatteryDrain,     doBatteryDrain>),
-    MobPower(EST_SLEEP,            CSB_BIT_MEZ,               ECSB_MEZ,               mobPower<sSkillResult_Damage_N_Debuff, doDamageNDebuff>)
+    MobPower(EST_SLEEP,            CSB_BIT_MEZ,               ECSB_MEZ,               mobPower<sSkillResult_Damage_N_Debuff, doDamageNDebuff>),
+    MobPower(EST_BLOODSUCKING,     CSB_BIT_NONE,              ECSB_NONE,              mobPower<sSkillResult_Heal_HP,                 doLeech>),
+    MobPower(EST_FREEDOM,          CSB_BIT_FREEDOM,           ECSB_FREEDOM,           mobPower<sSkillResult_Buff,                     doBuff>)
 };
 
 }; // namespace

@@ -7,6 +7,8 @@
 #include "MissionManager.hpp"
 #include "GroupManager.hpp"
 
+#include <cmath>
+
 std::map<int32_t, NanoData> NanoManager::NanoTable;
 std::map<int32_t, NanoTuning> NanoManager::NanoTunings;
 std::map<int32_t, SkillData> NanoManager::SkillTable;
@@ -588,7 +590,8 @@ bool doDebuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t target
     respdata[i].eCT = 4;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
     respdata[i].bProtected = 1;
-    if (mob->skillStyle < 0 && mob->state != MobState::RETREAT) { // only debuff if the enemy is not retreating and not casting corruption
+    if (mob->skillStyle < 0 && mob->state != MobState::RETREAT 
+    && !(mob->appearanceData.iConditionBitFlag & CSB_BIT_FREEDOM)) { // only debuff if the enemy is not retreating, casting corruption or in freedom
         mob->appearanceData.iConditionBitFlag |= bitFlag;
         mob->unbuffTimes[bitFlag] = getTime() + duration * 100;
         respdata[i].bProtected = 0;
@@ -655,7 +658,8 @@ bool doDamageNDebuff(CNSocket *sock, sSkillResult_Damage_N_Debuff *respdata, int
     respdata[i].iID = mob->appearanceData.iNPC_ID;
     respdata[i].iHP = mob->appearanceData.iHP;
     respdata[i].bProtected = 1;
-    if (mob->skillStyle < 0 && mob->state != MobState::RETREAT) { // only debuff if the enemy is not retreating and not casting corruption
+    if (mob->skillStyle < 0 && mob->state != MobState::RETREAT 
+    && !(mob->appearanceData.iConditionBitFlag & CSB_BIT_FREEDOM)) { // only debuff if the enemy is not retreating, casting corruption or in freedom
         mob->appearanceData.iConditionBitFlag |= bitFlag;
         mob->unbuffTimes[bitFlag] = getTime() + duration * 100;
         respdata[i].bProtected = 0;
@@ -710,7 +714,7 @@ bool doDamage(CNSocket *sock, sSkillResult_Damage *respdata, int i, int32_t targ
 
     Player *plr = PlayerManager::getPlayer(sock);
 
-    int damage = MobManager::hitMob(sock, mob, PC_MAXHEALTH(plr->level) * amount / 2000 + mob->appearanceData.iHP * amount / 2000);
+    int damage = MobManager::hitMob(sock, mob, std::max(PC_MAXHEALTH(plr->level) * amount / 1000, mob->maxHealth * amount / 1000));
 
     respdata[i].eCT = 4;
     respdata[i].iDamage = damage;
