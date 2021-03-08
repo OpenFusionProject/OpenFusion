@@ -58,6 +58,11 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         return;
     // NOTE: sending a no-op, "move in-place" packet is not necessary
 
+    if (plr->isTrading) {
+        std::cout << "[WARN] Player attempted to move item while trading" << std::endl;
+        return;
+    }
+
     // get the fromItem
     sItemBase *fromItem;
     switch ((SlotType)itemmove->eFrom) {
@@ -804,24 +809,31 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     if (data->size != sizeof(sP_CL2FE_REQ_ITEM_CHEST_OPEN))
         return; // ignore the malformed packet
 
-    sP_CL2FE_REQ_ITEM_CHEST_OPEN *chest = (sP_CL2FE_REQ_ITEM_CHEST_OPEN *)data->buf;
+    sP_CL2FE_REQ_ITEM_CHEST_OPEN *pkt = (sP_CL2FE_REQ_ITEM_CHEST_OPEN *)data->buf;
 
     // sanity check
-    if (chest->ChestItem.iType != 9) {
+    if (pkt->eIL != 1 || pkt->iSlotNum < 0 || pkt->iSlotNum >= AINVEN_COUNT)
+        return;
+
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    sItemBase *chest = &plr->Inven[pkt->iSlotNum];
+    // we could reject the packet if the client thinks the item is different, but eh
+
+    if (chest->iType != 9) {
         std::cout << "[WARN] Player tried to open a crate with incorrect iType ?!" << std::endl;
         return;
     }
 
 #ifdef ACADEMY
     // check if chest isn't a nano capsule
-    if (NanoCapsules.find(chest->ChestItem.iID) != NanoCapsules.end())
-        return nanoCapsuleHandler(sock, chest);
+    if (NanoCapsules.find(chest->iID) != NanoCapsules.end())
+        return nanoCapsuleHandler(sock, pkt->iSlotNum, chest);
 #endif
 
-    Player *plr = PlayerManager::getPlayer(sock);
     // chest opening acknowledgement packet
     INITSTRUCT(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, resp);
-    resp.iSlotNum = chest->iSlotNum;
+    resp.iSlotNum = pkt->iSlotNum;
 
     // item giving packet
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
@@ -844,21 +856,21 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     reward->m_iBatteryN = plr->batteryN;
     reward->m_iBatteryW = plr->batteryW;
 
-    item->iSlotNum = chest->iSlotNum;
-    item->eIL = chest->eIL;
+    item->iSlotNum = pkt->iSlotNum;
+    item->eIL = 1;
 
     int itemSetId = -1, rarity = -1, ret = -1;
     bool failing = false;
 
     // find the crate
-    if (Crates.find(chest->ChestItem.iID) == Crates.end()) {
-        std::cout << "[WARN] Crate " << chest->ChestItem.iID << " not found!" << std::endl;
+    if (Crates.find(chest->iID) == Crates.end()) {
+        std::cout << "[WARN] Crate " << chest->iID << " not found!" << std::endl;
         failing = true;
     }
-    Crate& crate = Crates[chest->ChestItem.iID];
+    Crate& crate = Crates[chest->iID];
 
     if (!failing)
-        itemSetId = getItemSetId(crate, chest->ChestItem.iID);
+        itemSetId = getItemSetId(crate, chest->iID);
     if (itemSetId == -1)
         failing = true;
 
@@ -879,7 +891,7 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
         item->sItem.iOpt = 1;
     }
     // update player
-    plr->Inven[chest->iSlotNum] = item->sItem;
+    plr->Inven[pkt->iSlotNum] = item->sItem;
 
     // transmit item
     sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
@@ -1064,13 +1076,13 @@ void ItemManager::updateEquips(CNSocket* sock, Player* plr) {
 }
 
 #ifdef ACADEMY
-void ItemManager::nanoCapsuleHandler(CNSocket* sock, sP_CL2FE_REQ_ITEM_CHEST_OPEN* chest) { 
+void ItemManager::nanoCapsuleHandler(CNSocket* sock, int slot, sItemBase *chest) {
     Player* plr = PlayerManager::getPlayer(sock);
-    int32_t nanoId = NanoCapsules[chest->ChestItem.iID];
+    int32_t nanoId = NanoCapsules[chest->iID];
 
     // chest opening acknowledgement packet
     INITSTRUCT(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, resp);
-    resp.iSlotNum = chest->iSlotNum;
+    resp.iSlotNum = slot;
 
     // in order to remove capsule form inventory, we have to send item reward packet with empty item
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
@@ -1093,11 +1105,11 @@ void ItemManager::nanoCapsuleHandler(CNSocket* sock, sP_CL2FE_REQ_ITEM_CHEST_OPE
     reward->m_iBatteryN = plr->batteryN;
     reward->m_iBatteryW = plr->batteryW;
 
-    item->iSlotNum = chest->iSlotNum;
-    item->eIL = chest->eIL;
+    item->iSlotNum = slot;
+    item->eIL = 1;
     
     // update player serverside
-    plr->Inven[chest->iSlotNum] = item->sItem;
+    plr->Inven[slot] = item->sItem;
 
     // transmit item
     sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);

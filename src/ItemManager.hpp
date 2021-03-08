@@ -23,7 +23,11 @@ namespace ItemManager {
     };
     struct Item {
         bool tradeable, sellable;
-        int buyPrice, sellPrice, stackSize, level, rarity, pointDamage, groupDamage, fireRate, defense, gender; // TODO: implement more as needed
+        int buyPrice, sellPrice;
+        int stackSize, level, rarity;
+        int pointDamage, groupDamage, fireRate, defense, gender;
+        int weaponType;
+        // TODO: implement more as needed
     };
     // hopefully this is fine since it's never modified after load
     extern std::map<std::pair<int32_t, int32_t>, Item> ItemData; // <id, type> -> data
@@ -69,6 +73,6 @@ namespace ItemManager {
 
 #ifdef ACADEMY
     extern std::map<int32_t, int32_t> NanoCapsules; // crate id -> nano id
-    void nanoCapsuleHandler(CNSocket* sock, sP_CL2FE_REQ_ITEM_CHEST_OPEN* chest);
+    void nanoCapsuleHandler(CNSocket* sock, int slot, sItemBase *chest);
 #endif
 }

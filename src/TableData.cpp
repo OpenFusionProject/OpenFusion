@@ -160,6 +160,7 @@ void TableData::init() {
                     itemData.fireRate = item["m_iDelayTime"];
                     itemData.defense = item["m_iDefenseRat"];
                     itemData.gender = item["m_iReqSex"];
+                    itemData.weaponType = item["m_iEquipType"];
                 } else {
                     itemData.rarity = 1;
                 }

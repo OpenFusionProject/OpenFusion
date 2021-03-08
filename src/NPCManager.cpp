@@ -361,13 +361,16 @@ void NPCManager::npcCombineItems(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_ITEM_COMBINATION* req = (sP_CL2FE_REQ_PC_ITEM_COMBINATION*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
-    if (req->iCostumeItemSlot < 0 || req->iCostumeItemSlot >= AINVEN_COUNT || req->iStatItemSlot < 0 || req->iStatItemSlot >= AINVEN_COUNT) { // sanity check 1
-        INITSTRUCT(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, failResp);
-        failResp.iCostumeItemSlot = req->iCostumeItemSlot;
-        failResp.iStatItemSlot = req->iStatItemSlot;
-        failResp.iErrorCode = 0;
-        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, sizeof(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL));
+    // prepare fail packet
+    INITSTRUCT(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, failResp);
+    failResp.iCostumeItemSlot = req->iCostumeItemSlot;
+    failResp.iStatItemSlot = req->iStatItemSlot;
+    failResp.iErrorCode = 0;
+
+    // sanity check slot indices
+    if (req->iCostumeItemSlot < 0 || req->iCostumeItemSlot >= AINVEN_COUNT || req->iStatItemSlot < 0 || req->iStatItemSlot >= AINVEN_COUNT) {
         std::cout << "[WARN] Inventory slot(s) out of range (" << req->iStatItemSlot << " and " << req->iCostumeItemSlot << ")" << std::endl;
+        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, sizeof(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL));
         return;
     }
 
@@ -376,13 +379,18 @@ void NPCManager::npcCombineItems(CNSocket* sock, CNPacketData* data) {
     ItemManager::Item* itemStatsDat = ItemManager::getItemData(itemStats->iID, itemStats->iType);
     ItemManager::Item* itemLooksDat = ItemManager::getItemData(itemLooks->iID, itemLooks->iType);
 
+    // sanity check item and combination entry existence
     if (itemStatsDat == nullptr || itemLooksDat == nullptr
-        || ItemManager::CrocPotTable.find(abs(itemStatsDat->level - itemLooksDat->level)) == ItemManager::CrocPotTable.end()) { // sanity check 2
-        INITSTRUCT(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, failResp);
-        failResp.iCostumeItemSlot = req->iCostumeItemSlot;
-        failResp.iStatItemSlot = req->iStatItemSlot;
-        failResp.iErrorCode = 0;
+    || ItemManager::CrocPotTable.find(abs(itemStatsDat->level - itemLooksDat->level)) == ItemManager::CrocPotTable.end()) {
         std::cout << "[WARN] Either item ids or croc pot value set not found" << std::endl;
+        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, sizeof(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL));
+        return;
+    }
+
+    // sanity check matching item types
+    if (itemStats->iType != itemLooks->iType
+    || (itemStats->iType == 0 && itemStatsDat->weaponType != itemLooksDat->weaponType)) {
+        std::cout << "[WARN] Player attempted to combine mismatched items" << std::endl;
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, sizeof(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL));
         return;
     }
