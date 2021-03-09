@@ -55,6 +55,7 @@ bool MissionManager::startTask(Player* plr, int TaskID) {
 
     if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != TaskID) {
         std::cout << "[WARN] Player has more than 6 active missions!?" << std::endl;
+        return false;
     }
 
     return true;
@@ -164,6 +165,21 @@ bool MissionManager::endTask(CNSocket *sock, int32_t taskNum, int choice) {
     // ugly pointer/reference juggling for the sake of operator overloading...
     TaskData& task = *Tasks[taskNum];
 
+    // update player
+    int i;
+    for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+        if (plr->tasks[i] == taskNum) {
+            plr->tasks[i] = 0;
+            for (int j = 0; j < 3; j++) {
+                plr->RemainingNPCCount[i][j] = 0;
+            }
+        }
+    }
+    if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != 0) {
+        std::cout << "[WARN] Player completed non-active mission!?" << std::endl;
+        return false;
+    }
+
     // mission rewards
     if (Rewards.find(taskNum) != Rewards.end()) {
         if (giveMissionReward(sock, taskNum, choice) == -1)
@@ -187,20 +203,6 @@ bool MissionManager::endTask(CNSocket *sock, int32_t taskNum, int choice) {
     for (int i = 0; i < 3; i++)
         if (task["m_iSUItem"][i] != 0)
             dropQuestItem(sock, taskNum, task["m_iSUInstancename"][i], task["m_iSUItem"][i], 0);
-
-    // update player
-    int i;
-    for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
-        if (plr->tasks[i] == taskNum) {
-            plr->tasks[i] = 0;
-            for (int j = 0; j < 3; j++) {
-                plr->RemainingNPCCount[i][j] = 0;
-            }
-        }
-    }
-    if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != 0) {
-        std::cout << "[WARN] Player completed non-active mission!?" << std::endl;
-    }
 
     // if it's the last task
     if (task["m_iSUOutgoingTask"] == 0) {
