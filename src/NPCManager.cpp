@@ -121,26 +121,25 @@ void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
-    ItemManager::Item* item = ItemManager::getItemData(req->Item.iID, req->Item.iType);
+    // prepare fail packet
+    INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, failResp);
+    failResp.iErrorCode = 0;
 
-    if (item == nullptr) {
+    ItemManager::Item* itemDat = ItemManager::getItemData(req->Item.iID, req->Item.iType);
+
+    if (itemDat == nullptr) {
         std::cout << "[WARN] Item id " << req->Item.iID << " with type " << req->Item.iType << " not found (buy)" << std::endl;
-        // NOTE: VENDOR_ITEM_BUY_FAIL is not actually handled client-side.
-        INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, failResp);
-        failResp.iErrorCode = 0;
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL));
         return;
     }
 
-    int itemCost = item->buyPrice * (item->stackSize > 1 ? req->Item.iOpt : 1);
+    int itemCost = itemDat->buyPrice * (itemDat->stackSize > 1 ? req->Item.iOpt : 1);
     int slot = ItemManager::findFreeSlot(plr);
-    if (itemCost > plr->money || slot == -1) {
-        // NOTE: VENDOR_ITEM_BUY_FAIL is not actually handled client-side.
-        INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, failResp);
-        failResp.iErrorCode = 0;
+    if (itemCost > plr->money || slot == -1 || req->Item.iOpt > itemDat->stackSize) {
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL));
         return;
     }
+
     // if vehicle
     if (req->Item.iType == 10) {
         // set time limit: current time + 7days
@@ -184,14 +183,14 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
     sItemBase* item = &plr->Inven[req->iInvenSlotNum];
     ItemManager::Item* itemData = ItemManager::getItemData(item->iID, item->iType);
 
-    if (itemData == nullptr || !itemData->sellable || plr->Inven[req->iInvenSlotNum].iOpt < req->iItemCnt) { // sanity + sellable check
+    if (itemData == nullptr || !itemData->sellable || item->iOpt < req->iItemCnt) { // sanity + sellable check
         std::cout << "[WARN] Item id " << item->iID << " with type " << item->iType << " not found (sell)" << std::endl;
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL));
         return;
     }
 
     // fail to sell croc-potted items
-    if (plr->Inven[req->iInvenSlotNum].iOpt >= 1 << 16) {
+    if (item->iOpt >= 1 << 16) {
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL));
         return;
     }
@@ -201,21 +200,24 @@ void NPCManager::npcVendorSell(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC, resp);
 
-    int sellValue = itemData->sellPrice * req->iItemCnt;
-
     // increment taros
-    plr->money = plr->money + sellValue;
+    plr->money += itemData->sellPrice * req->iItemCnt;
 
     // modify item
-    if (plr->Inven[req->iInvenSlotNum].iOpt - req->iItemCnt > 0) { // selling part of a stack
+    if (item->iOpt - req->iItemCnt > 0) { // selling part of a stack
         item->iOpt -= req->iItemCnt;
         original.iOpt = req->iItemCnt;
     } else { // selling entire slot
-        item->iID = 0;
-        item->iOpt = 0;
-        item->iType = 0;
-        item->iTimeLimit = 0;
+        // make sure it's fully zeroed, even the padding and non-104 members
+        memset(item, 0, sizeof(*item));
     }
+
+    // add to buyback list
+    plr->buyback->push_back(original);
+    // forget oldest member if there's more than 5
+    if (plr->buyback->size() > 5)
+        plr->buyback->erase(plr->buyback->begin());
+    //std::cout << (int)plr->buyback->size() << " items in buyback\n";
 
     // response parameters
     resp.iInvenSlotNum = req->iInvenSlotNum;
@@ -233,24 +235,57 @@ void NPCManager::npcVendorBuyback(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
-    ItemManager::Item* item = ItemManager::getItemData(req->Item.iID, req->Item.iType);
+    // prepare fail packet
+    INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL, failResp);
+    failResp.iErrorCode = 0;
 
-    if (item == nullptr) {
-        std::cout << "[WARN] Item id " << req->Item.iID << " with type " << req->Item.iType << " not found (rebuy)" << std::endl;
-        // NOTE: VENDOR_ITEM_BUY_FAIL is not actually handled client-side.
-        INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL, failResp);
-        failResp.iErrorCode = 0;
+    //std::cout << "buying back from index " << (int)req->iListID << " into " << (int)req->iInvenSlotNum <<
+    //    " from " << (int)req->iNPC_ID << " (vendor = " << (int)req->iVendorID << ")\n";
+
+    int idx = req->iListID - 1;
+
+    // sanity check
+    if (idx < 0 || idx >= plr->buyback->size()) {
+        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL));
+        return;
+    }
+
+    // get the item out of the buyback list
+    sItemBase item = (*plr->buyback)[idx];
+    /*
+     * NOTE: The client sends the index of the exact item the user clicked on.
+     * We then operate on that item, but we remove the *first* identical item
+     * from the buyback list, instead of the one at the supplied index.
+     *
+     * This was originally a mistake on my part, but it turns out the client
+     * does the exact same thing, so this *is* the correct thing to do to keep
+     * them in sync.
+     */
+    for (auto it = plr->buyback->begin(); it != plr->buyback->end(); it++) {
+        /*
+         * XXX: we really need a standard item comparison function that
+         * will work properly across all builds (ex. with iSerial)
+         */
+        if (it->iType == item.iType && it->iID == item.iID && it->iOpt == item.iOpt
+        && it->iTimeLimit == item.iTimeLimit) {
+            plr->buyback->erase(it);
+            break;
+        }
+    }
+    //std::cout << (int)plr->buyback->size() << " items in buyback\n";
+
+    ItemManager::Item* itemDat = ItemManager::getItemData(item.iID, item.iType);
+
+    if (itemDat == nullptr) {
+        std::cout << "[WARN] Item id " << item.iID << " with type " << item.iType << " not found (rebuy)" << std::endl;
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL));
         return;
     }
 
     // sell price is used on rebuy. ternary identifies stacked items
-    int itemCost = item->sellPrice * (item->stackSize > 1 ? req->Item.iOpt : 1);
+    int itemCost = itemDat->sellPrice * (itemDat->stackSize > 1 ? item.iOpt : 1);
     int slot = ItemManager::findFreeSlot(plr);
     if (itemCost > plr->money || slot == -1) {
-        // NOTE: VENDOR_ITEM_BUY_FAIL is not actually handled client-side.
-        INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL, failResp);
-        failResp.iErrorCode = 0;
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL));
         return;
     }
@@ -261,13 +296,13 @@ void NPCManager::npcVendorBuyback(CNSocket* sock, CNPacketData* data) {
     }
 
     plr->money = plr->money - itemCost;
-    plr->Inven[slot] = req->Item;
+    plr->Inven[slot] = item;
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_SUCC, resp);
     // response parameters
     resp.iCandy = plr->money;
     resp.iInvenSlotNum = slot;
-    resp.Item = req->Item;
+    resp.Item = item;
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_SUCC));
 }

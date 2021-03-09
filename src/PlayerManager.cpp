@@ -63,6 +63,7 @@ void PlayerManager::addPlayer(CNSocket* key, Player plr) {
     p->chunkPos = std::make_tuple(0, 0, 0);
     p->viewableChunks = new std::set<Chunk*>();
     p->lastHeartbeat = 0;
+    p->buyback = new std::vector<sItemBase>();
 
     std::cout << getPlayerName(p) << " has joined!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
@@ -89,6 +90,7 @@ void PlayerManager::removePlayer(CNSocket* key) {
 
     std::cout << getPlayerName(plr) << " has left!" << std::endl;
 
+    delete plr->buyback;
     delete plr->viewableChunks;
     delete plr;
     players.erase(key);
