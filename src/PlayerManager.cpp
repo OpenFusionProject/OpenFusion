@@ -733,8 +733,6 @@ void PlayerManager::setValuePlayer(CNSocket* sock, CNPacketData* data) {
     case 5:
         plr->money = setData->iSetValue;
         break;
-    default:
-        break;
     }
 
     response.iPC_ID = setData->iPC_ID;
@@ -742,6 +740,17 @@ void PlayerManager::setValuePlayer(CNSocket* sock, CNPacketData* data) {
     response.iSetValueType = setData->iSetValueType;
 
     sock->sendPacket((void*)&response, P_FE2CL_GM_REP_PC_SET_VALUE, sizeof(sP_FE2CL_GM_REP_PC_SET_VALUE));
+
+    // if one lowers their own health to 0, make sure others can see it
+    if (plr->HP <= 0) {
+        INITSTRUCT(sP_FE2CL_PC_SUDDEN_DEAD, dead);
+
+        dead.iPC_ID = plr->iID;
+        dead.iDamage = plr->HP;
+        dead.iHP = plr->HP = 0;
+
+        sendToViewable(sock, (void*)&dead, P_FE2CL_PC_SUDDEN_DEAD, sizeof(sP_FE2CL_PC_SUDDEN_DEAD));
+    }
 }
 
 void PlayerManager::heartbeatPlayer(CNSocket* sock, CNPacketData* data) {

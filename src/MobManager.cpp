@@ -1002,8 +1002,16 @@ void MobManager::playerTick(CNServer *serv, time_t currTime) {
         }
 
         // check if the player has fallen out of the world
-        if (plr->z < -30000)
-            dealGooDamage(sock, PC_MAXHEALTH(36) * 2);
+        if (plr->z < -30000) {
+            INITSTRUCT(sP_FE2CL_PC_SUDDEN_DEAD, dead);
+
+            dead.iPC_ID = plr->iID;
+            dead.iDamage = plr->HP;
+            dead.iHP = plr->HP = 0;
+
+            sock->sendPacket((void*)&dead, P_FE2CL_PC_SUDDEN_DEAD, sizeof(sP_FE2CL_PC_SUDDEN_DEAD));
+            PlayerManager::sendToViewable(sock, (void*)&dead, P_FE2CL_PC_SUDDEN_DEAD, sizeof(sP_FE2CL_PC_SUDDEN_DEAD));
+        }
 
         if (transmit) {
             INITSTRUCT(sP_FE2CL_REP_PC_TICK, pkt);
