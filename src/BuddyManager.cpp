@@ -750,6 +750,7 @@ void BuddyManager::emailSend(CNSocket* sock, CNPacketData* data) {
     bool invalid = false;
     int itemCount = 0;
 
+    std::set<int> seen;
     for (int i = 0; i < 4; i++) {
         int slot = pkt->aItem[i].iSlotNum;
         if (slot < 0 || slot >= AINVEN_COUNT) {
@@ -763,9 +764,16 @@ void BuddyManager::emailSend(CNSocket* sock, CNPacketData* data) {
         if (item->iID == 0)
             continue;
 
+        // was the same item added multiple times?
+        if (seen.count(slot) > 0) {
+            invalid = true;
+            break;
+        }
+        seen.insert(slot);
+
         itemCount++;
         if (item->iType != real->iType || item->iID != real->iID
-        || item->iOpt < 0 || item->iOpt > real->iOpt) {
+        || item->iOpt <= 0 || item->iOpt > real->iOpt) {
             invalid = true;
             break;
         }

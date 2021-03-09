@@ -135,7 +135,13 @@ void NPCManager::npcVendorBuy(CNSocket* sock, CNPacketData* data) {
 
     int itemCost = itemDat->buyPrice * (itemDat->stackSize > 1 ? req->Item.iOpt : 1);
     int slot = ItemManager::findFreeSlot(plr);
-    if (itemCost > plr->money || slot == -1 || req->Item.iOpt > itemDat->stackSize) {
+    if (itemCost > plr->money || slot == -1) {
+        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL));
+        return;
+    }
+
+    // crates don't have a stack size in TableData, so we can't check those
+    if (itemDat->stackSize != 0 && req->Item.iOpt > itemDat->stackSize) {
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL));
         return;
     }
