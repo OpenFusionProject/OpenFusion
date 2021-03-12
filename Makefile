@@ -44,6 +44,7 @@ CXXSRC=\
 	src/ItemManager.cpp\
 	src/NPCManager.cpp\
 	src/PlayerManager.cpp\
+	src/BuiltinCommands.cpp\
 	src/settings.cpp\
 	src/TransportManager.cpp\
 	src/TableData.cpp\
@@ -83,6 +84,7 @@ CXXHDR=\
 	src/NPCManager.hpp\
 	src/Player.hpp\
 	src/PlayerManager.hpp\
+	src/BuiltinCommands.hpp\
 	src/settings.hpp\
 	src/TransportManager.hpp\
 	src/TableData.hpp\

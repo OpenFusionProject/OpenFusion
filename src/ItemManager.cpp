@@ -25,7 +25,6 @@ std::map<int32_t, int32_t> ItemManager::NanoCapsules; // crate id -> nano id
 void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_DELETE, itemDeleteHandler);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GIVE_ITEM, itemGMGiveHandler);
     // this one is for gumballs
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_USE, itemUseHandler);
     // Bank
@@ -211,46 +210,6 @@ void ItemManager::itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
     plr->Inven[itemdel->iSlotNum].iOpt = 0;
 
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_ITEM_DELETE_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC));
-}
-
-void ItemManager::itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_GIVE_ITEM))
-        return; // ignore the malformed packet
-
-    sP_CL2FE_REQ_PC_GIVE_ITEM* itemreq = (sP_CL2FE_REQ_PC_GIVE_ITEM*)data->buf;
-    Player* plr = PlayerManager::getPlayer(sock);
-
-    if (plr->accountLevel > 50) {
-    	// TODO: send fail packet
-        return;
-    }
-
-    if (itemreq->eIL == 2) {
-        // Quest item, not a real item, handle this later, stubbed for now
-        // sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_PC_GIVE_ITEM_FAIL, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_FAIL), sock->getFEKey()));
-    } else if (itemreq->eIL == 1 && itemreq->Item.iType >= 0 && itemreq->Item.iType <= 10) {
-
-        if (ItemData.find(std::pair<int32_t, int32_t>(itemreq->Item.iID, itemreq->Item.iType)) == ItemData.end()) {
-            // invalid item
-            std::cout << "[WARN] Item id " << itemreq->Item.iID << " with type " << itemreq->Item.iType << " is invalid (give item)" << std::endl;
-            return;
-        }
-
-        INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp);
-
-        resp.eIL = itemreq->eIL;
-        resp.iSlotNum = itemreq->iSlotNum;
-        if (itemreq->Item.iType == 10) {
-            // item is vehicle, set expiration date
-            // set time limit: current time + 7days
-            itemreq->Item.iTimeLimit = getTimestamp() + 604800;
-        }
-        resp.Item = itemreq->Item;
-
-        plr->Inven[itemreq->iSlotNum] = itemreq->Item;
-
-        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_GIVE_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC));
-    }
 }
 
 void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {

@@ -37,20 +37,12 @@ namespace PlayerManager {
     void movePlatformPlayer(CNSocket* sock, CNPacketData* data);
     void moveSliderPlayer(CNSocket* sock, CNPacketData* data);
     void moveSlopePlayer(CNSocket* sock, CNPacketData* data);
-    void gotoPlayer(CNSocket* sock, CNPacketData* data);
-    void setValuePlayer(CNSocket* sock, CNPacketData* data);
     void heartbeatPlayer(CNSocket* sock, CNPacketData* data);
     void revivePlayer(CNSocket* sock, CNPacketData* data);
     void exitGame(CNSocket* sock, CNPacketData* data);
 
     void setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data);
-    void setGMSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data);
-    void setGMSpecialOnOff(CNSocket* sock, CNPacketData *data);
     void changePlayerGuide(CNSocket *sock, CNPacketData *data);
-    void locatePlayer(CNSocket *sock, CNPacketData *data);
-    void kickPlayer(CNSocket *sock, CNPacketData *data);
-    void warpToPlayer(CNSocket *sock, CNPacketData *data);
-    void teleportPlayer(CNSocket *sock, CNPacketData *data);
 
     void enterPlayerVehicle(CNSocket* sock, CNPacketData* data);
     void exitPlayerVehicle(CNSocket* sock, CNPacketData* data);
