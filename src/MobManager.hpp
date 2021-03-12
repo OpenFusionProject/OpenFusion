@@ -5,7 +5,7 @@
 #include "CNShardServer.hpp"
 #include "NPC.hpp"
 
-#include "contrib/JSON.hpp"
+#include "JSON.hpp"
 
 #include <map>
 #include <unordered_map>

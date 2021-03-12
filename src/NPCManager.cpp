@@ -18,7 +18,7 @@
 #include <assert.h>
 #include <limits.h>
 
-#include "contrib/JSON.hpp"
+#include "JSON.hpp"
 
 std::map<int32_t, BaseNPC*> NPCManager::NPCs;
 std::map<int32_t, WarpLocation> NPCManager::Warps;

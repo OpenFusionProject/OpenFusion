@@ -3,7 +3,7 @@
 #include "CNShardServer.hpp"
 #include "Player.hpp"
 
-#include "contrib/JSON.hpp"
+#include "JSON.hpp"
 
 struct Reward {
     int32_t id;

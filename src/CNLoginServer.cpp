@@ -5,7 +5,7 @@
 #include "PlayerManager.hpp"
 #include "ItemManager.hpp"
 #include <regex>
-#include "contrib/bcrypt/BCrypt.hpp"
+#include "bcrypt/BCrypt.hpp"
 
 #include "settings.hpp"
 

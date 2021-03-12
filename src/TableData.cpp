@@ -9,7 +9,7 @@
 #include "NanoManager.hpp"
 #include "RacingManager.hpp"
 
-#include "contrib/JSON.hpp"
+#include "JSON.hpp"
 
 #include <fstream>
 #include <cmath>

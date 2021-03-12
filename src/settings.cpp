@@ -1,6 +1,6 @@
 #include <iostream>
 #include "settings.hpp"
-#include "contrib/INIReader.hpp"
+#include "INIReader.hpp"
 #include "CNStructs.hpp" // for ACADEMY
 
 // defaults :)

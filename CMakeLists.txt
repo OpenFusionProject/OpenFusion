@@ -33,9 +33,9 @@ else()
 	set(BIN_NAME fusion)
 endif()
 
-include_directories(src)
+include_directories(src vendor)
 
-file(GLOB_RECURSE SOURCES src/**.cpp src/**.hpp src/**.c src/**.h version.h)
+file(GLOB_RECURSE SOURCES src/**.[ch]pp vendor/**.[ch]pp vendor/**.[ch] version.h)
 
 configure_file(version.h.in ${CMAKE_SOURCE_DIR}/version.h @ONLY)
 

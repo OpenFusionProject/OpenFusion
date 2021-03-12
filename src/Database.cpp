@@ -6,8 +6,8 @@
 #include "CNStructs.hpp"
 #include "MissionManager.hpp"
 
-#include "contrib/JSON.hpp"
-#include "contrib/bcrypt/BCrypt.hpp"
+#include "JSON.hpp"
+#include "bcrypt/BCrypt.hpp"
 
 #include <string>
 #include <sqlite3.h>
