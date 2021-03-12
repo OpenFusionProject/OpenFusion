@@ -28,15 +28,6 @@ namespace PlayerManager {
 
     void enterPlayer(CNSocket* sock, CNPacketData* data);
     void loadPlayer(CNSocket* sock, CNPacketData* data);
-    void movePlayer(CNSocket* sock, CNPacketData* data);
-    void stopPlayer(CNSocket* sock, CNPacketData* data);
-    void jumpPlayer(CNSocket* sock, CNPacketData* data);
-    void jumppadPlayer(CNSocket* sock, CNPacketData* data);
-    void launchPlayer(CNSocket* sock, CNPacketData* data);
-    void ziplinePlayer(CNSocket* sock, CNPacketData* data);
-    void movePlatformPlayer(CNSocket* sock, CNPacketData* data);
-    void moveSliderPlayer(CNSocket* sock, CNPacketData* data);
-    void moveSlopePlayer(CNSocket* sock, CNPacketData* data);
     void heartbeatPlayer(CNSocket* sock, CNPacketData* data);
     void revivePlayer(CNSocket* sock, CNPacketData* data);
     void exitGame(CNSocket* sock, CNPacketData* data);

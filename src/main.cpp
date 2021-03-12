@@ -1,6 +1,7 @@
 #include "CNLoginServer.hpp"
 #include "CNShardServer.hpp"
 #include "PlayerManager.hpp"
+#include "PlayerMovement.hpp"
 #include "BuiltinCommands.hpp"
 #include "ChatManager.hpp"
 #include "CustomCommands.hpp"
@@ -95,6 +96,7 @@ int main() {
     std::cout << "[INFO] Intializing Packet Managers..." << std::endl;
     TableData::init();
     PlayerManager::init();
+    PlayerMovement::init();
     BuiltinCommands::init();
     ChatManager::init();
     CustomCommands::init();
