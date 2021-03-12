@@ -5,7 +5,6 @@
 #include "NanoManager.hpp"
 #include "NPCManager.hpp"
 #include "Player.hpp"
-#include "ChatManager.hpp"
 
 #include <string.h> // for memset()
 #include <assert.h>
@@ -40,7 +39,6 @@ void ItemManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_ITEM_REGISTER, tradeRegisterItem);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_ITEM_UNREGISTER, tradeUnregisterItem);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_CASH_REGISTER, tradeRegisterCash);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_EMOTES_CHAT, tradeChat);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_CHEST_OPEN, chestOpenHandler);
 }
 
@@ -769,40 +767,6 @@ void ItemManager::tradeRegisterCash(CNSocket* sock, CNPacketData* data) {
 
     plr->moneyInTrade = pacdat->iCandy;
     plr->isTradeConfirm = false;
-}
-
-void ItemManager::tradeChat(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_EMOTES_CHAT))
-        return; // malformed packet
-    sP_CL2FE_REQ_PC_TRADE_EMOTES_CHAT* pacdat = (sP_CL2FE_REQ_PC_TRADE_EMOTES_CHAT*)data->buf;
-
-    CNSocket* otherSock; // weird flip flop because we need to know who the other player is
-    if (pacdat->iID_Request == pacdat->iID_From)
-        otherSock = PlayerManager::getSockFromID(pacdat->iID_To);
-    else
-        otherSock = PlayerManager::getSockFromID(pacdat->iID_From);
-
-    if (otherSock == nullptr)
-        return;
-
-    Player *otherPlr = PlayerManager::getPlayer(otherSock);
-
-    INITSTRUCT(sP_FE2CL_REP_PC_TRADE_EMOTES_CHAT, resp);
-    Player *plr = PlayerManager::getPlayer(sock);
-    resp.iID_Request = pacdat->iID_Request;
-    resp.iID_From = pacdat->iID_From;
-    resp.iID_To = pacdat->iID_To;
-    std::string fullChat = ChatManager::sanitizeText(U16toU8(pacdat->szFreeChat));
-    U8toU16(fullChat, resp.szFreeChat, sizeof(resp.szFreeChat));
-
-    std::string logLine = "[TradeChat] " + PlayerManager::getPlayerName(plr) + " (to " + PlayerManager::getPlayerName(otherPlr) + "): " + fullChat;
-
-    std::cout << logLine << std::endl;
-    ChatManager::dump.push_back(logLine);
-
-    resp.iEmoteCode = pacdat->iEmoteCode;
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_EMOTES_CHAT, sizeof(sP_FE2CL_REP_PC_TRADE_EMOTES_CHAT));
-    otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_EMOTES_CHAT, sizeof(sP_FE2CL_REP_PC_TRADE_EMOTES_CHAT));
 }
 
 void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {

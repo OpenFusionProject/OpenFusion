@@ -22,10 +22,6 @@ namespace BuddyManager {
 	void reqAcceptBuddy(CNSocket* sock, CNPacketData* data);
 	void reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data);
 
-	// Buddy Messaging
-	void reqBuddyFreechat(CNSocket* sock, CNPacketData* data);
-	void reqBuddyMenuchat(CNSocket* sock, CNPacketData* data);
-
 	// Getting buddy state
 	void reqPktGetBuddyState(CNSocket* sock, CNPacketData* data);
 

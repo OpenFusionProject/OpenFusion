@@ -30,6 +30,7 @@ CSRC=\
 
 CXXSRC=\
 	src/ChatManager.cpp\
+	src/CustomCommands.cpp\
 	src/CNLoginServer.cpp\
 	src/CNProtocol.cpp\
 	src/CNShardServer.cpp\
@@ -65,6 +66,7 @@ CXXHDR=\
 	vendor/INIReader.hpp\
 	vendor/JSON.hpp\
 	src/ChatManager.hpp\
+	src/CustomCommands.hpp\
 	src/CNLoginServer.hpp\
 	src/CNProtocol.hpp\
 	src/CNShardServer.hpp\

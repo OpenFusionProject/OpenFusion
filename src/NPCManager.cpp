@@ -6,7 +6,6 @@
 #include "ChunkManager.hpp"
 #include "NanoManager.hpp"
 #include "TableData.hpp"
-#include "ChatManager.hpp"
 #include "GroupManager.hpp"
 #include "RacingManager.hpp"
 

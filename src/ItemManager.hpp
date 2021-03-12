@@ -57,7 +57,6 @@ namespace ItemManager {
     void tradeRegisterItem(CNSocket* sock, CNPacketData* data);
     void tradeUnregisterItem(CNSocket* sock, CNPacketData* data);
     void tradeRegisterCash(CNSocket* sock, CNPacketData* data);
-    void tradeChat(CNSocket* sock, CNPacketData* data);
     void chestOpenHandler(CNSocket* sock, CNPacketData* data);
 
     // crate opening logic with all helper functions

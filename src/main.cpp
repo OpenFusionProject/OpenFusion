@@ -2,6 +2,7 @@
 #include "CNShardServer.hpp"
 #include "PlayerManager.hpp"
 #include "ChatManager.hpp"
+#include "CustomCommands.hpp"
 #include "MobManager.hpp"
 #include "ItemManager.hpp"
 #include "MissionManager.hpp"
@@ -94,6 +95,7 @@ int main() {
     TableData::init();
     PlayerManager::init();
     ChatManager::init();
+    CustomCommands::init();
     MobManager::init();
     ItemManager::init();
     MissionManager::init();

@@ -1,6 +1,5 @@
 #include "CNShardServer.hpp"
 #include "CNStructs.hpp"
-#include "ChatManager.hpp"
 #include "PlayerManager.hpp"
 #include "GroupManager.hpp"
 #include "NanoManager.hpp"
@@ -15,8 +14,6 @@ void GroupManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_INVITE_REFUSE, refuseGroup);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_JOIN, joinGroup);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_LEAVE, leaveGroup);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_ALL_GROUP_FREECHAT_MESSAGE, chatGroup);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE, menuChatGroup);
 }
 
 void GroupManager::requestGroup(CNSocket* sock, CNPacketData* data) {
@@ -157,68 +154,6 @@ void GroupManager::joinGroup(CNSocket* sock, CNPacketData* data) {
 void GroupManager::leaveGroup(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
     groupKickPlayer(plr);
-}
-
-void GroupManager::chatGroup(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_SEND_ALL_GROUP_FREECHAT_MESSAGE))
-        return; // malformed packet
-
-    sP_CL2FE_REQ_SEND_ALL_GROUP_FREECHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_ALL_GROUP_FREECHAT_MESSAGE*)data->buf;
-    Player* plr = PlayerManager::getPlayer(sock);
-    Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
-
-    if (otherPlr == nullptr)
-        return;
-
-    std::string fullChat = ChatManager::sanitizeText(U16toU8(chat->szFreeChat));
-
-    if (fullChat.length() > 1 && fullChat[0] == CMD_PREFIX) { // PREFIX
-        ChatManager::runCmd(fullChat, sock);
-        return;
-    }
-
-    if (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__MUTE_FREECHAT)
-        return;
-
-    std::string logLine = "[GroupChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
-    std::cout << logLine << std::endl;
-    ChatManager::dump.push_back(logLine);
-
-    // send to client
-    INITSTRUCT(sP_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC, resp);
-
-    U8toU16(fullChat, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
-    resp.iSendPCID = plr->iID;
-    resp.iEmoteCode = chat->iEmoteCode;
-
-    sendToGroup(otherPlr, (void*)&resp, P_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC));
-}
-
-void GroupManager::menuChatGroup(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE))
-        return; // malformed packet
-
-    sP_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE*)data->buf;
-    Player* plr = PlayerManager::getPlayer(sock);
-    Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
-
-    if (otherPlr == nullptr)
-        return;
-
-    std::string fullChat = ChatManager::sanitizeText(U16toU8(chat->szFreeChat));
-    std::string logLine = "[GroupMenuChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
-
-    std::cout << logLine << std::endl;
-    ChatManager::dump.push_back(logLine);
-
-    // send to client
-    INITSTRUCT(sP_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC, resp);
-
-    U8toU16(fullChat, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
-    resp.iSendPCID = plr->iID;
-    resp.iEmoteCode = chat->iEmoteCode;
-
-    sendToGroup(otherPlr, (void*)&resp, P_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC));
 }
 
 void GroupManager::sendToGroup(Player* plr, void* buf, uint32_t type, size_t size) {

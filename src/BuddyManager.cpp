@@ -17,8 +17,6 @@ void BuddyManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_FIND_NAME_MAKE_BUDDY, reqBuddyByName);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ACCEPT_MAKE_BUDDY, reqAcceptBuddy);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_FIND_NAME_ACCEPT_BUDDY, reqFindNameBuddyAccept);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE, reqBuddyFreechat);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE, reqBuddyMenuchat);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_GET_BUDDY_STATE, reqPktGetBuddyState);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SET_BUDDY_BLOCK, reqBuddyBlock);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SET_PC_BLOCK, reqPlayerBlock);
@@ -292,80 +290,6 @@ void BuddyManager::reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
         otherSock->sendPacket((void*)&declineResp, P_FE2CL_REP_ACCEPT_MAKE_BUDDY_FAIL, sizeof(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_FAIL));
     }
 
-}
-
-// Buddy freechatting
-void BuddyManager::reqBuddyFreechat(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE))
-        return; // malformed packet
-
-    sP_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE* pkt = (sP_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE*)data->buf;
-    Player* plr = PlayerManager::getPlayer(sock);
-
-    INITSTRUCT(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, resp);
-
-    CNSocket* otherSock = PlayerManager::getSockFromID(pkt->iBuddyPCUID);
-
-    if (otherSock == nullptr)
-        return; // buddy offline
-
-    Player *otherPlr = PlayerManager::getPlayer(otherSock);
-
-    resp.iFromPCUID = plr->PCStyle.iPC_UID;
-    resp.iToPCUID = pkt->iBuddyPCUID;
-    resp.iEmoteCode = pkt->iEmoteCode;
-
-    std::string fullChat = ChatManager::sanitizeText(U16toU8(pkt->szFreeChat));
-
-    if (fullChat.length() > 1 && fullChat[0] == CMD_PREFIX) { // PREFIX
-        ChatManager::runCmd(fullChat, sock);
-        return;
-    }
-
-    if (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__MUTE_FREECHAT)
-        return;
-
-    std::string logLine = "[BuddyChat] " + PlayerManager::getPlayerName(plr) + " (to " + PlayerManager::getPlayerName(otherPlr) + "): " + fullChat;
-    std::cout << logLine << std::endl;
-    ChatManager::dump.push_back(logLine);
-
-    U8toU16(fullChat, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
-
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC)); // confirm send to sender
-    otherSock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC)); // broadcast send to receiver
-}
-
-// Buddy menuchat
-void BuddyManager::reqBuddyMenuchat(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE))
-        return; // malformed packet
-
-    sP_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE* pkt = (sP_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE*)data->buf;
-    Player* plr = PlayerManager::getPlayer(sock);
-
-    INITSTRUCT(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, resp);
-
-    CNSocket* otherSock = PlayerManager::getSockFromID(pkt->iBuddyPCUID);
-
-    if (otherSock == nullptr)
-        return; // buddy offline
-
-    Player *otherPlr = PlayerManager::getPlayer(otherSock);
-
-    resp.iFromPCUID = plr->PCStyle.iPC_UID;
-    resp.iToPCUID = pkt->iBuddyPCUID;
-    resp.iEmoteCode = pkt->iEmoteCode;
-    
-    std::string fullChat = ChatManager::sanitizeText(U16toU8(pkt->szFreeChat));
-    std::string logLine = "[BuddyMenuChat] " + PlayerManager::getPlayerName(plr) + " (to " + PlayerManager::getPlayerName(otherPlr) + "): " + fullChat;
-
-    std::cout << logLine << std::endl;
-    ChatManager::dump.push_back(logLine);
-
-    U8toU16(fullChat, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
-
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC)); // confirm send to sender
-    otherSock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC)); // broadcast send to receiver
 }
 
 // Getting buddy state
