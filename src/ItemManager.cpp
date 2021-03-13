@@ -10,7 +10,6 @@
 #include <assert.h>
 
 std::map<std::pair<int32_t, int32_t>, ItemManager::Item> ItemManager::ItemData;
-std::map<int32_t, std::vector<VendorListing>> ItemManager::VendorTables;
 std::map<int32_t, CrocPotEntry> ItemManager::CrocPotTable;
 std::map<int32_t, std::vector<int>> ItemManager::RarityRatios;
 std::map<int32_t, Crate> ItemManager::Crates;
@@ -20,28 +19,62 @@ std::map<std::string, std::vector<std::pair<int32_t, int32_t>>> ItemManager::Cod
 
 #ifdef ACADEMY
 std::map<int32_t, int32_t> ItemManager::NanoCapsules; // crate id -> nano id
+
+void nanoCapsuleHandler(CNSocket* sock, int slot, sItemBase *chest) {
+    Player* plr = PlayerManager::getPlayer(sock);
+    int32_t nanoId = ItemManager::NanoCapsules[chest->iID];
+
+    // chest opening acknowledgement packet
+    INITSTRUCT(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, resp);
+    resp.iSlotNum = slot;
+
+    // in order to remove capsule form inventory, we have to send item reward packet with empty item
+    const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+
+    // we know it's only one trailing struct, so we can skip full validation
+    uint8_t respbuf[resplen]; // not a variable length array, don't worry
+    sP_FE2CL_REP_REWARD_ITEM* reward = (sP_FE2CL_REP_REWARD_ITEM*)respbuf;
+    sItemReward* item = (sItemReward*)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
+
+    // don't forget to zero the buffer!
+    memset(respbuf, 0, resplen);
+
+    // maintain stats
+    reward->m_iCandy = plr->money;
+    reward->m_iFusionMatter = plr->fusionmatter;
+    reward->iFatigue = 100; // prevents warning message
+    reward->iFatigue_Level = 1;
+    reward->iItemCnt = 1; // remember to update resplen if you change this
+    reward->m_iBatteryN = plr->batteryN;
+    reward->m_iBatteryW = plr->batteryW;
+
+    item->iSlotNum = slot;
+    item->eIL = 1;
+    
+    // update player serverside
+    plr->Inven[slot] = item->sItem;
+
+    // transmit item
+    sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
+
+    // transmit chest opening acknowledgement packet
+    sock->sendPacket((void*)&resp, P_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, sizeof(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC));
+
+    // check if player doesn't already have this nano
+    if (plr->Nanos[nanoId].iID != 0) {
+        INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
+        msg.iDuringTime = 4;
+        std::string text = "You have already aquired this nano!";
+        U8toU16(text, msg.szAnnounceMsg, sizeof(text));
+        sock->sendPacket((void*)&msg, P_FE2CL_GM_REP_PC_ANNOUNCE, sizeof(sP_FE2CL_GM_REP_PC_ANNOUNCE));
+        return;
+    }
+    NanoManager::addNano(sock, nanoId, -1, false);
+}
 #endif
 
-void ItemManager::init() {
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_DELETE, itemDeleteHandler);
-    // this one is for gumballs
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_USE, itemUseHandler);
-    // Bank
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_BANK_OPEN, itemBankOpenHandler);
-    // Trade handlers
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER, tradeOffer);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER_ACCEPT, tradeOfferAccept);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER_REFUSAL, tradeOfferRefusal);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_CONFIRM, tradeConfirm);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_CONFIRM_CANCEL, tradeConfirmCancel);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_ITEM_REGISTER, tradeRegisterItem);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_ITEM_UNREGISTER, tradeUnregisterItem);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_CASH_REGISTER, tradeRegisterCash);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_CHEST_OPEN, chestOpenHandler);
-}
-
-void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
+void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_ITEM_MOVE))
         return; // ignore the malformed packet
 
@@ -62,20 +95,20 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 
     // get the fromItem
     sItemBase *fromItem;
-    switch ((SlotType)itemmove->eFrom) {
-    case SlotType::EQUIP:
+    switch ((ItemManager::SlotType)itemmove->eFrom) {
+    case ItemManager::SlotType::EQUIP:
         if (itemmove->iFromSlotNum >= AEQUIP_COUNT)
             return;
 
         fromItem = &plr->Equip[itemmove->iFromSlotNum];
         break;
-    case SlotType::INVENTORY:
+    case ItemManager::SlotType::INVENTORY:
         if (itemmove->iFromSlotNum >= AINVEN_COUNT)
             return;
 
         fromItem = &plr->Inven[itemmove->iFromSlotNum];
         break;
-    case SlotType::BANK:
+    case ItemManager::SlotType::BANK:
         if (itemmove->iFromSlotNum >= ABANK_COUNT)
             return;
 
@@ -88,20 +121,20 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 
     // get the toItem
     sItemBase* toItem;
-    switch ((SlotType)itemmove->eTo) {
-    case SlotType::EQUIP:
+    switch ((ItemManager::SlotType)itemmove->eTo) {
+    case ItemManager::SlotType::EQUIP:
         if (itemmove->iToSlotNum >= AEQUIP_COUNT)
             return;
 
         toItem = &plr->Equip[itemmove->iToSlotNum];
         break;
-    case SlotType::INVENTORY:
+    case ItemManager::SlotType::INVENTORY:
         if (itemmove->iToSlotNum >= AINVEN_COUNT)
             return;
 
         toItem = &plr->Inven[itemmove->iToSlotNum];
         break;
-    case SlotType::BANK:
+    case ItemManager::SlotType::BANK:
         if (itemmove->iToSlotNum >= ABANK_COUNT)
             return;
 
@@ -113,7 +146,7 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     }
 
     // if equipping an item, validate that it's of the correct type for the slot
-    if ((SlotType)itemmove->eTo == SlotType::EQUIP) {
+    if ((ItemManager::SlotType)itemmove->eTo == ItemManager::SlotType::EQUIP) {
         if (fromItem->iType == 10 && itemmove->iToSlotNum != 8)
             return; // vehicle in wrong slot
         else if (fromItem->iType != 10
@@ -131,8 +164,8 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     resp.FromSlotItem = *fromItem;
 
     // swap/stack items in session
-    Item* itemDat = getItemData(toItem->iID, toItem->iType);
-    Item* itemDatFrom = getItemData(fromItem->iID, fromItem->iType);
+    ItemManager::Item* itemDat = ItemManager::getItemData(toItem->iID, toItem->iType);
+    ItemManager::Item* itemDatFrom = ItemManager::getItemData(fromItem->iID, fromItem->iType);
     if (itemDat != nullptr && itemDatFrom != nullptr && itemDat->stackSize > 1 && itemDat == itemDatFrom && fromItem->iOpt < itemDat->stackSize && toItem->iOpt < itemDat->stackSize) {
         // items are stackable, identical, and not maxed, so run stacking logic
 
@@ -165,11 +198,11 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     }
 
     // send equip change to viewable players
-    if (itemmove->eFrom == (int)SlotType::EQUIP || itemmove->eTo == (int)SlotType::EQUIP) {
+    if (itemmove->eFrom == (int)ItemManager::SlotType::EQUIP || itemmove->eTo == (int)ItemManager::SlotType::EQUIP) {
         INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, equipChange);
 
         equipChange.iPC_ID = plr->iID;
-        if (itemmove->eTo == (int)SlotType::EQUIP) {
+        if (itemmove->eTo == (int)ItemManager::SlotType::EQUIP) {
             equipChange.iEquipSlotNum = itemmove->iToSlotNum;
             equipChange.EquipSlotItem = resp.FromSlotItem;
         } else {
@@ -185,14 +218,14 @@ void ItemManager::itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         PlayerManager::sendToViewable(sock, (void*)&equipChange, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
 
         // set equipment stats serverside
-        setItemStats(plr);
+        ItemManager::setItemStats(plr);
     }
 
     // send response
     sock->sendPacket((void*)&resp, P_FE2CL_PC_ITEM_MOVE_SUCC, sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC));
 }
 
-void ItemManager::itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
+void itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_ITEM_DELETE))
         return; // ignore the malformed packet
 
@@ -212,7 +245,7 @@ void ItemManager::itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_ITEM_DELETE_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC));
 }
 
-void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {
+void itemUseHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_ITEM_USE))
         return; // ignore the malformed packet
     sP_CL2FE_REQ_ITEM_USE* request = (sP_CL2FE_REQ_ITEM_USE*)data->buf;
@@ -295,7 +328,7 @@ void ItemManager::itemUseHandler(CNSocket* sock, CNPacketData* data) {
     NPCManager::EggBuffs[key] = until;
 }
 
-void ItemManager::itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
+void itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_BANK_OPEN))
         return; // ignore the malformed packet
 
@@ -310,425 +343,7 @@ void ItemManager::itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BANK_OPEN_SUCC, sizeof(sP_FE2CL_REP_PC_BANK_OPEN_SUCC));
 }
 
-void ItemManager::tradeOffer(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_OFFER))
-        return; // ignore the malformed packet
-
-    sP_CL2FE_REQ_PC_TRADE_OFFER* pacdat = (sP_CL2FE_REQ_PC_TRADE_OFFER*)data->buf;
-
-    CNSocket* otherSock = PlayerManager::getSockFromID(pacdat->iID_To);
-
-    if (otherSock == nullptr)
-        return;
-
-    Player* plr = PlayerManager::getPlayer(otherSock);
-
-    if (plr->isTrading) {
-        INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, resp);
-        resp.iID_Request = pacdat->iID_To;
-        resp.iID_From = pacdat->iID_From;
-        resp.iID_To = pacdat->iID_To;
-        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL));
-        return; // prevent trading with a player already trading
-    }
-
-    INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER, resp);
-    resp.iID_Request = pacdat->iID_Request;
-    resp.iID_From = pacdat->iID_From;
-    resp.iID_To = pacdat->iID_To;
-    otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER));
-}
-
-void ItemManager::tradeOfferAccept(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_OFFER_ACCEPT))
-        return; // ignore the malformed packet
-
-    sP_CL2FE_REQ_PC_TRADE_OFFER_ACCEPT* pacdat = (sP_CL2FE_REQ_PC_TRADE_OFFER_ACCEPT*)data->buf;
-
-    CNSocket* otherSock = PlayerManager::getSockFromID(pacdat->iID_From);
-
-    if (otherSock == nullptr)
-        return;
-
-    Player* plr = PlayerManager::getPlayer(sock);
-    Player* plr2 = PlayerManager::getPlayer(otherSock);
-
-    if (plr2->isTrading) {
-        INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, resp);
-        resp.iID_Request = pacdat->iID_From;
-        resp.iID_From = pacdat->iID_From;
-        resp.iID_To = pacdat->iID_To;
-        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL));
-        return; // prevent trading with a player already trading
-    }
-
-    // clearing up trade slots
-    plr->moneyInTrade = 0;
-    plr2->moneyInTrade = 0;
-    memset(&plr->Trade, 0, sizeof(plr->Trade));
-    memset(&plr2->Trade, 0, sizeof(plr2->Trade));
-
-    // marking players as traders
-    plr->isTrading = true;
-    plr2->isTrading = true;
-
-    // marking players as unconfirmed
-    plr->isTradeConfirm = false;
-    plr2->isTradeConfirm = false;
-
-    // inform the other player that offer is accepted
-    INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER, resp);
-    resp.iID_Request = pacdat->iID_Request;
-    resp.iID_From = pacdat->iID_From;
-    resp.iID_To = pacdat->iID_To;
-
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER_SUCC));
-    otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER_SUCC));
-}
-
-void ItemManager::tradeOfferRefusal(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_OFFER_REFUSAL))
-        return; // ignore the malformed packet
-
-    sP_CL2FE_REQ_PC_TRADE_OFFER_REFUSAL* pacdat = (sP_CL2FE_REQ_PC_TRADE_OFFER_REFUSAL*)data->buf;
-
-    CNSocket* otherSock = PlayerManager::getSockFromID(pacdat->iID_From);
-
-    if (otherSock == nullptr)
-        return;
-
-    INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, resp);
-    resp.iID_Request = pacdat->iID_Request;
-    resp.iID_From = pacdat->iID_From;
-    resp.iID_To = pacdat->iID_To;
-    otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL));
-}
-
-void ItemManager::tradeConfirm(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_CONFIRM))
-        return; // ignore the malformed packet
-
-    sP_CL2FE_REQ_PC_TRADE_CONFIRM* pacdat = (sP_CL2FE_REQ_PC_TRADE_CONFIRM*)data->buf;
-
-    CNSocket* otherSock; // weird flip flop because we need to know who the other player is
-    if (pacdat->iID_Request == pacdat->iID_From)
-        otherSock = PlayerManager::getSockFromID(pacdat->iID_To);
-    else
-        otherSock = PlayerManager::getSockFromID(pacdat->iID_From);
-
-    if (otherSock == nullptr)
-        return;
-
-    Player* plr = PlayerManager::getPlayer(sock);
-    Player* plr2 = PlayerManager::getPlayer(otherSock);
-    
-    if (!(plr->isTrading && plr2->isTrading)) { // both players must be trading
-        INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CONFIRM_ABORT, resp);
-        resp.iID_Request = plr2->iID;
-        resp.iID_From = pacdat->iID_From;
-        resp.iID_To = pacdat->iID_To;
-        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM_ABORT, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_ABORT));
-        resp.iID_Request = plr->iID;
-        otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM_ABORT, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_ABORT));
-        return;
-    }
-
-    // send the confirm packet
-    INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CONFIRM, resp);
-    resp.iID_Request = pacdat->iID_Request;
-    resp.iID_From = pacdat->iID_From;
-    resp.iID_To = pacdat->iID_To;
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM));
-
-    if (!(plr2->isTradeConfirm)) {
-        plr->isTradeConfirm = true;
-        otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM));
-        return;
-    }
-
-    // both players are no longer trading
-    plr->isTrading = false;
-    plr2->isTrading = false;
-    plr->isTradeConfirm = false;
-    plr2->isTradeConfirm = false;
-
-    if (doTrade(plr, plr2)) { // returns false if not enough slots
-        INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CONFIRM_SUCC, resp2);
-        resp2.iID_Request = pacdat->iID_Request;
-        resp2.iID_From = pacdat->iID_From;
-        resp2.iID_To = pacdat->iID_To;
-        plr->money = plr->money + plr2->moneyInTrade - plr->moneyInTrade;
-        resp2.iCandy = plr->money;
-        memcpy(resp2.Item, plr2->Trade, sizeof(plr2->Trade));
-        memcpy(resp2.ItemStay, plr->Trade, sizeof(plr->Trade));
-
-        sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_TRADE_CONFIRM_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_SUCC));
-
-        plr2->money = plr2->money + plr->moneyInTrade - plr2->moneyInTrade;
-        resp2.iCandy = plr2->money;
-        memcpy(resp2.Item, plr->Trade, sizeof(plr->Trade));
-        memcpy(resp2.ItemStay, plr2->Trade, sizeof(plr2->Trade));
-
-        otherSock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_TRADE_CONFIRM_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_SUCC));
-    } else {
-        INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CONFIRM_ABORT, resp);
-        resp.iID_Request = plr2->iID;
-        resp.iID_From = pacdat->iID_From;
-        resp.iID_To = pacdat->iID_To;
-        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM_ABORT, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_ABORT));
-        resp.iID_Request = plr->iID;
-        otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM_ABORT, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_ABORT));
-        return;
-    }
-}
-
-bool ItemManager::doTrade(Player* plr, Player* plr2) {
-    // init dummy inventories
-    sItemBase plrInven[AINVEN_COUNT];
-    sItemBase plr2Inven[AINVEN_COUNT];
-    memcpy(plrInven, plr->Inven, AINVEN_COUNT * sizeof(sItemBase));
-    memcpy(plr2Inven, plr2->Inven, AINVEN_COUNT * sizeof(sItemBase));
-
-    for (int i = 0; i < 5; i++) {
-        // remove items offered by us
-        if (plr->Trade[i].iID != 0) {
-            if (plrInven[plr->Trade[i].iInvenNum].iID == 0
-                || plr->Trade[i].iID != plrInven[plr->Trade[i].iInvenNum].iID
-                || plr->Trade[i].iType != plrInven[plr->Trade[i].iInvenNum].iType) // pulling a fast one on us
-                return false;
-
-            if (plr->Trade[i].iOpt < 1) {
-                std::cout << "[WARN] Player tried trading an iOpt < 1 amount" << std::endl;
-                plr->Trade[i].iOpt = 1;
-            }
-
-            // for stacked items
-            plrInven[plr->Trade[i].iInvenNum].iOpt -= plr->Trade[i].iOpt;
-
-            if (plrInven[plr->Trade[i].iInvenNum].iOpt == 0) {
-                plrInven[plr->Trade[i].iInvenNum].iID = 0;
-                plrInven[plr->Trade[i].iInvenNum].iType = 0;
-                plrInven[plr->Trade[i].iInvenNum].iOpt = 0;
-            } else if (plrInven[plr->Trade[i].iInvenNum].iOpt < 0) { // another dupe attempt
-                return false;
-            }
-        }
-
-        if (plr2->Trade[i].iID != 0) {
-            if (plr2Inven[plr2->Trade[i].iInvenNum].iID == 0
-                || plr2->Trade[i].iID != plr2Inven[plr2->Trade[i].iInvenNum].iID
-                || plr2->Trade[i].iType != plr2Inven[plr2->Trade[i].iInvenNum].iType) // pulling a fast one on us
-                return false;
-
-            if (plr2->Trade[i].iOpt < 1) {
-                std::cout << "[WARN] Player tried trading an iOpt < 1 amount" << std::endl;
-                plr2->Trade[i].iOpt = 1;
-            }
-
-            // for stacked items
-            plr2Inven[plr2->Trade[i].iInvenNum].iOpt -= plr2->Trade[i].iOpt;
-
-            if (plr2Inven[plr2->Trade[i].iInvenNum].iOpt == 0) {
-                plr2Inven[plr2->Trade[i].iInvenNum].iID = 0;
-                plr2Inven[plr2->Trade[i].iInvenNum].iType = 0;
-                plr2Inven[plr2->Trade[i].iInvenNum].iOpt = 0;
-            } else if (plr2Inven[plr2->Trade[i].iInvenNum].iOpt < 0) { // another dupe attempt
-                return false;
-            }
-        }
-
-        // add items offered to us
-        if (plr2->Trade[i].iID != 0) {
-            for (int n = 0; n < AINVEN_COUNT; n++) {
-                if (plrInven[n].iID == 0) {
-                    plrInven[n].iID = plr2->Trade[i].iID;
-                    plrInven[n].iType = plr2->Trade[i].iType;
-                    plrInven[n].iOpt = plr2->Trade[i].iOpt;
-                    plr2->Trade[i].iInvenNum = n;
-                    break;
-                }
-
-                if (n >= AINVEN_COUNT - 1)
-                    return false; // not enough space
-            }
-        }
-
-        if (plr->Trade[i].iID != 0) {
-            for (int n = 0; n < AINVEN_COUNT; n++) {
-                if (plr2Inven[n].iID == 0) {
-                    plr2Inven[n].iID = plr->Trade[i].iID;
-                    plr2Inven[n].iType = plr->Trade[i].iType;
-                    plr2Inven[n].iOpt = plr->Trade[i].iOpt;
-                    plr->Trade[i].iInvenNum = n;
-                    break;
-                }
-
-                if (n >= AINVEN_COUNT - 1)
-                    return false; // not enough space
-            }
-        }
-    }
-
-    // if everything went well, back into player inventory it goes
-    memcpy(plr->Inven, plrInven, AINVEN_COUNT * sizeof(sItemBase));
-    memcpy(plr2->Inven, plr2Inven, AINVEN_COUNT * sizeof(sItemBase));
-
-    return true;
-}
-
-void ItemManager::tradeConfirmCancel(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_CONFIRM_CANCEL))
-        return; // ignore the malformed packet
-
-    sP_CL2FE_REQ_PC_TRADE_CONFIRM_CANCEL* pacdat = (sP_CL2FE_REQ_PC_TRADE_CONFIRM_CANCEL*)data->buf;
-
-    CNSocket* otherSock; // weird flip flop because we need to know who the other player is
-    if (pacdat->iID_Request == pacdat->iID_From)
-        otherSock = PlayerManager::getSockFromID(pacdat->iID_To);
-    else
-        otherSock = PlayerManager::getSockFromID(pacdat->iID_From);
-
-    if (otherSock == nullptr)
-        return;
-
-    Player* plr = PlayerManager::getPlayer(sock);
-    Player* plr2 = PlayerManager::getPlayer(otherSock);
-
-    // both players are not trading nor are in a confirmed state
-    plr->isTrading = false;
-    plr->isTradeConfirm = false;
-    plr2->isTrading = false;
-    plr2->isTradeConfirm = false;
-
-    INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL, resp);
-    resp.iID_Request = pacdat->iID_Request;
-    resp.iID_From = pacdat->iID_From;
-    resp.iID_To = pacdat->iID_To;
-    otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_CANCEL));
-}
-
-void ItemManager::tradeRegisterItem(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_ITEM_REGISTER))
-        return; // ignore the malformed packet
-
-    sP_CL2FE_REQ_PC_TRADE_ITEM_REGISTER* pacdat = (sP_CL2FE_REQ_PC_TRADE_ITEM_REGISTER*)data->buf;
-
-    if (pacdat->Item.iSlotNum < 0 || pacdat->Item.iSlotNum > 4)
-        return; // sanity check, there are only 5 trade slots
-
-    CNSocket* otherSock; // weird flip flop because we need to know who the other player is
-    if (pacdat->iID_Request == pacdat->iID_From)
-        otherSock = PlayerManager::getSockFromID(pacdat->iID_To);
-    else
-        otherSock = PlayerManager::getSockFromID(pacdat->iID_From);
-
-    if (otherSock == nullptr)
-        return;
-
-    Player* plr = PlayerManager::getPlayer(sock);
-    plr->Trade[pacdat->Item.iSlotNum] = pacdat->Item;
-    plr->isTradeConfirm = false;
-
-    // since you can spread items like gumballs over multiple slots, we need to count them all
-    // to make sure the inventory shows the right value during trade.
-    int count = 0; 
-    for (int i = 0; i < 5; i++) {
-        if (plr->Trade[i].iInvenNum == pacdat->Item.iInvenNum)
-            count += plr->Trade[i].iOpt;
-    }
-
-    INITSTRUCT(sP_FE2CL_REP_PC_TRADE_ITEM_REGISTER_SUCC, resp);
-    resp.iID_Request = pacdat->iID_Request;
-    resp.iID_From = pacdat->iID_From;
-    resp.iID_To = pacdat->iID_To;
-    resp.TradeItem = pacdat->Item;
-    resp.InvenItem = pacdat->Item;
-    resp.InvenItem.iOpt = plr->Inven[pacdat->Item.iInvenNum].iOpt - count; // subtract this count
-
-    if (resp.InvenItem.iOpt < 0) // negative count items, doTrade() will block this later on
-        std::cout << "[WARN] tradeRegisterItem: an item went negative count client side." << std::endl;
-
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_ITEM_REGISTER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_ITEM_REGISTER_SUCC));
-    otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_ITEM_REGISTER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_ITEM_REGISTER_SUCC));
-}
-
-void ItemManager::tradeUnregisterItem(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_ITEM_UNREGISTER))
-        return; // ignore the malformed packet
-
-    sP_CL2FE_REQ_PC_TRADE_ITEM_UNREGISTER* pacdat = (sP_CL2FE_REQ_PC_TRADE_ITEM_UNREGISTER*)data->buf;
-
-    if (pacdat->Item.iSlotNum < 0 || pacdat->Item.iSlotNum > 4)
-        return; // sanity check, there are only 5 trade slots
-
-    CNSocket* otherSock; // weird flip flop because we need to know who the other player is
-    if (pacdat->iID_Request == pacdat->iID_From)
-        otherSock = PlayerManager::getSockFromID(pacdat->iID_To);
-    else
-        otherSock = PlayerManager::getSockFromID(pacdat->iID_From);
-
-    if (otherSock == nullptr)
-        return;
-
-    Player* plr = PlayerManager::getPlayer(sock);
-    plr->isTradeConfirm = false;
-
-    INITSTRUCT(sP_FE2CL_REP_PC_TRADE_ITEM_UNREGISTER_SUCC, resp);
-    resp.iID_Request = pacdat->iID_Request;
-    resp.iID_From = pacdat->iID_From;
-    resp.iID_To = pacdat->iID_To;
-    resp.TradeItem = pacdat->Item;
-    resp.InvenItem = plr->Trade[pacdat->Item.iSlotNum];
-
-    memset(&plr->Trade[pacdat->Item.iSlotNum], 0, sizeof(plr->Trade[pacdat->Item.iSlotNum])); // clean up item slot
-
-    // since you can spread items like gumballs over multiple slots, we need to count them all
-    // to make sure the inventory shows the right value during trade.
-    int count = 0; 
-    for (int i = 0; i < 5; i++) {
-        if (plr->Trade[i].iInvenNum == resp.InvenItem.iInvenNum)
-            count += plr->Trade[i].iOpt;
-    }
-
-    resp.InvenItem.iOpt = plr->Inven[resp.InvenItem.iInvenNum].iOpt - count; // subtract this count
-
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_ITEM_UNREGISTER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_ITEM_UNREGISTER_SUCC));
-    otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_ITEM_UNREGISTER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_ITEM_UNREGISTER_SUCC));
-}
-
-void ItemManager::tradeRegisterCash(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_CASH_REGISTER))
-        return; // ignore the malformed packet
-
-    sP_CL2FE_REQ_PC_TRADE_CASH_REGISTER* pacdat = (sP_CL2FE_REQ_PC_TRADE_CASH_REGISTER*)data->buf;
-
-    Player* plr = PlayerManager::getPlayer(sock);
-
-    if (pacdat->iCandy < 0 || pacdat->iCandy > plr->money)
-       return; // famous glitch, begone
-
-    CNSocket* otherSock; // weird flip flop because we need to know who the other player is
-    if (pacdat->iID_Request == pacdat->iID_From)
-        otherSock = PlayerManager::getSockFromID(pacdat->iID_To);
-    else
-        otherSock = PlayerManager::getSockFromID(pacdat->iID_From);
-
-    if (otherSock == nullptr)
-        return;
-
-    INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC, resp);
-    resp.iID_Request = pacdat->iID_Request;
-    resp.iID_From = pacdat->iID_From;
-    resp.iID_To = pacdat->iID_To;
-    resp.iCandy = pacdat->iCandy;
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC));
-    otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC));
-
-    plr->moneyInTrade = pacdat->iCandy;
-    plr->isTradeConfirm = false;
-}
-
-void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
+void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     if (data->size != sizeof(sP_CL2FE_REQ_ITEM_CHEST_OPEN))
         return; // ignore the malformed packet
 
@@ -750,7 +365,7 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
 
 #ifdef ACADEMY
     // check if chest isn't a nano capsule
-    if (NanoCapsules.find(chest->iID) != NanoCapsules.end())
+    if (ItemManager::NanoCapsules.find(chest->iID) != ItemManager::NanoCapsules.end())
         return nanoCapsuleHandler(sock, pkt->iSlotNum, chest);
 #endif
 
@@ -786,24 +401,24 @@ void ItemManager::chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     bool failing = false;
 
     // find the crate
-    if (Crates.find(chest->iID) == Crates.end()) {
+    if (ItemManager::Crates.find(chest->iID) == ItemManager::Crates.end()) {
         std::cout << "[WARN] Crate " << chest->iID << " not found!" << std::endl;
         failing = true;
     }
-    Crate& crate = Crates[chest->iID];
+    Crate& crate = ItemManager::Crates[chest->iID];
 
     if (!failing)
-        itemSetId = getItemSetId(crate, chest->iID);
+        itemSetId = ItemManager::getItemSetId(crate, chest->iID);
     if (itemSetId == -1)
         failing = true;
 
     if (!failing)
-        rarity = getRarity(crate, itemSetId);
+        rarity = ItemManager::getRarity(crate, itemSetId);
     if (rarity == -1)
         failing = true;
 
     if (!failing)
-        ret = getCrateItem(item->sItem, itemSetId, rarity, plr->PCStyle.iGender);
+        ret = ItemManager::getCrateItem(item->sItem, itemSetId, rarity, plr->PCStyle.iGender);
     if (ret == -1)
         failing = true;
 
@@ -879,7 +494,7 @@ int ItemManager::getRarity(Crate& crate, int itemSetId) {
 }
 
 int ItemManager::getCrateItem(sItemBase& result, int itemSetId, int rarity, int playerGender) {
-    std::pair key = std::make_pair(itemSetId, rarity);
+    auto key = std::make_pair(itemSetId, rarity);
 
     if (CrateItems.find(key) == CrateItems.end()) {
         std::cout << "[WARN] Item Set ID " << itemSetId << " Rarity " << rarity << " does not exist" << std::endl;
@@ -998,57 +613,12 @@ void ItemManager::updateEquips(CNSocket* sock, Player* plr) {
     }
 }
 
-#ifdef ACADEMY
-void ItemManager::nanoCapsuleHandler(CNSocket* sock, int slot, sItemBase *chest) {
-    Player* plr = PlayerManager::getPlayer(sock);
-    int32_t nanoId = NanoCapsules[chest->iID];
-
-    // chest opening acknowledgement packet
-    INITSTRUCT(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, resp);
-    resp.iSlotNum = slot;
-
-    // in order to remove capsule form inventory, we have to send item reward packet with empty item
-    const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
-    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
-
-    // we know it's only one trailing struct, so we can skip full validation
-    uint8_t respbuf[resplen]; // not a variable length array, don't worry
-    sP_FE2CL_REP_REWARD_ITEM* reward = (sP_FE2CL_REP_REWARD_ITEM*)respbuf;
-    sItemReward* item = (sItemReward*)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
-
-    // don't forget to zero the buffer!
-    memset(respbuf, 0, resplen);
-
-    // maintain stats
-    reward->m_iCandy = plr->money;
-    reward->m_iFusionMatter = plr->fusionmatter;
-    reward->iFatigue = 100; // prevents warning message
-    reward->iFatigue_Level = 1;
-    reward->iItemCnt = 1; // remember to update resplen if you change this
-    reward->m_iBatteryN = plr->batteryN;
-    reward->m_iBatteryW = plr->batteryW;
-
-    item->iSlotNum = slot;
-    item->eIL = 1;
-    
-    // update player serverside
-    plr->Inven[slot] = item->sItem;
-
-    // transmit item
-    sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
-
-    // transmit chest opening acknowledgement packet
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, sizeof(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC));
-
-    // check if player doesn't already have this nano
-    if (plr->Nanos[nanoId].iID != 0) {
-        INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
-        msg.iDuringTime = 4;
-        std::string text = "You have already aquired this nano!";
-        U8toU16(text, msg.szAnnounceMsg, sizeof(text));
-        sock->sendPacket((void*)&msg, P_FE2CL_GM_REP_PC_ANNOUNCE, sizeof(sP_FE2CL_GM_REP_PC_ANNOUNCE));
-        return;
-    }
-    NanoManager::addNano(sock, nanoId, -1, false);
+void ItemManager::init() {
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_DELETE, itemDeleteHandler);
+    // this one is for gumballs
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_USE, itemUseHandler);
+    // Bank
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_BANK_OPEN, itemBankOpenHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_CHEST_OPEN, chestOpenHandler);
 }
-#endif

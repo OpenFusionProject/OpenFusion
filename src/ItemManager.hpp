@@ -3,9 +3,6 @@
 #include "CNShardServer.hpp"
 #include "Player.hpp"
 
-struct VendorListing {
-    int sort, type, iID;
-};
 struct CrocPotEntry {
     int multStats, multLooks;
     float base, rd0, rd1, rd2, rd3;
@@ -31,7 +28,6 @@ namespace ItemManager {
     };
     // hopefully this is fine since it's never modified after load
     extern std::map<std::pair<int32_t, int32_t>, Item> ItemData; // <id, type> -> data
-    extern std::map<int32_t, std::vector<VendorListing>> VendorTables;
     extern std::map<int32_t, CrocPotEntry> CrocPotTable; // level gap -> entry
     extern std::map<int32_t, std::vector<int>> RarityRatios;
     extern std::map<int32_t, Crate> Crates;
@@ -41,22 +37,6 @@ namespace ItemManager {
     extern std::map<std::string, std::vector<std::pair<int32_t, int32_t>>> CodeItems; // code -> vector of <id, type>
 
     void init();
-
-    void itemMoveHandler(CNSocket* sock, CNPacketData* data);
-    void itemDeleteHandler(CNSocket* sock, CNPacketData* data);
-    void itemUseHandler(CNSocket* sock, CNPacketData* data);
-    // Bank
-    void itemBankOpenHandler(CNSocket* sock, CNPacketData* data);
-    void tradeOffer(CNSocket* sock, CNPacketData* data);
-    void tradeOfferAccept(CNSocket* sock, CNPacketData* data);
-    void tradeOfferRefusal(CNSocket* sock, CNPacketData* data);
-    void tradeConfirm(CNSocket* sock, CNPacketData* data);
-    bool doTrade(Player* plr, Player* plr2);
-    void tradeConfirmCancel(CNSocket* sock, CNPacketData* data);
-    void tradeRegisterItem(CNSocket* sock, CNPacketData* data);
-    void tradeUnregisterItem(CNSocket* sock, CNPacketData* data);
-    void tradeRegisterCash(CNSocket* sock, CNPacketData* data);
-    void chestOpenHandler(CNSocket* sock, CNPacketData* data);
 
     // crate opening logic with all helper functions
     int getItemSetId(Crate& crate, int crateId);
@@ -71,6 +51,5 @@ namespace ItemManager {
 
 #ifdef ACADEMY
     extern std::map<int32_t, int32_t> NanoCapsules; // crate id -> nano id
-    void nanoCapsuleHandler(CNSocket* sock, int slot, sItemBase *chest);
 #endif
 }

@@ -8,6 +8,7 @@
 #include "TableData.hpp"
 #include "GroupManager.hpp"
 #include "RacingManager.hpp"
+#include "Vendor.hpp"
 
 #include <cmath>
 #include <algorithm>
@@ -318,10 +319,10 @@ void NPCManager::npcVendorTable(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE* req = (sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE*)data->buf;
 
-    if (req->iVendorID != req->iNPC_ID || ItemManager::VendorTables.find(req->iVendorID) == ItemManager::VendorTables.end())
+    if (req->iVendorID != req->iNPC_ID || Vendor::VendorTables.find(req->iVendorID) == Vendor::VendorTables.end())
         return;
 
-    std::vector<VendorListing> listings = ItemManager::VendorTables[req->iVendorID];
+    std::vector<VendorListing> listings = Vendor::VendorTables[req->iVendorID];
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, resp);
 

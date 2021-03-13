@@ -8,6 +8,7 @@
 #include "ChunkManager.hpp"
 #include "NanoManager.hpp"
 #include "RacingManager.hpp"
+#include "Vendor.hpp"
 
 #include "JSON.hpp"
 
@@ -184,10 +185,10 @@ void TableData::init() {
         for (nlohmann::json::iterator _lst = listings.begin(); _lst != listings.end(); _lst++) {
             auto lst = _lst.value();
             VendorListing vListing = { lst["m_iSortNumber"], lst["m_iItemType"], lst["m_iitemID"] };
-            ItemManager::VendorTables[lst["m_iNpcNumber"]].push_back(vListing);
+            Vendor::VendorTables[lst["m_iNpcNumber"]].push_back(vListing);
         }
 
-        std::cout << "[INFO] Loaded " << ItemManager::VendorTables.size() << " vendor tables" << std::endl;
+        std::cout << "[INFO] Loaded " << Vendor::VendorTables.size() << " vendor tables" << std::endl;
 
         // load crocpot entries
         nlohmann::json crocs = xdtData["m_pCombiningTable"]["m_pCombiningData"];

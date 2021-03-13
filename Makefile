@@ -54,6 +54,8 @@ CXXSRC=\
 	src/GroupManager.cpp\
 	src/Monitor.cpp\
 	src/RacingManager.cpp\
+	src/Vendor.cpp\
+	src/Trading.cpp\
 
 # headers (for timestamp purposes)
 CHDR=\
@@ -95,6 +97,8 @@ CXXHDR=\
 	src/GroupManager.hpp\
 	src/Monitor.hpp\
 	src/RacingManager.hpp\
+	src/Vendor.hpp\
+	src/Trading.hpp\
 
 COBJ=$(CSRC:.c=.o)
 CXXOBJ=$(CXXSRC:.cpp=.o)

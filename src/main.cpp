@@ -18,6 +18,7 @@
 #include "GroupManager.hpp"
 #include "Monitor.hpp"
 #include "RacingManager.hpp"
+#include "Trading.hpp"
 
 #include "settings.hpp"
 
@@ -110,6 +111,7 @@ int main() {
     GroupManager::init();
     RacingManager::init();
     Database::open();
+    Trading::init();
 
     switch (settings::EVENTMODE) {
     case 0: break; // no event
