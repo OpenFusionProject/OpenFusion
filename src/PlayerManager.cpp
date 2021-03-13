@@ -11,6 +11,7 @@
 #include "MobManager.hpp"
 #include "RacingManager.hpp"
 #include "BuiltinCommands.hpp"
+#include "Abilities.hpp"
 
 #include "settings.hpp"
 

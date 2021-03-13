@@ -41,6 +41,7 @@ CXXSRC=\
 	src/MissionManager.cpp\
 	src/MobManager.cpp\
 	src/NanoManager.cpp\
+	src/Abilities.cpp\
 	src/ItemManager.cpp\
 	src/NPCManager.cpp\
 	src/PlayerManager.cpp\
@@ -83,6 +84,7 @@ CXXHDR=\
 	src/MissionManager.hpp\
 	src/MobManager.hpp\
 	src/NanoManager.hpp\
+	src/Abilities.hpp\
 	src/ItemManager.hpp\
 	src/NPCManager.hpp\
 	src/Player.hpp\

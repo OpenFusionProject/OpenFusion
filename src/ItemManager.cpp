@@ -5,6 +5,7 @@
 #include "NanoManager.hpp"
 #include "NPCManager.hpp"
 #include "Player.hpp"
+#include "Abilities.hpp"
 
 #include <string.h> // for memset()
 #include <assert.h>

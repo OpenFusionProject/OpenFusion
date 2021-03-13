@@ -9,6 +9,7 @@
 #include "NanoManager.hpp"
 #include "RacingManager.hpp"
 #include "Vendor.hpp"
+#include "Abilities.hpp"
 
 #include "JSON.hpp"
 

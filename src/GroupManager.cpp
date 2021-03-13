@@ -3,6 +3,7 @@
 #include "PlayerManager.hpp"
 #include "GroupManager.hpp"
 #include "NanoManager.hpp"
+#include "Abilities.hpp"
 
 #include <iostream>
 #include <chrono>

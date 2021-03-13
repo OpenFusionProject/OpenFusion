@@ -122,24 +122,6 @@ struct Bullet {
     int bulletType;
 };
 
-typedef void (*MobPowerHandler)(Mob*, std::vector<int>, int16_t, int16_t, int16_t, int16_t, int32_t, int16_t);
-
-struct MobPower {
-    int16_t skillType;
-    int32_t bitFlag;
-    int16_t timeBuffID;
-    MobPowerHandler handler;
-
-    MobPower(int16_t s, int32_t b, int16_t t, MobPowerHandler h) : skillType(s), bitFlag(b), timeBuffID(t), handler(h) {}
-
-    void handle(Mob *mob, std::vector<int> targetData, int16_t skillID, int16_t duration, int16_t amount) {
-        if (handler == nullptr)
-            return;
-
-        handler(mob, targetData, skillID, duration, amount, skillType, bitFlag, timeBuffID);
-    }
-};
-
 namespace MobManager {
     extern std::map<int32_t, Mob*> Mobs;
     extern std::queue<int32_t> RemovalQueue;
@@ -147,7 +129,6 @@ namespace MobManager {
     extern std::map<int32_t, MobDrop> MobDrops;
     extern std::map<int32_t, std::map<int8_t, Bullet>> Bullets;
     extern bool simulateMobs;
-    extern std::vector<MobPower> MobPowers;
 
     void init();
     void step(CNServer*, time_t);
