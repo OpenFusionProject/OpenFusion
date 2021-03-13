@@ -3,7 +3,7 @@
 #include "PlayerManager.hpp"
 #include "TableData.hpp"
 #include "NPCManager.hpp"
-#include "MobManager.hpp"
+#include "MobAI.hpp"
 #include "ItemManager.hpp"
 #include "Database.hpp"
 #include "TransportManager.hpp"
@@ -269,18 +269,18 @@ static void unsummonWCommand(std::string full, std::vector<std::string>& args, C
         return;
     }
 
-    if (MobManager::Mobs.find(npc->appearanceData.iNPC_ID) != MobManager::Mobs.end()) {
+    if (MobAI::Mobs.find(npc->appearanceData.iNPC_ID) != MobAI::Mobs.end()) {
         int leadId = ((Mob*)npc)->groupLeader;
         if (leadId != 0) {
-            if (MobManager::Mobs.find(leadId) == MobManager::Mobs.end()) {
+            if (MobAI::Mobs.find(leadId) == MobAI::Mobs.end()) {
                 std::cout << "[WARN] unsummonW: leader not found!" << std::endl;
             }
-            Mob* leadNpc = MobManager::Mobs[leadId];
+            Mob* leadNpc = MobAI::Mobs[leadId];
             for (int i = 0; i < 4; i++) {
                 if (leadNpc->groupMember[i] == 0)
                     break;
 
-                if (MobManager::Mobs.find(leadNpc->groupMember[i]) == MobManager::Mobs.end()) {
+                if (MobAI::Mobs.find(leadNpc->groupMember[i]) == MobAI::Mobs.end()) {
                     std::cout << "[WARN] unsommonW: leader can't find a group member!" << std::endl;
                     continue;
                 }
@@ -303,13 +303,13 @@ static void unsummonWCommand(std::string full, std::vector<std::string>& args, C
 }
 
 static void toggleAiCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
-    MobManager::simulateMobs = !MobManager::simulateMobs;
+    MobAI::simulateMobs = !MobAI::simulateMobs;
 
-    if (MobManager::simulateMobs)
+    if (MobAI::simulateMobs)
         return;
 
     // return all mobs to their spawn points
-    for (auto& pair : MobManager::Mobs) {
+    for (auto& pair : MobAI::Mobs) {
         pair.second->state = MobState::RETREAT;
         pair.second->target = nullptr;
         pair.second->nextMovement = getTime();
@@ -596,7 +596,7 @@ static void summonGroupCommand(std::string full, std::vector<std::string>& args,
         BaseNPC *npc = NPCManager::summonNPC(x, y, z, plr->instanceID, type, wCommand);
         if (team == 2 && i > 0) {
             leadNpc->groupMember[i-1] = npc->appearanceData.iNPC_ID;
-            Mob* mob = MobManager::Mobs[npc->appearanceData.iNPC_ID];
+            Mob* mob = MobAI::Mobs[npc->appearanceData.iNPC_ID];
             mob->groupLeader = leadNpc->appearanceData.iNPC_ID;
             mob->offsetX = x - plr->x;
             mob->offsetY = y - plr->y;
@@ -611,7 +611,7 @@ static void summonGroupCommand(std::string full, std::vector<std::string>& args,
 
             if (team == 2 && i > 0) {
                 leadNpc->groupMember[i-1] = npc->appearanceData.iNPC_ID;
-                Mob* mob = MobManager::Mobs[npc->appearanceData.iNPC_ID];
+                Mob* mob = MobAI::Mobs[npc->appearanceData.iNPC_ID];
                 mob->groupLeader = leadNpc->appearanceData.iNPC_ID;
                 mob->offsetX = x - plr->x;
                 mob->offsetY = y - plr->y;
@@ -626,7 +626,7 @@ static void summonGroupCommand(std::string full, std::vector<std::string>& args,
 
         if (i == 0 && team == 2) {
             type = type2;
-            leadNpc = MobManager::Mobs[npc->appearanceData.iNPC_ID];
+            leadNpc = MobAI::Mobs[npc->appearanceData.iNPC_ID];
             leadNpc->groupLeader = leadNpc->appearanceData.iNPC_ID;
         }
     }

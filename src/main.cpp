@@ -5,7 +5,8 @@
 #include "BuiltinCommands.hpp"
 #include "ChatManager.hpp"
 #include "CustomCommands.hpp"
-#include "MobManager.hpp"
+#include "Combat.hpp"
+#include "MobAI.hpp"
 #include "ItemManager.hpp"
 #include "MissionManager.hpp"
 #include "NanoManager.hpp"
@@ -101,7 +102,8 @@ int main() {
     BuiltinCommands::init();
     ChatManager::init();
     CustomCommands::init();
-    MobManager::init();
+    Combat::init();
+    MobAI::init();
     ItemManager::init();
     MissionManager::init();
     NanoManager::init();

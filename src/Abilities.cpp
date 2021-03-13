@@ -136,13 +136,13 @@ int NanoManager::applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int3
 namespace NanoManager {
 
 bool doDebuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
-    if (MobManager::Mobs.find(targetID) == MobManager::Mobs.end()) {
+    if (MobAI::Mobs.find(targetID) == MobAI::Mobs.end()) {
         std::cout << "[WARN] doDebuff: mob ID not found" << std::endl;
         return false;
     }
 
-    Mob* mob = MobManager::Mobs[targetID];
-    MobManager::hitMob(sock, mob, 0);
+    Mob* mob = MobAI::Mobs[targetID];
+    Combat::hitMob(sock, mob, 0);
 
     respdata[i].eCT = 4;
     respdata[i].iID = mob->appearanceData.iNPC_ID;
@@ -200,15 +200,15 @@ bool doBuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t targetID
 }
 
 bool doDamageNDebuff(CNSocket *sock, sSkillResult_Damage_N_Debuff *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
-    if (MobManager::Mobs.find(targetID) == MobManager::Mobs.end()) {
+    if (MobAI::Mobs.find(targetID) == MobAI::Mobs.end()) {
         // not sure how to best handle this
         std::cout << "[WARN] doDamageNDebuff: mob ID not found" << std::endl;
         return false;
     }
 
-    Mob* mob = MobManager::Mobs[targetID];
+    Mob* mob = MobAI::Mobs[targetID];
 
-    MobManager::hitMob(sock, mob, 0); // just to gain aggro
+    Combat::hitMob(sock, mob, 0); // just to gain aggro
 
     respdata[i].eCT = 4;
     respdata[i].iDamage = duration / 10;
@@ -262,16 +262,16 @@ bool doHeal(CNSocket *sock, sSkillResult_Heal_HP *respdata, int i, int32_t targe
 }
 
 bool doDamage(CNSocket *sock, sSkillResult_Damage *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
-    if (MobManager::Mobs.find(targetID) == MobManager::Mobs.end()) {
+    if (MobAI::Mobs.find(targetID) == MobAI::Mobs.end()) {
         // not sure how to best handle this
         std::cout << "[WARN] doDamage: mob ID not found" << std::endl;
         return false;
     }
-    Mob* mob = MobManager::Mobs[targetID];
+    Mob* mob = MobAI::Mobs[targetID];
 
     Player *plr = PlayerManager::getPlayer(sock);
 
-    int damage = MobManager::hitMob(sock, mob, std::max(PC_MAXHEALTH(plr->level) * amount / 1000, mob->maxHealth * amount / 1000));
+    int damage = Combat::hitMob(sock, mob, std::max(PC_MAXHEALTH(plr->level) * amount / 1000, mob->maxHealth * amount / 1000));
 
     respdata[i].eCT = 4;
     respdata[i].iDamage = damage;
@@ -312,14 +312,14 @@ bool doLeech(CNSocket *sock, sSkillResult_Heal_HP *healdata, int i, int32_t targ
     healdata->iHP = plr->HP;
     healdata->iHealHP = healedAmount;
 
-    if (MobManager::Mobs.find(targetID) == MobManager::Mobs.end()) {
+    if (MobAI::Mobs.find(targetID) == MobAI::Mobs.end()) {
         // not sure how to best handle this
         std::cout << "[WARN] doLeech: mob ID not found" << std::endl;
         return false;
     }
-    Mob* mob = MobManager::Mobs[targetID];
+    Mob* mob = MobAI::Mobs[targetID];
 
-    int damage = MobManager::hitMob(sock, mob, amount * 2);
+    int damage = Combat::hitMob(sock, mob, amount * 2);
 
     damagedata->eCT = 4;
     damagedata->iDamage = damage;
@@ -481,7 +481,7 @@ std::vector<NanoPower> NanoPowers = {
 #pragma endregion
 
 #pragma region Mob Powers
-namespace MobManager {
+namespace Combat {
 bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
     CNSocket *sock = nullptr;
     Player *plr = nullptr;
@@ -528,10 +528,10 @@ bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, in
     if (plr->HP <= 0) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        if (!aggroCheck(mob, getTime())) {
-            clearDebuff(mob);
+        if (!MobAI::aggroCheck(mob, getTime())) {
+            MobAI::clearDebuff(mob);
             if (mob->groupLeader != 0)
-                groupRetreat(mob);
+                MobAI::groupRetreat(mob);
         }
     }
 
@@ -539,12 +539,12 @@ bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, in
 }
 
 bool doHeal(Mob *mob, sSkillResult_Heal_HP *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
-    if (MobManager::Mobs.find(targetID) == MobManager::Mobs.end()) {
+    if (MobAI::Mobs.find(targetID) == MobAI::Mobs.end()) {
         std::cout << "[WARN] doDebuff: mob ID not found" << std::endl;
         return false;
     }
 
-    Mob* targetMob = MobManager::Mobs[targetID];
+    Mob* targetMob = MobAI::Mobs[targetID];
 
     int healedAmount = amount * targetMob->maxHealth / 1000;
     targetMob->appearanceData.iHP += healedAmount;
@@ -602,10 +602,10 @@ bool doDamage(Mob *mob, sSkillResult_Damage *respdata, int i, int32_t targetID, 
     if (plr->HP <= 0) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        if (!aggroCheck(mob, getTime())) {
-            clearDebuff(mob);
+        if (!MobAI::aggroCheck(mob, getTime())) {
+            MobAI::clearDebuff(mob);
             if (mob->groupLeader != 0)
-                groupRetreat(mob);
+                MobAI::groupRetreat(mob);
         }
     }
 
@@ -660,10 +660,10 @@ bool doLeech(Mob *mob, sSkillResult_Heal_HP *healdata, int i, int32_t targetID, 
     if (plr->HP <= 0) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        if (!aggroCheck(mob, getTime())) {
-            clearDebuff(mob);
+        if (!MobAI::aggroCheck(mob, getTime())) {
+            MobAI::clearDebuff(mob);
             if (mob->groupLeader != 0)
-                groupRetreat(mob);
+                MobAI::groupRetreat(mob);
         }
     }
 

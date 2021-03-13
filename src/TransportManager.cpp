@@ -4,7 +4,8 @@
 #include "NanoManager.hpp"
 #include "TransportManager.hpp"
 #include "TableData.hpp"
-#include "MobManager.hpp"
+#include "Combat.hpp"
+#include "MobAI.hpp"
 
 #include <unordered_map>
 #include <cmath>
@@ -272,7 +273,7 @@ void TransportManager::stepNPCPathing() {
         }
 
         // skip if not simulating mobs
-        if (npc->npcClass == NPC_MOB && !MobManager::simulateMobs) {
+        if (npc->npcClass == NPC_MOB && !MobAI::simulateMobs) {
             it++;
             continue;
         }
@@ -307,7 +308,7 @@ void TransportManager::stepNPCPathing() {
             NPCManager::sendToViewable(npc, &busMove, P_FE2CL_TRANSPORTATION_MOVE, sizeof(sP_FE2CL_TRANSPORTATION_MOVE));
             break;
         case NPC_MOB:
-            MobManager::incNextMovement((Mob*)npc);
+            MobAI::incNextMovement((Mob*)npc);
             /* fallthrough */
         default:
             INITSTRUCT(sP_FE2CL_NPC_MOVE, move);

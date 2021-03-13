@@ -4,7 +4,7 @@
 #include "ItemManager.hpp"
 #include "settings.hpp"
 #include "MissionManager.hpp"
-#include "MobManager.hpp"
+#include "Combat.hpp"
 #include "ChunkManager.hpp"
 #include "NanoManager.hpp"
 #include "RacingManager.hpp"
@@ -284,7 +284,7 @@ void TableData::init() {
             Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], td, nextId);
 
             NPCManager::NPCs[nextId] = tmp;
-            MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
+            MobAI::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
             NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
 
             nextId++;
@@ -310,7 +310,7 @@ void TableData::init() {
             Mob* tmp = new Mob(leader["iX"], leader["iY"], leader["iZ"], leader["iAngle"], instanceID, leader["iNPCType"], td, nextId);
 
             NPCManager::NPCs[nextId] = tmp;
-            MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
+            MobAI::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
             NPCManager::updateNPCPosition(nextId, leader["iX"], leader["iY"], leader["iZ"], instanceID, leader["iAngle"]);
 
             tmp->groupLeader = nextId;
@@ -325,7 +325,7 @@ void TableData::init() {
                     Mob* tmpFol = new Mob((int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], leader["iAngle"], instanceID, follower["iNPCType"], tdFol, nextId);
 
                     NPCManager::NPCs[nextId] = tmpFol;
-                    MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
+                    MobAI::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
                     NPCManager::updateNPCPosition(nextId, (int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], instanceID, leader["iAngle"]);
 
                     tmpFol->offsetX = follower.find("iOffsetX") == follower.end() ? 0 : (int)follower["iOffsetX"];
@@ -364,7 +364,7 @@ void TableData::init() {
 
             if (team == 2) {
                 NPCManager::NPCs[nextId] = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], NPCManager::NPCData[(int)npc["iNPCType"]], nextId);
-                MobManager::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
+                MobAI::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
             } else
                 NPCManager::NPCs[nextId] = new BaseNPC(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], nextId);
 
@@ -472,7 +472,7 @@ void TableData::loadPaths(int* nextId) {
         // mob paths
         pathDataNPC = pathData["mob"];
         for (nlohmann::json::iterator npcPath = pathDataNPC.begin(); npcPath != pathDataNPC.end(); npcPath++) {
-            for (auto& pair : MobManager::Mobs) {
+            for (auto& pair : MobAI::Mobs) {
                 if (pair.second->appearanceData.iNPCType == npcPath.value()["iNPCType"]) {
                     std::cout << "[INFO] Using static path for mob " << pair.second->appearanceData.iNPCType << " with ID " << pair.first << std::endl;
 
@@ -518,7 +518,7 @@ void TableData::loadDrops() {
             for (nlohmann::json::iterator _cratesRatio = dropChance["CratesRatio"].begin(); _cratesRatio != dropChance["CratesRatio"].end(); _cratesRatio++) {
                 toAdd.cratesRatio.push_back((int)_cratesRatio.value());
             }
-            MobManager::MobDropChances[(int)dropChance["Type"]] = toAdd;
+            Combat::MobDropChances[(int)dropChance["Type"]] = toAdd;
         }
 
         // MobDrops
@@ -532,21 +532,21 @@ void TableData::loadDrops() {
 
             toAdd.dropChanceType = (int)drop["DropChance"];
             // Check if DropChance exists
-            if (MobManager::MobDropChances.find(toAdd.dropChanceType) == MobManager::MobDropChances.end()) {
+            if (Combat::MobDropChances.find(toAdd.dropChanceType) == Combat::MobDropChances.end()) {
                 throw TableException(" MobDropChance not found: " + std::to_string((toAdd.dropChanceType)));
             }
             // Check if number of crates is correct
-            if (!(MobManager::MobDropChances[(int)drop["DropChance"]].cratesRatio.size() == toAdd.crateIDs.size())) {
+            if (!(Combat::MobDropChances[(int)drop["DropChance"]].cratesRatio.size() == toAdd.crateIDs.size())) {
                 throw TableException(" DropType " + std::to_string((int)drop["DropType"]) + " contains invalid number of crates");
             }
 
             toAdd.taros = (int)drop["Taros"];
             toAdd.fm = (int)drop["FM"];
             toAdd.boosts = (int)drop["Boosts"];
-            MobManager::MobDrops[(int)drop["DropType"]] = toAdd;
+            Combat::MobDrops[(int)drop["DropType"]] = toAdd;
         }
 
-        std::cout << "[INFO] Loaded " << MobManager::MobDrops.size() << " Mob Drop Types"<<  std::endl;
+        std::cout << "[INFO] Loaded " << Combat::MobDrops.size() << " Mob Drop Types"<<  std::endl;
 
         // Rarity Ratios
         nlohmann::json rarities = dropData["RarityRatios"];
@@ -830,7 +830,7 @@ void TableData::loadGruntwork(int32_t *nextId) {
                 // re-enable respawning
                 ((Mob*)npc)->summoned = false;
 
-                MobManager::Mobs[npc->appearanceData.iNPC_ID] = (Mob*)npc;
+                MobAI::Mobs[npc->appearanceData.iNPC_ID] = (Mob*)npc;
             } else {
                 npc = new BaseNPC(mob["iX"], mob["iY"], mob["iZ"], mob["iAngle"], instanceID, mob["iNPCType"], id);
             }
@@ -853,7 +853,7 @@ void TableData::loadGruntwork(int32_t *nextId) {
             ((Mob*)tmp)->summoned = false;
 
             NPCManager::NPCs[*nextId] = tmp;
-            MobManager::Mobs[*nextId] = (Mob*)NPCManager::NPCs[*nextId];
+            MobAI::Mobs[*nextId] = (Mob*)NPCManager::NPCs[*nextId];
             NPCManager::updateNPCPosition(*nextId, leader["iX"], leader["iY"], leader["iZ"], instanceID, leader["iAngle"]);
 
             tmp->groupLeader = *nextId;
@@ -872,7 +872,7 @@ void TableData::loadGruntwork(int32_t *nextId) {
                     ((Mob*)tmp)->summoned = false;
 
                     NPCManager::NPCs[*nextId] = tmpFol;
-                    MobManager::Mobs[*nextId] = (Mob*)NPCManager::NPCs[*nextId];
+                    MobAI::Mobs[*nextId] = (Mob*)NPCManager::NPCs[*nextId];
                     NPCManager::updateNPCPosition(*nextId, (int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], instanceID, leader["iAngle"]);
 
                     tmpFol->offsetX = follower.find("iOffsetX") == follower.end() ? 0 : (int)follower["iOffsetX"];
@@ -1008,11 +1008,11 @@ void TableData::flush() {
 
             // add follower data to vector; go until OOB or until follower ID is 0
             for (int i = 0; i < 4 && m->groupMember[i] > 0; i++) {
-                if (MobManager::Mobs.find(m->groupMember[i]) == MobManager::Mobs.end()) {
+                if (MobAI::Mobs.find(m->groupMember[i]) == MobAI::Mobs.end()) {
                     std::cout << "[WARN] Follower with ID " << m->groupMember[i] << " not found; skipping\n";
                     continue;
                 }
-                followers.push_back(MobManager::Mobs[m->groupMember[i]]);
+                followers.push_back(MobAI::Mobs[m->groupMember[i]]);
             }
         }
         else {

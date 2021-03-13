@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CNProtocol.hpp"
-#include "MobManager.hpp"
+#include "Combat.hpp"
 
 typedef void (*PowerHandler)(CNSocket*, std::vector<int>, int16_t, int16_t, int16_t, int16_t, int16_t, int32_t, int16_t);
 
@@ -57,6 +57,6 @@ namespace NanoManager {
     int applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags);
 }
 
-namespace MobManager {
+namespace Combat {
     extern std::vector<MobPower> MobPowers;
 }

@@ -1,7 +1,7 @@
 #include "NPCManager.hpp"
 #include "ItemManager.hpp"
 #include "settings.hpp"
-#include "MobManager.hpp"
+#include "Combat.hpp"
 #include "MissionManager.hpp"
 #include "ChunkManager.hpp"
 #include "NanoManager.hpp"
@@ -79,8 +79,8 @@ void NPCManager::destroyNPC(int32_t id) {
     ChunkManager::removeNPCFromChunks(ChunkManager::getViewableChunks(entity->chunkPos), id);
 
     // remove from mob manager
-    if (MobManager::Mobs.find(id) != MobManager::Mobs.end())
-        MobManager::Mobs.erase(id);
+    if (MobAI::Mobs.find(id) != MobAI::Mobs.end())
+        MobAI::Mobs.erase(id);
 
     // remove from eggs
     if (Eggs.find(id) != Eggs.end())
@@ -538,7 +538,7 @@ BaseNPC *NPCManager::summonNPC(int x, int y, int z, uint64_t instance, int type,
 
     if (team == 2) {
         npc = new Mob(x, y, z + EXTRA_HEIGHT, inst, type, NPCData[type], id);
-        MobManager::Mobs[id] = (Mob*)npc;
+        MobAI::Mobs[id] = (Mob*)npc;
 
         // re-enable respawning, if desired
         ((Mob*)npc)->summoned = !respawn;

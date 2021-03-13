@@ -2,7 +2,7 @@
 #include "CNStructs.hpp"
 #include "CNShardServer.hpp"
 #include "PlayerManager.hpp"
-#include "MobManager.hpp"
+#include "MobAI.hpp"
 #include "CNShared.hpp"
 #include "settings.hpp"
 #include "Database.hpp"

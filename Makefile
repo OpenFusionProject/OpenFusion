@@ -39,7 +39,8 @@ CXXSRC=\
 	src/Defines.cpp\
 	src/main.cpp\
 	src/MissionManager.cpp\
-	src/MobManager.cpp\
+	src/MobAI.cpp\
+	src/Combat.cpp\
 	src/NanoManager.cpp\
 	src/Abilities.cpp\
 	src/ItemManager.cpp\
@@ -82,7 +83,8 @@ CXXHDR=\
 	vendor/INIReader.hpp\
 	vendor/JSON.hpp\
 	src/MissionManager.hpp\
-	src/MobManager.hpp\
+	src/MobAI.hpp\
+	src/Combat.hpp\
 	src/NanoManager.hpp\
 	src/Abilities.hpp\
 	src/ItemManager.hpp\

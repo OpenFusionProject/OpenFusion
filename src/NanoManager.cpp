@@ -3,7 +3,7 @@
 #include "NanoManager.hpp"
 #include "PlayerManager.hpp"
 #include "NPCManager.hpp"
-#include "MobManager.hpp"
+#include "Combat.hpp"
 #include "MissionManager.hpp"
 #include "GroupManager.hpp"
 #include "Abilities.hpp"

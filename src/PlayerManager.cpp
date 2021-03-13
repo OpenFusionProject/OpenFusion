@@ -8,7 +8,7 @@
 #include "ChatManager.hpp"
 #include "Database.hpp"
 #include "BuddyManager.hpp"
-#include "MobManager.hpp"
+#include "Combat.hpp"
 #include "RacingManager.hpp"
 #include "BuiltinCommands.hpp"
 #include "Abilities.hpp"
@@ -59,7 +59,7 @@ void PlayerManager::removePlayer(CNSocket* key) {
     GroupManager::groupKickPlayer(plr);
 
     // remove player's bullets
-    MobManager::Bullets.erase(plr->iID);
+    Combat::Bullets.erase(plr->iID);
 
     // remove player's ongoing race, if it exists
     RacingManager::EPRaces.erase(key);
