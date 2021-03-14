@@ -15,6 +15,7 @@ namespace Database {
         time_t BannedUntil;
         std::string BanReason;
     };
+
     struct EmailData {
         int PlayerId;
         int MsgIndex;
@@ -29,6 +30,7 @@ namespace Database {
         uint64_t SendTime;
         uint64_t DeleteTime;
     };
+
     struct RaceRanking {
         int EPID;
         int PlayerID;
@@ -40,20 +42,15 @@ namespace Database {
     
     void open();
     void close();
-    void checkMetaTable();
-    void createMetaTable();
-    void createTables();
-    int getTableSize(std::string tableName);
 
     void findAccount(Account* account, std::string login);
-    /// returns ID, 0 if something failed
+    // returns ID, 0 if something failed
     int addAccount(std::string login, std::string password);
-    bool banAccount(int accountId, int days, std::string& reason);
-    bool unbanAccount(int accountId);
+
+    // interface for the /ban command
     bool banPlayer(int playerId, std::string& reason);
     bool unbanPlayer(int playerId);
 
-    int getAccountIDFromPlayerID(int playerId, int *accountLevel=nullptr);
     void updateSelected(int accountId, int playerId);
     
     bool validateCharacter(int characterID, int userID);
@@ -68,6 +65,7 @@ namespace Database {
     /// returns slot number if query succeeded
     int deleteCharacter(int characterID, int userID);
     void getCharInfo(std::vector <sP_LS2CL_REP_CHAR_INFO>* result, int userID);
+
     /// accepting/declining custom name
     enum class CustomName {
         APPROVE = 1,
@@ -80,7 +78,6 @@ namespace Database {
     // getting players
     void getPlayer(Player* plr, int id);
     void updatePlayer(Player *player);
-    void removeExpiredVehicles(Player* player);
     
     // buddies
     int getNumBuddies(Player* player);

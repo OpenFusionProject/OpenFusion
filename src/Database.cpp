@@ -22,47 +22,63 @@
     #include <mutex>
 #endif
 
-std::mutex dbCrit;
-sqlite3* db;
+using namespace Database;
 
-void Database::open() {
-    int rc = sqlite3_open(settings::DBPATH.c_str(), &db);
-    if (rc != SQLITE_OK) {
-        std::cout << "[FATAL] Cannot open database: " << sqlite3_errmsg(db) << std::endl;
+static std::mutex dbCrit;
+static sqlite3* db;
+
+static void createMetaTable() {
+    std::lock_guard<std::mutex> lock(dbCrit); // XXX
+
+    sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
+
+    const char* sql = R"(
+        CREATE TABLE Meta(
+            Key TEXT NOT NULL UNIQUE,
+            Value INTEGER NOT NULL
+        );
+        )";
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        std::cout << "[FATAL] Failed to create meta table: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+        exit(1);
+    }
+    sqlite3_finalize(stmt);
+
+    sql = R"(
+        INSERT INTO Meta (Key, Value)
+        VALUES (?, ?);
+        )";
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_bind_text(stmt, 1, "ProtocolVersion", -1, NULL);
+    sqlite3_bind_int(stmt, 2, PROTOCOL_VERSION);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        std::cout << "[FATAL] Failed to create meta table: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_finalize(stmt);
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
         exit(1);
     }
 
-    // foreign keys in sqlite are off by default; enable them
-    sqlite3_exec(db, "PRAGMA foreign_keys=ON;", NULL, NULL, NULL);
-
-    // just in case a DB operation collides with an external manual modification
-    sqlite3_busy_timeout(db, 2000);
-
-    checkMetaTable();
-    createTables();
-
-    std::cout << "[INFO] Database in operation ";
-    int accounts = getTableSize("Accounts");
-    int players = getTableSize("Players");
-    std::string message = "";
-    if (accounts > 0) {
-        message += ": Found " + std::to_string(accounts) + " Account";
-        if (accounts > 1)
-            message += "s";
+    sqlite3_reset(stmt);
+    sqlite3_bind_text(stmt, 1, "DatabaseVersion", -1, NULL);
+    sqlite3_bind_int(stmt, 2, DATABASE_VERSION);
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
+        std::cout << "[FATAL] Failed to create meta table: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+        exit(1);
     }
-    if (players > 0) {
-        message += " and " + std::to_string(players) + " Player Character";
-        if (players > 1)
-            message += "s";
-    }
-    std::cout << message << std::endl;
+
+    sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
+    std::cout << "[INFO] Created new meta table" << std::endl;
 }
 
-void Database::close() {
-    sqlite3_close(db);
-}
-
-void Database::checkMetaTable() {
+static void checkMetaTable() {
     // first check if meta table exists
     const char* sql = R"(
         SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Meta';
@@ -170,58 +186,7 @@ void Database::checkMetaTable() {
     }    
 }
 
-void Database::createMetaTable() {
-    std::lock_guard<std::mutex> lock(dbCrit);
-
-    sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
-
-    const char* sql = R"(
-        CREATE TABLE Meta(
-            Key TEXT NOT NULL UNIQUE,
-            Value INTEGER NOT NULL
-        );
-        )";
-    sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    if (sqlite3_step(stmt) != SQLITE_DONE) {
-        std::cout << "[FATAL] Failed to create meta table: " << sqlite3_errmsg(db) << std::endl;
-        sqlite3_finalize(stmt);
-        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-        exit(1);
-    }
-    sqlite3_finalize(stmt);
-
-    sql = R"(
-        INSERT INTO Meta (Key, Value)
-        VALUES (?, ?);
-        )";
-    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    sqlite3_bind_text(stmt, 1, "ProtocolVersion", -1, NULL);
-    sqlite3_bind_int(stmt, 2, PROTOCOL_VERSION);
-
-    if (sqlite3_step(stmt) != SQLITE_DONE) {
-        std::cout << "[FATAL] Failed to create meta table: " << sqlite3_errmsg(db) << std::endl;
-        sqlite3_finalize(stmt);
-        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-        exit(1);
-    }
-
-    sqlite3_reset(stmt);
-    sqlite3_bind_text(stmt, 1, "DatabaseVersion", -1, NULL);
-    sqlite3_bind_int(stmt, 2, DATABASE_VERSION);
-    int rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE) {
-        std::cout << "[FATAL] Failed to create meta table: " << sqlite3_errmsg(db) << std::endl;
-        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-        exit(1);
-    }
-
-    sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
-    std::cout << "[INFO] Created new meta table" << std::endl;
-}
-
-void Database::createTables() {
+static void createTables() {
     std::ifstream file("sql/tables.sql");
     if (!file.is_open()) {
         std::cout << "[FATAL] Failed to open database scheme" << std::endl;
@@ -241,8 +206,8 @@ void Database::createTables() {
     }
 }
 
-int Database::getTableSize(std::string tableName) {
-    std::lock_guard<std::mutex> lock(dbCrit);
+static int getTableSize(std::string tableName) {
+    std::lock_guard<std::mutex> lock(dbCrit); // XXX
 
     const char* sql = "SELECT COUNT(*) FROM ?";
     sqlite3_stmt* stmt;
@@ -252,6 +217,44 @@ int Database::getTableSize(std::string tableName) {
     int result = sqlite3_column_int(stmt, 0);
     sqlite3_finalize(stmt);
     return result;
+}
+
+void Database::open() {
+    // XXX: move locks here
+    int rc = sqlite3_open(settings::DBPATH.c_str(), &db);
+    if (rc != SQLITE_OK) {
+        std::cout << "[FATAL] Cannot open database: " << sqlite3_errmsg(db) << std::endl;
+        exit(1);
+    }
+
+    // foreign keys in sqlite are off by default; enable them
+    sqlite3_exec(db, "PRAGMA foreign_keys=ON;", NULL, NULL, NULL);
+
+    // just in case a DB operation collides with an external manual modification
+    sqlite3_busy_timeout(db, 2000);
+
+    checkMetaTable();
+    createTables();
+
+    std::cout << "[INFO] Database in operation ";
+    int accounts = getTableSize("Accounts");
+    int players = getTableSize("Players");
+    std::string message = "";
+    if (accounts > 0) {
+        message += ": Found " + std::to_string(accounts) + " Account";
+        if (accounts > 1)
+            message += "s";
+    }
+    if (players > 0) {
+        message += " and " + std::to_string(players) + " Player Character";
+        if (players > 1)
+            message += "s";
+    }
+    std::cout << message << std::endl;
+}
+
+void Database::close() {
+    sqlite3_close(db);
 }
 
 void Database::findAccount(Account* account, std::string login) {
@@ -304,8 +307,37 @@ int Database::addAccount(std::string login, std::string password) {
     return sqlite3_last_insert_rowid(db);
 }
 
-// NOTE: internal function; does not lock dbCrit
-bool Database::banAccount(int accountId, int days, std::string& reason) {
+static int getAccountIDFromPlayerID(int playerId, int *accountLevel=nullptr) {
+    const char *sql = R"(
+        SELECT Players.AccountID, AccountLevel
+        FROM Players
+        JOIN Accounts ON Players.AccountID = Accounts.AccountID
+        WHERE PlayerID = ?;
+        )";
+    sqlite3_stmt *stmt;
+
+    // get AccountID from PlayerID
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_bind_int(stmt, 1, playerId);
+
+    if (sqlite3_step(stmt) != SQLITE_ROW) {
+        std::cout << "[WARN] Database: failed to get AccountID from PlayerID: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    int accountId = sqlite3_column_int(stmt, 0);
+
+    // optional secondary return value, for checking GM status
+    if (accountLevel != nullptr)
+        *accountLevel = sqlite3_column_int(stmt, 1);
+
+    sqlite3_finalize(stmt);
+
+    return accountId;
+}
+
+static bool banAccount(int accountId, int days, std::string& reason) {
     const char* sql = R"(
         UPDATE Accounts SET
             BannedSince = (strftime('%s', 'now')),
@@ -331,8 +363,7 @@ bool Database::banAccount(int accountId, int days, std::string& reason) {
     return true;
 }
 
-// NOTE: internal function; does not lock dbCrit
-bool Database::unbanAccount(int accountId) {
+static bool unbanAccount(int accountId) {
     const char* sql = R"(
         UPDATE Accounts SET
             BannedSince = 0,
@@ -389,36 +420,6 @@ bool Database::unbanPlayer(int playerId) {
         return false;
 
     return unbanAccount(accountId);
-}
-
-int Database::getAccountIDFromPlayerID(int playerId, int *accountLevel) {
-    const char *sql = R"(
-        SELECT Players.AccountID, AccountLevel
-        FROM Players
-        JOIN Accounts ON Players.AccountID = Accounts.AccountID
-        WHERE PlayerID = ?;
-        )";
-    sqlite3_stmt *stmt;
-
-    // get AccountID from PlayerID
-    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    sqlite3_bind_int(stmt, 1, playerId);
-
-    if (sqlite3_step(stmt) != SQLITE_ROW) {
-        std::cout << "[WARN] Database: failed to get AccountID from PlayerID: " << sqlite3_errmsg(db) << std::endl;
-        sqlite3_finalize(stmt);
-        return -1;
-    }
-
-    int accountId = sqlite3_column_int(stmt, 0);
-
-    // optional secondary return value, for checking GM status
-    if (accountLevel != nullptr)
-        *accountLevel = sqlite3_column_int(stmt, 1);
-
-    sqlite3_finalize(stmt);
-
-    return accountId;
 }
 
 void Database::updateSelected(int accountId, int slot) {
@@ -904,6 +905,40 @@ bool Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save, int accountId) {
     return rc == SQLITE_DONE;
 }
 
+static void removeExpiredVehicles(Player* player) {
+    int32_t currentTime = getTimestamp();
+
+    // if there are expired vehicles in bank just remove them silently
+    for (int i = 0; i < ABANK_COUNT; i++) {
+        if (player->Bank[i].iType == 10 && player->Bank[i].iTimeLimit < currentTime && player->Bank[i].iTimeLimit != 0) {
+            memset(&player->Bank[i], 0, sizeof(sItemBase));
+        }
+    }
+
+    // we want to leave only 1 expired vehicle on player to delete it with the client packet
+    std::vector<sItemBase*> toRemove;
+
+    // equipped vehicle
+    if (player->Equip[8].iOpt > 0 && player->Equip[8].iTimeLimit < currentTime && player->Equip[8].iTimeLimit != 0) {
+        toRemove.push_back(&player->Equip[8]);
+        player->toRemoveVehicle.eIL = 0;
+        player->toRemoveVehicle.iSlotNum = 8;
+    }
+    // inventory
+    for (int i = 0; i < AINVEN_COUNT; i++) {
+        if (player->Inven[i].iType == 10 && player->Inven[i].iTimeLimit < currentTime && player->Inven[i].iTimeLimit != 0) {
+            toRemove.push_back(&player->Inven[i]);
+            player->toRemoveVehicle.eIL = 1;
+            player->toRemoveVehicle.iSlotNum = i;
+        }
+    }
+
+    // delete all but one vehicles, leave last one for ceremonial deletion
+    for (int i = 0; i < (int)toRemove.size()-1; i++) {
+        memset(toRemove[i], 0, sizeof(sItemBase));
+    }
+}
+
 void Database::getPlayer(Player* plr, int id) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
@@ -1028,7 +1063,7 @@ void Database::getPlayer(Player* plr, int id) {
 
     sqlite3_finalize(stmt);
 
-    Database::removeExpiredVehicles(plr);
+    removeExpiredVehicles(plr);
 
     // get quest inventory
     sql = R"(
@@ -1404,40 +1439,6 @@ void Database::updatePlayer(Player *player) {
     sqlite3_finalize(stmt);
 }
 
-void Database::removeExpiredVehicles(Player* player) {
-    int32_t currentTime = getTimestamp();
-
-    // if there are expired vehicles in bank just remove them silently
-    for (int i = 0; i < ABANK_COUNT; i++) {
-        if (player->Bank[i].iType == 10 && player->Bank[i].iTimeLimit < currentTime && player->Bank[i].iTimeLimit != 0) {
-            memset(&player->Bank[i], 0, sizeof(sItemBase));
-        }
-    }
-
-    // we want to leave only 1 expired vehicle on player to delete it with the client packet
-    std::vector<sItemBase*> toRemove;
-
-    // equipped vehicle
-    if (player->Equip[8].iOpt > 0 && player->Equip[8].iTimeLimit < currentTime && player->Equip[8].iTimeLimit != 0) {
-        toRemove.push_back(&player->Equip[8]);
-        player->toRemoveVehicle.eIL = 0;
-        player->toRemoveVehicle.iSlotNum = 8;
-    }
-    // inventory
-    for (int i = 0; i < AINVEN_COUNT; i++) {
-        if (player->Inven[i].iType == 10 && player->Inven[i].iTimeLimit < currentTime && player->Inven[i].iTimeLimit != 0) {
-            toRemove.push_back(&player->Inven[i]);
-            player->toRemoveVehicle.eIL = 1;
-            player->toRemoveVehicle.iSlotNum = i;
-        }
-    }
-
-    // delete all but one vehicles, leave last one for ceremonial deletion
-    for (int i = 0; i < (int)toRemove.size()-1; i++) {
-        memset(toRemove[i], 0, sizeof(sItemBase));
-    }
-}
-
 // buddies
 // returns num of buddies + blocked players
 int Database::getNumBuddies(Player* player) {
@@ -1559,10 +1560,10 @@ int Database::getUnreadEmailCount(int playerID) {
     return ret;
 }
 
-std::vector<Database::EmailData> Database::getEmails(int playerID, int page) {
+std::vector<EmailData> Database::getEmails(int playerID, int page) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
-    std::vector<Database::EmailData> emails;
+    std::vector<EmailData> emails;
 
     const char* sql = R"(
         SELECT
@@ -1581,7 +1582,7 @@ std::vector<Database::EmailData> Database::getEmails(int playerID, int page) {
     int offset = 5 * page - 5;
     sqlite3_bind_int(stmt, 2, offset);
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-        Database::EmailData toAdd;
+        EmailData toAdd;
         toAdd.PlayerId = playerID;
         toAdd.MsgIndex = sqlite3_column_int(stmt, 0);
         toAdd.ItemFlag = sqlite3_column_int(stmt, 1);
@@ -1602,7 +1603,7 @@ std::vector<Database::EmailData> Database::getEmails(int playerID, int page) {
     return emails;
 }
 
-Database::EmailData Database::getEmail(int playerID, int index) {
+EmailData Database::getEmail(int playerID, int index) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     const char* sql = R"(
@@ -1618,7 +1619,7 @@ Database::EmailData Database::getEmail(int playerID, int index) {
     sqlite3_bind_int(stmt, 1, playerID);
     sqlite3_bind_int(stmt, 2, index);
 
-    Database::EmailData result;
+    EmailData result;
     if (sqlite3_step(stmt) != SQLITE_ROW) {
         std::cout << "[WARN] Database: Email not found!" << std::endl;
         sqlite3_finalize(stmt);
@@ -1873,7 +1874,7 @@ bool Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
     return true;
 }
 
-Database::RaceRanking Database::getTopRaceRanking(int epID, int playerID) {
+RaceRanking Database::getTopRaceRanking(int epID, int playerID) {
     std::lock_guard<std::mutex> lock(dbCrit);
     std::string sql(R"(
         SELECT
@@ -1897,7 +1898,7 @@ Database::RaceRanking Database::getTopRaceRanking(int epID, int playerID) {
     if(playerID > -1)
         sqlite3_bind_int(stmt, 2, playerID);
 
-    Database::RaceRanking ranking = {};
+    RaceRanking ranking = {};
     if (sqlite3_step(stmt) != SQLITE_ROW) {
         // this race hasn't been run before, so return a blank ranking
         sqlite3_finalize(stmt);
@@ -1917,7 +1918,7 @@ Database::RaceRanking Database::getTopRaceRanking(int epID, int playerID) {
     return ranking;
 }
 
-void Database::postRaceRanking(Database::RaceRanking ranking) {
+void Database::postRaceRanking(RaceRanking ranking) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     const char* sql = R"(
