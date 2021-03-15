@@ -21,6 +21,7 @@
 #include "RacingManager.hpp"
 #include "Trading.hpp"
 #include "Email.hpp"
+#include "Vendor.hpp"
 
 #include "settings.hpp"
 
@@ -109,6 +110,7 @@ int main() {
     MissionManager::init();
     NanoManager::init();
     NPCManager::init();
+    Vendor::init();
     TransportManager::init();
     BuddyManager::init();
     Email::init();
