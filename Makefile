@@ -37,6 +37,7 @@ CXXSRC=\
 	src/CNShared.cpp\
 	src/Database.cpp\
 	src/Defines.cpp\
+    src/Email.cpp\
 	src/main.cpp\
 	src/MissionManager.cpp\
 	src/MobAI.cpp\
@@ -80,6 +81,7 @@ CXXHDR=\
 	src/CNStructs.hpp\
 	src/Database.hpp\
 	src/Defines.hpp\
+    src/Email.hpp\
 	vendor/INIReader.hpp\
 	vendor/JSON.hpp\
 	src/MissionManager.hpp\

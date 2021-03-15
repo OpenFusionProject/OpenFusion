@@ -20,6 +20,7 @@
 #include "Monitor.hpp"
 #include "RacingManager.hpp"
 #include "Trading.hpp"
+#include "Email.hpp"
 
 #include "settings.hpp"
 
@@ -110,6 +111,7 @@ int main() {
     NPCManager::init();
     TransportManager::init();
     BuddyManager::init();
+    Email::init();
     GroupManager::init();
     RacingManager::init();
     Database::open();
