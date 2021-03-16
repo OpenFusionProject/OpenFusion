@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CNStructs.hpp"
-#include "ChunkManager.hpp"
+#include "Chunking.hpp"
 
 class BaseNPC {
 public:

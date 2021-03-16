@@ -35,7 +35,7 @@ struct TaskData {
     auto operator[](std::string s) { return task[s]; }
 };
 
-namespace MissionManager {
+namespace Missions {
     extern std::map<int32_t, Reward*> Rewards;
     extern std::map<int32_t, TaskData*> Tasks;
     extern nlohmann::json AvatarGrowth[37];

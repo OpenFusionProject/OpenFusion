@@ -1,13 +1,13 @@
 #include "NPCManager.hpp"
-#include "ItemManager.hpp"
+#include "Items.hpp"
 #include "settings.hpp"
 #include "Combat.hpp"
-#include "MissionManager.hpp"
-#include "ChunkManager.hpp"
-#include "NanoManager.hpp"
+#include "Missions.hpp"
+#include "Chunking.hpp"
+#include "Nanos.hpp"
 #include "TableData.hpp"
-#include "GroupManager.hpp"
-#include "RacingManager.hpp"
+#include "Groups.hpp"
+#include "Racing.hpp"
 #include "Vendor.hpp"
 #include "Abilities.hpp"
 
@@ -49,16 +49,16 @@ void NPCManager::destroyNPC(int32_t id) {
     BaseNPC* entity = NPCs[id];
 
     // sanity check
-    if (!ChunkManager::chunkExists(entity->chunkPos)) {
+    if (!Chunking::chunkExists(entity->chunkPos)) {
         std::cout << "chunk not found!" << std::endl;
         return;
     }
 
     // remove NPC from the chunk
-    ChunkManager::untrackNPC(entity->chunkPos, id);
+    Chunking::untrackNPC(entity->chunkPos, id);
 
     // remove from viewable chunks
-    ChunkManager::removeNPCFromChunks(ChunkManager::getViewableChunks(entity->chunkPos), id);
+    Chunking::removeNPCFromChunks(Chunking::getViewableChunks(entity->chunkPos), id);
 
     // remove from mob manager
     if (MobAI::Mobs.find(id) != MobAI::Mobs.end())
@@ -78,14 +78,14 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z, uint64_t I, 
     BaseNPC* npc = NPCs[id];
     npc->appearanceData.iAngle = angle;
     ChunkPos oldChunk = npc->chunkPos;
-    ChunkPos newChunk = ChunkManager::chunkPosAt(X, Y, I);
+    ChunkPos newChunk = Chunking::chunkPosAt(X, Y, I);
     npc->appearanceData.iX = X;
     npc->appearanceData.iY = Y;
     npc->appearanceData.iZ = Z;
     npc->instanceID = I;
     if (oldChunk == newChunk)
         return; // didn't change chunks
-    ChunkManager::updateNPCChunk(id, oldChunk, newChunk);
+    Chunking::updateNPCChunk(id, oldChunk, newChunk);
 }
 
 void NPCManager::sendToViewable(BaseNPC *npc, void *buf, uint32_t type, size_t size) {
@@ -104,7 +104,7 @@ static void npcBarkHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_BARKER* req = (sP_CL2FE_REQ_BARKER*)data->buf;
 
     // get bark IDs from task data
-    TaskData* td = MissionManager::Tasks[req->iMissionTaskID];
+    TaskData* td = Missions::Tasks[req->iMissionTaskID];
     std::vector<int> barks;
     for (int i = 0; i < 4; i++) {
         if (td->task["m_iHBarkerTextID"][i] != 0) // non-zeroes only
@@ -204,7 +204,7 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
         // if warp requires you to be on a mission, it's gotta be a unique instance
         if (Warps[warpId].limitTaskID != 0 || instanceID == 14) { // 14 is a special case for the Time Lab
             instanceID += ((uint64_t)plr->iIDGroup << 32); // upper 32 bits are leader ID
-            ChunkManager::createInstance(instanceID);
+            Chunking::createInstance(instanceID);
 
             // save Lair entrance coords as a pseudo-Resurrect 'Em
             plr->recallX = Warps[warpId].x;
@@ -261,18 +261,18 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
         resp.eIL = 4; // do not take away any items
         uint64_t fromInstance = plr->instanceID; // pre-warp instance, saved for post-warp
         plr->instanceID = INSTANCE_OVERWORLD;
-        MissionManager::failInstancedMissions(sock); // fail any instanced missions
+        Missions::failInstancedMissions(sock); // fail any instanced missions
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
 
-        ChunkManager::updatePlayerChunk(sock, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
+        Chunking::updatePlayerChunk(sock, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
         PlayerManager::updatePlayerPosition(sock, resp.iX, resp.iY, resp.iZ, INSTANCE_OVERWORLD, plr->angle);
 
         // remove the player's ongoing race, if any
-        if (RacingManager::EPRaces.find(sock) != RacingManager::EPRaces.end())
-            RacingManager::EPRaces.erase(sock);
+        if (Racing::EPRaces.find(sock) != Racing::EPRaces.end())
+            Racing::EPRaces.erase(sock);
 
         // post-warp: check if the source instance has no more players in it and delete it if so
-        ChunkManager::destroyInstanceIfEmpty(fromInstance);
+        Chunking::destroyInstanceIfEmpty(fromInstance);
     }
 }
 
@@ -316,8 +316,8 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int durati
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
-    int bitFlag = GroupManager::getGroupFlags(otherPlr);
-    int CBFlag = NanoManager::applyBuff(sock, skillId, 1, 3, bitFlag);
+    int bitFlag = Groups::getGroupFlags(otherPlr);
+    int CBFlag = Nanos::applyBuff(sock, skillId, 1, 3, bitFlag);
 
     size_t resplen; 
 
@@ -339,7 +339,7 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int durati
         memset(respbuf, 0, resplen);
         skill->eCT = 1;
         skill->iID = plr->iID;
-        skill->iDamage = PC_MAXHEALTH(plr->level) * NanoManager::SkillTable[skillId].powerIntensity[0] / 1000;
+        skill->iDamage = PC_MAXHEALTH(plr->level) * Nanos::SkillTable[skillId].powerIntensity[0] / 1000;
         plr->HP -= skill->iDamage;
         if (plr->HP < 0)
             plr->HP = 0;
@@ -349,7 +349,7 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int durati
         memset(respbuf, 0, resplen);
         skill->eCT = 1;
         skill->iID = plr->iID;
-        skill->iHealHP = PC_MAXHEALTH(plr->level) * NanoManager::SkillTable[skillId].powerIntensity[0] / 1000;
+        skill->iHealHP = PC_MAXHEALTH(plr->level) * Nanos::SkillTable[skillId].powerIntensity[0] / 1000;
         plr->HP += skill->iHealHP;
         if (plr->HP > PC_MAXHEALTH(plr->level))
             plr->HP = PC_MAXHEALTH(plr->level);
@@ -364,7 +364,7 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int durati
 
     skillUse->iNPC_ID = eggId;
     skillUse->iSkillID = skillId;
-    skillUse->eST = NanoManager::SkillTable[skillId].skillType;
+    skillUse->eST = Nanos::SkillTable[skillId].skillType;
     skillUse->iTargetCnt = 1;
 
     sock->sendPacket((void*)&respbuf, P_FE2CL_NPC_SKILL_HIT, resplen);
@@ -397,8 +397,8 @@ static void eggStep(CNServer* serv, time_t currTime) {
             Player* plr = PlayerManager::getPlayer(sock);
             Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
-            int groupFlags = GroupManager::getGroupFlags(otherPlr);
-            for (auto& pwr : NanoManager::NanoPowers) {
+            int groupFlags = Groups::getGroupFlags(otherPlr);
+            for (auto& pwr : Nanos::NanoPowers) {
                 if (pwr.bitFlag == CBFlag) { // pick the power with the right flag and unbuff
                     INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, resp);
                     resp.eCSTB = pwr.timeBuffID;
@@ -422,7 +422,7 @@ static void eggStep(CNServer* serv, time_t currTime) {
 
     // check dead eggs and eggs in inactive chunks
     for (auto egg : Eggs) {
-        if (!egg.second->dead || !ChunkManager::inPopulatedChunks(egg.second->viewableChunks))
+        if (!egg.second->dead || !Chunking::inPopulatedChunks(egg.second->viewableChunks))
             continue;
         if (egg.second->deadUntil <= timeStamp) {
             // respawn it
@@ -430,7 +430,7 @@ static void eggStep(CNServer* serv, time_t currTime) {
             egg.second->deadUntil = 0;
             egg.second->appearanceData.iHP = 400;
             
-            ChunkManager::addNPCToChunks(ChunkManager::getViewableChunks(egg.second->chunkPos), egg.first);
+            Chunking::addNPCToChunks(Chunking::getViewableChunks(egg.second->chunkPos), egg.first);
         }
     }
 
@@ -525,7 +525,7 @@ static void eggPickup(CNSocket* sock, CNPacketData* data) {
         reward->iFatigue_Level = 1;
         reward->iItemCnt = 1; // remember to update resplen if you change this
 
-        int slot = ItemManager::findFreeSlot(plr);
+        int slot = Items::findFreeSlot(plr);
 
         // no space for drop
         if (slot != -1) {
@@ -546,7 +546,7 @@ static void eggPickup(CNSocket* sock, CNPacketData* data) {
     if (egg->summoned)
         destroyNPC(eggId);
     else {
-        ChunkManager::removeNPCFromChunks(ChunkManager::getViewableChunks(egg->chunkPos), eggId);
+        Chunking::removeNPCFromChunks(Chunking::getViewableChunks(egg->chunkPos), eggId);
         egg->dead = true;
         egg->deadUntil = getTime() + (time_t)type->regen * 1000;
         egg->appearanceData.iHP = 0;

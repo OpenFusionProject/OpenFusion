@@ -1,8 +1,8 @@
 #include "CNShardServer.hpp"
 #include "CNStructs.hpp"
 #include "PlayerManager.hpp"
-#include "GroupManager.hpp"
-#include "NanoManager.hpp"
+#include "Groups.hpp"
+#include "Nanos.hpp"
 #include "Abilities.hpp"
 
 #include <iostream>
@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <thread>
 
-using namespace GroupManager;
+using namespace Groups;
 
 static void requestGroup(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_GROUP_INVITE))
@@ -137,10 +137,10 @@ static void joinGroup(CNSocket* sock, CNPacketData* data) {
         // client doesnt read nano data here
 
         if (varPlr != plr) { // apply the new member's buffs to the group and the group's buffs to the new member
-            if (NanoManager::SkillTable[varPlr->Nanos[varPlr->activeNano].iSkillID].targetType == 3)
-                NanoManager::applyBuff(sock, varPlr->Nanos[varPlr->activeNano].iSkillID, 1, 1, bitFlag);
-            if (NanoManager::SkillTable[plr->Nanos[plr->activeNano].iSkillID].targetType == 3)
-                NanoManager::applyBuff(sockTo, plr->Nanos[plr->activeNano].iSkillID, 1, 1, bitFlag);
+            if (Nanos::SkillTable[varPlr->Nanos[varPlr->activeNano].iSkillID].targetType == 3)
+                Nanos::applyBuff(sock, varPlr->Nanos[varPlr->activeNano].iSkillID, 1, 1, bitFlag);
+            if (Nanos::SkillTable[plr->Nanos[plr->activeNano].iSkillID].targetType == 3)
+                Nanos::applyBuff(sockTo, plr->Nanos[plr->activeNano].iSkillID, 1, 1, bitFlag);
         }
     }
 
@@ -152,7 +152,7 @@ static void leaveGroup(CNSocket* sock, CNPacketData* data) {
     groupKickPlayer(plr);
 }
 
-void GroupManager::sendToGroup(Player* plr, void* buf, uint32_t type, size_t size) {
+void Groups::sendToGroup(Player* plr, void* buf, uint32_t type, size_t size) {
     for (int i = 0; i < plr->groupCnt; i++) {
         CNSocket* sock = PlayerManager::getSockFromID(plr->groupIDs[i]);
 
@@ -168,7 +168,7 @@ void GroupManager::sendToGroup(Player* plr, void* buf, uint32_t type, size_t siz
     }
 }
 
-void GroupManager::groupTickInfo(Player* plr) {
+void Groups::groupTickInfo(Player* plr) {
     if (!validOutVarPacket(sizeof(sP_FE2CL_PC_GROUP_MEMBER_INFO), plr->groupCnt, sizeof(sPCGroupMemberInfo))) {
         std::cout << "[WARN] bad sP_FE2CL_PC_GROUP_JOIN packet size\n";
         return;
@@ -223,12 +223,12 @@ static void groupUnbuff(Player* plr) {
             Player* otherPlr = PlayerManager::getPlayerFromID(plr->groupIDs[i]);
             CNSocket* sock = PlayerManager::getSockFromID(plr->groupIDs[n]);
 
-            NanoManager::applyBuff(sock, otherPlr->Nanos[otherPlr->activeNano].iSkillID, 2, 1, 0);
+            Nanos::applyBuff(sock, otherPlr->Nanos[otherPlr->activeNano].iSkillID, 2, 1, 0);
         }
     }
 }
 
-void GroupManager::groupKickPlayer(Player* plr) {
+void Groups::groupKickPlayer(Player* plr) {
     // if you are the group leader, destroy your own group and kick everybody
     if (plr->iID == plr->iIDGroup) {
         groupUnbuff(plr);
@@ -297,10 +297,10 @@ void GroupManager::groupKickPlayer(Player* plr) {
             moveDown = 1;
             otherPlr->groupIDs[i] = 0;
         } else { // remove the leaving member's buffs from the group and remove the group buffs from the leaving member.
-            if (NanoManager::SkillTable[varPlr->Nanos[varPlr->activeNano].iSkillID].targetType == 3)
-                NanoManager::applyBuff(sock, varPlr->Nanos[varPlr->activeNano].iSkillID, 2, 1, 0);
-            if (NanoManager::SkillTable[plr->Nanos[varPlr->activeNano].iSkillID].targetType == 3)
-                NanoManager::applyBuff(sockTo, plr->Nanos[plr->activeNano].iSkillID, 2, 1, bitFlag);
+            if (Nanos::SkillTable[varPlr->Nanos[varPlr->activeNano].iSkillID].targetType == 3)
+                Nanos::applyBuff(sock, varPlr->Nanos[varPlr->activeNano].iSkillID, 2, 1, 0);
+            if (Nanos::SkillTable[plr->Nanos[varPlr->activeNano].iSkillID].targetType == 3)
+                Nanos::applyBuff(sockTo, plr->Nanos[plr->activeNano].iSkillID, 2, 1, bitFlag);
         }
     }
 
@@ -313,7 +313,7 @@ void GroupManager::groupKickPlayer(Player* plr) {
     sock->sendPacket((void*)&resp1, P_FE2CL_PC_GROUP_LEAVE_SUCC, sizeof(sP_FE2CL_PC_GROUP_LEAVE_SUCC));
 }
 
-int GroupManager::getGroupFlags(Player* plr) {
+int Groups::getGroupFlags(Player* plr) {
     int bitFlag = 0;
 
     for (int i = 0; i < plr->groupCnt; i++) {
@@ -328,7 +328,7 @@ int GroupManager::getGroupFlags(Player* plr) {
     return bitFlag;
 }
 
-void GroupManager::init() {
+void Groups::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_INVITE, requestGroup);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_INVITE_REFUSE, refuseGroup);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_JOIN, joinGroup);

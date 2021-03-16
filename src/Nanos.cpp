@@ -1,22 +1,22 @@
 #include "CNShardServer.hpp"
 #include "CNStructs.hpp"
-#include "NanoManager.hpp"
+#include "Nanos.hpp"
 #include "PlayerManager.hpp"
 #include "NPCManager.hpp"
 #include "Combat.hpp"
-#include "MissionManager.hpp"
-#include "GroupManager.hpp"
+#include "Missions.hpp"
+#include "Groups.hpp"
 #include "Abilities.hpp"
 
 #include <cmath>
 
-using namespace NanoManager;
+using namespace Nanos;
 
-std::map<int32_t, NanoData> NanoManager::NanoTable;
-std::map<int32_t, NanoTuning> NanoManager::NanoTunings;
+std::map<int32_t, NanoData> Nanos::NanoTable;
+std::map<int32_t, NanoTuning> Nanos::NanoTunings;
 
 #pragma region Helper methods
-void NanoManager::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spendfm) {
+void Nanos::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spendfm) {
     if (nanoID <= 0 || nanoID >= NANO_COUNT)
         return;
 
@@ -35,7 +35,7 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spe
     plr->level = level;
 
     if (spendfm)
-        MissionManager::updateFusionMatter(sock, -(int)MissionManager::AvatarGrowth[plr->level-1]["m_iReqBlob_NanoCreate"]);
+        Missions::updateFusionMatter(sock, -(int)Missions::AvatarGrowth[plr->level-1]["m_iReqBlob_NanoCreate"]);
 #endif
 
     // Send to client
@@ -70,7 +70,7 @@ void NanoManager::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spe
     PlayerManager::sendToViewable(sock, (void*)&resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
 }
 
-void NanoManager::summonNano(CNSocket *sock, int slot, bool silent) {
+void Nanos::summonNano(CNSocket *sock, int slot, bool silent) {
     INITSTRUCT(sP_FE2CL_REP_NANO_ACTIVE_SUCC, resp);
     resp.iActiveNanoSlotNum = slot;
     Player *plr = PlayerManager::getPlayer(sock);
@@ -159,11 +159,11 @@ static void setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
     }
 
 #ifndef ACADEMY
-    if (plr->fusionmatter < (int)MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"]) // sanity check
+    if (plr->fusionmatter < (int)Missions::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"]) // sanity check
         return;
 #endif
 
-    plr->fusionmatter -= (int)MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"];
+    plr->fusionmatter -= (int)Missions::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"];
 
     int reqItemCount = NanoTunings[skill->iTuneID].reqItemCount;
     int reqItemID = NanoTunings[skill->iTuneID].reqItems;
@@ -203,13 +203,13 @@ static void setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
 }
 
 // 0=A 1=B 2=C -1=Not found
-int NanoManager::nanoStyle(int nanoID) {
+int Nanos::nanoStyle(int nanoID) {
     if (nanoID < 1 || nanoID >= (int)NanoTable.size())
         return -1;
     return NanoTable[nanoID].style;
 }
 
-bool NanoManager::getNanoBoost(Player* plr) {
+bool Nanos::getNanoBoost(Player* plr) {
     for (int i = 0; i < 3; i++) 
         if (plr->equippedNanos[i] == plr->activeNano)
             if (plr->iConditionBitFlag & (CSB_BIT_STIMPAKSLOT1 << i))
@@ -431,7 +431,7 @@ static void nanoPotionHandler(CNSocket* sock, CNPacketData* data) {
 
 }
 
-void NanoManager::init() {
+void Nanos::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_ACTIVE, nanoSummonHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_EQUIP, nanoEquipHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_UNEQUIP, nanoUnEquipHandler);

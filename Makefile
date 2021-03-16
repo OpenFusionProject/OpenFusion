@@ -42,7 +42,7 @@ CXXSRC=\
 	src/db/shard.cpp\
 	src/db/player.cpp\
 	src/db/email.cpp\
-	src/ChatManager.cpp\
+	src/Chat.cpp\
 	src/CustomCommands.cpp\
 	src/CNLoginServer.cpp\
 	src/CNProtocol.cpp\
@@ -51,24 +51,24 @@ CXXSRC=\
 	src/Defines.cpp\
 	src/Email.cpp\
 	src/main.cpp\
-	src/MissionManager.cpp\
+	src/Missions.cpp\
 	src/MobAI.cpp\
 	src/Combat.cpp\
-	src/NanoManager.cpp\
+	src/Nanos.cpp\
 	src/Abilities.cpp\
-	src/ItemManager.cpp\
+	src/Items.cpp\
 	src/NPCManager.cpp\
 	src/PlayerManager.cpp\
 	src/PlayerMovement.cpp\
 	src/BuiltinCommands.cpp\
 	src/settings.cpp\
-	src/TransportManager.cpp\
+	src/Transport.cpp\
 	src/TableData.cpp\
-	src/ChunkManager.cpp\
-	src/BuddyManager.cpp\
-	src/GroupManager.cpp\
+	src/Chunking.cpp\
+	src/Buddies.cpp\
+	src/Groups.cpp\
 	src/Monitor.cpp\
-	src/RacingManager.cpp\
+	src/Racing.cpp\
 	src/Vendor.cpp\
 	src/Trading.cpp\
 
@@ -81,7 +81,7 @@ CXXHDR=\
 	vendor/JSON.hpp\
 	src/db/Database.hpp\
 	src/db/internal.hpp\
-	src/ChatManager.hpp\
+	src/Chat.hpp\
 	src/CustomCommands.hpp\
 	src/CNLoginServer.hpp\
 	src/CNProtocol.hpp\
@@ -90,25 +90,25 @@ CXXHDR=\
 	src/CNStructs.hpp\
 	src/Defines.hpp\
 	src/Email.hpp\
-	src/MissionManager.hpp\
+	src/Missions.hpp\
 	src/MobAI.hpp\
 	src/Combat.hpp\
-	src/NanoManager.hpp\
+	src/Nanos.hpp\
 	src/Abilities.hpp\
-	src/ItemManager.hpp\
+	src/Items.hpp\
 	src/NPCManager.hpp\
 	src/Player.hpp\
 	src/PlayerManager.hpp\
 	src/PlayerMovement.hpp\
 	src/BuiltinCommands.hpp\
 	src/settings.hpp\
-	src/TransportManager.hpp\
+	src/Transport.hpp\
 	src/TableData.hpp\
-	src/ChunkManager.hpp\
-	src/BuddyManager.hpp\
-	src/GroupManager.hpp\
+	src/Chunking.hpp\
+	src/Buddies.hpp\
+	src/Groups.hpp\
 	src/Monitor.hpp\
-	src/RacingManager.hpp\
+	src/Racing.hpp\
 	src/Vendor.hpp\
 	src/Trading.hpp\
 

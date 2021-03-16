@@ -1,10 +1,10 @@
 #include "CNShardServer.hpp"
 #include "CNStructs.hpp"
-#include "ChatManager.hpp"
+#include "Buddies.hpp"
 #include "PlayerManager.hpp"
-#include "BuddyManager.hpp"
+#include "Buddies.hpp"
 #include "db/Database.hpp"
-#include "ItemManager.hpp"
+#include "Items.hpp"
 #include "db/Database.hpp"
 
 #include <iostream>
@@ -12,7 +12,7 @@
 #include <algorithm>
 #include <thread>
 
-using namespace BuddyManager;
+using namespace Buddies;
 
 #pragma region Helper methods
 
@@ -36,7 +36,7 @@ static bool playerHasBuddyWithID(Player* plr, int buddyID) {
 #pragma endregion
 
 // Refresh buddy list
-void BuddyManager::refreshBuddyList(CNSocket* sock) {
+void Buddies::refreshBuddyList(CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
     int buddyCnt = Database::getNumBuddies(plr);
 
@@ -483,7 +483,7 @@ fail:
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BUDDY_WARP_FAIL, sizeof(sP_FE2CL_REP_PC_BUDDY_WARP_FAIL));
 }
 
-void BuddyManager::init() {
+void Buddies::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_REQUEST_MAKE_BUDDY, requestBuddy);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_FIND_NAME_MAKE_BUDDY, reqBuddyByName);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ACCEPT_MAKE_BUDDY, reqAcceptBuddy);

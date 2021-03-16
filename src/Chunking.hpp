@@ -21,7 +21,7 @@ enum {
     INSTANCE_UNIQUE // these aren't actually used
 };
 
-namespace ChunkManager {
+namespace Chunking {
     extern std::map<ChunkPos, Chunk*> chunks;
 
     void updatePlayerChunk(CNSocket* sock, ChunkPos from, ChunkPos to);

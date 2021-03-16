@@ -1,17 +1,17 @@
 #include "CNShardServer.hpp"
 #include "CNStructs.hpp"
-#include "MissionManager.hpp"
+#include "Missions.hpp"
 #include "PlayerManager.hpp"
-#include "NanoManager.hpp"
-#include "ItemManager.hpp"
+#include "Nanos.hpp"
+#include "Items.hpp"
 
 #include "string.h"
 
-using namespace MissionManager;
+using namespace Missions;
 
-std::map<int32_t, Reward*> MissionManager::Rewards;
-std::map<int32_t, TaskData*> MissionManager::Tasks;
-nlohmann::json MissionManager::AvatarGrowth[37];
+std::map<int32_t, Reward*> Missions::Rewards;
+std::map<int32_t, TaskData*> Missions::Tasks;
+nlohmann::json Missions::AvatarGrowth[37];
 
 static void saveMission(Player* player, int missionId) {
     // sanity check missionID so we don't get exceptions
@@ -127,7 +127,7 @@ static int giveMissionReward(CNSocket *sock, int task, int choice=0) {
 
     int slots[4];
     for (int i = 0; i < nrewards; i++) {
-        slots[i] = ItemManager::findFreeSlot(plr);
+        slots[i] = Items::findFreeSlot(plr);
         if (slots[i] == -1) {
             std::cout << "Not enough room to complete task" << std::endl;
             INITSTRUCT(sP_FE2CL_REP_PC_TASK_END_FAIL, fail);
@@ -160,14 +160,14 @@ static int giveMissionReward(CNSocket *sock, int task, int choice=0) {
     plr->money += reward->money;
     if (plr->iConditionBitFlag & CSB_BIT_REWARD_CASH) { // nano boost for taros
         int boost = 0;
-        if (NanoManager::getNanoBoost(plr)) // for gumballs
+        if (Nanos::getNanoBoost(plr)) // for gumballs
             boost = 1;
         plr->money += reward->money * (5 + boost) / 25;
     }
 
     if (plr->iConditionBitFlag & CSB_BIT_REWARD_BLOB) { // nano boost for fm
         int boost = 0;
-        if (NanoManager::getNanoBoost(plr)) // for gumballs
+        if (Nanos::getNanoBoost(plr)) // for gumballs
             boost = 1;
         updateFusionMatter(sock, reward->fusionmatter * (30 + boost) / 25);
     } else
@@ -259,7 +259,7 @@ static bool endTask(CNSocket *sock, int32_t taskNum, int choice=0) {
 
         // if it's a nano mission, reward the nano.
         if (task["m_iSTNanoID"] != 0)
-            NanoManager::addNano(sock, task["m_iSTNanoID"], 0, true);
+            Nanos::addNano(sock, task["m_iSTNanoID"], 0, true);
 
         // remove current mission
         plr->CurrentMissionID = 0;
@@ -268,13 +268,13 @@ static bool endTask(CNSocket *sock, int32_t taskNum, int choice=0) {
     return true;
 }
 
-bool MissionManager::startTask(Player* plr, int TaskID) {
-    if (MissionManager::Tasks.find(TaskID) == MissionManager::Tasks.end()) {
+bool Missions::startTask(Player* plr, int TaskID) {
+    if (Missions::Tasks.find(TaskID) == Missions::Tasks.end()) {
         std::cout << "[WARN] Player submitted unknown task!?" << std::endl;
         return false;
     }
 
-    TaskData& task = *MissionManager::Tasks[TaskID];
+    TaskData& task = *Missions::Tasks[TaskID];
 
     // client freaks out if nano mission isn't sent first after relogging, so it's easiest to set it here
     if (task["m_iSTNanoID"] != 0 && plr->tasks[0] != 0) {
@@ -357,7 +357,7 @@ static void taskEnd(CNSocket* sock, CNPacketData* data) {
 
     // failed timed missions give an iNPC_ID of 0
     if (missionData->iNPC_ID == 0) {
-        TaskData* task = MissionManager::Tasks[missionData->iTaskNum];
+        TaskData* task = Missions::Tasks[missionData->iTaskNum];
         if (task->task["m_iSTGrantTimer"] > 0) { // its a timed mission
             Player* plr = PlayerManager::getPlayer(sock);
             /*
@@ -384,7 +384,7 @@ static void taskEnd(CNSocket* sock, CNPacketData* data) {
                 
                 int failTaskID = task->task["m_iFOutgoingTask"];
                 if (failTaskID != 0) {
-                    MissionManager::quitTask(sock, missionData->iTaskNum, false);
+                    Missions::quitTask(sock, missionData->iTaskNum, false);
                     
                     for (int i = 0; i < 6; i++)
                         if (plr->tasks[i] == missionData->iTaskNum)
@@ -428,7 +428,7 @@ static void quitMission(CNSocket* sock, CNPacketData* data) {
     quitTask(sock, missionData->iTaskNum, true);
 }
 
-void MissionManager::quitTask(CNSocket* sock, int32_t taskNum, bool manual) {
+void Missions::quitTask(CNSocket* sock, int32_t taskNum, bool manual) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     if (Tasks.find(taskNum) == Tasks.end())
@@ -478,7 +478,7 @@ void MissionManager::quitTask(CNSocket* sock, int32_t taskNum, bool manual) {
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_STOP_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_STOP_SUCC));
 }
 
-void MissionManager::updateFusionMatter(CNSocket* sock, int fusion) {
+void Missions::updateFusionMatter(CNSocket* sock, int fusion) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     plr->fusionmatter += fusion;
@@ -521,7 +521,7 @@ void MissionManager::updateFusionMatter(CNSocket* sock, int fusion) {
     if (plr->level >= 36)
         return;
 
-    plr->fusionmatter -= (int)MissionManager::AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"];
+    plr->fusionmatter -= (int)Missions::AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"];
     plr->level++;
 
     INITSTRUCT(sP_FE2CL_REP_PC_CHANGE_LEVEL_SUCC, response);
@@ -539,7 +539,7 @@ void MissionManager::updateFusionMatter(CNSocket* sock, int fusion) {
     PlayerManager::sendToViewable(sock, (void*)&bcast, P_FE2CL_PC_EVENT, sizeof(sP_FE2CL_PC_EVENT));
 }
 
-void MissionManager::mobKilled(CNSocket *sock, int mobid, int rolledQItem) {
+void Missions::mobKilled(CNSocket *sock, int mobid, int rolledQItem) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     bool missionmob = false;
@@ -587,26 +587,26 @@ void MissionManager::mobKilled(CNSocket *sock, int mobid, int rolledQItem) {
     }
 }
 
-void MissionManager::failInstancedMissions(CNSocket* sock) {
+void Missions::failInstancedMissions(CNSocket* sock) {
     // loop through all tasks; if the required instance is being left, "fail" the task
     Player* plr = PlayerManager::getPlayer(sock);
     for (int i = 0; i < 6; i++) {
         int taskNum = plr->tasks[i];
-        if (MissionManager::Tasks.find(taskNum) == MissionManager::Tasks.end())
+        if (Missions::Tasks.find(taskNum) == Missions::Tasks.end())
             continue; // sanity check
 
-        TaskData* task = MissionManager::Tasks[taskNum];
+        TaskData* task = Missions::Tasks[taskNum];
         if (task->task["m_iRequireInstanceID"] != 0) { // mission is instanced
             int failTaskID = task->task["m_iFOutgoingTask"];
             if (failTaskID != 0) {
-                MissionManager::quitTask(sock, taskNum, false);
+                Missions::quitTask(sock, taskNum, false);
                 //plr->tasks[i] = failTaskID; // this causes the client to freak out and send a dupe task
             }
         }
     }
 }
 
-void MissionManager::init() {
+void Missions::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_START, taskStart);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_END, taskEnd);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID, setMission);

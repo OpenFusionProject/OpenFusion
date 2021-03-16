@@ -1,8 +1,8 @@
 #include "BuiltinCommands.hpp"
 #include "PlayerManager.hpp"
-#include "ChatManager.hpp"
-#include "ItemManager.hpp"
-#include "MissionManager.hpp"
+#include "Chat.hpp"
+#include "Items.hpp"
+#include "Missions.hpp"
 
 // helper function, not a packet handler
 void BuiltinCommands::setSpecialState(CNSocket* sock, CNPacketData* data) {
@@ -14,7 +14,7 @@ void BuiltinCommands::setSpecialState(CNSocket* sock, CNPacketData* data) {
 
     // HACK: work around the invisible weapon bug
     if (setData->iSpecialStateFlag == CN_SPECIAL_STATE_FLAG__FULL_UI)
-        ItemManager::updateEquips(sock, plr);
+        Items::updateEquips(sock, plr);
 
     INITSTRUCT(sP_FE2CL_PC_SPECIAL_STATE_CHANGE, response);
 
@@ -93,7 +93,7 @@ static void setValuePlayer(CNSocket* sock, CNPacketData* data) {
             plr->batteryN = 9999;
         break;
     case 4:
-        MissionManager::updateFusionMatter(sock, setData->iSetValue - plr->fusionmatter);
+        Missions::updateFusionMatter(sock, setData->iSetValue - plr->fusionmatter);
         break;
     case 5:
         plr->money = setData->iSetValue;
@@ -133,7 +133,7 @@ static void setGMSpecialOnOff(CNSocket *sock, CNPacketData *data) {
     CNSocket *otherSock = PlayerManager::getSockFromAny(req->eTargetSearchBy, req->iTargetPC_ID, req->iTargetPC_UID,
         U16toU8(req->szTargetPC_FirstName), U16toU8(req->szTargetPC_LastName));
     if (otherSock == nullptr) {
-        ChatManager::sendServerMessage(sock, "player to teleport not found");
+        Chat::sendServerMessage(sock, "player to teleport not found");
         return;
     }
 
@@ -161,7 +161,7 @@ static void locatePlayer(CNSocket *sock, CNPacketData *data) {
     CNSocket *otherSock = PlayerManager::getSockFromAny(req->eTargetSearchBy, req->iTargetPC_ID, req->iTargetPC_UID,
         U16toU8(req->szTargetPC_FirstName), U16toU8(req->szTargetPC_LastName));
     if (otherSock == nullptr) {
-        ChatManager::sendServerMessage(sock, "player not found");
+        Chat::sendServerMessage(sock, "player not found");
         return;
     }
 
@@ -199,14 +199,14 @@ static void kickPlayer(CNSocket *sock, CNPacketData *data) {
     CNSocket *otherSock = PlayerManager::getSockFromAny(req->eTargetSearchBy, req->iTargetPC_ID, req->iTargetPC_UID,
         U16toU8(req->szTargetPC_FirstName), U16toU8(req->szTargetPC_LastName));
     if (otherSock == nullptr) {
-        ChatManager::sendServerMessage(sock, "player not found");
+        Chat::sendServerMessage(sock, "player not found");
         return;
     }
 
     Player *otherPlr = PlayerManager::getPlayer(otherSock);
 
     if (plr->accountLevel > otherPlr->accountLevel) {
-        ChatManager::sendServerMessage(sock, "player has higher access level");
+        Chat::sendServerMessage(sock, "player has higher access level");
         return;
     }
 
@@ -236,7 +236,7 @@ static void warpToPlayer(CNSocket *sock, CNPacketData *data) {
 
     Player *otherPlr = PlayerManager::getPlayerFromID(req->iPC_ID);
     if (otherPlr == nullptr) {
-        ChatManager::sendServerMessage(sock, "player not found");
+        Chat::sendServerMessage(sock, "player not found");
         return;
     }
 
@@ -260,7 +260,7 @@ static void teleportPlayer(CNSocket *sock, CNPacketData *data) {
     CNSocket *targetSock = PlayerManager::getSockFromAny(req->eTargetPCSearchBy, req->iTargetPC_ID, req->iTargetPC_UID,
         U16toU8(req->szTargetPC_FirstName), U16toU8(req->szTargetPC_LastName));
     if (targetSock == nullptr) {
-        ChatManager::sendServerMessage(sock, "player to teleport not found");
+        Chat::sendServerMessage(sock, "player to teleport not found");
         return;
     }
 
@@ -285,7 +285,7 @@ static void teleportPlayer(CNSocket *sock, CNPacketData *data) {
         goalSock = PlayerManager::getSockFromAny(req->eGoalPCSearchBy, req->iGoalPC_ID, req->iGoalPC_UID,
             U16toU8(req->szGoalPC_FirstName), U16toU8(req->szGoalPC_LastName));
         if (goalSock == nullptr) {
-            ChatManager::sendServerMessage(sock, "teleportation target player not found");
+            Chat::sendServerMessage(sock, "teleportation target player not found");
             return;
         }
         goalPlr = PlayerManager::getPlayer(goalSock);
@@ -318,7 +318,7 @@ static void itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
         // sock->sendPacket(new CNPacketData((void*)resp, P_FE2CL_REP_PC_GIVE_ITEM_FAIL, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_FAIL), sock->getFEKey()));
     } else if (itemreq->eIL == 1 && itemreq->Item.iType >= 0 && itemreq->Item.iType <= 10) {
 
-        if (ItemManager::ItemData.find(std::pair<int32_t, int32_t>(itemreq->Item.iID, itemreq->Item.iType)) == ItemManager::ItemData.end()) {
+        if (Items::ItemData.find(std::pair<int32_t, int32_t>(itemreq->Item.iID, itemreq->Item.iType)) == Items::ItemData.end()) {
             // invalid item
             std::cout << "[WARN] Item id " << itemreq->Item.iID << " with type " << itemreq->Item.iType << " is invalid (give item)" << std::endl;
             return;

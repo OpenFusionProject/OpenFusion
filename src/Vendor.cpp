@@ -15,7 +15,7 @@ static void vendorBuy(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, failResp);
     failResp.iErrorCode = 0;
 
-    ItemManager::Item* itemDat = ItemManager::getItemData(req->Item.iID, req->Item.iType);
+    Items::Item* itemDat = Items::getItemData(req->Item.iID, req->Item.iType);
 
     if (itemDat == nullptr) {
         std::cout << "[WARN] Item id " << req->Item.iID << " with type " << req->Item.iType << " not found (buy)" << std::endl;
@@ -24,7 +24,7 @@ static void vendorBuy(CNSocket* sock, CNPacketData* data) {
     }
 
     int itemCost = itemDat->buyPrice * (itemDat->stackSize > 1 ? req->Item.iOpt : 1);
-    int slot = ItemManager::findFreeSlot(plr);
+    int slot = Items::findFreeSlot(plr);
     if (itemCost > plr->money || slot == -1) {
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL));
         return;
@@ -77,7 +77,7 @@ static void vendorSell(CNSocket* sock, CNPacketData* data) {
     }
 
     sItemBase* item = &plr->Inven[req->iInvenSlotNum];
-    ItemManager::Item* itemData = ItemManager::getItemData(item->iID, item->iType);
+    Items::Item* itemData = Items::getItemData(item->iID, item->iType);
 
     if (itemData == nullptr || !itemData->sellable || item->iOpt < req->iItemCnt) { // sanity + sellable check
         std::cout << "[WARN] Item id " << item->iID << " with type " << item->iType << " not found (sell)" << std::endl;
@@ -171,7 +171,7 @@ static void vendorBuyback(CNSocket* sock, CNPacketData* data) {
     }
     //std::cout << (int)plr->buyback->size() << " items in buyback\n";
 
-    ItemManager::Item* itemDat = ItemManager::getItemData(item.iID, item.iType);
+    Items::Item* itemDat = Items::getItemData(item.iID, item.iType);
 
     if (itemDat == nullptr) {
         std::cout << "[WARN] Item id " << item.iID << " with type " << item.iType << " not found (rebuy)" << std::endl;
@@ -181,7 +181,7 @@ static void vendorBuyback(CNSocket* sock, CNPacketData* data) {
 
     // sell price is used on rebuy. ternary identifies stacked items
     int itemCost = itemDat->sellPrice * (itemDat->stackSize > 1 ? item.iOpt : 1);
-    int slot = ItemManager::findFreeSlot(plr);
+    int slot = Items::findFreeSlot(plr);
     if (itemCost > plr->money || slot == -1) {
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL));
         return;
@@ -308,12 +308,12 @@ static void vendorCombineItems(CNSocket* sock, CNPacketData* data) {
 
     sItemBase* itemStats = &plr->Inven[req->iStatItemSlot];
     sItemBase* itemLooks = &plr->Inven[req->iCostumeItemSlot];
-    ItemManager::Item* itemStatsDat = ItemManager::getItemData(itemStats->iID, itemStats->iType);
-    ItemManager::Item* itemLooksDat = ItemManager::getItemData(itemLooks->iID, itemLooks->iType);
+    Items::Item* itemStatsDat = Items::getItemData(itemStats->iID, itemStats->iType);
+    Items::Item* itemLooksDat = Items::getItemData(itemLooks->iID, itemLooks->iType);
 
     // sanity check item and combination entry existence
     if (itemStatsDat == nullptr || itemLooksDat == nullptr
-        || ItemManager::CrocPotTable.find(abs(itemStatsDat->level - itemLooksDat->level)) == ItemManager::CrocPotTable.end()) {
+        || Items::CrocPotTable.find(abs(itemStatsDat->level - itemLooksDat->level)) == Items::CrocPotTable.end()) {
         std::cout << "[WARN] Either item ids or croc pot value set not found" << std::endl;
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, sizeof(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL));
         return;
@@ -327,7 +327,7 @@ static void vendorCombineItems(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    CrocPotEntry* recipe = &ItemManager::CrocPotTable[abs(itemStatsDat->level - itemLooksDat->level)];
+    CrocPotEntry* recipe = &Items::CrocPotTable[abs(itemStatsDat->level - itemLooksDat->level)];
     int cost = itemStatsDat->buyPrice * recipe->multStats + itemLooksDat->buyPrice * recipe->multLooks;
     float successChance = recipe->base / 100.0f; // base success chance
 

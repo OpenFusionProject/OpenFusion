@@ -3,21 +3,21 @@
 #include "PlayerManager.hpp"
 #include "PlayerMovement.hpp"
 #include "BuiltinCommands.hpp"
-#include "ChatManager.hpp"
+#include "Buddies.hpp"
 #include "CustomCommands.hpp"
 #include "Combat.hpp"
 #include "MobAI.hpp"
-#include "ItemManager.hpp"
-#include "MissionManager.hpp"
-#include "NanoManager.hpp"
+#include "Items.hpp"
+#include "Missions.hpp"
+#include "Nanos.hpp"
 #include "NPCManager.hpp"
-#include "TransportManager.hpp"
-#include "BuddyManager.hpp"
+#include "Transport.hpp"
+#include "Buddies.hpp"
 #include "db/Database.hpp"
 #include "TableData.hpp"
-#include "GroupManager.hpp"
+#include "Groups.hpp"
 #include "Monitor.hpp"
-#include "RacingManager.hpp"
+#include "Racing.hpp"
 #include "Trading.hpp"
 #include "Email.hpp"
 #include "Vendor.hpp"
@@ -101,20 +101,20 @@ int main() {
     PlayerManager::init();
     PlayerMovement::init();
     BuiltinCommands::init();
-    ChatManager::init();
+    Buddies::init();
     CustomCommands::init();
     Combat::init();
     MobAI::init();
-    ItemManager::init();
-    MissionManager::init();
-    NanoManager::init();
+    Items::init();
+    Missions::init();
+    Nanos::init();
     NPCManager::init();
     Vendor::init();
-    TransportManager::init();
-    BuddyManager::init();
+    Transport::init();
+    Buddies::init();
     Email::init();
-    GroupManager::init();
-    RacingManager::init();
+    Groups::init();
+    Racing::init();
     Database::open();
     Trading::init();
 

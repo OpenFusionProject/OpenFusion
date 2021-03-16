@@ -6,8 +6,8 @@
 
 #include "db/Database.hpp"
 #include "PlayerManager.hpp"
-#include "ItemManager.hpp"
-#include "ChatManager.hpp"
+#include "Items.hpp"
+#include "Chat.hpp"
 
 using namespace Email;
 
@@ -149,7 +149,7 @@ static void emailReceiveItemAll(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
     sItemBase* itemsFrom = Database::getEmailAttachments(plr->iID, pkt->iEmailIndex);
     for (int i = 0; i < 4; i++) {
-        int slot = ItemManager::findFreeSlot(plr);
+        int slot = Items::findFreeSlot(plr);
         if (slot < 0 || slot >= AINVEN_COUNT) {
             INITSTRUCT(sP_FE2CL_REP_PC_RECV_EMAIL_ITEM_ALL_FAIL, failResp);
             failResp.iEmailIndex = pkt->iEmailIndex;
@@ -292,8 +292,8 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
         plr->iID, // SenderID
         U16toU8(plr->PCStyle.szFirstName), // SenderFirstName
         U16toU8(plr->PCStyle.szLastName), // SenderLastName
-        ChatManager::sanitizeText(U16toU8(pkt->szSubject)), // SubjectLine
-        ChatManager::sanitizeText(U16toU8(pkt->szContent), true), // MsgBody
+        Chat::sanitizeText(U16toU8(pkt->szSubject)), // SubjectLine
+        Chat::sanitizeText(U16toU8(pkt->szContent), true), // MsgBody
         pkt->iCash, // Taros
         (uint64_t)getTimestamp(), // SendTime
         0 // DeleteTime (unimplemented)

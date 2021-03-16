@@ -4,7 +4,7 @@
 #include "CNStructs.hpp"
 #include "CNShardServer.hpp"
 
-#include "ItemManager.hpp"
+#include "Items.hpp"
 #include "PlayerManager.hpp"
 
 struct VendorListing {

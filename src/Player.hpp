@@ -5,7 +5,7 @@
 
 #include "CNProtocol.hpp"
 #include "CNStructs.hpp"
-#include "ChunkManager.hpp"
+#include "Chunking.hpp"
 
 #define ACTIVE_MISSION_COUNT 6
 

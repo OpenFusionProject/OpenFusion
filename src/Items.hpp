@@ -27,7 +27,7 @@ struct MobDrop {
     int boosts;
 };
 
-namespace ItemManager {
+namespace Items {
     enum class SlotType {
         EQUIP = 0,
         INVENTORY = 1,

@@ -11,7 +11,7 @@ struct EPRace {
     time_t startTime;
 };
 
-namespace RacingManager {
+namespace Racing {
     extern std::map<int32_t, EPInfo> EPData;
     extern std::map<CNSocket*, EPRace> EPRaces;
     extern std::map<int32_t, std::pair<std::vector<int>, std::vector<int>>> EPRewards;

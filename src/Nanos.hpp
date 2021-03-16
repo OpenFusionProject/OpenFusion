@@ -15,7 +15,7 @@ struct NanoTuning {
     int reqItems;
 };
 
-namespace NanoManager {
+namespace Nanos {
     extern std::map<int32_t, NanoData> NanoTable;
     extern std::map<int32_t, NanoTuning> NanoTunings;
     void init();

@@ -1,12 +1,12 @@
 #include "TableData.hpp"
 #include "NPCManager.hpp"
-#include "TransportManager.hpp"
-#include "ItemManager.hpp"
+#include "Transport.hpp"
+#include "Items.hpp"
 #include "settings.hpp"
-#include "MissionManager.hpp"
-#include "ChunkManager.hpp"
-#include "NanoManager.hpp"
-#include "RacingManager.hpp"
+#include "Missions.hpp"
+#include "Chunking.hpp"
+#include "Nanos.hpp"
+#include "Racing.hpp"
 #include "Vendor.hpp"
 #include "Abilities.hpp"
 
@@ -48,11 +48,11 @@ static void constructPathSkyway(nlohmann::json::iterator _pathData) {
     for (_point++; _point != pathPoints.end(); _point++) {
         point = _point.value();
         WarpLocation coords = { point["iX"] , point["iY"] , point["iZ"] };
-        TransportManager::lerp(&points, last, coords, pathData["iMonkeySpeed"]);
+        Transport::lerp(&points, last, coords, pathData["iMonkeySpeed"]);
         points.push(coords); // add keyframe to the queue
         last = coords; // update start pos
     }
-    TransportManager::SkywayPaths[pathData["iRouteID"]] = points;
+    Transport::SkywayPaths[pathData["iRouteID"]] = points;
 }
 
 static void constructPathNPC(nlohmann::json::iterator _pathData, int32_t id=0) {
@@ -69,7 +69,7 @@ static void constructPathNPC(nlohmann::json::iterator _pathData, int32_t id=0) {
         for(int i = 0; i < stopTime + 1; i++) // repeat point if it's a stop
             points.push(from); // add point A to the queue
         WarpLocation to = { point["iX"] , point["iY"] , point["iZ"] }; // point B coords
-        TransportManager::lerp(&points, from, to, pathData["iBaseSpeed"]); // lerp from A to B
+        Transport::lerp(&points, from, to, pathData["iBaseSpeed"]); // lerp from A to B
         from = to; // update point A
         stopTime = point["stop"];
     }
@@ -77,7 +77,7 @@ static void constructPathNPC(nlohmann::json::iterator _pathData, int32_t id=0) {
     if (id == 0)
         id = pathData["iNPCID"];
 
-    TransportManager::NPCQueues[id] = points;
+    Transport::NPCQueues[id] = points;
 }
 
 /*
@@ -96,7 +96,7 @@ static void loadPaths(int* nextId) {
         for (nlohmann::json::iterator skywayPath = pathDataSkyway.begin(); skywayPath != pathDataSkyway.end(); skywayPath++) {
             constructPathSkyway(skywayPath);
         }
-        std::cout << "[INFO] Loaded " << TransportManager::SkywayPaths.size() << " skyway paths" << std::endl;
+        std::cout << "[INFO] Loaded " << Transport::SkywayPaths.size() << " skyway paths" << std::endl;
 
         // slider circuit
         nlohmann::json pathDataSlider = pathData["slider"];
@@ -121,7 +121,7 @@ static void loadPaths(int* nextId) {
             } else if (point["stop"]) { // point B is a stop
                 curve = 0.375f;//0.35f;
             }
-            TransportManager::lerp(&route, from, to, SLIDER_SPEED * curve, 1); // lerp from A to B (arbitrary speed)
+            Transport::lerp(&route, from, to, SLIDER_SPEED * curve, 1); // lerp from A to B (arbitrary speed)
             from = to; // update point A
             stopTime = point["stop"] ? SLIDER_STOP_TICKS : 0; // set stop ticks for next point A
         }
@@ -141,7 +141,7 @@ static void loadPaths(int* nextId) {
                 BaseNPC* slider = new BaseNPC(point.x, point.y, point.z, 0, INSTANCE_OVERWORLD, 1, (*nextId)++, NPC_BUS);
                 NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
                 NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->appearanceData.iX, slider->appearanceData.iY, slider->appearanceData.iZ, INSTANCE_OVERWORLD, 0);
-                TransportManager::NPCQueues[slider->appearanceData.iNPC_ID] = route;
+                Transport::NPCQueues[slider->appearanceData.iNPC_ID] = route;
             }
             // rotate
             route.pop();
@@ -177,7 +177,7 @@ static void loadPaths(int* nextId) {
                 }
             }
         }
-        std::cout << "[INFO] Loaded " << TransportManager::NPCQueues.size() << " NPC paths" << std::endl;
+        std::cout << "[INFO] Loaded " << Transport::NPCQueues.size() << " NPC paths" << std::endl;
     }
     catch (const std::exception& err) {
         std::cerr << "[FATAL] Malformed paths.json file! Reason:" << err.what() << std::endl;
@@ -206,7 +206,7 @@ static void loadDrops() {
             for (nlohmann::json::iterator _cratesRatio = dropChance["CratesRatio"].begin(); _cratesRatio != dropChance["CratesRatio"].end(); _cratesRatio++) {
                 toAdd.cratesRatio.push_back((int)_cratesRatio.value());
             }
-            ItemManager::MobDropChances[(int)dropChance["Type"]] = toAdd;
+            Items::MobDropChances[(int)dropChance["Type"]] = toAdd;
         }
 
         // MobDrops
@@ -220,21 +220,21 @@ static void loadDrops() {
 
             toAdd.dropChanceType = (int)drop["DropChance"];
             // Check if DropChance exists
-            if (ItemManager::MobDropChances.find(toAdd.dropChanceType) == ItemManager::MobDropChances.end()) {
+            if (Items::MobDropChances.find(toAdd.dropChanceType) == Items::MobDropChances.end()) {
                 throw TableException(" MobDropChance not found: " + std::to_string((toAdd.dropChanceType)));
             }
             // Check if number of crates is correct
-            if (!(ItemManager::MobDropChances[(int)drop["DropChance"]].cratesRatio.size() == toAdd.crateIDs.size())) {
+            if (!(Items::MobDropChances[(int)drop["DropChance"]].cratesRatio.size() == toAdd.crateIDs.size())) {
                 throw TableException(" DropType " + std::to_string((int)drop["DropType"]) + " contains invalid number of crates");
             }
 
             toAdd.taros = (int)drop["Taros"];
             toAdd.fm = (int)drop["FM"];
             toAdd.boosts = (int)drop["Boosts"];
-            ItemManager::MobDrops[(int)drop["DropType"]] = toAdd;
+            Items::MobDrops[(int)drop["DropType"]] = toAdd;
         }
 
-        std::cout << "[INFO] Loaded " << ItemManager::MobDrops.size() << " Mob Drop Types"<<  std::endl;
+        std::cout << "[INFO] Loaded " << Items::MobDrops.size() << " Mob Drop Types"<<  std::endl;
 
         // Rarity Ratios
         nlohmann::json rarities = dropData["RarityRatios"];
@@ -244,7 +244,7 @@ static void loadDrops() {
             for (nlohmann::json::iterator _ratio = rarity["Ratio"].begin(); _ratio != rarity["Ratio"].end(); _ratio++){
                 toAdd.push_back((int)_ratio.value());
             }
-            ItemManager::RarityRatios[(int)rarity["Type"]] = toAdd;
+            Items::RarityRatios[(int)rarity["Type"]] = toAdd;
         }
 
         // Crates
@@ -256,7 +256,7 @@ static void loadDrops() {
             for (nlohmann::json::iterator _itemSet = crate["ItemSets"].begin(); _itemSet != crate["ItemSets"].end(); _itemSet++) {
                 toAdd.itemSets.push_back((int)_itemSet.value());
             }
-            ItemManager::Crates[(int)crate["Id"]] = toAdd;
+            Items::Crates[(int)crate["Id"]] = toAdd;
         }
 
         // Crate Items
@@ -267,21 +267,21 @@ static void loadDrops() {
             std::pair<int32_t, int32_t> itemSetkey = std::make_pair((int)item["ItemSet"], (int)item["Rarity"]);
             std::pair<int32_t, int32_t> itemDataKey = std::make_pair((int)item["Id"], (int)item["Type"]);
 
-            if (ItemManager::ItemData.find(itemDataKey) == ItemManager::ItemData.end()) {
+            if (Items::ItemData.find(itemDataKey) == Items::ItemData.end()) {
                 char buff[255];
                 sprintf(buff, "Unknown item with Id %d and Type %d", (int)item["Id"], (int)item["Type"]);
                 throw TableException(std::string(buff));
             }
 
-            std::map<std::pair<int32_t, int32_t>, ItemManager::Item>::iterator toAdd = ItemManager::ItemData.find(itemDataKey);
+            std::map<std::pair<int32_t, int32_t>, Items::Item>::iterator toAdd = Items::ItemData.find(itemDataKey);
 
             // if item collection doesn't exist, start a new one
-            if (ItemManager::CrateItems.find(itemSetkey) == ItemManager::CrateItems.end()) {
-                std::vector<std::map<std::pair<int32_t, int32_t>, ItemManager::Item>::iterator> vector;
+            if (Items::CrateItems.find(itemSetkey) == Items::CrateItems.end()) {
+                std::vector<std::map<std::pair<int32_t, int32_t>, Items::Item>::iterator> vector;
                 vector.push_back(toAdd);
-                ItemManager::CrateItems[itemSetkey] = vector;
+                Items::CrateItems[itemSetkey] = vector;
             } else // else add a new element to existing collection
-                ItemManager::CrateItems[itemSetkey].push_back(toAdd);
+                Items::CrateItems[itemSetkey].push_back(toAdd);
 
             itemCount++;
         }
@@ -291,7 +291,7 @@ static void loadDrops() {
 
         for (nlohmann::json::iterator _capsule = capsules.begin(); _capsule != capsules.end(); _capsule++) {
             auto capsule = _capsule.value();
-            ItemManager::NanoCapsules[(int)capsule["Crate"]] = (int)capsule["Nano"];
+            Items::NanoCapsules[(int)capsule["Crate"]] = (int)capsule["Nano"];
         }
 #endif
         nlohmann::json codes = dropData["CodeItems"];
@@ -300,13 +300,13 @@ static void loadDrops() {
             std::string codeStr = code["Code"];
             std::pair<int32_t, int32_t> item = std::make_pair((int)code["Id"], (int)code["Type"]);
 
-            if (ItemManager::CodeItems.find(codeStr) == ItemManager::CodeItems.end())
-                ItemManager::CodeItems[codeStr] = std::vector<std::pair<int32_t, int32_t>>();
+            if (Items::CodeItems.find(codeStr) == Items::CodeItems.end())
+                Items::CodeItems[codeStr] = std::vector<std::pair<int32_t, int32_t>>();
 
-            ItemManager::CodeItems[codeStr].push_back(item);
+            Items::CodeItems[codeStr].push_back(item);
         }
 
-        std::cout << "[INFO] Loaded " << ItemManager::Crates.size() << " Crates containing "
+        std::cout << "[INFO] Loaded " << Items::Crates.size() << " Crates containing "
                   << itemCount << " items" << std::endl;
 
         // Racing rewards
@@ -317,7 +317,7 @@ static void loadDrops() {
 
             // find the instance data corresponding to the EPID
             int EPMap = -1;
-            for (auto it = RacingManager::EPData.begin(); it != RacingManager::EPData.end(); it++) {
+            for (auto it = Racing::EPData.begin(); it != Racing::EPData.end(); it++) {
                 if (it->second.EPID == raceEPID) {
                     EPMap = it->first;
                 }
@@ -329,7 +329,7 @@ static void loadDrops() {
             }
 
             // time limit isn't stored in the XDT, so we include it in the reward table instead
-            RacingManager::EPData[EPMap].maxTime = race["TimeLimit"];
+            Racing::EPData[EPMap].maxTime = race["TimeLimit"];
 
             // score cutoffs
             std::vector<int> rankScores;
@@ -349,10 +349,10 @@ static void loadDrops() {
                 throw TableException(std::string(buff));
             }
 
-            RacingManager::EPRewards[raceEPID] = std::make_pair(rankScores, rankRewards);
+            Racing::EPRewards[raceEPID] = std::make_pair(rankScores, rankRewards);
         }
 
-        std::cout << "[INFO] Loaded rewards for " << RacingManager::EPRewards.size() << " IZ races" << std::endl;
+        std::cout << "[INFO] Loaded rewards for " << Racing::EPRewards.size() << " IZ races" << std::endl;
 
     }
     catch (const std::exception& err) {
@@ -620,17 +620,17 @@ void TableData::init() {
         for (nlohmann::json::iterator _tLoc = transLocData.begin(); _tLoc != transLocData.end(); _tLoc++) {
             auto tLoc = _tLoc.value();
             TransportLocation transLoc = { tLoc["m_iNPCID"], tLoc["m_iXpos"], tLoc["m_iYpos"], tLoc["m_iZpos"] };
-            TransportManager::Locations[tLoc["m_iLocationID"]] = transLoc;
+            Transport::Locations[tLoc["m_iLocationID"]] = transLoc;
         }
-        std::cout << "[INFO] Loaded " << TransportManager::Locations.size() << " S.C.A.M.P.E.R. locations" << std::endl;
+        std::cout << "[INFO] Loaded " << Transport::Locations.size() << " S.C.A.M.P.E.R. locations" << std::endl;
 
         for (nlohmann::json::iterator _tRoute = transRouteData.begin(); _tRoute != transRouteData.end(); _tRoute++) {
             auto tRoute = _tRoute.value();
             TransportRoute transRoute = { tRoute["m_iMoveType"], tRoute["m_iStartLocation"], tRoute["m_iEndLocation"],
                 tRoute["m_iCost"] , tRoute["m_iSpeed"], tRoute["m_iRouteNum"] };
-            TransportManager::Routes[tRoute["m_iVehicleID"]] = transRoute;
+            Transport::Routes[tRoute["m_iVehicleID"]] = transRoute;
         }
-        std::cout << "[INFO] Loaded " << TransportManager::Routes.size() << " transportation routes" << std::endl;
+        std::cout << "[INFO] Loaded " << Transport::Routes.size() << " transportation routes" << std::endl;
 
         // load mission-related data
         nlohmann::json tasks = xdtData["m_pMissionTable"]["m_pMissionData"];
@@ -644,11 +644,11 @@ void TableData::init() {
                 Reward *rew = new Reward(_rew["m_iMissionRewardID"], _rew["m_iMissionRewarItemType"],
                         _rew["m_iMissionRewardItemID"], _rew["m_iCash"], _rew["m_iFusionMatter"]);
 
-                MissionManager::Rewards[task["m_iHTaskID"]] = rew;
+                Missions::Rewards[task["m_iHTaskID"]] = rew;
             }
 
             // everything else lol. see TaskData comment.
-            MissionManager::Tasks[task["m_iHTaskID"]] = new TaskData(task);
+            Missions::Tasks[task["m_iHTaskID"]] = new TaskData(task);
         }
 
         std::cout << "[INFO] Loaded mission-related data" << std::endl;
@@ -669,7 +669,7 @@ void TableData::init() {
             for (nlohmann::json::iterator _item = itemSet.begin(); _item != itemSet.end(); _item++) {
                 auto item = _item.value();
                 int itemID = item["m_iItemNumber"];
-                INITSTRUCT(ItemManager::Item, itemData);
+                INITSTRUCT(Items::Item, itemData);
                 itemData.tradeable = item["m_iTradeAble"] == 1;
                 itemData.sellable = item["m_iSellAble"] == 1;
                 itemData.buyPrice = item["m_iItemPrice"];
@@ -687,18 +687,18 @@ void TableData::init() {
                 } else {
                     itemData.rarity = 1;
                 }
-                ItemManager::ItemData[std::make_pair(itemID, i)] = itemData;
+                Items::ItemData[std::make_pair(itemID, i)] = itemData;
             }
         }
 
-        std::cout << "[INFO] Loaded " << ItemManager::ItemData.size() << " items" << std::endl;
+        std::cout << "[INFO] Loaded " << Items::ItemData.size() << " items" << std::endl;
 
         // load player limits from m_pAvatarTable.m_pAvatarGrowData
 
         nlohmann::json growth = xdtData["m_pAvatarTable"]["m_pAvatarGrowData"];
 
         for (int i = 0; i < 37; i++) {
-            MissionManager::AvatarGrowth[i] = growth[i];
+            Missions::AvatarGrowth[i] = growth[i];
         }
 
         // load vendor listings
@@ -718,10 +718,10 @@ void TableData::init() {
         for (nlohmann::json::iterator croc = crocs.begin(); croc != crocs.end(); croc++) {
             CrocPotEntry crocEntry = { croc.value()["m_iStatConstant"], croc.value()["m_iLookConstant"], croc.value()["m_fLevelGapStandard"],
                 croc.value()["m_fSameGrade"], croc.value()["m_fOneGrade"], croc.value()["m_fTwoGrade"], croc.value()["m_fThreeGrade"] };
-            ItemManager::CrocPotTable[croc.value()["m_iLevelGap"]] = crocEntry;
+            Items::CrocPotTable[croc.value()["m_iLevelGap"]] = crocEntry;
         }
 
-        std::cout << "[INFO] Loaded " << ItemManager::CrocPotTable.size() << " croc pot value sets" << std::endl;
+        std::cout << "[INFO] Loaded " << Items::CrocPotTable.size() << " croc pot value sets" << std::endl;
 
         // load nano info
         nlohmann::json nanoInfo = xdtData["m_pNanoTable"]["m_pNanoData"];
@@ -729,10 +729,10 @@ void TableData::init() {
             auto nano = _nano.value();
             NanoData nanoData;
             nanoData.style = nano["m_iStyle"];
-            NanoManager::NanoTable[NanoManager::NanoTable.size()] = nanoData;
+            Nanos::NanoTable[Nanos::NanoTable.size()] = nanoData;
         }
 
-        std::cout << "[INFO] Loaded " << NanoManager::NanoTable.size() << " nanos" << std::endl;
+        std::cout << "[INFO] Loaded " << Nanos::NanoTable.size() << " nanos" << std::endl;
 
         nlohmann::json nanoTuneInfo = xdtData["m_pNanoTable"]["m_pNanoTuneData"];
         for (nlohmann::json::iterator _nano = nanoTuneInfo.begin(); _nano != nanoTuneInfo.end(); _nano++) {
@@ -740,10 +740,10 @@ void TableData::init() {
             NanoTuning nanoData;
             nanoData.reqItems = nano["m_iReqItemID"];
             nanoData.reqItemCount = nano["m_iReqItemCount"];
-            NanoManager::NanoTunings[nano["m_iSkillID"]] = nanoData;
+            Nanos::NanoTunings[nano["m_iSkillID"]] = nanoData;
         }
 
-        std::cout << "[INFO] Loaded " << NanoManager::NanoTable.size() << " nano tunings" << std::endl;
+        std::cout << "[INFO] Loaded " << Nanos::NanoTable.size() << " nano tunings" << std::endl;
 
         // load nano powers
         nlohmann::json skills = xdtData["m_pSkillTable"]["m_pSkillData"];
@@ -756,10 +756,10 @@ void TableData::init() {
                 skillData.durationTime[i] = skills["m_iDurationTime"][i];
                 skillData.powerIntensity[i] = skills["m_iValueA"][i];
             }
-            NanoManager::SkillTable[skills["m_iSkillNumber"]] = skillData;
+            Nanos::SkillTable[skills["m_iSkillNumber"]] = skillData;
         }
 
-        std::cout << "[INFO] Loaded " << NanoManager::SkillTable.size() << " nano skills" << std::endl;
+        std::cout << "[INFO] Loaded " << Nanos::SkillTable.size() << " nano skills" << std::endl;
 
         // load EP data
         nlohmann::json instances = xdtData["m_pInstanceTable"]["m_pInstanceData"];
@@ -767,10 +767,10 @@ void TableData::init() {
         for (nlohmann::json::iterator _instance = instances.begin(); _instance != instances.end(); _instance++) {
             auto instance = _instance.value();
             EPInfo epInfo = {instance["m_iZoneX"], instance["m_iZoneY"], instance["m_iIsEP"], (int)instance["m_ScoreMax"]};
-            RacingManager::EPData[instance["m_iInstanceNameID"]] = epInfo;
+            Racing::EPData[instance["m_iInstanceNameID"]] = epInfo;
         }
 
-        std::cout << "[INFO] Loaded " << RacingManager::EPData.size() << " instances" << std::endl;
+        std::cout << "[INFO] Loaded " << Racing::EPData.size() << " instances" << std::endl;
 
     }
     catch (const std::exception& err) {

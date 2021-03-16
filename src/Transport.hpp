@@ -19,7 +19,7 @@ struct TransportLocation {
     int npcID, x, y, z;
 };
 
-namespace TransportManager {
+namespace Transport {
     extern std::map<int32_t, TransportRoute> Routes;
     extern std::map<int32_t, TransportLocation> Locations;
     extern std::map<int32_t, std::queue<WarpLocation>> SkywayPaths; // predefined skyway paths with points

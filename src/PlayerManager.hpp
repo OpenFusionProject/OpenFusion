@@ -4,7 +4,7 @@
 #include "CNProtocol.hpp"
 #include "CNStructs.hpp"
 #include "CNShardServer.hpp"
-#include "ChunkManager.hpp"
+#include "Chunking.hpp"
 
 #include <utility>
 #include <map>

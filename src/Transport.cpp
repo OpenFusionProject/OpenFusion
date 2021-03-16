@@ -1,8 +1,8 @@
 #include "CNShardServer.hpp"
 #include "CNStructs.hpp"
 #include "PlayerManager.hpp"
-#include "NanoManager.hpp"
-#include "TransportManager.hpp"
+#include "Nanos.hpp"
+#include "Transport.hpp"
 #include "TableData.hpp"
 #include "Combat.hpp"
 #include "MobAI.hpp"
@@ -10,13 +10,13 @@
 #include <unordered_map>
 #include <cmath>
 
-using namespace TransportManager;
+using namespace Transport;
 
-std::map<int32_t, TransportRoute> TransportManager::Routes;
-std::map<int32_t, TransportLocation> TransportManager::Locations;
-std::map<int32_t, std::queue<WarpLocation>> TransportManager::SkywayPaths;
-std::unordered_map<CNSocket*, std::queue<WarpLocation>> TransportManager::SkywayQueues;
-std::unordered_map<int32_t, std::queue<WarpLocation>> TransportManager::NPCQueues;
+std::map<int32_t, TransportRoute> Transport::Routes;
+std::map<int32_t, TransportLocation> Transport::Locations;
+std::map<int32_t, std::queue<WarpLocation>> Transport::SkywayPaths;
+std::unordered_map<CNSocket*, std::queue<WarpLocation>> Transport::SkywayQueues;
+std::unordered_map<int32_t, std::queue<WarpLocation>> Transport::NPCQueues;
 
 static void transportRegisterLocationHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION))
@@ -133,13 +133,13 @@ static void transportWarpHandler(CNSocket* sock, CNPacketData* data) {
         plr->lastY = plr->y;
         plr->lastZ = plr->z;
         if (SkywayPaths.find(route.mssRouteNum) != SkywayPaths.end()) { // check if route exists
-            NanoManager::summonNano(sock, -1); // make sure that no nano is active during the ride
+            Nanos::summonNano(sock, -1); // make sure that no nano is active during the ride
             SkywayQueues[sock] = SkywayPaths[route.mssRouteNum]; // set socket point queue to route
             plr->onMonkey = true;
             break;
         } else if (TableData::RunningSkywayRoutes.find(route.mssRouteNum) != TableData::RunningSkywayRoutes.end()) {
             std::vector<WarpLocation>* _route = &TableData::RunningSkywayRoutes[route.mssRouteNum];
-            NanoManager::summonNano(sock, -1);
+            Nanos::summonNano(sock, -1);
             testMssRoute(sock, _route);
             plr->onMonkey = true;
             break;
@@ -172,18 +172,18 @@ static void transportWarpHandler(CNSocket* sock, CNPacketData* data) {
     if (target == nullptr)
         return;
     // we warped; update position and chunks
-    ChunkManager::updatePlayerChunk(sock, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
+    Chunking::updatePlayerChunk(sock, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
     PlayerManager::updatePlayerPosition(sock, target->x, target->y, target->z, INSTANCE_OVERWORLD, plr->angle);
 }
 
-void TransportManager::testMssRoute(CNSocket *sock, std::vector<WarpLocation>* route) {
+void Transport::testMssRoute(CNSocket *sock, std::vector<WarpLocation>* route) {
     int speed = 1500; // TODO: make this adjustable
     std::queue<WarpLocation> path;
     WarpLocation last = route->front(); // start pos
 
     for (int i = 1; i < route->size(); i++) {
         WarpLocation coords = route->at(i);
-        TransportManager::lerp(&path, last, coords, speed);
+        Transport::lerp(&path, last, coords, speed);
         path.push(coords); // add keyframe to the queue
         last = coords; // update start pos
     }
@@ -332,7 +332,7 @@ static void tickTransportationSystem(CNServer* serv, time_t currTime) {
 /*
  * Linearly interpolate between two points and insert the results into a queue.
  */
-void TransportManager::lerp(std::queue<WarpLocation>* queue, WarpLocation start, WarpLocation end, int gapSize, float curve) {
+void Transport::lerp(std::queue<WarpLocation>* queue, WarpLocation start, WarpLocation end, int gapSize, float curve) {
     int dXY = hypot(end.x - start.x, end.y - start.y); // XY plane distance
     int distanceBetween = hypot(dXY, end.z - start.z); // total distance
     int lerps = distanceBetween / gapSize; // number of intermediate points to add
@@ -347,11 +347,11 @@ void TransportManager::lerp(std::queue<WarpLocation>* queue, WarpLocation start,
         queue->push(lerp); // add lerp'd point
     }
 }
-void TransportManager::lerp(std::queue<WarpLocation>* queue, WarpLocation start, WarpLocation end, int gapSize) {
+void Transport::lerp(std::queue<WarpLocation>* queue, WarpLocation start, WarpLocation end, int gapSize) {
     lerp(queue, start, end, gapSize, 1);
 }
 
-void TransportManager::init() {
+void Transport::init() {
     REGISTER_SHARD_TIMER(tickTransportationSystem, 1000);
 
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION, transportRegisterLocationHandler);

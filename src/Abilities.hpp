@@ -49,7 +49,7 @@ struct SkillData {
     int powerIntensity[4];
 };
 
-namespace NanoManager {
+namespace Nanos {
     extern std::vector<NanoPower> NanoPowers;
     extern std::map<int32_t, SkillData> SkillTable;
 

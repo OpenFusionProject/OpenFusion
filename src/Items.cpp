@@ -1,31 +1,31 @@
 #include "CNShardServer.hpp"
 #include "CNStructs.hpp"
-#include "ItemManager.hpp"
+#include "Items.hpp"
 #include "PlayerManager.hpp"
-#include "NanoManager.hpp"
+#include "Nanos.hpp"
 #include "NPCManager.hpp"
 #include "Player.hpp"
 #include "Abilities.hpp"
-#include "MissionManager.hpp"
+#include "Missions.hpp"
 
 #include <string.h> // for memset()
 #include <assert.h>
 
-using namespace ItemManager;
+using namespace Items;
 
-std::map<std::pair<int32_t, int32_t>, ItemManager::Item> ItemManager::ItemData;
-std::map<int32_t, CrocPotEntry> ItemManager::CrocPotTable;
-std::map<int32_t, std::vector<int>> ItemManager::RarityRatios;
-std::map<int32_t, Crate> ItemManager::Crates;
+std::map<std::pair<int32_t, int32_t>, Items::Item> Items::ItemData;
+std::map<int32_t, CrocPotEntry> Items::CrocPotTable;
+std::map<int32_t, std::vector<int>> Items::RarityRatios;
+std::map<int32_t, Crate> Items::Crates;
 // pair Itemset, Rarity -> vector of pointers (map iterators) to records in ItemData
-std::map<std::pair<int32_t, int32_t>, std::vector<std::map<std::pair<int32_t, int32_t>, ItemManager::Item>::iterator>> ItemManager::CrateItems;
-std::map<std::string, std::vector<std::pair<int32_t, int32_t>>> ItemManager::CodeItems;
+std::map<std::pair<int32_t, int32_t>, std::vector<std::map<std::pair<int32_t, int32_t>, Items::Item>::iterator>> Items::CrateItems;
+std::map<std::string, std::vector<std::pair<int32_t, int32_t>>> Items::CodeItems;
 
-std::map<int32_t, MobDropChance> ItemManager::MobDropChances;
-std::map<int32_t, MobDrop> ItemManager::MobDrops;
+std::map<int32_t, MobDropChance> Items::MobDropChances;
+std::map<int32_t, MobDrop> Items::MobDrops;
 
 #ifdef ACADEMY
-std::map<int32_t, int32_t> ItemManager::NanoCapsules; // crate id -> nano id
+std::map<int32_t, int32_t> Items::NanoCapsules; // crate id -> nano id
 
 static void nanoCapsuleHandler(CNSocket* sock, int slot, sItemBase *chest) {
     Player* plr = PlayerManager::getPlayer(sock);
@@ -77,7 +77,7 @@ static void nanoCapsuleHandler(CNSocket* sock, int slot, sItemBase *chest) {
         sock->sendPacket((void*)&msg, P_FE2CL_GM_REP_PC_ANNOUNCE, sizeof(sP_FE2CL_GM_REP_PC_ANNOUNCE));
         return;
     }
-    NanoManager::addNano(sock, nanoId, -1, false);
+    Nanos::addNano(sock, nanoId, -1, false);
 }
 #endif
 
@@ -360,7 +360,7 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
     }
 
     // sanity check, check if gumball type matches nano style
-    int nanoStyle = NanoManager::nanoStyle(nano.iID);
+    int nanoStyle = Nanos::nanoStyle(nano.iID);
     if (!((gumball.iID == 119 && nanoStyle == 0) ||
         (  gumball.iID == 120 && nanoStyle == 1) ||
         (  gumball.iID == 121 && nanoStyle == 2))) {
@@ -417,7 +417,7 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
     player->Inven[resp->iSlotNum] = resp->RemainItem;
 
     std::pair<CNSocket*, int32_t> key = std::make_pair(sock, value1);
-    time_t until = getTime() + (time_t)NanoManager::SkillTable[144].durationTime[0] * 100;
+    time_t until = getTime() + (time_t)Nanos::SkillTable[144].durationTime[0] * 100;
     NPCManager::EggBuffs[key] = until;
 }
 
@@ -532,8 +532,8 @@ static void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, sizeof(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC));
 }
 
-// TODO: use this in cleaned up ItemManager
-int ItemManager::findFreeSlot(Player *plr) {
+// TODO: use this in cleaned up Items
+int Items::findFreeSlot(Player *plr) {
     int i;
 
     for (i = 0; i < AINVEN_COUNT; i++)
@@ -544,13 +544,13 @@ int ItemManager::findFreeSlot(Player *plr) {
     return -1;
 }
 
-Item* ItemManager::getItemData(int32_t id, int32_t type) {
+Item* Items::getItemData(int32_t id, int32_t type) {
     if(ItemData.find(std::make_pair(id, type)) !=  ItemData.end())
         return &ItemData[std::make_pair(id, type)];
     return nullptr;
 }
 
-void ItemManager::checkItemExpire(CNSocket* sock, Player* player) {
+void Items::checkItemExpire(CNSocket* sock, Player* player) {
     if (player->toRemoveVehicle.eIL == 0 && player->toRemoveVehicle.iSlotNum == 0)
         return;
 
@@ -585,7 +585,7 @@ void ItemManager::checkItemExpire(CNSocket* sock, Player* player) {
     player->toRemoveVehicle.iSlotNum = 0;
 }
 
-void ItemManager::setItemStats(Player* plr) {
+void Items::setItemStats(Player* plr) {
 
     plr->pointDamage = 8 + plr->level * 2;
     plr->groupDamage = 8 + plr->level * 2;
@@ -609,7 +609,7 @@ void ItemManager::setItemStats(Player* plr) {
 
 // HACK: work around the invisible weapon bug
 // TODO: I don't think this makes a difference at all? Check and remove, if necessary.
-void ItemManager::updateEquips(CNSocket* sock, Player* plr) {
+void Items::updateEquips(CNSocket* sock, Player* plr) {
     for (int i = 0; i < 4; i++) {
         INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, resp);
 
@@ -696,7 +696,7 @@ static void giveEventDrop(CNSocket* sock, Player* player, int rolled) {
     sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
 }
 
-void ItemManager::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int rolledPotions,
+void Items::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int rolledPotions,
                             int rolledCrate, int rolledCrateType, int rolledEvent) {
     Player *plr = PlayerManager::getPlayer(sock);
 
@@ -723,7 +723,7 @@ void ItemManager::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int ro
     // money nano boost
     if (plr->iConditionBitFlag & CSB_BIT_REWARD_CASH) {
         int boost = 0;
-        if (NanoManager::getNanoBoost(plr)) // for gumballs
+        if (Nanos::getNanoBoost(plr)) // for gumballs
             boost = 1;
         plr->money += drop.taros * (5 + boost) / 25;
     }
@@ -736,12 +736,12 @@ void ItemManager::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int ro
     // scavenger nano boost
     if (plr->iConditionBitFlag & CSB_BIT_REWARD_BLOB) {
         int boost = 0;
-        if (NanoManager::getNanoBoost(plr)) // for gumballs
+        if (Nanos::getNanoBoost(plr)) // for gumballs
             boost = 1;
         fm += fm * (5 + boost) / 25;
     }
 
-    MissionManager::updateFusionMatter(sock, fm);
+    Missions::updateFusionMatter(sock, fm);
 
     // give boosts 1 in 3 times
     if (drop.boosts > 0) {
@@ -800,7 +800,7 @@ void ItemManager::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int ro
         giveEventDrop(sock, plr, rolledEvent);
 }
 
-void ItemManager::init() {
+void Items::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_DELETE, itemDeleteHandler);
     // this one is for gumballs

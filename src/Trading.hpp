@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ItemManager.hpp"
+#include "Items.hpp"
 
 namespace Trading {
     void init();

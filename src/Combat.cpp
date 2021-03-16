@@ -1,12 +1,12 @@
 #include "Combat.hpp"
 #include "PlayerManager.hpp"
-#include "NanoManager.hpp"
+#include "Nanos.hpp"
 #include "NPCManager.hpp"
-#include "ItemManager.hpp"
-#include "MissionManager.hpp"
-#include "GroupManager.hpp"
-#include "TransportManager.hpp"
-#include "RacingManager.hpp"
+#include "Items.hpp"
+#include "Missions.hpp"
+#include "Groups.hpp"
+#include "Transport.hpp"
+#include "Racing.hpp"
 #include "Abilities.hpp"
 
 #include <assert.h>
@@ -119,7 +119,7 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
             damage.first = plr->pointDamage;
 
         int difficulty = (int)mob->data["m_iNpcLevel"];
-        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW > 6 + difficulty), NanoManager::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
+        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW > 6 + difficulty), Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
         
         if (plr->batteryW >= 6 + difficulty)
             plr->batteryW -= 6 + difficulty;
@@ -241,8 +241,8 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
         int rolledQItem = rand();
 
         if (plr->groupCnt == 1 && plr->iIDGroup == plr->iID) {
-            ItemManager::giveMobDrop(sock, mob, rolledBoosts, rolledPotions, rolledCrate, rolledCrateType, rolledEvent);
-            MissionManager::mobKilled(sock, mob->appearanceData.iNPCType, rolledQItem);
+            Items::giveMobDrop(sock, mob, rolledBoosts, rolledPotions, rolledCrate, rolledCrateType, rolledEvent);
+            Missions::mobKilled(sock, mob->appearanceData.iNPCType, rolledQItem);
         } else {
             Player* otherPlayer = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
@@ -261,8 +261,8 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
                 if (dist > 5000)
                     continue;
 
-                ItemManager::giveMobDrop(sockTo, mob, rolledBoosts, rolledPotions, rolledCrate, rolledCrateType, rolledEvent);
-                MissionManager::mobKilled(sockTo, mob->appearanceData.iNPCType, rolledQItem);
+                Items::giveMobDrop(sockTo, mob, rolledBoosts, rolledPotions, rolledCrate, rolledCrateType, rolledEvent);
+                Missions::mobKilled(sockTo, mob->appearanceData.iNPCType, rolledQItem);
             }
         }
     }
@@ -275,8 +275,8 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
         if (event.trigger == ON_KILLED && event.npcType == mob->appearanceData.iNPCType)
             event.handler(sock, mob);
 
-    auto it = TransportManager::NPCQueues.find(mob->appearanceData.iNPC_ID);
-    if (it == TransportManager::NPCQueues.end() || it->second.empty())
+    auto it = Transport::NPCQueues.find(mob->appearanceData.iNPC_ID);
+    if (it == Transport::NPCQueues.end() || it->second.empty())
         return;
 
     // rewind or empty the movement queue
@@ -293,7 +293,7 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
             queue.push(point);
         }
     } else {
-        TransportManager::NPCQueues.erase(mob->appearanceData.iNPC_ID);
+        Transport::NPCQueues.erase(mob->appearanceData.iNPC_ID);
     }
 }
 
@@ -366,7 +366,7 @@ static void dealGooDamage(CNSocket *sock, int amount) {
         if (plr->Nanos[plr->activeNano].iStamina <= 0) {
             dmg->bNanoDeactive = 1;
             plr->Nanos[plr->activeNano].iStamina = 0;
-            NanoManager::summonNano(PlayerManager::getSockFromID(plr->iID), -1, true);
+            Nanos::summonNano(PlayerManager::getSockFromID(plr->iID), -1, true);
         }
     }
 
@@ -472,7 +472,7 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
             int difficulty = (int)mob->data["m_iNpcLevel"];
 
             damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW > 6 + difficulty),
-                NanoManager::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
+                Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
 
             if (plr->batteryW >= 6 + difficulty)
                 plr->batteryW -= 6 + difficulty;
@@ -667,7 +667,7 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
         damage.first = pkt->iTargetCnt > 1 ? bullet->groupDamage : bullet->pointDamage;
 
         int difficulty = (int)mob->data["m_iNpcLevel"];
-        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, bullet->weaponBoost, NanoManager::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
+        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, bullet->weaponBoost, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
 
         damage.first = hitMob(sock, mob, damage.first);
 
@@ -696,7 +696,7 @@ static void playerTick(CNServer *serv, time_t currTime) {
 
         // group ticks
         if (plr->groupCnt > 1)
-            GroupManager::groupTickInfo(plr);
+            Groups::groupTickInfo(plr);
 
         // do not tick dead players
         if (plr->HP <= 0)
@@ -723,7 +723,7 @@ static void playerTick(CNServer *serv, time_t currTime) {
                 plr->Nanos[plr->activeNano].iStamina -= 1 + plr->nanoDrainRate / 5;
 
                 if (plr->Nanos[plr->activeNano].iStamina <= 0)
-                    NanoManager::summonNano(sock, -1, true); // unsummon nano silently
+                    Nanos::summonNano(sock, -1, true); // unsummon nano silently
 
                 transmit = true;
             } else if (plr->Nanos[plr->equippedNanos[i]].iStamina < 150) { // regain stamina

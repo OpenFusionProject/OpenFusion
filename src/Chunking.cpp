@@ -1,12 +1,12 @@
-#include "ChunkManager.hpp"
+#include "Chunking.hpp"
 #include "PlayerManager.hpp"
 #include "NPCManager.hpp"
 #include "settings.hpp"
 #include "Combat.hpp"
 
-using namespace ChunkManager;
+using namespace Chunking;
 
-std::map<ChunkPos, Chunk*> ChunkManager::chunks;
+std::map<ChunkPos, Chunk*> Chunking::chunks;
 
 static void newChunk(ChunkPos pos) {
     if (chunkExists(pos)) {
@@ -53,21 +53,21 @@ static void deleteChunk(ChunkPos pos) {
     delete chunk; // free from memory
 }
 
-void ChunkManager::trackPlayer(ChunkPos chunkPos, CNSocket* sock) {
+void Chunking::trackPlayer(ChunkPos chunkPos, CNSocket* sock) {
     if (!chunkExists(chunkPos))
         return; // shouldn't happen
 
     chunks[chunkPos]->players.insert(sock);
 }
 
-void ChunkManager::trackNPC(ChunkPos chunkPos, int32_t id) {
+void Chunking::trackNPC(ChunkPos chunkPos, int32_t id) {
     if (!chunkExists(chunkPos))
         return; // shouldn't happen
 
     chunks[chunkPos]->NPCs.insert(id);
 }
 
-void ChunkManager::untrackPlayer(ChunkPos chunkPos, CNSocket* sock) {
+void Chunking::untrackPlayer(ChunkPos chunkPos, CNSocket* sock) {
     if (!chunkExists(chunkPos))
         return; // do nothing if chunk doesn't even exist
 
@@ -80,7 +80,7 @@ void ChunkManager::untrackPlayer(ChunkPos chunkPos, CNSocket* sock) {
         deleteChunk(chunkPos);
 }
 
-void ChunkManager::untrackNPC(ChunkPos chunkPos, int32_t id) {
+void Chunking::untrackNPC(ChunkPos chunkPos, int32_t id) {
     if (!chunkExists(chunkPos))
         return; // do nothing if chunk doesn't even exist
 
@@ -93,7 +93,7 @@ void ChunkManager::untrackNPC(ChunkPos chunkPos, int32_t id) {
         deleteChunk(chunkPos);
 }
 
-void ChunkManager::addPlayerToChunks(std::set<Chunk*> chnks, CNSocket* sock) {
+void Chunking::addPlayerToChunks(std::set<Chunk*> chnks, CNSocket* sock) {
     INITSTRUCT(sP_FE2CL_PC_NEW, newPlayer);
 
     for (Chunk* chunk : chnks) {
@@ -165,7 +165,7 @@ void ChunkManager::addPlayerToChunks(std::set<Chunk*> chnks, CNSocket* sock) {
     }
 }
 
-void ChunkManager::addNPCToChunks(std::set<Chunk*> chnks, int32_t id) {
+void Chunking::addNPCToChunks(std::set<Chunk*> chnks, int32_t id) {
     BaseNPC* npc = NPCManager::NPCs[id];
 
     switch (npc->npcClass) {
@@ -209,7 +209,7 @@ void ChunkManager::addNPCToChunks(std::set<Chunk*> chnks, int32_t id) {
     }
 }
 
-void ChunkManager::removePlayerFromChunks(std::set<Chunk*> chnks, CNSocket* sock) {
+void Chunking::removePlayerFromChunks(std::set<Chunk*> chnks, CNSocket* sock) {
     INITSTRUCT(sP_FE2CL_PC_EXIT, exitPlayer);
 
     // for chunks that need the player to be removed from
@@ -253,7 +253,7 @@ void ChunkManager::removePlayerFromChunks(std::set<Chunk*> chnks, CNSocket* sock
 
 }
 
-void ChunkManager::removeNPCFromChunks(std::set<Chunk*> chnks, int32_t id) {
+void Chunking::removeNPCFromChunks(std::set<Chunk*> chnks, int32_t id) {
     BaseNPC* npc = NPCManager::NPCs[id];
 
     switch (npc->npcClass) {
@@ -320,7 +320,7 @@ static void emptyChunk(ChunkPos chunkPos) {
     }
 }
 
-void ChunkManager::updatePlayerChunk(CNSocket* sock, ChunkPos from, ChunkPos to) {
+void Chunking::updatePlayerChunk(CNSocket* sock, ChunkPos from, ChunkPos to) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     // if the new chunk doesn't exist, make it first
@@ -356,7 +356,7 @@ void ChunkManager::updatePlayerChunk(CNSocket* sock, ChunkPos from, ChunkPos to)
     plr->viewableChunks->insert(newViewables.begin(), newViewables.end());
 }
 
-void ChunkManager::updateNPCChunk(int32_t id, ChunkPos from, ChunkPos to) {
+void Chunking::updateNPCChunk(int32_t id, ChunkPos from, ChunkPos to) {
     BaseNPC* npc = NPCManager::NPCs[id];
 
     // if the new chunk doesn't exist, make it first
@@ -392,15 +392,15 @@ void ChunkManager::updateNPCChunk(int32_t id, ChunkPos from, ChunkPos to) {
     npc->viewableChunks->insert(newViewables.begin(), newViewables.end());
 }
 
-bool ChunkManager::chunkExists(ChunkPos chunk) {
+bool Chunking::chunkExists(ChunkPos chunk) {
     return chunks.find(chunk) != chunks.end();
 }
 
-ChunkPos ChunkManager::chunkPosAt(int posX, int posY, uint64_t instanceID) {
+ChunkPos Chunking::chunkPosAt(int posX, int posY, uint64_t instanceID) {
     return std::make_tuple(posX / (settings::VIEWDISTANCE / 3), posY / (settings::VIEWDISTANCE / 3), instanceID);
 }
 
-std::set<Chunk*> ChunkManager::getViewableChunks(ChunkPos chunk) {
+std::set<Chunk*> Chunking::getViewableChunks(ChunkPos chunk) {
     std::set<Chunk*> chnks;
 
     int x, y;
@@ -439,7 +439,7 @@ static std::vector<ChunkPos> getChunksInMap(uint64_t mapNum) {
 /*
  * Used only for eggs; use npc->playersInView for everything visible
  */
-bool ChunkManager::inPopulatedChunks(std::set<Chunk*>* chnks) {
+bool Chunking::inPopulatedChunks(std::set<Chunk*>* chnks) {
 
     for (auto it = chnks->begin(); it != chnks->end(); it++) {
         if (!(*it)->players.empty())
@@ -449,7 +449,7 @@ bool ChunkManager::inPopulatedChunks(std::set<Chunk*>* chnks) {
     return false;
 }
 
-void ChunkManager::createInstance(uint64_t instanceID) {
+void Chunking::createInstance(uint64_t instanceID) {
 
     std::vector<ChunkPos> templateChunks = getChunksInMap(MAPNUM(instanceID)); // base instance chunks
     if (getChunksInMap(instanceID).size() == 0) { // only instantiate if the instance doesn't exist already
@@ -517,7 +517,7 @@ static void destroyInstance(uint64_t instanceID) {
     }
 }
 
-void ChunkManager::destroyInstanceIfEmpty(uint64_t instanceID) {
+void Chunking::destroyInstanceIfEmpty(uint64_t instanceID) {
     if (PLAYERID(instanceID) == 0)
         return; // don't clean up overworld/IZ chunks
 

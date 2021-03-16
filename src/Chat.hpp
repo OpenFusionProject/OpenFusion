@@ -4,7 +4,7 @@
 
 #include "CNShardServer.hpp"
 
-namespace ChatManager {
+namespace Chat {
     extern std::vector<std::string> dump;
     void init();
 

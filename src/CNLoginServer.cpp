@@ -3,7 +3,7 @@
 #include "CNStructs.hpp"
 #include "db/Database.hpp"
 #include "PlayerManager.hpp"
-#include "ItemManager.hpp"
+#include "Items.hpp"
 #include <regex>
 #include "bcrypt/BCrypt.hpp"
 
@@ -364,7 +364,7 @@ bool validateCharacterCreation(sP_CL2LS_REQ_CHAR_CREATE* character) {
     // once we have a static database perhaps we can check for the exact char creation items,
     // for now only checking if it's a valid lvl1 item
     for (int i = 0; i < 3; i++) {
-        if (ItemManager::ItemData.find(items[i]) == ItemManager::ItemData.end() || ItemManager::ItemData[items[i]].level != 1)
+        if (Items::ItemData.find(items[i]) == Items::ItemData.end() || Items::ItemData[items[i]].level != 1)
             return false;
     }
     return true;

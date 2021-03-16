@@ -5,7 +5,7 @@
 #include "CNStructs.hpp"
 #include "CNProtocol.hpp"
 
-namespace BuddyManager {
+namespace Buddies {
 	void init();
 
 	// Buddy list

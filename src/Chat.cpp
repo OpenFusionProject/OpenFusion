@@ -1,13 +1,13 @@
-#include "ChatManager.hpp"
+#include "Chat.hpp"
 #include "PlayerManager.hpp"
-#include "GroupManager.hpp"
+#include "Groups.hpp"
 #include "CustomCommands.hpp"
 
 #include <assert.h>
 
-std::vector<std::string> ChatManager::dump;
+std::vector<std::string> Chat::dump;
 
-using namespace ChatManager;
+using namespace Chat;
 
 static void chatHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE))
@@ -88,7 +88,7 @@ static void emoteHandler(CNSocket* sock, CNPacketData* data) {
     PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_REP_PC_AVATAR_EMOTES_CHAT, sizeof(sP_FE2CL_REP_PC_AVATAR_EMOTES_CHAT));
 }
 
-void ChatManager::sendServerMessage(CNSocket* sock, std::string msg) {
+void Chat::sendServerMessage(CNSocket* sock, std::string msg) {
     INITSTRUCT(sP_FE2CL_PC_MOTD_LOGIN, motd);
 
     motd.iType = 1;
@@ -276,7 +276,7 @@ static void groupChatHandler(CNSocket* sock, CNPacketData* data) {
     resp.iSendPCID = plr->iID;
     resp.iEmoteCode = chat->iEmoteCode;
 
-    GroupManager::sendToGroup(otherPlr, (void*)&resp, P_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC));
+    Groups::sendToGroup(otherPlr, (void*)&resp, P_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC));
 }
 
 static void groupMenuChatHandler(CNSocket* sock, CNPacketData* data) {
@@ -303,11 +303,11 @@ static void groupMenuChatHandler(CNSocket* sock, CNPacketData* data) {
     resp.iSendPCID = plr->iID;
     resp.iEmoteCode = chat->iEmoteCode;
 
-    GroupManager::sendToGroup(otherPlr, (void*)&resp, P_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC));
+    Groups::sendToGroup(otherPlr, (void*)&resp, P_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC));
 }
 
 // we only allow plain ascii, at least for now
-std::string ChatManager::sanitizeText(std::string text, bool allowNewlines) {
+std::string Chat::sanitizeText(std::string text, bool allowNewlines) {
     int i;
     const int BUFSIZE = 512;
     char buf[BUFSIZE];
@@ -330,7 +330,7 @@ std::string ChatManager::sanitizeText(std::string text, bool allowNewlines) {
     return std::string(buf);
 }
 
-void ChatManager::init() {
+void Chat::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_MENUCHAT_MESSAGE, menuChatHandler);

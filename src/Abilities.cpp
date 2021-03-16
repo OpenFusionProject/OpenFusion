@@ -2,21 +2,21 @@
 #include "PlayerManager.hpp"
 #include "Player.hpp"
 #include "NPCManager.hpp"
-#include "NanoManager.hpp"
-#include "GroupManager.hpp"
+#include "Nanos.hpp"
+#include "Groups.hpp"
 
 /*
  * TODO: This file is in desperate need of deduplication and rewriting.
  */
 
-std::map<int32_t, SkillData> NanoManager::SkillTable;
+std::map<int32_t, SkillData> Nanos::SkillTable;
 
 /*
  * targetData approach
  * first integer is the count
  * second to fifth integers are IDs, these can be either player iID or mob's iID
  */
-std::vector<int> NanoManager::findTargets(Player* plr, int skillID, CNPacketData* data) {
+std::vector<int> Nanos::findTargets(Player* plr, int skillID, CNPacketData* data) {
     std::vector<int> tD(5);
 
     if (SkillTable[skillID].targetType <= 2 && data != nullptr) { // client gives us the targets
@@ -65,7 +65,7 @@ std::vector<int> NanoManager::findTargets(Player* plr, int skillID, CNPacketData
     return tD;
 }
 
-void NanoManager::nanoUnbuff(CNSocket* sock, std::vector<int> targetData, int32_t bitFlag, int16_t timeBuffID, int16_t amount, bool groupPower) {
+void Nanos::nanoUnbuff(CNSocket* sock, std::vector<int> targetData, int32_t bitFlag, int16_t timeBuffID, int16_t amount, bool groupPower) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     plr->iSelfConditionBitFlag &= ~bitFlag;
@@ -75,7 +75,7 @@ void NanoManager::nanoUnbuff(CNSocket* sock, std::vector<int> targetData, int32_
         plr->iGroupConditionBitFlag &= ~bitFlag;
         Player *leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
         if (leader != nullptr)
-            groupFlags = GroupManager::getGroupFlags(leader);
+            groupFlags = Groups::getGroupFlags(leader);
     }
 
     for (int i = 0; i < targetData[0]; i++) {
@@ -100,7 +100,7 @@ void NanoManager::nanoUnbuff(CNSocket* sock, std::vector<int> targetData, int32_
     }
 }
 
-int NanoManager::applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags) {
+int Nanos::applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags) {
     if (SkillTable[skillID].drainType == 1)
         return 0;
 
@@ -133,7 +133,7 @@ int NanoManager::applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int3
 }
 
 #pragma region Nano Powers
-namespace NanoManager {
+namespace Nanos {
 
 bool doDebuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
     if (MobAI::Mobs.find(targetID) == MobAI::Mobs.end()) {

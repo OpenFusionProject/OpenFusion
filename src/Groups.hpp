@@ -8,7 +8,7 @@
 #include <map>
 #include <list>
 
-namespace GroupManager {
+namespace Groups {
 	void init();
 
     void sendToGroup(Player* plr, void* buf, uint32_t type, size_t size);

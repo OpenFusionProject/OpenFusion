@@ -1,17 +1,17 @@
 #include "CNShardServer.hpp"
 #include "CNStructs.hpp"
-#include "RacingManager.hpp"
+#include "Racing.hpp"
 #include "PlayerManager.hpp"
-#include "MissionManager.hpp"
-#include "ItemManager.hpp"
+#include "Missions.hpp"
+#include "Items.hpp"
 #include "db/Database.hpp"
 #include "NPCManager.hpp"
 
-using namespace RacingManager;
+using namespace Racing;
 
-std::map<int32_t, EPInfo> RacingManager::EPData;
-std::map<CNSocket*, EPRace> RacingManager::EPRaces;
-std::map<int32_t, std::pair<std::vector<int>, std::vector<int>>> RacingManager::EPRewards;
+std::map<int32_t, EPInfo> Racing::EPData;
+std::map<CNSocket*, EPRace> Racing::EPRaces;
+std::map<int32_t, std::pair<std::vector<int>, std::vector<int>>> Racing::EPRewards;
 
 static void racingStart(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_EP_RACE_START))
@@ -135,14 +135,14 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
     resp.iEPRaceMode = EPRaces[sock].mode;
     resp.iEPRewardFM = fm;
 
-    MissionManager::updateFusionMatter(sock, resp.iEPRewardFM);
+    Missions::updateFusionMatter(sock, resp.iEPRewardFM);
 
     resp.iFusionMatter = plr->fusionmatter;
     resp.iFatigue = 50;
     resp.iFatigue_Level = 1;
 
     sItemReward reward;
-    reward.iSlotNum = ItemManager::findFreeSlot(plr);
+    reward.iSlotNum = Items::findFreeSlot(plr);
     reward.eIL = 1;
     sItemBase item;
     item.iID = rankRewards->at(rank); // rank scores and rewards line up
@@ -160,7 +160,7 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_EP_RACE_END_SUCC, sizeof(sP_FE2CL_REP_EP_RACE_END_SUCC));
 }
 
-void RacingManager::init() {
+void Racing::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_EP_RACE_START, racingStart);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_EP_GET_RING, racingGetPod);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_EP_RACE_CANCEL, racingCancel);
