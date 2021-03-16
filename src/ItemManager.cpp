@@ -6,6 +6,7 @@
 #include "NPCManager.hpp"
 #include "Player.hpp"
 #include "Abilities.hpp"
+#include "MissionManager.hpp"
 
 #include <string.h> // for memset()
 #include <assert.h>
@@ -17,6 +18,9 @@ std::map<int32_t, Crate> ItemManager::Crates;
 // pair Itemset, Rarity -> vector of pointers (map iterators) to records in ItemData
 std::map<std::pair<int32_t, int32_t>, std::vector<std::map<std::pair<int32_t, int32_t>, ItemManager::Item>::iterator>> ItemManager::CrateItems;
 std::map<std::string, std::vector<std::pair<int32_t, int32_t>>> ItemManager::CodeItems;
+
+std::map<int32_t, MobDropChance> ItemManager::MobDropChances;
+std::map<int32_t, MobDrop> ItemManager::MobDrops;
 
 #ifdef ACADEMY
 std::map<int32_t, int32_t> ItemManager::NanoCapsules; // crate id -> nano id
@@ -707,6 +711,185 @@ void ItemManager::updateEquips(CNSocket* sock, Player* plr) {
 
         PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
     }
+}
+
+void ItemManager::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int rolledPotions,
+                            int rolledCrate, int rolledCrateType, int rolledEvent) {
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+    // we know it's only one trailing struct, so we can skip full validation
+
+    uint8_t respbuf[resplen]; // not a variable length array, don't worry
+    sP_FE2CL_REP_REWARD_ITEM *reward = (sP_FE2CL_REP_REWARD_ITEM *)respbuf;
+    sItemReward *item = (sItemReward *)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
+
+    // don't forget to zero the buffer!
+    memset(respbuf, 0, resplen);
+
+    // sanity check
+    if (MobDrops.find(mob->dropType) == MobDrops.end()) {
+        std::cout << "[WARN] Drop Type " << mob->dropType << " was not found" << std::endl;
+        return;
+    }
+    // find correct mob drop
+    MobDrop& drop = MobDrops[mob->dropType];
+
+    plr->money += drop.taros;
+    // money nano boost
+    if (plr->iConditionBitFlag & CSB_BIT_REWARD_CASH) {
+        int boost = 0;
+        if (NanoManager::getNanoBoost(plr)) // for gumballs
+            boost = 1;
+        plr->money += drop.taros * (5 + boost) / 25;
+    }
+    // formula for scaling FM with player/mob level difference
+    // TODO: adjust this better
+    int levelDifference = plr->level - mob->level;
+    int fm = drop.fm;
+    if (levelDifference > 0)
+        fm = levelDifference < 10 ? fm - (levelDifference * fm / 10) : 0;
+    // scavenger nano boost
+    if (plr->iConditionBitFlag & CSB_BIT_REWARD_BLOB) {
+        int boost = 0;
+        if (NanoManager::getNanoBoost(plr)) // for gumballs
+            boost = 1;
+        fm += fm * (5 + boost) / 25;
+    }
+
+    MissionManager::updateFusionMatter(sock, fm);
+
+    // give boosts 1 in 3 times
+    if (drop.boosts > 0) {
+        if (rolledPotions % 3 == 0)
+            plr->batteryN += drop.boosts;
+        if (rolledBoosts % 3 == 0)
+            plr->batteryW += drop.boosts;
+    }
+    // caps
+    if (plr->batteryW > 9999)
+        plr->batteryW = 9999;
+    if (plr->batteryN > 9999)
+        plr->batteryN = 9999;
+
+    // simple rewards
+    reward->m_iCandy = plr->money;
+    reward->m_iFusionMatter = plr->fusionmatter;
+    reward->m_iBatteryN = plr->batteryN;
+    reward->m_iBatteryW = plr->batteryW;
+    reward->iFatigue = 100; // prevents warning message
+    reward->iFatigue_Level = 1;
+    reward->iItemCnt = 1; // remember to update resplen if you change this
+
+    int slot = ItemManager::findFreeSlot(plr);
+
+    bool awardDrop = false;
+    MobDropChance *chance = nullptr;
+    // sanity check
+    if (MobDropChances.find(drop.dropChanceType) == MobDropChances.end()) {
+        std::cout << "[WARN] Unknown Drop Chance Type: " << drop.dropChanceType << std::endl;
+        return; // this also prevents holiday crate drops, but oh well
+    } else {
+        chance = &MobDropChances[drop.dropChanceType];
+        awardDrop = (rolledCrate % 1000 < chance->dropChance);
+    }
+
+    // no drop
+    if (slot == -1 || !awardDrop) {
+        // no room for an item, but you still get FM and taros
+        reward->iItemCnt = 0;
+        sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, sizeof(sP_FE2CL_REP_REWARD_ITEM));
+    } else {
+        // item reward
+        getMobDrop(&item->sItem, &drop, chance, rolledCrateType);
+        item->iSlotNum = slot;
+        item->eIL = 1; // Inventory Location. 1 means player inventory.
+
+        // update player
+        plr->Inven[slot] = item->sItem;
+
+        sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
+    }
+
+    // event crates
+    if (settings::EVENTMODE != 0)
+        giveEventDrop(sock, plr, rolledEvent);
+}
+
+void ItemManager::getMobDrop(sItemBase *reward, MobDrop* drop, MobDropChance* chance, int rolled) {
+    reward->iType = 9;
+    reward->iOpt = 1;
+
+    int total = 0;
+    for (int ratio : chance->cratesRatio)
+        total += ratio;
+
+    // randomizing a crate
+    int randomNum = rolled % total;
+    int i = 0;
+    int sum = 0;
+    do {
+        reward->iID = drop->crateIDs[i];
+        sum += chance->cratesRatio[i];
+        i++;
+    }
+    while (sum<=randomNum);
+}
+
+void ItemManager::giveEventDrop(CNSocket* sock, Player* player, int rolled) {
+    // random drop chance
+    if (rand() % 100 > settings::EVENTCRATECHANCE)
+        return;
+
+    // no slot = no reward
+    int slot = ItemManager::findFreeSlot(player);
+    if (slot == -1)
+        return;
+
+    const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+
+    uint8_t respbuf[resplen];
+    sP_FE2CL_REP_REWARD_ITEM* reward = (sP_FE2CL_REP_REWARD_ITEM*)respbuf;
+    sItemReward* item = (sItemReward*)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
+
+    // don't forget to zero the buffer!
+    memset(respbuf, 0, resplen);
+
+    // leave everything here as it is
+    reward->m_iCandy = player->money;
+    reward->m_iFusionMatter = player->fusionmatter;
+    reward->m_iBatteryN = player->batteryN;
+    reward->m_iBatteryW = player->batteryW;
+    reward->iFatigue = 100; // prevents warning message
+    reward->iFatigue_Level = 1;
+    reward->iItemCnt = 1; // remember to update resplen if you change this
+
+    // which crate to drop
+    int crateId;
+    switch (settings::EVENTMODE) {
+    // knishmas
+    case 1: crateId = 1187; break;
+    // halloween
+    case 2: crateId = 1181; break;
+    // spring
+    case 3: crateId = 1126; break;
+    // what
+    default:
+        std::cout << "[WARN] Unknown event Id " << settings::EVENTMODE << std::endl;
+        return;
+    }
+
+    item->sItem.iType = 9;
+    item->sItem.iID = crateId;
+    item->sItem.iOpt = 1;
+    item->iSlotNum = slot;
+    item->eIL = 1; // Inventory Location. 1 means player inventory.
+
+    // update player
+    player->Inven[slot] = item->sItem;
+    sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
 }
 
 void ItemManager::init() {

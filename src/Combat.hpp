@@ -12,19 +12,6 @@
 #include <unordered_map>
 #include <queue>
 
-struct MobDropChance {
-    int dropChance;
-    std::vector<int> cratesRatio;
-};
-
-struct MobDrop {
-    std::vector<int> crateIDs;
-    int dropChanceType;
-    int taros;
-    int fm;
-    int boosts;
-};
-
 struct Bullet {
     int pointDamage;
     int groupDamage;
@@ -33,8 +20,6 @@ struct Bullet {
 };
 
 namespace Combat {
-    extern std::map<int32_t, MobDropChance> MobDropChances;
-    extern std::map<int32_t, MobDrop> MobDrops;
     extern std::map<int32_t, std::map<int8_t, Bullet>> Bullets;
 
     void init();
@@ -49,9 +34,6 @@ namespace Combat {
     void npcAttackPc(Mob *mob, time_t currTime);
     int hitMob(CNSocket *sock, Mob *mob, int damage);
     void killMob(CNSocket *sock, Mob *mob);
-    void giveReward(CNSocket *sock, Mob *mob, int rolledBoosts, int rolledPotions, int rolledCrate, int rolledCrateType, int rolledEvent);
-    void getReward(sItemBase *reward, MobDrop *drop, MobDropChance *chance, int rolled);
-    void giveEventReward(CNSocket* sock, Player* player, int rolled);
 
     std::pair<int,int> lerp(int, int, int, int, int);
     std::pair<int,int> getDamage(int, int, bool, bool, int, int, int);

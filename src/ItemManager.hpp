@@ -2,14 +2,29 @@
 
 #include "CNShardServer.hpp"
 #include "Player.hpp"
+#include "MobAI.hpp"
 
 struct CrocPotEntry {
     int multStats, multLooks;
     float base, rd0, rd1, rd2, rd3;
 };
+
 struct Crate {
     int rarityRatioId;
     std::vector<int> itemSets;
+};
+
+struct MobDropChance {
+    int dropChance;
+    std::vector<int> cratesRatio;
+};
+
+struct MobDrop {
+    std::vector<int> crateIDs;
+    int dropChanceType;
+    int taros;
+    int fm;
+    int boosts;
 };
 
 namespace ItemManager {
@@ -36,12 +51,21 @@ namespace ItemManager {
         std::vector<std::map<std::pair<int32_t, int32_t>, Item>::iterator>> CrateItems;
     extern std::map<std::string, std::vector<std::pair<int32_t, int32_t>>> CodeItems; // code -> vector of <id, type>
 
+    // mob drops
+    extern std::map<int32_t, MobDropChance> MobDropChances;
+    extern std::map<int32_t, MobDrop> MobDrops;
+
     void init();
 
     // crate opening logic with all helper functions
     int getItemSetId(Crate& crate, int crateId);
     int getRarity(Crate& crate, int itemSetId);
     int getCrateItem(sItemBase& reward, int itemSetId, int rarity, int playerGender);
+
+    // mob drops
+    void giveMobDrop(CNSocket *sock, Mob *mob, int rolledBoosts, int rolledPotions, int rolledCrate, int rolledCrateType, int rolledEvent);
+    void getMobDrop(sItemBase *reward, MobDrop *drop, MobDropChance *chance, int rolled);
+    void giveEventDrop(CNSocket* sock, Player* player, int rolled);
 
     int findFreeSlot(Player *plr);
     Item* getItemData(int32_t id, int32_t type);

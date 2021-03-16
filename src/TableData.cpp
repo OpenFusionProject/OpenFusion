@@ -4,7 +4,6 @@
 #include "ItemManager.hpp"
 #include "settings.hpp"
 #include "MissionManager.hpp"
-#include "Combat.hpp"
 #include "ChunkManager.hpp"
 #include "NanoManager.hpp"
 #include "RacingManager.hpp"
@@ -518,7 +517,7 @@ void TableData::loadDrops() {
             for (nlohmann::json::iterator _cratesRatio = dropChance["CratesRatio"].begin(); _cratesRatio != dropChance["CratesRatio"].end(); _cratesRatio++) {
                 toAdd.cratesRatio.push_back((int)_cratesRatio.value());
             }
-            Combat::MobDropChances[(int)dropChance["Type"]] = toAdd;
+            ItemManager::MobDropChances[(int)dropChance["Type"]] = toAdd;
         }
 
         // MobDrops
@@ -532,21 +531,21 @@ void TableData::loadDrops() {
 
             toAdd.dropChanceType = (int)drop["DropChance"];
             // Check if DropChance exists
-            if (Combat::MobDropChances.find(toAdd.dropChanceType) == Combat::MobDropChances.end()) {
+            if (ItemManager::MobDropChances.find(toAdd.dropChanceType) == ItemManager::MobDropChances.end()) {
                 throw TableException(" MobDropChance not found: " + std::to_string((toAdd.dropChanceType)));
             }
             // Check if number of crates is correct
-            if (!(Combat::MobDropChances[(int)drop["DropChance"]].cratesRatio.size() == toAdd.crateIDs.size())) {
+            if (!(ItemManager::MobDropChances[(int)drop["DropChance"]].cratesRatio.size() == toAdd.crateIDs.size())) {
                 throw TableException(" DropType " + std::to_string((int)drop["DropType"]) + " contains invalid number of crates");
             }
 
             toAdd.taros = (int)drop["Taros"];
             toAdd.fm = (int)drop["FM"];
             toAdd.boosts = (int)drop["Boosts"];
-            Combat::MobDrops[(int)drop["DropType"]] = toAdd;
+            ItemManager::MobDrops[(int)drop["DropType"]] = toAdd;
         }
 
-        std::cout << "[INFO] Loaded " << Combat::MobDrops.size() << " Mob Drop Types"<<  std::endl;
+        std::cout << "[INFO] Loaded " << ItemManager::MobDrops.size() << " Mob Drop Types"<<  std::endl;
 
         // Rarity Ratios
         nlohmann::json rarities = dropData["RarityRatios"];
