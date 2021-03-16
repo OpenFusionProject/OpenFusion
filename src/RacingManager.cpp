@@ -4,7 +4,7 @@
 #include "PlayerManager.hpp"
 #include "MissionManager.hpp"
 #include "ItemManager.hpp"
-#include "Database.hpp"
+#include "db/Database.hpp"
 #include "NPCManager.hpp"
 
 std::map<int32_t, EPInfo> RacingManager::EPData;

@@ -5,7 +5,7 @@
 #include "NPCManager.hpp"
 #include "MobAI.hpp"
 #include "ItemManager.hpp"
-#include "Database.hpp"
+#include "db/Database.hpp"
 #include "TransportManager.hpp"
 #include "MissionManager.hpp"
 

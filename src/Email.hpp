@@ -4,7 +4,7 @@
 #include "CNStructs.hpp"
 #include "CNShardServer.hpp"
 
-#include "Database.hpp"
+#include "db/Database.hpp"
 #include "PlayerManager.hpp"
 #include "ItemManager.hpp"
 #include "ChatManager.hpp"

@@ -3,9 +3,9 @@
 #include "ChatManager.hpp"
 #include "PlayerManager.hpp"
 #include "BuddyManager.hpp"
-#include "Database.hpp"
+#include "db/Database.hpp"
 #include "ItemManager.hpp"
-#include "Database.hpp"
+#include "db/Database.hpp"
 
 #include <iostream>
 #include <chrono>

@@ -5,7 +5,7 @@ CXX=clang++
 # -w suppresses all warnings (the part that's commented out helps me find memory leaks, it ruins performance though!)
 # If compiling with ASAN, invoke like this: $ LSAN_OPTIONS=suppressions=suppr.txt bin/fusion
 CFLAGS=-O3 #-g3 -fsanitize=address
-CXXFLAGS=-Wall -Wno-unknown-pragmas -std=c++17 -O2 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) -DGIT_VERSION=\"$(GIT_VERSION)\" -I./vendor #-g3 -fsanitize=address
+CXXFLAGS=-Wall -Wno-unknown-pragmas -std=c++17 -O2 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) -DGIT_VERSION=\"$(GIT_VERSION)\" -I./src -I./vendor #-g3 -fsanitize=address
 LDFLAGS=-lpthread -lsqlite3 #-g3 -fsanitize=address
 # specifies the name of our exectuable
 SERVER=bin/fusion
@@ -18,26 +18,38 @@ PROTOCOL_VERSION?=104
 WIN_CC=x86_64-w64-mingw32-gcc
 WIN_CXX=x86_64-w64-mingw32-g++
 WIN_CFLAGS=-O3 #-g3 -fsanitize=address
-WIN_CXXFLAGS=-D_WIN32_WINNT=0x0601 -Wall -Wno-unknown-pragmas -std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) -DGIT_VERSION=\"$(GIT_VERSION)\" -I./vendor #-g3 -fsanitize=address
+WIN_CXXFLAGS=-D_WIN32_WINNT=0x0601 -Wall -Wno-unknown-pragmas -std=c++17 -O3 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) -DGIT_VERSION=\"$(GIT_VERSION)\" -I./src -I./vendor #-g3 -fsanitize=address
 WIN_LDFLAGS=-static -lws2_32 -lwsock32 -lsqlite3 #-g3 -fsanitize=address
 WIN_SERVER=bin/winfusion.exe
 
+# C code; currently exclusively from vendored libraries
 CSRC=\
 	vendor/bcrypt/bcrypt.c\
 	vendor/bcrypt/crypt_blowfish.c\
 	vendor/bcrypt/crypt_gensalt.c\
 	vendor/bcrypt/wrapper.c\
 
+CHDR=\
+	vendor/bcrypt/bcrypt.h\
+	vendor/bcrypt/crypt_blowfish.h\
+	vendor/bcrypt/crypt_gensalt.h\
+	vendor/bcrypt/ow-crypt.h\
+	vendor/bcrypt/winbcrypt.h\
+
 CXXSRC=\
+	src/db/init.cpp\
+	src/db/login.cpp\
+	src/db/shard.cpp\
+	src/db/player.cpp\
+	src/db/email.cpp\
 	src/ChatManager.cpp\
 	src/CustomCommands.cpp\
 	src/CNLoginServer.cpp\
 	src/CNProtocol.cpp\
 	src/CNShardServer.cpp\
 	src/CNShared.cpp\
-	src/Database.cpp\
 	src/Defines.cpp\
-    src/Email.cpp\
+	src/Email.cpp\
 	src/main.cpp\
 	src/MissionManager.cpp\
 	src/MobAI.cpp\
@@ -61,17 +73,14 @@ CXXSRC=\
 	src/Trading.cpp\
 
 # headers (for timestamp purposes)
-CHDR=\
-	vendor/bcrypt/bcrypt.h\
-	vendor/bcrypt/crypt_blowfish.h\
-	vendor/bcrypt/crypt_gensalt.h\
-	vendor/bcrypt/ow-crypt.h\
-	vendor/bcrypt/winbcrypt.h\
-
 CXXHDR=\
 	vendor/bcrypt/BCrypt.hpp\
 	vendor/INIReader.hpp\
 	vendor/JSON.hpp\
+	vendor/INIReader.hpp\
+	vendor/JSON.hpp\
+	src/db/Database.hpp\
+	src/db/internal.hpp\
 	src/ChatManager.hpp\
 	src/CustomCommands.hpp\
 	src/CNLoginServer.hpp\
@@ -79,11 +88,8 @@ CXXHDR=\
 	src/CNShardServer.hpp\
 	src/CNShared.hpp\
 	src/CNStructs.hpp\
-	src/Database.hpp\
 	src/Defines.hpp\
-    src/Email.hpp\
-	vendor/INIReader.hpp\
-	vendor/JSON.hpp\
+	src/Email.hpp\
 	src/MissionManager.hpp\
 	src/MobAI.hpp\
 	src/Combat.hpp\
@@ -151,7 +157,7 @@ src/main.o: version.h
 # only gets rid of OpenFusion objects, so we don't need to
 # recompile the libs every time
 clean:
-	rm -f src/*.o $(SERVER) $(WIN_SERVER) version.h
+	rm -f src/*.o src/*/*.o $(SERVER) $(WIN_SERVER) version.h
 
 # gets rid of all compiled objects, including the libraries
 nuke:

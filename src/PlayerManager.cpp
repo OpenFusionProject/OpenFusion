@@ -6,7 +6,7 @@
 #include "NanoManager.hpp"
 #include "GroupManager.hpp"
 #include "ChatManager.hpp"
-#include "Database.hpp"
+#include "db/Database.hpp"
 #include "BuddyManager.hpp"
 #include "Combat.hpp"
 #include "RacingManager.hpp"

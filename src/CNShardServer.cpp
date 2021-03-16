@@ -5,7 +5,7 @@
 #include "MobAI.hpp"
 #include "CNShared.hpp"
 #include "settings.hpp"
-#include "Database.hpp"
+#include "db/Database.hpp"
 #include "Monitor.hpp"
 #include "TableData.hpp" // for flush()
 

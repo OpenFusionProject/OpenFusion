@@ -13,7 +13,7 @@
 #include "NPCManager.hpp"
 #include "TransportManager.hpp"
 #include "BuddyManager.hpp"
-#include "Database.hpp"
+#include "db/Database.hpp"
 #include "TableData.hpp"
 #include "ChunkManager.hpp"
 #include "GroupManager.hpp"

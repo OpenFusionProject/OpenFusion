@@ -1,7 +1,7 @@
 #include "CNLoginServer.hpp"
 #include "CNShared.hpp"
 #include "CNStructs.hpp"
-#include "Database.hpp"
+#include "db/Database.hpp"
 #include "PlayerManager.hpp"
 #include "ItemManager.hpp"
 #include <regex>
