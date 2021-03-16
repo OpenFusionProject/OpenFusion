@@ -9,6 +9,8 @@
 #include <cmath>
 #include <limits.h>
 
+using namespace MobAI;
+
 std::map<int32_t, Mob*> MobAI::Mobs;
 static std::queue<int32_t> RemovalQueue;
 
@@ -259,10 +261,10 @@ static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, i
         if (plr->HP <= 0) {
             mob->target = nullptr;
             mob->state = MobState::RETREAT;
-            if (!MobAI::aggroCheck(mob, getTime())) {
-                MobAI::clearDebuff(mob);
+            if (!aggroCheck(mob, getTime())) {
+                clearDebuff(mob);
                 if (mob->groupLeader != 0)
-                    MobAI::groupRetreat(mob);
+                    groupRetreat(mob);
             }
         }
     }
@@ -463,8 +465,8 @@ static void deadStep(Mob *mob, time_t currTime) {
 
     // if mob is a group leader/follower, spawn where the group is.
     if (mob->groupLeader != 0) {
-        if (MobAI::Mobs.find(mob->groupLeader) != MobAI::Mobs.end()) {
-            Mob* leaderMob = MobAI::Mobs[mob->groupLeader];
+        if (Mobs.find(mob->groupLeader) != Mobs.end()) {
+            Mob* leaderMob = Mobs[mob->groupLeader];
             mob->appearanceData.iX = leaderMob->appearanceData.iX + mob->offsetX;
             mob->appearanceData.iY = leaderMob->appearanceData.iY + mob->offsetY;
             mob->appearanceData.iZ = leaderMob->appearanceData.iZ;
@@ -488,10 +490,10 @@ static void combatStep(Mob *mob, time_t currTime) {
     if (PlayerManager::players.find(mob->target) == PlayerManager::players.end()) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        if (!MobAI::aggroCheck(mob, currTime)) {
-            MobAI::clearDebuff(mob);
+        if (!aggroCheck(mob, currTime)) {
+            clearDebuff(mob);
             if (mob->groupLeader != 0)
-                MobAI::groupRetreat(mob);
+                groupRetreat(mob);
         }
         return;
     }
@@ -503,10 +505,10 @@ static void combatStep(Mob *mob, time_t currTime) {
      || (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE)) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        if (!MobAI::aggroCheck(mob, currTime)) {
-            MobAI::clearDebuff(mob);
+        if (!aggroCheck(mob, currTime)) {
+            clearDebuff(mob);
             if (mob->groupLeader != 0)
-                MobAI::groupRetreat(mob);
+                groupRetreat(mob);
         }
         return;
     }
@@ -615,9 +617,9 @@ static void combatStep(Mob *mob, time_t currTime) {
     if (distance >= mob->data["m_iCombatRange"]) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        MobAI::clearDebuff(mob);
+        clearDebuff(mob);
         if (mob->groupLeader != 0)
-            MobAI::groupRetreat(mob);
+            groupRetreat(mob);
     }
 }
 
@@ -637,7 +639,7 @@ static void roamingStep(Mob *mob, time_t currTime) {
      */
     if (mob->state != MobState::DEAD && (mob->nextAttack == 0 || currTime >= mob->nextAttack)) {
         mob->nextAttack = currTime + 500;
-        if (MobAI::aggroCheck(mob, currTime))
+        if (aggroCheck(mob, currTime))
             return;
     }
 
@@ -655,7 +657,7 @@ static void roamingStep(Mob *mob, time_t currTime) {
      */
     if (mob->nextMovement != 0 && currTime < mob->nextMovement)
         return;
-    MobAI::incNextMovement(mob, currTime);
+    incNextMovement(mob, currTime);
 
     int xStart = mob->spawnX - mob->idleRange/2;
     int yStart = mob->spawnY - mob->idleRange/2;
@@ -702,13 +704,13 @@ static void roamingStep(Mob *mob, time_t currTime) {
             if (mob->groupMember[i] == 0)
                 break;
 
-            if (MobAI::Mobs.find(mob->groupMember[i]) == MobAI::Mobs.end()) {
+            if (Mobs.find(mob->groupMember[i]) == Mobs.end()) {
                 std::cout << "[WARN] roamingStep: leader can't find a group member!" << std::endl;
                 continue;
             }
 
             std::queue<WarpLocation> queue2;
-            Mob* followerMob = MobAI::Mobs[mob->groupMember[i]];
+            Mob* followerMob = Mobs[mob->groupMember[i]];
             from = { followerMob->appearanceData.iX, followerMob->appearanceData.iY, followerMob->appearanceData.iZ };
             to = { farX + followerMob->offsetX, farY + followerMob->offsetY, followerMob->appearanceData.iZ };
             TransportManager::lerp(&queue2, from, to, speed);
@@ -758,17 +760,17 @@ static void retreatStep(Mob *mob, time_t currTime) {
             if (pwr.skillType == NanoManager::SkillTable[110].skillType)
                 pwr.handle(mob, targetData, 110, NanoManager::SkillTable[110].durationTime[0], NanoManager::SkillTable[110].powerIntensity[0]);
         // clear outlying debuffs
-        MobAI::clearDebuff(mob);
+        clearDebuff(mob);
     }
 }
 
 static void step(CNServer *serv, time_t currTime) {
-    for (auto& pair : MobAI::Mobs) {
+    for (auto& pair : Mobs) {
         if (pair.second->playersInView < 0)
             std::cout << "[WARN] Weird playerview value " << pair.second->playersInView << std::endl;
 
         // skip mob movement and combat if disabled or not in view
-        if ((!MobAI::simulateMobs || pair.second->playersInView == 0) && pair.second->state != MobState::DEAD
+        if ((!simulateMobs || pair.second->playersInView == 0) && pair.second->state != MobState::DEAD
         && pair.second->state != MobState::RETREAT)
             continue;
 

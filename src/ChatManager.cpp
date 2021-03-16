@@ -7,23 +7,9 @@
 
 std::vector<std::string> ChatManager::dump;
 
-void ChatManager::init() {
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_MENUCHAT_MESSAGE, menuChatHandler);
+using namespace ChatManager;
 
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE, buddyChatHandler);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE, buddyMenuChatHandler);
-
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_EMOTES_CHAT, tradeChatHandler);
-
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_ALL_GROUP_FREECHAT_MESSAGE, groupChatHandler);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE, groupMenuChatHandler);
-
-    REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_ANNOUNCE, announcementHandler);
-}
-
-void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
+static void chatHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE))
         return; // malformed packet
 
@@ -57,7 +43,7 @@ void ChatManager::chatHandler(CNSocket* sock, CNPacketData* data) {
     PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC));
 }
 
-void ChatManager::menuChatHandler(CNSocket* sock, CNPacketData* data) {
+static void menuChatHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SEND_MENUCHAT_MESSAGE))
         return; // malformed packet
 
@@ -83,7 +69,7 @@ void ChatManager::menuChatHandler(CNSocket* sock, CNPacketData* data) {
     PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC));
 }
 
-void ChatManager::emoteHandler(CNSocket* sock, CNPacketData* data) {
+static void emoteHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT))
         return; // ignore the malformed packet
 
@@ -113,7 +99,7 @@ void ChatManager::sendServerMessage(CNSocket* sock, std::string msg) {
     sock->sendPacket((void*)&motd, P_FE2CL_PC_MOTD_LOGIN, sizeof(sP_FE2CL_PC_MOTD_LOGIN));
 }
 
-void ChatManager::announcementHandler(CNSocket* sock, CNPacketData* data) {
+static void announcementHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_GM_REQ_PC_ANNOUNCE))
         return; // ignore malformed packet
 
@@ -151,7 +137,7 @@ void ChatManager::announcementHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 // Buddy freechatting
-void ChatManager::buddyChatHandler(CNSocket* sock, CNPacketData* data) {
+static void buddyChatHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE))
         return; // malformed packet
 
@@ -171,7 +157,7 @@ void ChatManager::buddyChatHandler(CNSocket* sock, CNPacketData* data) {
     resp.iToPCUID = pkt->iBuddyPCUID;
     resp.iEmoteCode = pkt->iEmoteCode;
 
-    std::string fullChat = ChatManager::sanitizeText(U16toU8(pkt->szFreeChat));
+    std::string fullChat = sanitizeText(U16toU8(pkt->szFreeChat));
 
     if (fullChat.length() > 1 && fullChat[0] == CMD_PREFIX) { // PREFIX
         CustomCommands::runCmd(fullChat, sock);
@@ -183,7 +169,7 @@ void ChatManager::buddyChatHandler(CNSocket* sock, CNPacketData* data) {
 
     std::string logLine = "[BuddyChat] " + PlayerManager::getPlayerName(plr) + " (to " + PlayerManager::getPlayerName(otherPlr) + "): " + fullChat;
     std::cout << logLine << std::endl;
-    ChatManager::dump.push_back(logLine);
+    dump.push_back(logLine);
 
     U8toU16(fullChat, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
 
@@ -192,7 +178,7 @@ void ChatManager::buddyChatHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 // Buddy menuchat
-void ChatManager::buddyMenuChatHandler(CNSocket* sock, CNPacketData* data) {
+static void buddyMenuChatHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE))
         return; // malformed packet
 
@@ -212,11 +198,11 @@ void ChatManager::buddyMenuChatHandler(CNSocket* sock, CNPacketData* data) {
     resp.iToPCUID = pkt->iBuddyPCUID;
     resp.iEmoteCode = pkt->iEmoteCode;
 
-    std::string fullChat = ChatManager::sanitizeText(U16toU8(pkt->szFreeChat));
+    std::string fullChat = sanitizeText(U16toU8(pkt->szFreeChat));
     std::string logLine = "[BuddyMenuChat] " + PlayerManager::getPlayerName(plr) + " (to " + PlayerManager::getPlayerName(otherPlr) + "): " + fullChat;
 
     std::cout << logLine << std::endl;
-    ChatManager::dump.push_back(logLine);
+    dump.push_back(logLine);
 
     U8toU16(fullChat, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
 
@@ -224,7 +210,7 @@ void ChatManager::buddyMenuChatHandler(CNSocket* sock, CNPacketData* data) {
     otherSock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC)); // broadcast send to receiver
 }
 
-void ChatManager::tradeChatHandler(CNSocket* sock, CNPacketData* data) {
+static void tradeChatHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_EMOTES_CHAT))
         return; // malformed packet
     sP_CL2FE_REQ_PC_TRADE_EMOTES_CHAT* pacdat = (sP_CL2FE_REQ_PC_TRADE_EMOTES_CHAT*)data->buf;
@@ -245,20 +231,20 @@ void ChatManager::tradeChatHandler(CNSocket* sock, CNPacketData* data) {
     resp.iID_Request = pacdat->iID_Request;
     resp.iID_From = pacdat->iID_From;
     resp.iID_To = pacdat->iID_To;
-    std::string fullChat = ChatManager::sanitizeText(U16toU8(pacdat->szFreeChat));
+    std::string fullChat = sanitizeText(U16toU8(pacdat->szFreeChat));
     U8toU16(fullChat, resp.szFreeChat, sizeof(resp.szFreeChat));
 
     std::string logLine = "[TradeChat] " + PlayerManager::getPlayerName(plr) + " (to " + PlayerManager::getPlayerName(otherPlr) + "): " + fullChat;
 
     std::cout << logLine << std::endl;
-    ChatManager::dump.push_back(logLine);
+    dump.push_back(logLine);
 
     resp.iEmoteCode = pacdat->iEmoteCode;
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_EMOTES_CHAT, sizeof(sP_FE2CL_REP_PC_TRADE_EMOTES_CHAT));
     otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_EMOTES_CHAT, sizeof(sP_FE2CL_REP_PC_TRADE_EMOTES_CHAT));
 }
 
-void ChatManager::groupChatHandler(CNSocket* sock, CNPacketData* data) {
+static void groupChatHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SEND_ALL_GROUP_FREECHAT_MESSAGE))
         return; // malformed packet
 
@@ -269,7 +255,7 @@ void ChatManager::groupChatHandler(CNSocket* sock, CNPacketData* data) {
     if (otherPlr == nullptr)
         return;
 
-    std::string fullChat = ChatManager::sanitizeText(U16toU8(chat->szFreeChat));
+    std::string fullChat = sanitizeText(U16toU8(chat->szFreeChat));
 
     if (fullChat.length() > 1 && fullChat[0] == CMD_PREFIX) { // PREFIX
         CustomCommands::runCmd(fullChat, sock);
@@ -281,7 +267,7 @@ void ChatManager::groupChatHandler(CNSocket* sock, CNPacketData* data) {
 
     std::string logLine = "[GroupChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
     std::cout << logLine << std::endl;
-    ChatManager::dump.push_back(logLine);
+    dump.push_back(logLine);
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC, resp);
@@ -293,7 +279,7 @@ void ChatManager::groupChatHandler(CNSocket* sock, CNPacketData* data) {
     GroupManager::sendToGroup(otherPlr, (void*)&resp, P_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC));
 }
 
-void ChatManager::groupMenuChatHandler(CNSocket* sock, CNPacketData* data) {
+static void groupMenuChatHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE))
         return; // malformed packet
 
@@ -304,11 +290,11 @@ void ChatManager::groupMenuChatHandler(CNSocket* sock, CNPacketData* data) {
     if (otherPlr == nullptr)
         return;
 
-    std::string fullChat = ChatManager::sanitizeText(U16toU8(chat->szFreeChat));
+    std::string fullChat = sanitizeText(U16toU8(chat->szFreeChat));
     std::string logLine = "[GroupMenuChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
 
     std::cout << logLine << std::endl;
-    ChatManager::dump.push_back(logLine);
+    dump.push_back(logLine);
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC, resp);
@@ -342,4 +328,20 @@ std::string ChatManager::sanitizeText(std::string text, bool allowNewlines) {
     buf[i] = 0;
 
     return std::string(buf);
+}
+
+void ChatManager::init() {
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_FREECHAT_MESSAGE, chatHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT, emoteHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_MENUCHAT_MESSAGE, menuChatHandler);
+
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE, buddyChatHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE, buddyMenuChatHandler);
+
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_EMOTES_CHAT, tradeChatHandler);
+
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_ALL_GROUP_FREECHAT_MESSAGE, groupChatHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE, groupMenuChatHandler);
+
+    REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_ANNOUNCE, announcementHandler);
 }

@@ -69,20 +69,11 @@ namespace NPCManager {
 
     void sendToViewable(BaseNPC* npc, void* buf, uint32_t type, size_t size);
 
-    void npcBarkHandler(CNSocket* sock, CNPacketData* data);
-    void npcSummonHandler(CNSocket* sock, CNPacketData* data);
-    void npcUnsummonHandler(CNSocket* sock, CNPacketData* data);
-    void npcWarpHandler(CNSocket* sock, CNPacketData* data);
-    void npcWarpTimeMachine(CNSocket* sock, CNPacketData* data);
-
-    void handleWarp(CNSocket* sock, int32_t warpId);
     BaseNPC *summonNPC(int x, int y, int z, uint64_t instance, int type, bool respawn=false, bool baseInstance=false);
 
     BaseNPC* getNearestNPC(std::set<Chunk*>* chunks, int X, int Y, int Z);
 
     /// returns -1 on fail
     int eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration);
-    void eggStep(CNServer* serv, time_t currTime);
     void npcDataToEggData(sNPCAppearanceData* npc, sShinyAppearanceData* egg);
-    void eggPickup(CNSocket* sock, CNPacketData* data);
 }

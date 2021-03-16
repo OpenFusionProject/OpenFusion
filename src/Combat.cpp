@@ -11,25 +11,51 @@
 
 #include <assert.h>
 
+using namespace Combat;
+
 /// Player Id -> Bullet Id -> Bullet
 std::map<int32_t, std::map<int8_t, Bullet>> Combat::Bullets;
 
-void Combat::init() {
-    REGISTER_SHARD_TIMER(playerTick, 2000);
+static std::pair<int,int> getDamage(int attackPower, int defensePower, bool shouldCrit,
+                                         bool batteryBoost, int attackerStyle,
+                                         int defenderStyle, int difficulty) {
+    std::pair<int,int> ret = {0, 1};
+    if (attackPower + defensePower * 2 == 0)
+        return ret;
 
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ATTACK_NPCs, pcAttackNpcs);
+    // base calculation
+    int damage = attackPower * attackPower / (attackPower + defensePower);
+    damage = std::max(10 + attackPower / 10, damage - (defensePower - attackPower / 6) * difficulty / 100);
+    damage = damage * (rand() % 40 + 80) / 100;
 
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_COMBAT_BEGIN, combatBegin);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_COMBAT_END, combatEnd);
-    REGISTER_SHARD_PACKET(P_CL2FE_DOT_DAMAGE_ONOFF, dotDamageOnOff);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ATTACK_CHARs, pcAttackChars);
+    // Adaptium/Blastons/Cosmix
+    if (attackerStyle != -1 && defenderStyle != -1 && attackerStyle != defenderStyle) {
+        if (attackerStyle - defenderStyle == 2)
+            defenderStyle += 3;
+        if (defenderStyle - attackerStyle == 2)
+            defenderStyle -= 3;
+        if (attackerStyle < defenderStyle) 
+            damage = damage * 5 / 4;
+        else
+            damage = damage * 4 / 5;
+    }
 
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GRENADE_STYLE_FIRE, grenadeFire);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ROCKET_STYLE_FIRE, rocketFire);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ROCKET_STYLE_HIT, projectileHit);
+    // weapon boosts
+    if (batteryBoost)
+        damage = damage * 5 / 4;
+
+    ret.first = damage;
+    ret.second = 1;
+
+    if (shouldCrit && rand() % 20 == 0) {
+        ret.first *= 2; // critical hit
+        ret.second = 2;
+    }
+
+    return ret;
 }
 
-void Combat::pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
+static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_REQ_PC_ATTACK_NPCs* pkt = (sP_CL2FE_REQ_PC_ATTACK_NPCs*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
@@ -271,7 +297,7 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
     }
 }
 
-void Combat::combatBegin(CNSocket *sock, CNPacketData *data) {
+static void combatBegin(CNSocket *sock, CNPacketData *data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     plr->inCombat = true;
@@ -286,7 +312,7 @@ void Combat::combatBegin(CNSocket *sock, CNPacketData *data) {
     PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
 }
 
-void Combat::combatEnd(CNSocket *sock, CNPacketData *data) {
+static void combatEnd(CNSocket *sock, CNPacketData *data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     if (plr != nullptr) {
@@ -295,7 +321,7 @@ void Combat::combatEnd(CNSocket *sock, CNPacketData *data) {
     }
 }
 
-void Combat::dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
+static void dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_DOT_DAMAGE_ONOFF *pkt = (sP_CL2FE_DOT_DAMAGE_ONOFF*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
@@ -312,7 +338,7 @@ void Combat::dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
     sock->sendPacket((void*)&pkt1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
 }
 
-void Combat::dealGooDamage(CNSocket *sock, int amount) {
+static void dealGooDamage(CNSocket *sock, int amount) {
     size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_DotDamage);
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
@@ -358,46 +384,7 @@ void Combat::dealGooDamage(CNSocket *sock, int amount) {
     PlayerManager::sendToViewable(sock, (void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
 }
 
-std::pair<int,int> Combat::getDamage(int attackPower, int defensePower, bool shouldCrit,
-                                         bool batteryBoost, int attackerStyle,
-                                         int defenderStyle, int difficulty) {
-    std::pair<int,int> ret = {0, 1};
-    if (attackPower + defensePower * 2 == 0)
-        return ret;
-
-    // base calculation
-    int damage = attackPower * attackPower / (attackPower + defensePower);
-    damage = std::max(10 + attackPower / 10, damage - (defensePower - attackPower / 6) * difficulty / 100);
-    damage = damage * (rand() % 40 + 80) / 100;
-
-    // Adaptium/Blastons/Cosmix
-    if (attackerStyle != -1 && defenderStyle != -1 && attackerStyle != defenderStyle) {
-        if (attackerStyle - defenderStyle == 2)
-            defenderStyle += 3;
-        if (defenderStyle - attackerStyle == 2)
-            defenderStyle -= 3;
-        if (attackerStyle < defenderStyle) 
-            damage = damage * 5 / 4;
-        else
-            damage = damage * 4 / 5;
-    }
-
-    // weapon boosts
-    if (batteryBoost)
-        damage = damage * 5 / 4;
-
-    ret.first = damage;
-    ret.second = 1;
-
-    if (shouldCrit && rand() % 20 == 0) {
-        ret.first *= 2; // critical hit
-        ret.second = 2;
-    }
-
-    return ret;
-}
-
-void Combat::pcAttackChars(CNSocket *sock, CNPacketData *data) {
+static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_REQ_PC_ATTACK_CHARs* pkt = (sP_CL2FE_REQ_PC_ATTACK_CHARs*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
@@ -514,65 +501,7 @@ void Combat::pcAttackChars(CNSocket *sock, CNPacketData *data) {
     PlayerManager::sendToViewable(sock, (void*)respbuf, P_FE2CL_PC_ATTACK_CHARs, resplen);
 }
 
-void Combat::grenadeFire(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_GRENADE_STYLE_FIRE* grenade = (sP_CL2FE_REQ_PC_GRENADE_STYLE_FIRE*)data->buf;
-    Player* plr = PlayerManager::getPlayer(sock);
-
-    INITSTRUCT(sP_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC, resp);
-    resp.iToX = grenade->iToX;
-    resp.iToY = grenade->iToY;
-    resp.iToZ = grenade->iToZ;
-
-    resp.iBulletID = addBullet(plr, true);
-    resp.iBatteryW = plr->batteryW;
-
-    // 1 means grenade
-    resp.Bullet.iID = 1;
-    sock->sendPacket(&resp, P_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC, sizeof(sP_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC));
-
-    // send packet to nearby players
-    INITSTRUCT(sP_FE2CL_PC_GRENADE_STYLE_FIRE, toOthers);
-    toOthers.iPC_ID = plr->iID;
-    toOthers.iToX = resp.iToX;
-    toOthers.iToY = resp.iToY;
-    toOthers.iToZ = resp.iToZ;
-    toOthers.iBulletID = resp.iBulletID;
-    toOthers.Bullet.iID = resp.Bullet.iID;
-
-    PlayerManager::sendToViewable(sock, &toOthers, P_FE2CL_PC_GRENADE_STYLE_FIRE, sizeof(sP_FE2CL_PC_GRENADE_STYLE_FIRE));
-}
-
-void Combat::rocketFire(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_ROCKET_STYLE_FIRE* rocket = (sP_CL2FE_REQ_PC_ROCKET_STYLE_FIRE*)data->buf;
-    Player* plr = PlayerManager::getPlayer(sock);
-
-    // We should be sending back rocket succ packet, but it doesn't work, and this one works
-    INITSTRUCT(sP_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC, resp);
-    resp.iToX = rocket->iToX;
-    resp.iToY = rocket->iToY;
-    // rocket->iToZ is broken, this seems like a good height
-    resp.iToZ = plr->z + 100;
-
-    resp.iBulletID = addBullet(plr, false);
-    // we have to send it weapon id
-    resp.Bullet.iID = plr->Equip[0].iID;
-    resp.iBatteryW = plr->batteryW;
-
-    sock->sendPacket(&resp, P_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC, sizeof(sP_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC));
-
-    // send packet to nearby players
-    INITSTRUCT(sP_FE2CL_PC_GRENADE_STYLE_FIRE, toOthers);
-    toOthers.iPC_ID = plr->iID;
-    toOthers.iToX = resp.iToX;
-    toOthers.iToY = resp.iToY;
-    toOthers.iToZ = resp.iToZ;
-    toOthers.iBulletID = resp.iBulletID;
-    toOthers.Bullet.iID = resp.Bullet.iID;
-
-    PlayerManager::sendToViewable(sock, &toOthers, P_FE2CL_PC_GRENADE_STYLE_FIRE, sizeof(sP_FE2CL_PC_GRENADE_STYLE_FIRE));
-}
-
-int8_t Combat::addBullet(Player* plr, bool isGrenade) {
+static int8_t addBullet(Player* plr, bool isGrenade) {
 
     int8_t findId = 0;
     if (Bullets.find(plr->iID) != Bullets.end()) {
@@ -605,7 +534,65 @@ int8_t Combat::addBullet(Player* plr, bool isGrenade) {
     return findId;
 }
 
-void Combat::projectileHit(CNSocket* sock, CNPacketData* data) {
+static void grenadeFire(CNSocket* sock, CNPacketData* data) {
+    sP_CL2FE_REQ_PC_GRENADE_STYLE_FIRE* grenade = (sP_CL2FE_REQ_PC_GRENADE_STYLE_FIRE*)data->buf;
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    INITSTRUCT(sP_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC, resp);
+    resp.iToX = grenade->iToX;
+    resp.iToY = grenade->iToY;
+    resp.iToZ = grenade->iToZ;
+
+    resp.iBulletID = addBullet(plr, true);
+    resp.iBatteryW = plr->batteryW;
+
+    // 1 means grenade
+    resp.Bullet.iID = 1;
+    sock->sendPacket(&resp, P_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC, sizeof(sP_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC));
+
+    // send packet to nearby players
+    INITSTRUCT(sP_FE2CL_PC_GRENADE_STYLE_FIRE, toOthers);
+    toOthers.iPC_ID = plr->iID;
+    toOthers.iToX = resp.iToX;
+    toOthers.iToY = resp.iToY;
+    toOthers.iToZ = resp.iToZ;
+    toOthers.iBulletID = resp.iBulletID;
+    toOthers.Bullet.iID = resp.Bullet.iID;
+
+    PlayerManager::sendToViewable(sock, &toOthers, P_FE2CL_PC_GRENADE_STYLE_FIRE, sizeof(sP_FE2CL_PC_GRENADE_STYLE_FIRE));
+}
+
+static void rocketFire(CNSocket* sock, CNPacketData* data) {
+    sP_CL2FE_REQ_PC_ROCKET_STYLE_FIRE* rocket = (sP_CL2FE_REQ_PC_ROCKET_STYLE_FIRE*)data->buf;
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    // We should be sending back rocket succ packet, but it doesn't work, and this one works
+    INITSTRUCT(sP_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC, resp);
+    resp.iToX = rocket->iToX;
+    resp.iToY = rocket->iToY;
+    // rocket->iToZ is broken, this seems like a good height
+    resp.iToZ = plr->z + 100;
+
+    resp.iBulletID = addBullet(plr, false);
+    // we have to send it weapon id
+    resp.Bullet.iID = plr->Equip[0].iID;
+    resp.iBatteryW = plr->batteryW;
+
+    sock->sendPacket(&resp, P_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC, sizeof(sP_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC));
+
+    // send packet to nearby players
+    INITSTRUCT(sP_FE2CL_PC_GRENADE_STYLE_FIRE, toOthers);
+    toOthers.iPC_ID = plr->iID;
+    toOthers.iToX = resp.iToX;
+    toOthers.iToY = resp.iToY;
+    toOthers.iToZ = resp.iToZ;
+    toOthers.iBulletID = resp.iBulletID;
+    toOthers.Bullet.iID = resp.Bullet.iID;
+
+    PlayerManager::sendToViewable(sock, &toOthers, P_FE2CL_PC_GRENADE_STYLE_FIRE, sizeof(sP_FE2CL_PC_GRENADE_STYLE_FIRE));
+}
+
+static void projectileHit(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_ROCKET_STYLE_HIT* pkt = (sP_CL2FE_REQ_PC_ROCKET_STYLE_HIT*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
@@ -699,7 +686,7 @@ void Combat::projectileHit(CNSocket* sock, CNPacketData* data) {
     Bullets[plr->iID].erase(resp->iBulletID);
 }
 
-void Combat::playerTick(CNServer *serv, time_t currTime) {
+static void playerTick(CNServer *serv, time_t currTime) {
     static time_t lastHealTime = 0;
 
     for (auto& pair : PlayerManager::players) {
@@ -779,4 +766,19 @@ void Combat::playerTick(CNServer *serv, time_t currTime) {
     // if this was a heal tick, update the counter outside of the loop
     if (currTime - lastHealTime >= 4000)
         lastHealTime = currTime;
+}
+
+void Combat::init() {
+    REGISTER_SHARD_TIMER(playerTick, 2000);
+
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ATTACK_NPCs, pcAttackNpcs);
+
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_COMBAT_BEGIN, combatBegin);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_COMBAT_END, combatEnd);
+    REGISTER_SHARD_PACKET(P_CL2FE_DOT_DAMAGE_ONOFF, dotDamageOnOff);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ATTACK_CHARs, pcAttackChars);
+
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GRENADE_STYLE_FIRE, grenadeFire);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ROCKET_STYLE_FIRE, rocketFire);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ROCKET_STYLE_HIT, projectileHit);
 }

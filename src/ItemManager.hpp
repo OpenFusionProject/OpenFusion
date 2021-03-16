@@ -57,15 +57,8 @@ namespace ItemManager {
 
     void init();
 
-    // crate opening logic with all helper functions
-    int getItemSetId(Crate& crate, int crateId);
-    int getRarity(Crate& crate, int itemSetId);
-    int getCrateItem(sItemBase& reward, int itemSetId, int rarity, int playerGender);
-
     // mob drops
     void giveMobDrop(CNSocket *sock, Mob *mob, int rolledBoosts, int rolledPotions, int rolledCrate, int rolledCrateType, int rolledEvent);
-    void getMobDrop(sItemBase *reward, MobDrop *drop, MobDropChance *chance, int rolled);
-    void giveEventDrop(CNSocket* sock, Player* player, int rolled);
 
     int findFreeSlot(Player *plr);
     Item* getItemData(int32_t id, int32_t type);

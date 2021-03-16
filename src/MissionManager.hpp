@@ -42,22 +42,12 @@ namespace MissionManager {
     void init();
 
     bool startTask(Player* plr, int TaskID);
-    void taskStart(CNSocket* sock, CNPacketData* data);
-    void taskEnd(CNSocket* sock, CNPacketData* data);
-    void setMission(CNSocket* sock, CNPacketData* data);
-    void quitMission(CNSocket* sock, CNPacketData* data);
 
-    int findQSlot(Player *plr, int id);
-    void dropQuestItem(CNSocket *sock, int task, int count, int id, int mobid);
     // checks if player doesn't have n/n quest items
-    bool isQuestItemFull(CNSocket* sock, int itemId, int itemCount);
-    int giveMissionReward(CNSocket *sock, int task, int choice=0);
     void updateFusionMatter(CNSocket* sock, int fusion);
 
     void mobKilled(CNSocket *sock, int mobid, int rolledQItem);
 
-    bool endTask(CNSocket *sock, int32_t taskNum, int choice=0);
-    void saveMission(Player* player, int missionId);
     void quitTask(CNSocket* sock, int32_t taskNum, bool manual);
 
     void failInstancedMissions(CNSocket* sock);

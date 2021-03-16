@@ -28,14 +28,7 @@ namespace TransportManager {
 
     void init();
 
-    void transportRegisterLocationHandler(CNSocket*, CNPacketData*);
-    void transportWarpHandler(CNSocket*, CNPacketData*);
-
     void testMssRoute(CNSocket *sock, std::vector<WarpLocation>* route);
-
-    void tickTransportationSystem(CNServer*, time_t);
-    void stepNPCPathing();
-    void stepSkywaySystem();
 
     void lerp(std::queue<WarpLocation>*, WarpLocation, WarpLocation, int, float);
     void lerp(std::queue<WarpLocation>*, WarpLocation, WarpLocation, int);

@@ -15,6 +15,8 @@
 #include <fstream>
 #include <cmath>
 
+using namespace TableData;
+
 std::map<int32_t, std::vector<WarpLocation>> TableData::RunningSkywayRoutes;
 std::map<int32_t, int> TableData::RunningNPCRotations;
 std::map<int32_t, int> TableData::RunningNPCMapNumbers;
@@ -30,6 +32,526 @@ public:
 
     const char *what() const throw() { return msg.c_str(); }
 };
+
+/*
+ * Create a full and properly-paced path by interpolating between keyframes.
+ */
+static void constructPathSkyway(nlohmann::json::iterator _pathData) {
+    auto pathData = _pathData.value();
+    // Interpolate
+    nlohmann::json pathPoints = pathData["points"];
+    std::queue<WarpLocation> points;
+    nlohmann::json::iterator _point = pathPoints.begin();
+    auto point = _point.value();
+    WarpLocation last = { point["iX"] , point["iY"] , point["iZ"] }; // start pos
+    // use some for loop trickery; start position should not be a point
+    for (_point++; _point != pathPoints.end(); _point++) {
+        point = _point.value();
+        WarpLocation coords = { point["iX"] , point["iY"] , point["iZ"] };
+        TransportManager::lerp(&points, last, coords, pathData["iMonkeySpeed"]);
+        points.push(coords); // add keyframe to the queue
+        last = coords; // update start pos
+    }
+    TransportManager::SkywayPaths[pathData["iRouteID"]] = points;
+}
+
+static void constructPathNPC(nlohmann::json::iterator _pathData, int32_t id=0) {
+    auto pathData = _pathData.value();
+    // Interpolate
+    nlohmann::json pathPoints = pathData["points"];
+    std::queue<WarpLocation> points;
+    nlohmann::json::iterator _point = pathPoints.begin();
+    auto point = _point.value();
+    WarpLocation from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
+    int stopTime = point["stop"];
+    for (_point++; _point != pathPoints.end(); _point++) { // loop through all point Bs
+        point = _point.value();
+        for(int i = 0; i < stopTime + 1; i++) // repeat point if it's a stop
+            points.push(from); // add point A to the queue
+        WarpLocation to = { point["iX"] , point["iY"] , point["iZ"] }; // point B coords
+        TransportManager::lerp(&points, from, to, pathData["iBaseSpeed"]); // lerp from A to B
+        from = to; // update point A
+        stopTime = point["stop"];
+    }
+
+    if (id == 0)
+        id = pathData["iNPCID"];
+
+    TransportManager::NPCQueues[id] = points;
+}
+
+/*
+ * Load paths from paths JSON.
+ */
+static void loadPaths(int* nextId) {
+    try {
+        std::ifstream inFile(settings::PATHJSON);
+        nlohmann::json pathData;
+
+        // read file into json
+        inFile >> pathData;
+
+        // skyway paths
+        nlohmann::json pathDataSkyway = pathData["skyway"];
+        for (nlohmann::json::iterator skywayPath = pathDataSkyway.begin(); skywayPath != pathDataSkyway.end(); skywayPath++) {
+            constructPathSkyway(skywayPath);
+        }
+        std::cout << "[INFO] Loaded " << TransportManager::SkywayPaths.size() << " skyway paths" << std::endl;
+
+        // slider circuit
+        nlohmann::json pathDataSlider = pathData["slider"];
+        // lerp between keyframes
+        std::queue<WarpLocation> route;
+        // initial point
+        nlohmann::json::iterator _point = pathDataSlider.begin(); // iterator
+        auto point = _point.value();
+        WarpLocation from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
+        int stopTime = point["stop"] ? SLIDER_STOP_TICKS : 0; // arbitrary stop length
+        // remaining points
+        for (_point++; _point != pathDataSlider.end(); _point++) { // loop through all point Bs
+            point = _point.value();
+            for (int i = 0; i < stopTime + 1; i++) { // repeat point if it's a stop
+                route.push(from); // add point A to the queue
+            }
+            WarpLocation to = { point["iX"] , point["iY"] , point["iZ"] }; // point B coords
+            // we may need to change this later; right now, the speed is cut before and after stops (no accel)
+            float curve = 1;
+            if (stopTime > 0) { // point A is a stop
+                curve = 0.375f;//2.0f;
+            } else if (point["stop"]) { // point B is a stop
+                curve = 0.375f;//0.35f;
+            }
+            TransportManager::lerp(&route, from, to, SLIDER_SPEED * curve, 1); // lerp from A to B (arbitrary speed)
+            from = to; // update point A
+            stopTime = point["stop"] ? SLIDER_STOP_TICKS : 0; // set stop ticks for next point A
+        }
+        // Uniform distance calculation
+        int passedDistance = 0;
+        // initial point
+        int pos = 0;
+        WarpLocation lastPoint = route.front();
+        route.pop();
+        route.push(lastPoint);
+        for (pos = 1; pos < route.size(); pos++) {
+            WarpLocation point = route.front();
+            passedDistance += hypot(point.x - lastPoint.x, point.y - lastPoint.y);
+            if (passedDistance >= SLIDER_GAP_SIZE) { // space them out uniformaly
+                passedDistance -= SLIDER_GAP_SIZE; // step down
+                // spawn a slider
+                BaseNPC* slider = new BaseNPC(point.x, point.y, point.z, 0, INSTANCE_OVERWORLD, 1, (*nextId)++, NPC_BUS);
+                NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
+                NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->appearanceData.iX, slider->appearanceData.iY, slider->appearanceData.iZ, INSTANCE_OVERWORLD, 0);
+                TransportManager::NPCQueues[slider->appearanceData.iNPC_ID] = route;
+            }
+            // rotate
+            route.pop();
+            route.push(point);
+            lastPoint = point;
+        }
+
+        // npc paths
+        nlohmann::json pathDataNPC = pathData["npc"];
+        /*
+        for (nlohmann::json::iterator npcPath = pathDataNPC.begin(); npcPath != pathDataNPC.end(); npcPath++) {
+            constructPathNPC(npcPath);
+        }
+        */
+
+        // mob paths
+        pathDataNPC = pathData["mob"];
+        for (nlohmann::json::iterator npcPath = pathDataNPC.begin(); npcPath != pathDataNPC.end(); npcPath++) {
+            for (auto& pair : MobAI::Mobs) {
+                if (pair.second->appearanceData.iNPCType == npcPath.value()["iNPCType"]) {
+                    std::cout << "[INFO] Using static path for mob " << pair.second->appearanceData.iNPCType << " with ID " << pair.first << std::endl;
+
+                    auto firstPoint = npcPath.value()["points"][0];
+                    if (firstPoint["iX"] != pair.second->spawnX || firstPoint["iY"] != pair.second->spawnY) {
+                        std::cout << "[FATAL] The first point of the route for mob " << pair.first <<
+                            " (type " << pair.second->appearanceData.iNPCType << ") does not correspond with its spawn point." << std::endl;
+                        exit(1);
+                    }
+
+                    constructPathNPC(npcPath, pair.first);
+                    pair.second->staticPath = true;
+                    break; // only one NPC per path
+                }
+            }
+        }
+        std::cout << "[INFO] Loaded " << TransportManager::NPCQueues.size() << " NPC paths" << std::endl;
+    }
+    catch (const std::exception& err) {
+        std::cerr << "[FATAL] Malformed paths.json file! Reason:" << err.what() << std::endl;
+        exit(1);
+    }
+}
+
+/*
+ * Load drops data from JSON.
+ * This has to be called after reading xdt because it reffers to ItemData!!!
+ */
+static void loadDrops() {
+    try {
+        std::ifstream inFile(settings::DROPSJSON);
+        nlohmann::json dropData;
+
+        // read file into json
+        inFile >> dropData;
+
+        // MobDropChances
+        nlohmann::json mobDropChances = dropData["MobDropChances"];
+        for (nlohmann::json::iterator _dropChance = mobDropChances.begin(); _dropChance != mobDropChances.end(); _dropChance++) {
+            auto dropChance = _dropChance.value();
+            MobDropChance toAdd = {};
+            toAdd.dropChance = (int)dropChance["DropChance"];
+            for (nlohmann::json::iterator _cratesRatio = dropChance["CratesRatio"].begin(); _cratesRatio != dropChance["CratesRatio"].end(); _cratesRatio++) {
+                toAdd.cratesRatio.push_back((int)_cratesRatio.value());
+            }
+            ItemManager::MobDropChances[(int)dropChance["Type"]] = toAdd;
+        }
+
+        // MobDrops
+        nlohmann::json mobDrops = dropData["MobDrops"];
+        for (nlohmann::json::iterator _drop = mobDrops.begin(); _drop != mobDrops.end(); _drop++) {
+            auto drop = _drop.value();
+            MobDrop toAdd = {};
+            for (nlohmann::json::iterator _crates = drop["CrateIDs"].begin(); _crates != drop["CrateIDs"].end(); _crates++) {
+                toAdd.crateIDs.push_back((int)_crates.value());
+            }
+
+            toAdd.dropChanceType = (int)drop["DropChance"];
+            // Check if DropChance exists
+            if (ItemManager::MobDropChances.find(toAdd.dropChanceType) == ItemManager::MobDropChances.end()) {
+                throw TableException(" MobDropChance not found: " + std::to_string((toAdd.dropChanceType)));
+            }
+            // Check if number of crates is correct
+            if (!(ItemManager::MobDropChances[(int)drop["DropChance"]].cratesRatio.size() == toAdd.crateIDs.size())) {
+                throw TableException(" DropType " + std::to_string((int)drop["DropType"]) + " contains invalid number of crates");
+            }
+
+            toAdd.taros = (int)drop["Taros"];
+            toAdd.fm = (int)drop["FM"];
+            toAdd.boosts = (int)drop["Boosts"];
+            ItemManager::MobDrops[(int)drop["DropType"]] = toAdd;
+        }
+
+        std::cout << "[INFO] Loaded " << ItemManager::MobDrops.size() << " Mob Drop Types"<<  std::endl;
+
+        // Rarity Ratios
+        nlohmann::json rarities = dropData["RarityRatios"];
+        for (nlohmann::json::iterator _rarity = rarities.begin(); _rarity != rarities.end(); _rarity++) {
+            auto rarity = _rarity.value();
+            std::vector<int> toAdd;
+            for (nlohmann::json::iterator _ratio = rarity["Ratio"].begin(); _ratio != rarity["Ratio"].end(); _ratio++){
+                toAdd.push_back((int)_ratio.value());
+            }
+            ItemManager::RarityRatios[(int)rarity["Type"]] = toAdd;
+        }
+
+        // Crates
+        nlohmann::json crates = dropData["Crates"];
+        for (nlohmann::json::iterator _crate = crates.begin(); _crate != crates.end(); _crate++) {
+            auto crate = _crate.value();
+            Crate toAdd;
+            toAdd.rarityRatioId = (int)crate["RarityRatio"];
+            for (nlohmann::json::iterator _itemSet = crate["ItemSets"].begin(); _itemSet != crate["ItemSets"].end(); _itemSet++) {
+                toAdd.itemSets.push_back((int)_itemSet.value());
+            }
+            ItemManager::Crates[(int)crate["Id"]] = toAdd;
+        }
+
+        // Crate Items
+        nlohmann::json items = dropData["Items"];
+        int itemCount = 0;
+        for (nlohmann::json::iterator _item = items.begin(); _item != items.end(); _item++) {
+            auto item = _item.value();
+            std::pair<int32_t, int32_t> itemSetkey = std::make_pair((int)item["ItemSet"], (int)item["Rarity"]);
+            std::pair<int32_t, int32_t> itemDataKey = std::make_pair((int)item["Id"], (int)item["Type"]);
+
+            if (ItemManager::ItemData.find(itemDataKey) == ItemManager::ItemData.end()) {
+                char buff[255];
+                sprintf(buff, "Unknown item with Id %d and Type %d", (int)item["Id"], (int)item["Type"]);
+                throw TableException(std::string(buff));
+            }
+
+            std::map<std::pair<int32_t, int32_t>, ItemManager::Item>::iterator toAdd = ItemManager::ItemData.find(itemDataKey);
+
+            // if item collection doesn't exist, start a new one
+            if (ItemManager::CrateItems.find(itemSetkey) == ItemManager::CrateItems.end()) {
+                std::vector<std::map<std::pair<int32_t, int32_t>, ItemManager::Item>::iterator> vector;
+                vector.push_back(toAdd);
+                ItemManager::CrateItems[itemSetkey] = vector;
+            } else // else add a new element to existing collection
+                ItemManager::CrateItems[itemSetkey].push_back(toAdd);
+
+            itemCount++;
+        }
+
+#ifdef ACADEMY
+        nlohmann::json capsules = dropData["NanoCapsules"];
+
+        for (nlohmann::json::iterator _capsule = capsules.begin(); _capsule != capsules.end(); _capsule++) {
+            auto capsule = _capsule.value();
+            ItemManager::NanoCapsules[(int)capsule["Crate"]] = (int)capsule["Nano"];
+        }
+#endif
+        nlohmann::json codes = dropData["CodeItems"];
+        for (nlohmann::json::iterator _code = codes.begin(); _code != codes.end(); _code++) {
+            auto code = _code.value();
+            std::string codeStr = code["Code"];
+            std::pair<int32_t, int32_t> item = std::make_pair((int)code["Id"], (int)code["Type"]);
+
+            if (ItemManager::CodeItems.find(codeStr) == ItemManager::CodeItems.end())
+                ItemManager::CodeItems[codeStr] = std::vector<std::pair<int32_t, int32_t>>();
+
+            ItemManager::CodeItems[codeStr].push_back(item);
+        }
+
+        std::cout << "[INFO] Loaded " << ItemManager::Crates.size() << " Crates containing "
+                  << itemCount << " items" << std::endl;
+
+        // Racing rewards
+        nlohmann::json racing = dropData["Racing"];
+        for (nlohmann::json::iterator _race = racing.begin(); _race != racing.end(); _race++) {
+            auto race = _race.value();
+            int raceEPID = race["EPID"];
+
+            // find the instance data corresponding to the EPID
+            int EPMap = -1;
+            for (auto it = RacingManager::EPData.begin(); it != RacingManager::EPData.end(); it++) {
+                if (it->second.EPID == raceEPID) {
+                    EPMap = it->first;
+                }
+            }
+
+            if (EPMap == -1) { // not found
+                std::cout << "[WARN] EP with ID " << raceEPID << " not found, skipping" << std::endl;
+                continue;
+            }
+
+            // time limit isn't stored in the XDT, so we include it in the reward table instead
+            RacingManager::EPData[EPMap].maxTime = race["TimeLimit"];
+
+            // score cutoffs
+            std::vector<int> rankScores;
+            for (nlohmann::json::iterator _rankScore = race["RankScores"].begin(); _rankScore != race["RankScores"].end(); _rankScore++) {
+                rankScores.push_back((int)_rankScore.value());
+            }
+
+            // reward IDs for each rank
+            std::vector<int> rankRewards;
+            for (nlohmann::json::iterator _rankReward = race["Rewards"].begin(); _rankReward != race["Rewards"].end(); _rankReward++) {
+                rankRewards.push_back((int)_rankReward.value());
+            }
+
+            if (rankScores.size() != 5 || rankScores.size() != rankRewards.size()) {
+                char buff[255];
+                sprintf(buff, "Race in EP %d doesn't have exactly 5 score/reward pairs", raceEPID);
+                throw TableException(std::string(buff));
+            }
+
+            RacingManager::EPRewards[raceEPID] = std::make_pair(rankScores, rankRewards);
+        }
+
+        std::cout << "[INFO] Loaded rewards for " << RacingManager::EPRewards.size() << " IZ races" << std::endl;
+
+    }
+    catch (const std::exception& err) {
+        std::cerr << "[FATAL] Malformed drops.json file! Reason:" << err.what() << std::endl;
+        exit(1);
+    }
+}
+
+static void loadEggs(int32_t* nextId) {
+    try {
+        std::ifstream inFile(settings::EGGSJSON);
+        nlohmann::json eggData;
+
+        // read file into json
+        inFile >> eggData;
+
+        // EggTypes
+        nlohmann::json eggTypes = eggData["EggTypes"];
+        for (nlohmann::json::iterator _eggType = eggTypes.begin(); _eggType != eggTypes.end(); _eggType++) {
+            auto eggType = _eggType.value();
+            EggType toAdd = {};
+            toAdd.dropCrateId = (int)eggType["DropCrateId"];
+            toAdd.effectId = (int)eggType["EffectId"];
+            toAdd.duration = (int)eggType["Duration"];
+            toAdd.regen= (int)eggType["Regen"];
+            NPCManager::EggTypes[(int)eggType["Id"]] = toAdd;
+        }
+
+        // Egg instances
+        auto eggs = eggData["Eggs"];
+        for (auto _egg = eggs.begin(); _egg != eggs.end(); _egg++) {
+            auto egg = _egg.value();
+            int id = (*nextId)++;
+            uint64_t instanceID = egg.find("iMapNum") == egg.end() ? INSTANCE_OVERWORLD : (int)egg["iMapNum"];
+
+            Egg* addEgg = new Egg((int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, (int)egg["iType"], id, false);
+            NPCManager::NPCs[id] = addEgg;
+            NPCManager::Eggs[id] = addEgg;
+            NPCManager::updateNPCPosition(id, (int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, 0);
+        }
+
+        std::cout << "[INFO] Loaded " <<NPCManager::Eggs.size()<<" eggs" <<std::endl;
+
+    }
+    catch (const std::exception& err) {
+        std::cerr << "[FATAL] Malformed eggs.json file! Reason:" << err.what() << std::endl;
+        exit(1);
+    }
+}
+
+// load gruntwork output; if it exists
+static void loadGruntwork(int32_t *nextId) {
+    try {
+        std::ifstream inFile(settings::GRUNTWORKJSON);
+        nlohmann::json gruntwork;
+
+        // skip if there's no gruntwork to load
+        if (inFile.fail())
+            return;
+
+        inFile >> gruntwork;
+
+        // skyway paths
+        auto skyway = gruntwork["skyway"];
+        for (auto _route = skyway.begin(); _route != skyway.end(); _route++) {
+            auto route = _route.value();
+            std::vector<WarpLocation> points;
+
+            for (auto _point = route["points"].begin(); _point != route["points"].end(); _point++) {
+                auto point = _point.value();
+                points.push_back(WarpLocation{point["x"], point["y"], point["z"]});
+            }
+
+            RunningSkywayRoutes[(int)route["iRouteID"]] = points;
+        }
+
+        // npc rotations
+        auto npcRot = gruntwork["rotations"];
+        for (auto _rot = npcRot.begin(); _rot != npcRot.end(); _rot++) {
+            int32_t npcID = _rot.value()["iNPCID"];
+            int angle = _rot.value()["iAngle"];
+            if (NPCManager::NPCs.find(npcID) == NPCManager::NPCs.end())
+                continue; // NPC not found
+            BaseNPC* npc = NPCManager::NPCs[npcID];
+            npc->appearanceData.iAngle = angle;
+
+            RunningNPCRotations[npcID] = angle;
+        }
+
+        // npc map numbers
+        auto npcMap = gruntwork["instances"];
+        for (auto _map = npcMap.begin(); _map != npcMap.end(); _map++) {
+            int32_t npcID = _map.value()["iNPCID"];
+            uint64_t instanceID = _map.value()["iMapNum"];
+            if (NPCManager::NPCs.find(npcID) == NPCManager::NPCs.end())
+                continue; // NPC not found
+            BaseNPC* npc = NPCManager::NPCs[npcID];
+            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->appearanceData.iX, npc->appearanceData.iY,
+                npc->appearanceData.iZ, instanceID, npc->appearanceData.iAngle);
+
+            RunningNPCMapNumbers[npcID] = instanceID;
+        }
+
+        // mobs
+        auto mobs = gruntwork["mobs"];
+        for (auto _mob = mobs.begin(); _mob != mobs.end(); _mob++) {
+            auto mob = _mob.value();
+            BaseNPC *npc;
+            int id = (*nextId)++;
+            uint64_t instanceID = mob.find("iMapNum") == mob.end() ? INSTANCE_OVERWORLD : (int)mob["iMapNum"];
+
+            if (NPCManager::NPCData[(int)mob["iNPCType"]]["m_iTeam"] == 2) {
+                npc = new Mob(mob["iX"], mob["iY"], mob["iZ"], instanceID, mob["iNPCType"],
+                    NPCManager::NPCData[(int)mob["iNPCType"]], id);
+
+                // re-enable respawning
+                ((Mob*)npc)->summoned = false;
+
+                MobAI::Mobs[npc->appearanceData.iNPC_ID] = (Mob*)npc;
+            } else {
+                npc = new BaseNPC(mob["iX"], mob["iY"], mob["iZ"], mob["iAngle"], instanceID, mob["iNPCType"], id);
+            }
+
+            NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
+            RunningMobs[npc->appearanceData.iNPC_ID] = npc;
+            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, mob["iX"], mob["iY"], mob["iZ"], instanceID, mob["iAngle"]);
+        }
+
+        // mob groups
+        auto groups = gruntwork["groups"];
+        for (auto _group = groups.begin(); _group != groups.end(); _group++) {
+            auto leader = _group.value();
+            auto td = NPCManager::NPCData[(int)leader["iNPCType"]];
+            uint64_t instanceID = leader.find("iMapNum") == leader.end() ? INSTANCE_OVERWORLD : (int)leader["iMapNum"];
+
+            Mob* tmp = new Mob(leader["iX"], leader["iY"], leader["iZ"], leader["iAngle"], instanceID, leader["iNPCType"], td, *nextId);
+
+            // re-enable respawning
+            ((Mob*)tmp)->summoned = false;
+
+            NPCManager::NPCs[*nextId] = tmp;
+            MobAI::Mobs[*nextId] = (Mob*)NPCManager::NPCs[*nextId];
+            NPCManager::updateNPCPosition(*nextId, leader["iX"], leader["iY"], leader["iZ"], instanceID, leader["iAngle"]);
+
+            tmp->groupLeader = *nextId;
+
+            (*nextId)++;
+
+            auto followers = leader["aFollowers"];
+            if (followers.size() < 5) {
+                int followerCount = 0;
+                for (nlohmann::json::iterator _fol = followers.begin(); _fol != followers.end(); _fol++) {
+                    auto follower = _fol.value();
+                    auto tdFol = NPCManager::NPCData[(int)follower["iNPCType"]];
+                    Mob* tmpFol = new Mob((int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], leader["iAngle"], instanceID, follower["iNPCType"], tdFol, *nextId);
+
+                    // re-enable respawning
+                    ((Mob*)tmp)->summoned = false;
+
+                    NPCManager::NPCs[*nextId] = tmpFol;
+                    MobAI::Mobs[*nextId] = (Mob*)NPCManager::NPCs[*nextId];
+                    NPCManager::updateNPCPosition(*nextId, (int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], instanceID, leader["iAngle"]);
+
+                    tmpFol->offsetX = follower.find("iOffsetX") == follower.end() ? 0 : (int)follower["iOffsetX"];
+                    tmpFol->offsetY = follower.find("iOffsetY") == follower.end() ? 0 : (int)follower["iOffsetY"];
+                    tmpFol->groupLeader = tmp->appearanceData.iNPC_ID;
+                    tmp->groupMember[followerCount++] = *nextId;
+
+                    (*nextId)++;
+                }
+            }
+            else {
+                std::cout << "[WARN] Mob group leader with ID " << *nextId << " has too many followers (" << followers.size() << ")\n";
+            }
+
+            RunningGroups[tmp->appearanceData.iNPC_ID] = tmp; // store as running
+        }
+
+        auto eggs = gruntwork["eggs"];
+        for (auto _egg = eggs.begin(); _egg != eggs.end(); _egg++) {
+            auto egg = _egg.value();
+            int id = (*nextId)++;
+            uint64_t instanceID = egg.find("iMapNum") == egg.end() ? INSTANCE_OVERWORLD : (int)egg["iMapNum"];
+
+            Egg* addEgg = new Egg((int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, (int)egg["iType"], id, false);
+            NPCManager::NPCs[id] = addEgg;
+            NPCManager::Eggs[id] = addEgg;
+            NPCManager::updateNPCPosition(id, (int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, 0);
+            RunningEggs[id] = addEgg;
+        }
+
+
+        std::cout << "[INFO] Loaded gruntwork.json" << std::endl;
+    }
+    catch (const std::exception& err) {
+        std::cerr << "[FATAL] Malformed gruntwork.json file! Reason:" << err.what() << std::endl;
+        exit(1);
+    }
+}
 
 void TableData::init() {
     int32_t nextId = 0;
@@ -389,526 +911,6 @@ void TableData::init() {
     loadGruntwork(&nextId);
 
     NPCManager::nextId = nextId;
-}
-
-/*
- * Load paths from paths JSON.
- */
-void TableData::loadPaths(int* nextId) {
-    try {
-        std::ifstream inFile(settings::PATHJSON);
-        nlohmann::json pathData;
-
-        // read file into json
-        inFile >> pathData;
-
-        // skyway paths
-        nlohmann::json pathDataSkyway = pathData["skyway"];
-        for (nlohmann::json::iterator skywayPath = pathDataSkyway.begin(); skywayPath != pathDataSkyway.end(); skywayPath++) {
-            constructPathSkyway(skywayPath);
-        }
-        std::cout << "[INFO] Loaded " << TransportManager::SkywayPaths.size() << " skyway paths" << std::endl;
-
-        // slider circuit
-        nlohmann::json pathDataSlider = pathData["slider"];
-        // lerp between keyframes
-        std::queue<WarpLocation> route;
-        // initial point
-        nlohmann::json::iterator _point = pathDataSlider.begin(); // iterator
-        auto point = _point.value();
-        WarpLocation from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
-        int stopTime = point["stop"] ? SLIDER_STOP_TICKS : 0; // arbitrary stop length
-        // remaining points
-        for (_point++; _point != pathDataSlider.end(); _point++) { // loop through all point Bs
-            point = _point.value();
-            for (int i = 0; i < stopTime + 1; i++) { // repeat point if it's a stop
-                route.push(from); // add point A to the queue
-            }
-            WarpLocation to = { point["iX"] , point["iY"] , point["iZ"] }; // point B coords
-            // we may need to change this later; right now, the speed is cut before and after stops (no accel)
-            float curve = 1;
-            if (stopTime > 0) { // point A is a stop
-                curve = 0.375f;//2.0f;
-            } else if (point["stop"]) { // point B is a stop
-                curve = 0.375f;//0.35f;
-            }
-            TransportManager::lerp(&route, from, to, SLIDER_SPEED * curve, 1); // lerp from A to B (arbitrary speed)
-            from = to; // update point A
-            stopTime = point["stop"] ? SLIDER_STOP_TICKS : 0; // set stop ticks for next point A
-        }
-        // Uniform distance calculation
-        int passedDistance = 0;
-        // initial point
-        int pos = 0;
-        WarpLocation lastPoint = route.front();
-        route.pop();
-        route.push(lastPoint);
-        for (pos = 1; pos < route.size(); pos++) {
-            WarpLocation point = route.front();
-            passedDistance += hypot(point.x - lastPoint.x, point.y - lastPoint.y);
-            if (passedDistance >= SLIDER_GAP_SIZE) { // space them out uniformaly
-                passedDistance -= SLIDER_GAP_SIZE; // step down
-                // spawn a slider
-                BaseNPC* slider = new BaseNPC(point.x, point.y, point.z, 0, INSTANCE_OVERWORLD, 1, (*nextId)++, NPC_BUS);
-                NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
-                NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->appearanceData.iX, slider->appearanceData.iY, slider->appearanceData.iZ, INSTANCE_OVERWORLD, 0);
-                TransportManager::NPCQueues[slider->appearanceData.iNPC_ID] = route;
-            }
-            // rotate
-            route.pop();
-            route.push(point);
-            lastPoint = point;
-        }
-
-        // npc paths
-        nlohmann::json pathDataNPC = pathData["npc"];
-        /*
-        for (nlohmann::json::iterator npcPath = pathDataNPC.begin(); npcPath != pathDataNPC.end(); npcPath++) {
-            constructPathNPC(npcPath);
-        }
-        */
-
-        // mob paths
-        pathDataNPC = pathData["mob"];
-        for (nlohmann::json::iterator npcPath = pathDataNPC.begin(); npcPath != pathDataNPC.end(); npcPath++) {
-            for (auto& pair : MobAI::Mobs) {
-                if (pair.second->appearanceData.iNPCType == npcPath.value()["iNPCType"]) {
-                    std::cout << "[INFO] Using static path for mob " << pair.second->appearanceData.iNPCType << " with ID " << pair.first << std::endl;
-
-                    auto firstPoint = npcPath.value()["points"][0];
-                    if (firstPoint["iX"] != pair.second->spawnX || firstPoint["iY"] != pair.second->spawnY) {
-                        std::cout << "[FATAL] The first point of the route for mob " << pair.first <<
-                            " (type " << pair.second->appearanceData.iNPCType << ") does not correspond with its spawn point." << std::endl;
-                        exit(1);
-                    }
-
-                    constructPathNPC(npcPath, pair.first);
-                    pair.second->staticPath = true;
-                    break; // only one NPC per path
-                }
-            }
-        }
-        std::cout << "[INFO] Loaded " << TransportManager::NPCQueues.size() << " NPC paths" << std::endl;
-    }
-    catch (const std::exception& err) {
-        std::cerr << "[FATAL] Malformed paths.json file! Reason:" << err.what() << std::endl;
-        exit(1);
-    }
-}
-
-/*
- * Load drops data from JSON.
- * This has to be called after reading xdt because it reffers to ItemData!!!
- */
-void TableData::loadDrops() {
-    try {
-        std::ifstream inFile(settings::DROPSJSON);
-        nlohmann::json dropData;
-
-        // read file into json
-        inFile >> dropData;
-
-        // MobDropChances
-        nlohmann::json mobDropChances = dropData["MobDropChances"];
-        for (nlohmann::json::iterator _dropChance = mobDropChances.begin(); _dropChance != mobDropChances.end(); _dropChance++) {
-            auto dropChance = _dropChance.value();
-            MobDropChance toAdd = {};
-            toAdd.dropChance = (int)dropChance["DropChance"];
-            for (nlohmann::json::iterator _cratesRatio = dropChance["CratesRatio"].begin(); _cratesRatio != dropChance["CratesRatio"].end(); _cratesRatio++) {
-                toAdd.cratesRatio.push_back((int)_cratesRatio.value());
-            }
-            ItemManager::MobDropChances[(int)dropChance["Type"]] = toAdd;
-        }
-
-        // MobDrops
-        nlohmann::json mobDrops = dropData["MobDrops"];
-        for (nlohmann::json::iterator _drop = mobDrops.begin(); _drop != mobDrops.end(); _drop++) {
-            auto drop = _drop.value();
-            MobDrop toAdd = {};
-            for (nlohmann::json::iterator _crates = drop["CrateIDs"].begin(); _crates != drop["CrateIDs"].end(); _crates++) {
-                toAdd.crateIDs.push_back((int)_crates.value());
-            }
-
-            toAdd.dropChanceType = (int)drop["DropChance"];
-            // Check if DropChance exists
-            if (ItemManager::MobDropChances.find(toAdd.dropChanceType) == ItemManager::MobDropChances.end()) {
-                throw TableException(" MobDropChance not found: " + std::to_string((toAdd.dropChanceType)));
-            }
-            // Check if number of crates is correct
-            if (!(ItemManager::MobDropChances[(int)drop["DropChance"]].cratesRatio.size() == toAdd.crateIDs.size())) {
-                throw TableException(" DropType " + std::to_string((int)drop["DropType"]) + " contains invalid number of crates");
-            }
-
-            toAdd.taros = (int)drop["Taros"];
-            toAdd.fm = (int)drop["FM"];
-            toAdd.boosts = (int)drop["Boosts"];
-            ItemManager::MobDrops[(int)drop["DropType"]] = toAdd;
-        }
-
-        std::cout << "[INFO] Loaded " << ItemManager::MobDrops.size() << " Mob Drop Types"<<  std::endl;
-
-        // Rarity Ratios
-        nlohmann::json rarities = dropData["RarityRatios"];
-        for (nlohmann::json::iterator _rarity = rarities.begin(); _rarity != rarities.end(); _rarity++) {
-            auto rarity = _rarity.value();
-            std::vector<int> toAdd;
-            for (nlohmann::json::iterator _ratio = rarity["Ratio"].begin(); _ratio != rarity["Ratio"].end(); _ratio++){
-                toAdd.push_back((int)_ratio.value());
-            }
-            ItemManager::RarityRatios[(int)rarity["Type"]] = toAdd;
-        }
-
-        // Crates
-        nlohmann::json crates = dropData["Crates"];
-        for (nlohmann::json::iterator _crate = crates.begin(); _crate != crates.end(); _crate++) {
-            auto crate = _crate.value();
-            Crate toAdd;
-            toAdd.rarityRatioId = (int)crate["RarityRatio"];
-            for (nlohmann::json::iterator _itemSet = crate["ItemSets"].begin(); _itemSet != crate["ItemSets"].end(); _itemSet++) {
-                toAdd.itemSets.push_back((int)_itemSet.value());
-            }
-            ItemManager::Crates[(int)crate["Id"]] = toAdd;
-        }
-
-        // Crate Items
-        nlohmann::json items = dropData["Items"];
-        int itemCount = 0;
-        for (nlohmann::json::iterator _item = items.begin(); _item != items.end(); _item++) {
-            auto item = _item.value();
-            std::pair<int32_t, int32_t> itemSetkey = std::make_pair((int)item["ItemSet"], (int)item["Rarity"]);
-            std::pair<int32_t, int32_t> itemDataKey = std::make_pair((int)item["Id"], (int)item["Type"]);
-
-            if (ItemManager::ItemData.find(itemDataKey) == ItemManager::ItemData.end()) {
-                char buff[255];
-                sprintf(buff, "Unknown item with Id %d and Type %d", (int)item["Id"], (int)item["Type"]);
-                throw TableException(std::string(buff));
-            }
-
-            std::map<std::pair<int32_t, int32_t>, ItemManager::Item>::iterator toAdd = ItemManager::ItemData.find(itemDataKey);
-
-            // if item collection doesn't exist, start a new one
-            if (ItemManager::CrateItems.find(itemSetkey) == ItemManager::CrateItems.end()) {
-                std::vector<std::map<std::pair<int32_t, int32_t>, ItemManager::Item>::iterator> vector;
-                vector.push_back(toAdd);
-                ItemManager::CrateItems[itemSetkey] = vector;
-            } else // else add a new element to existing collection
-                ItemManager::CrateItems[itemSetkey].push_back(toAdd);
-
-            itemCount++;
-        }
-
-#ifdef ACADEMY
-        nlohmann::json capsules = dropData["NanoCapsules"];
-
-        for (nlohmann::json::iterator _capsule = capsules.begin(); _capsule != capsules.end(); _capsule++) {
-            auto capsule = _capsule.value();
-            ItemManager::NanoCapsules[(int)capsule["Crate"]] = (int)capsule["Nano"];
-        }
-#endif
-        nlohmann::json codes = dropData["CodeItems"];
-        for (nlohmann::json::iterator _code = codes.begin(); _code != codes.end(); _code++) {
-            auto code = _code.value();
-            std::string codeStr = code["Code"];
-            std::pair<int32_t, int32_t> item = std::make_pair((int)code["Id"], (int)code["Type"]);
-
-            if (ItemManager::CodeItems.find(codeStr) == ItemManager::CodeItems.end())
-                ItemManager::CodeItems[codeStr] = std::vector<std::pair<int32_t, int32_t>>();
-
-            ItemManager::CodeItems[codeStr].push_back(item);
-        }
-
-        std::cout << "[INFO] Loaded " << ItemManager::Crates.size() << " Crates containing "
-                  << itemCount << " items" << std::endl;
-
-        // Racing rewards
-        nlohmann::json racing = dropData["Racing"];
-        for (nlohmann::json::iterator _race = racing.begin(); _race != racing.end(); _race++) {
-            auto race = _race.value();
-            int raceEPID = race["EPID"];
-
-            // find the instance data corresponding to the EPID
-            int EPMap = -1;
-            for (auto it = RacingManager::EPData.begin(); it != RacingManager::EPData.end(); it++) {
-                if (it->second.EPID == raceEPID) {
-                    EPMap = it->first;
-                }
-            }
-
-            if (EPMap == -1) { // not found
-                std::cout << "[WARN] EP with ID " << raceEPID << " not found, skipping" << std::endl;
-                continue;
-            }
-
-            // time limit isn't stored in the XDT, so we include it in the reward table instead
-            RacingManager::EPData[EPMap].maxTime = race["TimeLimit"];
-
-            // score cutoffs
-            std::vector<int> rankScores;
-            for (nlohmann::json::iterator _rankScore = race["RankScores"].begin(); _rankScore != race["RankScores"].end(); _rankScore++) {
-                rankScores.push_back((int)_rankScore.value());
-            }
-
-            // reward IDs for each rank
-            std::vector<int> rankRewards;
-            for (nlohmann::json::iterator _rankReward = race["Rewards"].begin(); _rankReward != race["Rewards"].end(); _rankReward++) {
-                rankRewards.push_back((int)_rankReward.value());
-            }
-
-            if (rankScores.size() != 5 || rankScores.size() != rankRewards.size()) {
-                char buff[255];
-                sprintf(buff, "Race in EP %d doesn't have exactly 5 score/reward pairs", raceEPID);
-                throw TableException(std::string(buff));
-            }
-
-            RacingManager::EPRewards[raceEPID] = std::make_pair(rankScores, rankRewards);
-        }
-
-        std::cout << "[INFO] Loaded rewards for " << RacingManager::EPRewards.size() << " IZ races" << std::endl;
-
-    }
-    catch (const std::exception& err) {
-        std::cerr << "[FATAL] Malformed drops.json file! Reason:" << err.what() << std::endl;
-        exit(1);
-    }
-}
-
-void TableData::loadEggs(int32_t* nextId) {
-    try {
-        std::ifstream inFile(settings::EGGSJSON);
-        nlohmann::json eggData;
-
-        // read file into json
-        inFile >> eggData;
-
-        // EggTypes
-        nlohmann::json eggTypes = eggData["EggTypes"];
-        for (nlohmann::json::iterator _eggType = eggTypes.begin(); _eggType != eggTypes.end(); _eggType++) {
-            auto eggType = _eggType.value();
-            EggType toAdd = {};
-            toAdd.dropCrateId = (int)eggType["DropCrateId"];
-            toAdd.effectId = (int)eggType["EffectId"];
-            toAdd.duration = (int)eggType["Duration"];
-            toAdd.regen= (int)eggType["Regen"];
-            NPCManager::EggTypes[(int)eggType["Id"]] = toAdd;
-        }
-
-        // Egg instances
-        auto eggs = eggData["Eggs"];
-        for (auto _egg = eggs.begin(); _egg != eggs.end(); _egg++) {
-            auto egg = _egg.value();
-            int id = (*nextId)++;
-            uint64_t instanceID = egg.find("iMapNum") == egg.end() ? INSTANCE_OVERWORLD : (int)egg["iMapNum"];
-
-            Egg* addEgg = new Egg((int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, (int)egg["iType"], id, false);
-            NPCManager::NPCs[id] = addEgg;
-            NPCManager::Eggs[id] = addEgg;
-            NPCManager::updateNPCPosition(id, (int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, 0);
-        }
-
-        std::cout << "[INFO] Loaded " <<NPCManager::Eggs.size()<<" eggs" <<std::endl;
-
-    }
-    catch (const std::exception& err) {
-        std::cerr << "[FATAL] Malformed eggs.json file! Reason:" << err.what() << std::endl;
-        exit(1);
-    }
-}
-
-/*
- * Create a full and properly-paced path by interpolating between keyframes.
- */
-void TableData::constructPathSkyway(nlohmann::json::iterator _pathData) {
-    auto pathData = _pathData.value();
-    // Interpolate
-    nlohmann::json pathPoints = pathData["points"];
-    std::queue<WarpLocation> points;
-    nlohmann::json::iterator _point = pathPoints.begin();
-    auto point = _point.value();
-    WarpLocation last = { point["iX"] , point["iY"] , point["iZ"] }; // start pos
-    // use some for loop trickery; start position should not be a point
-    for (_point++; _point != pathPoints.end(); _point++) {
-        point = _point.value();
-        WarpLocation coords = { point["iX"] , point["iY"] , point["iZ"] };
-        TransportManager::lerp(&points, last, coords, pathData["iMonkeySpeed"]);
-        points.push(coords); // add keyframe to the queue
-        last = coords; // update start pos
-    }
-    TransportManager::SkywayPaths[pathData["iRouteID"]] = points;
-}
-
-void TableData::constructPathNPC(nlohmann::json::iterator _pathData, int32_t id) {
-    auto pathData = _pathData.value();
-    // Interpolate
-    nlohmann::json pathPoints = pathData["points"];
-    std::queue<WarpLocation> points;
-    nlohmann::json::iterator _point = pathPoints.begin();
-    auto point = _point.value();
-    WarpLocation from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
-    int stopTime = point["stop"];
-    for (_point++; _point != pathPoints.end(); _point++) { // loop through all point Bs
-        point = _point.value();
-        for(int i = 0; i < stopTime + 1; i++) // repeat point if it's a stop
-            points.push(from); // add point A to the queue
-        WarpLocation to = { point["iX"] , point["iY"] , point["iZ"] }; // point B coords
-        TransportManager::lerp(&points, from, to, pathData["iBaseSpeed"]); // lerp from A to B
-        from = to; // update point A
-        stopTime = point["stop"];
-    }
-
-    if (id == 0)
-        id = pathData["iNPCID"];
-
-    TransportManager::NPCQueues[id] = points;
-}
-
-// load gruntwork output; if it exists
-void TableData::loadGruntwork(int32_t *nextId) {
-    try {
-        std::ifstream inFile(settings::GRUNTWORKJSON);
-        nlohmann::json gruntwork;
-
-        // skip if there's no gruntwork to load
-        if (inFile.fail())
-            return;
-
-        inFile >> gruntwork;
-
-        // skyway paths
-        auto skyway = gruntwork["skyway"];
-        for (auto _route = skyway.begin(); _route != skyway.end(); _route++) {
-            auto route = _route.value();
-            std::vector<WarpLocation> points;
-
-            for (auto _point = route["points"].begin(); _point != route["points"].end(); _point++) {
-                auto point = _point.value();
-                points.push_back(WarpLocation{point["x"], point["y"], point["z"]});
-            }
-
-            RunningSkywayRoutes[(int)route["iRouteID"]] = points;
-        }
-
-        // npc rotations
-        auto npcRot = gruntwork["rotations"];
-        for (auto _rot = npcRot.begin(); _rot != npcRot.end(); _rot++) {
-            int32_t npcID = _rot.value()["iNPCID"];
-            int angle = _rot.value()["iAngle"];
-            if (NPCManager::NPCs.find(npcID) == NPCManager::NPCs.end())
-                continue; // NPC not found
-            BaseNPC* npc = NPCManager::NPCs[npcID];
-            npc->appearanceData.iAngle = angle;
-
-            RunningNPCRotations[npcID] = angle;
-        }
-
-        // npc map numbers
-        auto npcMap = gruntwork["instances"];
-        for (auto _map = npcMap.begin(); _map != npcMap.end(); _map++) {
-            int32_t npcID = _map.value()["iNPCID"];
-            uint64_t instanceID = _map.value()["iMapNum"];
-            if (NPCManager::NPCs.find(npcID) == NPCManager::NPCs.end())
-                continue; // NPC not found
-            BaseNPC* npc = NPCManager::NPCs[npcID];
-            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->appearanceData.iX, npc->appearanceData.iY,
-                npc->appearanceData.iZ, instanceID, npc->appearanceData.iAngle);
-
-            RunningNPCMapNumbers[npcID] = instanceID;
-        }
-
-        // mobs
-        auto mobs = gruntwork["mobs"];
-        for (auto _mob = mobs.begin(); _mob != mobs.end(); _mob++) {
-            auto mob = _mob.value();
-            BaseNPC *npc;
-            int id = (*nextId)++;
-            uint64_t instanceID = mob.find("iMapNum") == mob.end() ? INSTANCE_OVERWORLD : (int)mob["iMapNum"];
-
-            if (NPCManager::NPCData[(int)mob["iNPCType"]]["m_iTeam"] == 2) {
-                npc = new Mob(mob["iX"], mob["iY"], mob["iZ"], instanceID, mob["iNPCType"],
-                    NPCManager::NPCData[(int)mob["iNPCType"]], id);
-
-                // re-enable respawning
-                ((Mob*)npc)->summoned = false;
-
-                MobAI::Mobs[npc->appearanceData.iNPC_ID] = (Mob*)npc;
-            } else {
-                npc = new BaseNPC(mob["iX"], mob["iY"], mob["iZ"], mob["iAngle"], instanceID, mob["iNPCType"], id);
-            }
-
-            NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
-            TableData::RunningMobs[npc->appearanceData.iNPC_ID] = npc;
-            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, mob["iX"], mob["iY"], mob["iZ"], instanceID, mob["iAngle"]);
-        }
-
-        // mob groups
-        auto groups = gruntwork["groups"];
-        for (auto _group = groups.begin(); _group != groups.end(); _group++) {
-            auto leader = _group.value();
-            auto td = NPCManager::NPCData[(int)leader["iNPCType"]];
-            uint64_t instanceID = leader.find("iMapNum") == leader.end() ? INSTANCE_OVERWORLD : (int)leader["iMapNum"];
-
-            Mob* tmp = new Mob(leader["iX"], leader["iY"], leader["iZ"], leader["iAngle"], instanceID, leader["iNPCType"], td, *nextId);
-
-            // re-enable respawning
-            ((Mob*)tmp)->summoned = false;
-
-            NPCManager::NPCs[*nextId] = tmp;
-            MobAI::Mobs[*nextId] = (Mob*)NPCManager::NPCs[*nextId];
-            NPCManager::updateNPCPosition(*nextId, leader["iX"], leader["iY"], leader["iZ"], instanceID, leader["iAngle"]);
-
-            tmp->groupLeader = *nextId;
-
-            (*nextId)++;
-
-            auto followers = leader["aFollowers"];
-            if (followers.size() < 5) {
-                int followerCount = 0;
-                for (nlohmann::json::iterator _fol = followers.begin(); _fol != followers.end(); _fol++) {
-                    auto follower = _fol.value();
-                    auto tdFol = NPCManager::NPCData[(int)follower["iNPCType"]];
-                    Mob* tmpFol = new Mob((int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], leader["iAngle"], instanceID, follower["iNPCType"], tdFol, *nextId);
-
-                    // re-enable respawning
-                    ((Mob*)tmp)->summoned = false;
-
-                    NPCManager::NPCs[*nextId] = tmpFol;
-                    MobAI::Mobs[*nextId] = (Mob*)NPCManager::NPCs[*nextId];
-                    NPCManager::updateNPCPosition(*nextId, (int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], instanceID, leader["iAngle"]);
-
-                    tmpFol->offsetX = follower.find("iOffsetX") == follower.end() ? 0 : (int)follower["iOffsetX"];
-                    tmpFol->offsetY = follower.find("iOffsetY") == follower.end() ? 0 : (int)follower["iOffsetY"];
-                    tmpFol->groupLeader = tmp->appearanceData.iNPC_ID;
-                    tmp->groupMember[followerCount++] = *nextId;
-
-                    (*nextId)++;
-                }
-            }
-            else {
-                std::cout << "[WARN] Mob group leader with ID " << *nextId << " has too many followers (" << followers.size() << ")\n";
-            }
-
-            TableData::RunningGroups[tmp->appearanceData.iNPC_ID] = tmp; // store as running
-        }
-
-        auto eggs = gruntwork["eggs"];
-        for (auto _egg = eggs.begin(); _egg != eggs.end(); _egg++) {
-            auto egg = _egg.value();
-            int id = (*nextId)++;
-            uint64_t instanceID = egg.find("iMapNum") == egg.end() ? INSTANCE_OVERWORLD : (int)egg["iMapNum"];
-
-            Egg* addEgg = new Egg((int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, (int)egg["iType"], id, false);
-            NPCManager::NPCs[id] = addEgg;
-            NPCManager::Eggs[id] = addEgg;
-            NPCManager::updateNPCPosition(id, (int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, 0);
-            TableData::RunningEggs[id] = addEgg;
-        }
-
-
-        std::cout << "[INFO] Loaded gruntwork.json" << std::endl;
-    }
-    catch (const std::exception& err) {
-        std::cerr << "[FATAL] Malformed gruntwork.json file! Reason:" << err.what() << std::endl;
-        exit(1);
-    }
 }
 
 // write gruntwork output to file

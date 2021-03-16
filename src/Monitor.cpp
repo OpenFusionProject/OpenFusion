@@ -12,59 +12,6 @@ static std::mutex sockLock; // guards socket list
 static std::list<SOCKET> sockets;
 static sockaddr_in address;
 
-SOCKET Monitor::init() {
-    listener = socket(AF_INET, SOCK_STREAM, 0);
-    if (SOCKETERROR(listener)) {
-        std::cout << "Failed to create monitor socket" << std::endl;
-        printSocketError("socket");
-        exit(1);
-    }
-
-#ifdef _WIN32
-    const char opt = 1;
-#else
-    int opt = 1;
-#endif
-    if (SOCKETERROR(setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)))) {
-        std::cout << "Failed to set SO_REUSEADDR on monitor socket" << std::endl;
-        printSocketError("setsockopt");
-        exit(1);
-    }
-
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(settings::MONITORPORT);
-
-    if (SOCKETERROR(bind(listener, (struct sockaddr*)&address, sizeof(address)))) {
-        std::cout << "Failed to bind to monitor port" << std::endl;
-        printSocketError("bind");
-        exit(1);
-    }
-
-    if (SOCKETERROR(listen(listener, SOMAXCONN))) {
-        std::cout << "Failed to listen on monitor port" << std::endl;
-        printSocketError("listen");
-        exit(1);
-    }
-
-#ifdef _WIN32
-    unsigned long mode = 1;
-    if (ioctlsocket(listener, FIONBIO, &mode) != 0) {
-#else
-    if (fcntl(listener, F_SETFL, (fcntl(listener, F_GETFL, 0) | O_NONBLOCK)) != 0) {
-#endif
-        std::cerr << "[FATAL] OpenFusion: fcntl failed" << std::endl;
-        printSocketError("fcntl");
-        exit(EXIT_FAILURE);
-    }
-
-    std::cout << "Monitor listening on *:" << settings::MONITORPORT << std::endl;
-
-    REGISTER_SHARD_TIMER(tick, settings::MONITORINTERVAL);
-
-    return listener;
-}
-
 static bool transmit(std::list<SOCKET>::iterator& it, char *buff, int len) {
     int n = 0;
     int sock = *it;
@@ -92,7 +39,7 @@ static bool transmit(std::list<SOCKET>::iterator& it, char *buff, int len) {
     return true;
 }
 
-void Monitor::tick(CNServer *serv, time_t delta) {
+static void tick(CNServer *serv, time_t delta) {
     std::lock_guard<std::mutex> lock(sockLock);
     char buff[256];
     int n;
@@ -164,4 +111,57 @@ bool Monitor::acceptConnection(SOCKET fd, uint16_t revents) {
     }
 
     return true;
+}
+
+SOCKET Monitor::init() {
+    listener = socket(AF_INET, SOCK_STREAM, 0);
+    if (SOCKETERROR(listener)) {
+        std::cout << "Failed to create monitor socket" << std::endl;
+        printSocketError("socket");
+        exit(1);
+    }
+
+#ifdef _WIN32
+    const char opt = 1;
+#else
+    int opt = 1;
+#endif
+    if (SOCKETERROR(setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)))) {
+        std::cout << "Failed to set SO_REUSEADDR on monitor socket" << std::endl;
+        printSocketError("setsockopt");
+        exit(1);
+    }
+
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(settings::MONITORPORT);
+
+    if (SOCKETERROR(bind(listener, (struct sockaddr*)&address, sizeof(address)))) {
+        std::cout << "Failed to bind to monitor port" << std::endl;
+        printSocketError("bind");
+        exit(1);
+    }
+
+    if (SOCKETERROR(listen(listener, SOMAXCONN))) {
+        std::cout << "Failed to listen on monitor port" << std::endl;
+        printSocketError("listen");
+        exit(1);
+    }
+
+#ifdef _WIN32
+    unsigned long mode = 1;
+    if (ioctlsocket(listener, FIONBIO, &mode) != 0) {
+#else
+    if (fcntl(listener, F_SETFL, (fcntl(listener, F_GETFL, 0) | O_NONBLOCK)) != 0) {
+#endif
+        std::cerr << "[FATAL] OpenFusion: fcntl failed" << std::endl;
+        printSocketError("fcntl");
+        exit(EXIT_FAILURE);
+    }
+
+    std::cout << "Monitor listening on *:" << settings::MONITORPORT << std::endl;
+
+    REGISTER_SHARD_TIMER(tick, settings::MONITORINTERVAL);
+
+    return listener;
 }

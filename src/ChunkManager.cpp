@@ -4,11 +4,11 @@
 #include "settings.hpp"
 #include "Combat.hpp"
 
+using namespace ChunkManager;
+
 std::map<ChunkPos, Chunk*> ChunkManager::chunks;
 
-void ChunkManager::init() {} // stubbed
-
-void ChunkManager::newChunk(ChunkPos pos) {
+static void newChunk(ChunkPos pos) {
     if (chunkExists(pos)) {
         std::cout << "[WARN] Tried to create a chunk that already exists\n";
         return;
@@ -31,7 +31,7 @@ void ChunkManager::newChunk(ChunkPos pos) {
     }
 }
 
-void ChunkManager::deleteChunk(ChunkPos pos) {
+static void deleteChunk(ChunkPos pos) {
     if (!chunkExists(pos)) {
         std::cout << "[WARN] Tried to delete a chunk that doesn't exist\n";
         return;
@@ -51,78 +51,6 @@ void ChunkManager::deleteChunk(ChunkPos pos) {
 
     chunks.erase(pos); // remove from map
     delete chunk; // free from memory
-}
-
-void ChunkManager::updatePlayerChunk(CNSocket* sock, ChunkPos from, ChunkPos to) {
-    Player* plr = PlayerManager::getPlayer(sock);
-
-    // if the new chunk doesn't exist, make it first
-    if (!ChunkManager::chunkExists(to))
-        newChunk(to);
-
-    // move to other chunk's player set
-    untrackPlayer(from, sock); // this will delete the chunk if it's empty
-    trackPlayer(to, sock);
-
-    // calculate viewable chunks from both points
-    std::set<Chunk*> oldViewables = getViewableChunks(from);
-    std::set<Chunk*> newViewables = getViewableChunks(to);
-    std::set<Chunk*> toExit, toEnter;
-
-    /*
-     * Calculate diffs. This is done to prevent phasing on chunk borders.
-     * toExit will contain old viewables - new viewables, so the player will only be exited in chunks that are out of sight.
-     * toEnter contains the opposite: new viewables - old viewables, chunks where we previously weren't visible from before.
-     */
-    std::set_difference(oldViewables.begin(), oldViewables.end(), newViewables.begin(), newViewables.end(),
-        std::inserter(toExit, toExit.end())); // chunks we must be EXITed from (old - new)
-    std::set_difference(newViewables.begin(), newViewables.end(), oldViewables.begin(), oldViewables.end(),
-        std::inserter(toEnter, toEnter.end())); // chunks we must be ENTERed into (new - old)
-
-    // update views
-    removePlayerFromChunks(toExit, sock);
-    addPlayerToChunks(toEnter, sock);
-
-    plr->chunkPos = to; // update cached chunk position
-    // updated cached viewable chunks
-    plr->viewableChunks->clear();
-    plr->viewableChunks->insert(newViewables.begin(), newViewables.end());
-}
-
-void ChunkManager::updateNPCChunk(int32_t id, ChunkPos from, ChunkPos to) {
-    BaseNPC* npc = NPCManager::NPCs[id];
-
-    // if the new chunk doesn't exist, make it first
-    if (!ChunkManager::chunkExists(to))
-        newChunk(to);
-
-    // move to other chunk's player set
-    untrackNPC(from, id); // this will delete the chunk if it's empty
-    trackNPC(to, id);
-
-    // calculate viewable chunks from both points
-    std::set<Chunk*> oldViewables = getViewableChunks(from);
-    std::set<Chunk*> newViewables = getViewableChunks(to);
-    std::set<Chunk*> toExit, toEnter;
-
-    /*
-     * Calculate diffs. This is done to prevent phasing on chunk borders.
-     * toExit will contain old viewables - new viewables, so the player will only be exited in chunks that are out of sight.
-     * toEnter contains the opposite: new viewables - old viewables, chunks where we previously weren't visible from before.
-     */
-    std::set_difference(oldViewables.begin(), oldViewables.end(), newViewables.begin(), newViewables.end(),
-        std::inserter(toExit, toExit.end())); // chunks we must be EXITed from (old - new)
-    std::set_difference(newViewables.begin(), newViewables.end(), oldViewables.begin(), oldViewables.end(),
-        std::inserter(toEnter, toEnter.end())); // chunks we must be ENTERed into (new - old)
-
-    // update views
-    removeNPCFromChunks(toExit, id);
-    addNPCToChunks(toEnter, id);
-
-    npc->chunkPos = to; // update cached chunk position
-    // updated cached viewable chunks
-    npc->viewableChunks->clear();
-    npc->viewableChunks->insert(newViewables.begin(), newViewables.end());
 }
 
 void ChunkManager::trackPlayer(ChunkPos chunkPos, CNSocket* sock) {
@@ -371,7 +299,7 @@ void ChunkManager::removeNPCFromChunks(std::set<Chunk*> chnks, int32_t id) {
     }
 }
 
-void ChunkManager::emptyChunk(ChunkPos chunkPos) {
+static void emptyChunk(ChunkPos chunkPos) {
     if (!chunkExists(chunkPos)) {
         std::cout << "[WARN] Tried to empty chunk that doesn't exist\n";
         return; // chunk doesn't exist, we don't need to do anything
@@ -390,6 +318,78 @@ void ChunkManager::emptyChunk(ChunkPos chunkPos) {
         // every call of this will check if the chunk is empty and delete it if so
         NPCManager::destroyNPC(id);
     }
+}
+
+void ChunkManager::updatePlayerChunk(CNSocket* sock, ChunkPos from, ChunkPos to) {
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    // if the new chunk doesn't exist, make it first
+    if (!chunkExists(to))
+        newChunk(to);
+
+    // move to other chunk's player set
+    untrackPlayer(from, sock); // this will delete the chunk if it's empty
+    trackPlayer(to, sock);
+
+    // calculate viewable chunks from both points
+    std::set<Chunk*> oldViewables = getViewableChunks(from);
+    std::set<Chunk*> newViewables = getViewableChunks(to);
+    std::set<Chunk*> toExit, toEnter;
+
+    /*
+     * Calculate diffs. This is done to prevent phasing on chunk borders.
+     * toExit will contain old viewables - new viewables, so the player will only be exited in chunks that are out of sight.
+     * toEnter contains the opposite: new viewables - old viewables, chunks where we previously weren't visible from before.
+     */
+    std::set_difference(oldViewables.begin(), oldViewables.end(), newViewables.begin(), newViewables.end(),
+        std::inserter(toExit, toExit.end())); // chunks we must be EXITed from (old - new)
+    std::set_difference(newViewables.begin(), newViewables.end(), oldViewables.begin(), oldViewables.end(),
+        std::inserter(toEnter, toEnter.end())); // chunks we must be ENTERed into (new - old)
+
+    // update views
+    removePlayerFromChunks(toExit, sock);
+    addPlayerToChunks(toEnter, sock);
+
+    plr->chunkPos = to; // update cached chunk position
+    // updated cached viewable chunks
+    plr->viewableChunks->clear();
+    plr->viewableChunks->insert(newViewables.begin(), newViewables.end());
+}
+
+void ChunkManager::updateNPCChunk(int32_t id, ChunkPos from, ChunkPos to) {
+    BaseNPC* npc = NPCManager::NPCs[id];
+
+    // if the new chunk doesn't exist, make it first
+    if (!chunkExists(to))
+        newChunk(to);
+
+    // move to other chunk's player set
+    untrackNPC(from, id); // this will delete the chunk if it's empty
+    trackNPC(to, id);
+
+    // calculate viewable chunks from both points
+    std::set<Chunk*> oldViewables = getViewableChunks(from);
+    std::set<Chunk*> newViewables = getViewableChunks(to);
+    std::set<Chunk*> toExit, toEnter;
+
+    /*
+     * Calculate diffs. This is done to prevent phasing on chunk borders.
+     * toExit will contain old viewables - new viewables, so the player will only be exited in chunks that are out of sight.
+     * toEnter contains the opposite: new viewables - old viewables, chunks where we previously weren't visible from before.
+     */
+    std::set_difference(oldViewables.begin(), oldViewables.end(), newViewables.begin(), newViewables.end(),
+        std::inserter(toExit, toExit.end())); // chunks we must be EXITed from (old - new)
+    std::set_difference(newViewables.begin(), newViewables.end(), oldViewables.begin(), oldViewables.end(),
+        std::inserter(toEnter, toEnter.end())); // chunks we must be ENTERed into (new - old)
+
+    // update views
+    removeNPCFromChunks(toExit, id);
+    addNPCToChunks(toEnter, id);
+
+    npc->chunkPos = to; // update cached chunk position
+    // updated cached viewable chunks
+    npc->viewableChunks->clear();
+    npc->viewableChunks->insert(newViewables.begin(), newViewables.end());
 }
 
 bool ChunkManager::chunkExists(ChunkPos chunk) {
@@ -424,10 +424,10 @@ std::set<Chunk*> ChunkManager::getViewableChunks(ChunkPos chunk) {
 /*
  * inefficient algorithm to get all chunks from a specific instance
  */
-std::vector<ChunkPos> ChunkManager::getChunksInMap(uint64_t mapNum) {
+static std::vector<ChunkPos> getChunksInMap(uint64_t mapNum) {
     std::vector<ChunkPos> chnks;
 
-    for (auto it = ChunkManager::chunks.begin(); it != ChunkManager::chunks.end(); it++) {
+    for (auto it = chunks.begin(); it != chunks.end(); it++) {
         if (std::get<2>(it->first) == mapNum) {
             chnks.push_back(it->first);
         }
@@ -451,8 +451,8 @@ bool ChunkManager::inPopulatedChunks(std::set<Chunk*>* chnks) {
 
 void ChunkManager::createInstance(uint64_t instanceID) {
 
-    std::vector<ChunkPos> templateChunks = ChunkManager::getChunksInMap(MAPNUM(instanceID)); // base instance chunks
-    if (ChunkManager::getChunksInMap(instanceID).size() == 0) { // only instantiate if the instance doesn't exist already
+    std::vector<ChunkPos> templateChunks = getChunksInMap(MAPNUM(instanceID)); // base instance chunks
+    if (getChunksInMap(instanceID).size() == 0) { // only instantiate if the instance doesn't exist already
         std::cout << "Creating instance " << instanceID << std::endl;
         for (ChunkPos &coords : templateChunks) {
             for (int npcID : chunks[coords]->NPCs) {
@@ -508,9 +508,9 @@ void ChunkManager::createInstance(uint64_t instanceID) {
     }
 }
 
-void ChunkManager::destroyInstance(uint64_t instanceID) {
+static void destroyInstance(uint64_t instanceID) {
     
-    std::vector<ChunkPos> instanceChunks = ChunkManager::getChunksInMap(instanceID);
+    std::vector<ChunkPos> instanceChunks = getChunksInMap(instanceID);
     std::cout << "Deleting instance " << instanceID << " (" << instanceChunks.size() << " chunks)" << std::endl;
     for (ChunkPos& coords : instanceChunks) {
         emptyChunk(coords);

@@ -21,6 +21,8 @@
 
 #include "JSON.hpp"
 
+using namespace NPCManager;
+
 std::map<int32_t, BaseNPC*> NPCManager::NPCs;
 std::map<int32_t, WarpLocation> NPCManager::Warps;
 std::vector<WarpLocation> NPCManager::RespawnPoints;
@@ -30,26 +32,12 @@ std::unordered_map<int, EggType> NPCManager::EggTypes;
 std::unordered_map<int, Egg*> NPCManager::Eggs;
 nlohmann::json NPCManager::NPCData;
 
-
-
 /*
  * Initialized at the end of TableData::init().
  * This allows us to summon and kill mobs in arbitrary order without
  * NPC ID collisions.
  */
 int32_t NPCManager::nextId;
-
-void NPCManager::init() {
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_NPC, npcWarpHandler);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TIME_TO_GO_WARP, npcWarpTimeMachine);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_NPC_SUMMON, npcSummonHandler);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_NPC_UNSUMMON, npcUnsummonHandler);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_BARKER, npcBarkHandler);
-
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SHINY_PICKUP, eggPickup);
-
-    REGISTER_SHARD_TIMER(eggStep, 1000);
-}
 
 void NPCManager::destroyNPC(int32_t id) {
     // sanity check
@@ -109,7 +97,7 @@ void NPCManager::sendToViewable(BaseNPC *npc, void *buf, uint32_t type, size_t s
     }
 }
 
-void NPCManager::npcBarkHandler(CNSocket* sock, CNPacketData* data) {
+static void npcBarkHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_BARKER))
         return; // malformed packet
 
@@ -132,7 +120,7 @@ void NPCManager::npcBarkHandler(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_BARKER, sizeof(sP_FE2CL_REP_BARKER));
 }
 
-void NPCManager::npcUnsummonHandler(CNSocket* sock, CNPacketData* data) {
+static void npcUnsummonHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_NPC_UNSUMMON))
         return; // malformed packet
 
@@ -169,7 +157,7 @@ BaseNPC *NPCManager::summonNPC(int x, int y, int z, uint64_t instance, int type,
     return npc;
 }
 
-void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
+static void npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_NPC_SUMMON))
         return; // malformed packet
 
@@ -188,22 +176,7 @@ void NPCManager::npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     }
 }
 
-void NPCManager::npcWarpHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_WARP_USE_NPC))
-        return; // malformed packet
-
-    sP_CL2FE_REQ_PC_WARP_USE_NPC* warpNpc = (sP_CL2FE_REQ_PC_WARP_USE_NPC*)data->buf;
-    handleWarp(sock, warpNpc->iWarpID);
-}
-
-void NPCManager::npcWarpTimeMachine(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TIME_TO_GO_WARP))
-        return; // malformed packet
-    // this is just a warp request
-    handleWarp(sock, 28);
-}
-
-void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
+static void handleWarp(CNSocket* sock, int32_t warpId) {
     Player* plr = PlayerManager::getPlayer(sock);
     // sanity check
     if (Warps.find(warpId) == Warps.end())
@@ -303,6 +276,21 @@ void NPCManager::handleWarp(CNSocket* sock, int32_t warpId) {
     }
 }
 
+static void npcWarpHandler(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_WARP_USE_NPC))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_WARP_USE_NPC* warpNpc = (sP_CL2FE_REQ_PC_WARP_USE_NPC*)data->buf;
+    handleWarp(sock, warpNpc->iWarpID);
+}
+
+static void npcWarpTimeMachine(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_TIME_TO_GO_WARP))
+        return; // malformed packet
+    // this is just a warp request
+    handleWarp(sock, 28);
+}
+
 /*
  * Helper function to get NPC closest to coordinates in specified chunks
  */
@@ -395,7 +383,7 @@ int NPCManager::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int durati
     return 0;
 }
 
-void NPCManager::eggStep(CNServer* serv, time_t currTime) {
+static void eggStep(CNServer* serv, time_t currTime) {
     // tick buffs
     time_t timeStamp = currTime;
     auto it = EggBuffs.begin();
@@ -457,7 +445,7 @@ void NPCManager::npcDataToEggData(sNPCAppearanceData* npc, sShinyAppearanceData*
     egg->iShiny_ID = npc->iNPC_ID;
 }
 
-void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
+static void eggPickup(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SHINY_PICKUP))
         return; // malformed packet
 
@@ -565,6 +553,7 @@ void NPCManager::eggPickup(CNSocket* sock, CNPacketData* data) {
     }
 }
 
+// TODO: Move this to MobAI, possibly
 #pragma region NPCEvents
 
 // summon right arm and stage 2 body
@@ -618,3 +607,15 @@ std::vector<NPCEvent> NPCManager::NPCEvents = {
 };
 
 #pragma endregion NPCEvents
+
+void NPCManager::init() {
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_NPC, npcWarpHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TIME_TO_GO_WARP, npcWarpTimeMachine);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_NPC_SUMMON, npcSummonHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_NPC_UNSUMMON, npcUnsummonHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_BARKER, npcBarkHandler);
+
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SHINY_PICKUP, eggPickup);
+
+    REGISTER_SHARD_TIMER(eggStep, 1000);
+}

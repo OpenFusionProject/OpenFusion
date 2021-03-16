@@ -55,6 +55,8 @@ namespace NanoManager {
 
     void nanoUnbuff(CNSocket* sock, std::vector<int> targetData, int32_t bitFlag, int16_t timeBuffID, int16_t amount, bool groupPower);
     int applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags);
+
+    std::vector<int> findTargets(Player* plr, int skillID, CNPacketData* data = nullptr);
 }
 
 namespace Combat {

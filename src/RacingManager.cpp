@@ -7,18 +7,13 @@
 #include "db/Database.hpp"
 #include "NPCManager.hpp"
 
+using namespace RacingManager;
+
 std::map<int32_t, EPInfo> RacingManager::EPData;
 std::map<CNSocket*, EPRace> RacingManager::EPRaces;
 std::map<int32_t, std::pair<std::vector<int>, std::vector<int>>> RacingManager::EPRewards;
 
-void RacingManager::init() {
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_EP_RACE_START, racingStart);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_EP_GET_RING, racingGetPod);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_EP_RACE_CANCEL, racingCancel);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_EP_RACE_END, racingEnd);
-}
-
-void RacingManager::racingStart(CNSocket* sock, CNPacketData* data) {
+static void racingStart(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_EP_RACE_START))
         return; // malformed packet
 
@@ -42,7 +37,7 @@ void RacingManager::racingStart(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_EP_RACE_START_SUCC, sizeof(sP_FE2CL_REP_EP_RACE_START_SUCC));
 }
 
-void RacingManager::racingGetPod(CNSocket* sock, CNPacketData* data) {
+static void racingGetPod(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_EP_GET_RING))
         return; // malformed packet
 
@@ -62,7 +57,7 @@ void RacingManager::racingGetPod(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_EP_GET_RING_SUCC, sizeof(sP_FE2CL_REP_EP_GET_RING_SUCC));
 }
 
-void RacingManager::racingCancel(CNSocket* sock, CNPacketData* data) {
+static void racingCancel(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_EP_RACE_CANCEL))
         return; // malformed packet
 
@@ -75,7 +70,7 @@ void RacingManager::racingCancel(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_EP_RACE_CANCEL_SUCC, sizeof(sP_FE2CL_REP_EP_RACE_CANCEL_SUCC));
 }
 
-void RacingManager::racingEnd(CNSocket* sock, CNPacketData* data) {
+static void racingEnd(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_EP_RACE_END))
         return; // malformed packet
 
@@ -165,3 +160,9 @@ void RacingManager::racingEnd(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_EP_RACE_END_SUCC, sizeof(sP_FE2CL_REP_EP_RACE_END_SUCC));
 }
 
+void RacingManager::init() {
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_EP_RACE_START, racingStart);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_EP_GET_RING, racingGetPod);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_EP_RACE_CANCEL, racingCancel);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_EP_RACE_END, racingEnd);
+}

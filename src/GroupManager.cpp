@@ -10,14 +10,9 @@
 #include <algorithm>
 #include <thread>
 
-void GroupManager::init() {
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_INVITE, requestGroup);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_INVITE_REFUSE, refuseGroup);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_JOIN, joinGroup);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_LEAVE, leaveGroup);
-}
+using namespace GroupManager;
 
-void GroupManager::requestGroup(CNSocket* sock, CNPacketData* data) {
+static void requestGroup(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_GROUP_INVITE))
         return; // malformed packet
 
@@ -53,7 +48,7 @@ void GroupManager::requestGroup(CNSocket* sock, CNPacketData* data) {
     otherSock->sendPacket((void*)&resp, P_FE2CL_PC_GROUP_INVITE, sizeof(sP_FE2CL_PC_GROUP_INVITE));
 }
 
-void GroupManager::refuseGroup(CNSocket* sock, CNPacketData* data) {
+static void refuseGroup(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_GROUP_INVITE_REFUSE))
         return; // malformed packet
 
@@ -73,7 +68,7 @@ void GroupManager::refuseGroup(CNSocket* sock, CNPacketData* data) {
     otherSock->sendPacket((void*)&resp, P_FE2CL_PC_GROUP_INVITE_REFUSE, sizeof(sP_FE2CL_PC_GROUP_INVITE_REFUSE));
 }
 
-void GroupManager::joinGroup(CNSocket* sock, CNPacketData* data) {
+static void joinGroup(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_GROUP_JOIN))
         return; // malformed packet
 
@@ -152,7 +147,7 @@ void GroupManager::joinGroup(CNSocket* sock, CNPacketData* data) {
     sendToGroup(otherPlr, (void*)&respbuf, P_FE2CL_PC_GROUP_JOIN, resplen);
 }
 
-void GroupManager::leaveGroup(CNSocket* sock, CNPacketData* data) {
+static void leaveGroup(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
     groupKickPlayer(plr);
 }
@@ -217,6 +212,20 @@ void GroupManager::groupTickInfo(Player* plr) {
     }
 
     sendToGroup(plr, (void*)&respbuf, P_FE2CL_PC_GROUP_MEMBER_INFO, resplen);
+}
+
+static void groupUnbuff(Player* plr) {
+    for (int i = 0; i < plr->groupCnt; i++) {
+        for (int n = 0; n < plr->groupCnt; n++) {
+            if (i == n)
+                continue;
+
+            Player* otherPlr = PlayerManager::getPlayerFromID(plr->groupIDs[i]);
+            CNSocket* sock = PlayerManager::getSockFromID(plr->groupIDs[n]);
+
+            NanoManager::applyBuff(sock, otherPlr->Nanos[otherPlr->activeNano].iSkillID, 2, 1, 0);
+        }
+    }
 }
 
 void GroupManager::groupKickPlayer(Player* plr) {
@@ -304,20 +313,6 @@ void GroupManager::groupKickPlayer(Player* plr) {
     sock->sendPacket((void*)&resp1, P_FE2CL_PC_GROUP_LEAVE_SUCC, sizeof(sP_FE2CL_PC_GROUP_LEAVE_SUCC));
 }
 
-void GroupManager::groupUnbuff(Player* plr) {
-    for (int i = 0; i < plr->groupCnt; i++) {
-        for (int n = 0; n < plr->groupCnt; n++) {
-            if (i == n)
-                continue;
-
-            Player* otherPlr = PlayerManager::getPlayerFromID(plr->groupIDs[i]);
-            CNSocket* sock = PlayerManager::getSockFromID(plr->groupIDs[n]);
-
-            NanoManager::applyBuff(sock, otherPlr->Nanos[otherPlr->activeNano].iSkillID, 2, 1, 0);
-        }
-    }
-}
-
 int GroupManager::getGroupFlags(Player* plr) {
     int bitFlag = 0;
 
@@ -331,4 +326,11 @@ int GroupManager::getGroupFlags(Player* plr) {
     }
 
     return bitFlag;
+}
+
+void GroupManager::init() {
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_INVITE, requestGroup);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_INVITE_REFUSE, refuseGroup);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_JOIN, joinGroup);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GROUP_LEAVE, leaveGroup);
 }

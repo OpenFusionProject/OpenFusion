@@ -7,292 +7,26 @@
 
 #include "string.h"
 
+using namespace MissionManager;
+
 std::map<int32_t, Reward*> MissionManager::Rewards;
 std::map<int32_t, TaskData*> MissionManager::Tasks;
 nlohmann::json MissionManager::AvatarGrowth[37];
 
-void MissionManager::init() {
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_START, taskStart);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_END, taskEnd);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID, setMission);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_STOP, quitMission);
-}
-
-bool MissionManager::startTask(Player* plr, int TaskID) {
-    if (MissionManager::Tasks.find(TaskID) == MissionManager::Tasks.end()) {
-        std::cout << "[WARN] Player submitted unknown task!?" << std::endl;
-        return false;
-    }
-
-    TaskData& task = *MissionManager::Tasks[TaskID];
-
-    // client freaks out if nano mission isn't sent first after relogging, so it's easiest to set it here
-    if (task["m_iSTNanoID"] != 0 && plr->tasks[0] != 0) {
-            // lets move task0 to different spot
-            int moveToSlot = 1;
-            for (; moveToSlot < ACTIVE_MISSION_COUNT; moveToSlot++)
-                if (plr->tasks[moveToSlot] == 0)
-                    break;
-
-            plr->tasks[moveToSlot] = plr->tasks[0];
-            plr->tasks[0] = 0;
-            for (int i = 0; i < 3; i++) {
-                plr->RemainingNPCCount[moveToSlot][i] = plr->RemainingNPCCount[0][i];
-                plr->RemainingNPCCount[0][i] = 0;
-            }
-    }
-
-    int i;
-    for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
-        if (plr->tasks[i] == 0) {
-            plr->tasks[i] = TaskID;
-            for (int j = 0; j < 3; j++) {
-                plr->RemainingNPCCount[i][j] = (int)task["m_iCSUNumToKill"][j];
-            }
-            break;
-        }
-    }
-
-    if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != TaskID) {
-        std::cout << "[WARN] Player has more than 6 active missions!?" << std::endl;
-        return false;
-    }
-
-    return true;
-}
-
-void MissionManager::taskStart(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TASK_START))
-        return; // malformed packet
-
-    sP_CL2FE_REQ_PC_TASK_START* missionData = (sP_CL2FE_REQ_PC_TASK_START*)data->buf;
-    INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_SUCC, response);
-    Player *plr = PlayerManager::getPlayer(sock);
-
-    if (!startTask(plr, missionData->iTaskNum)) {
-        // TODO: TASK_FAIL?
-        response.iTaskNum = missionData->iTaskNum;
-        sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
+static void saveMission(Player* player, int missionId) {
+    // sanity check missionID so we don't get exceptions
+    if (missionId < 0 || missionId > 1023) {
+        std::cout << "[WARN] Client submitted invalid missionId: " <<missionId<< std::endl;
         return;
     }
 
-    TaskData& task = *Tasks[missionData->iTaskNum];
-
-    // Give player their delivery items at the start, or reset them to 0 at the start.
-    for (int i = 0; i < 3; i++)
-        if (task["m_iSTItemID"][i] != 0)
-            dropQuestItem(sock, missionData->iTaskNum, task["m_iSTItemNumNeeded"][i], task["m_iSTItemID"][i], 0);
-    std::cout << "Mission requested task: " << missionData->iTaskNum << std::endl;
-    response.iTaskNum = missionData->iTaskNum;
-    response.iRemainTime = task["m_iSTGrantTimer"];
-    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
-
-    // HACK: auto-succeed escort task
-    if (task["m_iHTaskType"] == 6) {
-        std::cout << "Skipping escort mission" << std::endl;
-        INITSTRUCT(sP_FE2CL_REP_PC_TASK_END_SUCC, response);
-
-        endTask(sock, missionData->iTaskNum);
-        response.iTaskNum = missionData->iTaskNum;
-
-        sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_END_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_END_SUCC));
-    }
+    // Missions are stored in int64_t array
+    int row = missionId / 64;
+    int column = missionId % 64;
+    player->aQuestFlag[row] |= (1ULL << column);
 }
 
-void MissionManager::taskEnd(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TASK_END))
-        return; // malformed packet
-
-    sP_CL2FE_REQ_PC_TASK_END* missionData = (sP_CL2FE_REQ_PC_TASK_END*)data->buf;
-
-    // failed timed missions give an iNPC_ID of 0
-    if (missionData->iNPC_ID == 0) {
-        TaskData* task = MissionManager::Tasks[missionData->iTaskNum];
-        if (task->task["m_iSTGrantTimer"] > 0) { // its a timed mission
-            Player* plr = PlayerManager::getPlayer(sock);
-            /*
-             * Enemy killing missions
-             * this is gross and should be cleaned up later
-             * once we comb over mission logic more throughly
-             */
-            bool mobsAreKilled = false;
-            if (task->task["m_iHTaskType"] == 5) {
-                mobsAreKilled = true;
-                for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
-                    if (plr->tasks[i] == missionData->iTaskNum) {
-                        for (int j = 0; j < 3; j++) {
-                            if (plr->RemainingNPCCount[i][j] > 0) {
-                                mobsAreKilled = false;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (!mobsAreKilled) {
-                
-                int failTaskID = task->task["m_iFOutgoingTask"];
-                if (failTaskID != 0) {
-                    MissionManager::quitTask(sock, missionData->iTaskNum, false);
-                    
-                    for (int i = 0; i < 6; i++)
-                        if (plr->tasks[i] == missionData->iTaskNum)
-                            plr->tasks[i] = failTaskID;
-                    return;
-                }
-            }
-        }
-    }
-
-    INITSTRUCT(sP_FE2CL_REP_PC_TASK_END_SUCC, response);
-
-    response.iTaskNum = missionData->iTaskNum;
-
-    if (!endTask(sock, missionData->iTaskNum, missionData->iBox1Choice)) {
-        return;
-    }
-
-    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_END_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_END_SUCC));
-}
-
-bool MissionManager::endTask(CNSocket *sock, int32_t taskNum, int choice) {
-    Player *plr = PlayerManager::getPlayer(sock);
-
-    if (Tasks.find(taskNum) == Tasks.end())
-        return false;
-
-    // ugly pointer/reference juggling for the sake of operator overloading...
-    TaskData& task = *Tasks[taskNum];
-
-    // update player
-    int i;
-    for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
-        if (plr->tasks[i] == taskNum) {
-            plr->tasks[i] = 0;
-            for (int j = 0; j < 3; j++) {
-                plr->RemainingNPCCount[i][j] = 0;
-            }
-        }
-    }
-    if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != 0) {
-        std::cout << "[WARN] Player completed non-active mission!?" << std::endl;
-        return false;
-    }
-
-    // mission rewards
-    if (Rewards.find(taskNum) != Rewards.end()) {
-        if (giveMissionReward(sock, taskNum, choice) == -1)
-            return false; // we don't want to send anything
-    }
-    // don't take away quest items if we haven't finished the quest
-
-    /*
-     * Give (or take away) quest items
-     *
-     * Some mission tasks give the player a quest item upon completion.
-     * This is distinct from quest item mob drops.
-     * They can be identified by a counter in the task indicator (ie. 1/1 Gravity Decelerator).
-     * The server is responsible for dropping the correct item.
-     * Yes, this is pretty stupid.
-     *
-     * iSUInstancename is the number of items to give. It is usually negative at the end of
-     * a mission, to clean up its quest items.
-     */
-
-    for (int i = 0; i < 3; i++)
-        if (task["m_iSUItem"][i] != 0)
-            dropQuestItem(sock, taskNum, task["m_iSUInstancename"][i], task["m_iSUItem"][i], 0);
-
-    // if it's the last task
-    if (task["m_iSUOutgoingTask"] == 0) {
-        // save completed mission on player
-        saveMission(plr, (int)(task["m_iHMissionID"])-1);
-
-        // if it's a nano mission, reward the nano.
-        if (task["m_iSTNanoID"] != 0)
-            NanoManager::addNano(sock, task["m_iSTNanoID"], 0, true);
-
-        // remove current mission
-        plr->CurrentMissionID = 0;
-    }
-
-    return true;
-}
-
-void MissionManager::setMission(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID))
-        return; // malformed packet
-
-    Player* plr = PlayerManager::getPlayer(sock);
-
-    sP_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID* missionData = (sP_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID*)data->buf;
-    INITSTRUCT(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, response);
-    response.iCurrentMissionID = missionData->iCurrentMissionID;
-    plr->CurrentMissionID = missionData->iCurrentMissionID;
-
-    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, sizeof(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID));
-}
-
-void MissionManager::quitMission(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TASK_STOP))
-        return; // malformed packet
-
-    sP_CL2FE_REQ_PC_TASK_STOP* missionData = (sP_CL2FE_REQ_PC_TASK_STOP*)data->buf;
-    quitTask(sock, missionData->iTaskNum, true);
-}
-
-void MissionManager::quitTask(CNSocket* sock, int32_t taskNum, bool manual) {
-    Player* plr = PlayerManager::getPlayer(sock);
-
-    if (Tasks.find(taskNum) == Tasks.end())
-        return; // sanity check
-
-    // update player
-    int i;
-    for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
-        if (plr->tasks[i] == taskNum) {
-            plr->tasks[i] = 0;
-            for (int j = 0; j < 3; j++) {
-                plr->RemainingNPCCount[i][j] = 0;
-            }
-        }
-    }
-    if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != 0) {
-        std::cout << "[WARN] Player quit non-active mission!?" << std::endl;
-    }
-    // remove current mission
-    plr->CurrentMissionID = 0;
-
-    TaskData& task = *Tasks[taskNum];
-
-    // clean up quest items
-    if (manual) {
-        for (i = 0; i < 3; i++) {
-            if (task["m_iSUItem"][i] == 0 && task["m_iCSUItemID"][i] == 0)
-                continue;
-
-            /*
-             * It's ok to do this only server-side, because the server decides which
-             * slot later items will be placed in.
-             */
-            for (int j = 0; j < AQINVEN_COUNT; j++)
-                if (plr->QInven[j].iID == task["m_iSUItem"][i] || plr->QInven[j].iID == task["m_iCSUItemID"][i] || plr->QInven[j].iID == task["m_iSTItemID"][i])
-                    memset(&plr->QInven[j], 0, sizeof(sItemBase));
-        }
-    } else {
-        INITSTRUCT(sP_FE2CL_REP_PC_TASK_END_FAIL, failResp);
-        failResp.iErrorCode = 1;
-        failResp.iTaskNum = taskNum;
-        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_TASK_END_FAIL, sizeof(sP_FE2CL_REP_PC_TASK_END_FAIL));
-    }
-
-    INITSTRUCT(sP_FE2CL_REP_PC_TASK_STOP_SUCC, response);
-    response.iTaskNum = taskNum;
-    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_STOP_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_STOP_SUCC));
-}
-
-int MissionManager::findQSlot(Player *plr, int id) {
+static int findQSlot(Player *plr, int id) {
     int i;
 
     // two passes. we mustn't fail to find an existing stack.
@@ -309,7 +43,20 @@ int MissionManager::findQSlot(Player *plr, int id) {
     return -1;
 }
 
-void MissionManager::dropQuestItem(CNSocket *sock, int task, int count, int id, int mobid) {
+static bool isQuestItemFull(CNSocket* sock, int itemId, int itemCount) {
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    int slot = findQSlot(plr, itemId);
+    if (slot == -1) {
+        // this should never happen
+        std::cout << "[WARN] Player has no room for quest item!?" << std::endl;
+        return true;
+    }
+
+    return (itemCount == plr->QInven[slot].iOpt);
+}
+
+static void dropQuestItem(CNSocket *sock, int task, int count, int id, int mobid) {
     std::cout << "Altered item id " << id << " by " << count << " for task id " << task << std::endl;
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
     assert(resplen < CN_PACKET_BUFFER_SIZE);
@@ -364,7 +111,7 @@ void MissionManager::dropQuestItem(CNSocket *sock, int task, int count, int id, 
     sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
 }
 
-int MissionManager::giveMissionReward(CNSocket *sock, int task, int choice) {
+static int giveMissionReward(CNSocket *sock, int task, int choice=0) {
     Reward *reward = Rewards[task];
     Player *plr = PlayerManager::getPlayer(sock);
 
@@ -455,6 +202,280 @@ int MissionManager::giveMissionReward(CNSocket *sock, int task, int choice) {
     sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
 
     return 0;
+}
+
+static bool endTask(CNSocket *sock, int32_t taskNum, int choice=0) {
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    if (Tasks.find(taskNum) == Tasks.end())
+        return false;
+
+    // ugly pointer/reference juggling for the sake of operator overloading...
+    TaskData& task = *Tasks[taskNum];
+
+    // update player
+    int i;
+    for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+        if (plr->tasks[i] == taskNum) {
+            plr->tasks[i] = 0;
+            for (int j = 0; j < 3; j++) {
+                plr->RemainingNPCCount[i][j] = 0;
+            }
+        }
+    }
+    if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != 0) {
+        std::cout << "[WARN] Player completed non-active mission!?" << std::endl;
+        return false;
+    }
+
+    // mission rewards
+    if (Rewards.find(taskNum) != Rewards.end()) {
+        if (giveMissionReward(sock, taskNum, choice) == -1)
+            return false; // we don't want to send anything
+    }
+    // don't take away quest items if we haven't finished the quest
+
+    /*
+     * Give (or take away) quest items
+     *
+     * Some mission tasks give the player a quest item upon completion.
+     * This is distinct from quest item mob drops.
+     * They can be identified by a counter in the task indicator (ie. 1/1 Gravity Decelerator).
+     * The server is responsible for dropping the correct item.
+     * Yes, this is pretty stupid.
+     *
+     * iSUInstancename is the number of items to give. It is usually negative at the end of
+     * a mission, to clean up its quest items.
+     */
+
+    for (int i = 0; i < 3; i++)
+        if (task["m_iSUItem"][i] != 0)
+            dropQuestItem(sock, taskNum, task["m_iSUInstancename"][i], task["m_iSUItem"][i], 0);
+
+    // if it's the last task
+    if (task["m_iSUOutgoingTask"] == 0) {
+        // save completed mission on player
+        saveMission(plr, (int)(task["m_iHMissionID"])-1);
+
+        // if it's a nano mission, reward the nano.
+        if (task["m_iSTNanoID"] != 0)
+            NanoManager::addNano(sock, task["m_iSTNanoID"], 0, true);
+
+        // remove current mission
+        plr->CurrentMissionID = 0;
+    }
+
+    return true;
+}
+
+bool MissionManager::startTask(Player* plr, int TaskID) {
+    if (MissionManager::Tasks.find(TaskID) == MissionManager::Tasks.end()) {
+        std::cout << "[WARN] Player submitted unknown task!?" << std::endl;
+        return false;
+    }
+
+    TaskData& task = *MissionManager::Tasks[TaskID];
+
+    // client freaks out if nano mission isn't sent first after relogging, so it's easiest to set it here
+    if (task["m_iSTNanoID"] != 0 && plr->tasks[0] != 0) {
+            // lets move task0 to different spot
+            int moveToSlot = 1;
+            for (; moveToSlot < ACTIVE_MISSION_COUNT; moveToSlot++)
+                if (plr->tasks[moveToSlot] == 0)
+                    break;
+
+            plr->tasks[moveToSlot] = plr->tasks[0];
+            plr->tasks[0] = 0;
+            for (int i = 0; i < 3; i++) {
+                plr->RemainingNPCCount[moveToSlot][i] = plr->RemainingNPCCount[0][i];
+                plr->RemainingNPCCount[0][i] = 0;
+            }
+    }
+
+    int i;
+    for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+        if (plr->tasks[i] == 0) {
+            plr->tasks[i] = TaskID;
+            for (int j = 0; j < 3; j++) {
+                plr->RemainingNPCCount[i][j] = (int)task["m_iCSUNumToKill"][j];
+            }
+            break;
+        }
+    }
+
+    if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != TaskID) {
+        std::cout << "[WARN] Player has more than 6 active missions!?" << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+static void taskStart(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_TASK_START))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_TASK_START* missionData = (sP_CL2FE_REQ_PC_TASK_START*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_SUCC, response);
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    if (!startTask(plr, missionData->iTaskNum)) {
+        // TODO: TASK_FAIL?
+        response.iTaskNum = missionData->iTaskNum;
+        sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
+        return;
+    }
+
+    TaskData& task = *Tasks[missionData->iTaskNum];
+
+    // Give player their delivery items at the start, or reset them to 0 at the start.
+    for (int i = 0; i < 3; i++)
+        if (task["m_iSTItemID"][i] != 0)
+            dropQuestItem(sock, missionData->iTaskNum, task["m_iSTItemNumNeeded"][i], task["m_iSTItemID"][i], 0);
+    std::cout << "Mission requested task: " << missionData->iTaskNum << std::endl;
+    response.iTaskNum = missionData->iTaskNum;
+    response.iRemainTime = task["m_iSTGrantTimer"];
+    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
+
+    // HACK: auto-succeed escort task
+    if (task["m_iHTaskType"] == 6) {
+        std::cout << "Skipping escort mission" << std::endl;
+        INITSTRUCT(sP_FE2CL_REP_PC_TASK_END_SUCC, response);
+
+        endTask(sock, missionData->iTaskNum);
+        response.iTaskNum = missionData->iTaskNum;
+
+        sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_END_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_END_SUCC));
+    }
+}
+
+static void taskEnd(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_TASK_END))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_TASK_END* missionData = (sP_CL2FE_REQ_PC_TASK_END*)data->buf;
+
+    // failed timed missions give an iNPC_ID of 0
+    if (missionData->iNPC_ID == 0) {
+        TaskData* task = MissionManager::Tasks[missionData->iTaskNum];
+        if (task->task["m_iSTGrantTimer"] > 0) { // its a timed mission
+            Player* plr = PlayerManager::getPlayer(sock);
+            /*
+             * Enemy killing missions
+             * this is gross and should be cleaned up later
+             * once we comb over mission logic more throughly
+             */
+            bool mobsAreKilled = false;
+            if (task->task["m_iHTaskType"] == 5) {
+                mobsAreKilled = true;
+                for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+                    if (plr->tasks[i] == missionData->iTaskNum) {
+                        for (int j = 0; j < 3; j++) {
+                            if (plr->RemainingNPCCount[i][j] > 0) {
+                                mobsAreKilled = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!mobsAreKilled) {
+                
+                int failTaskID = task->task["m_iFOutgoingTask"];
+                if (failTaskID != 0) {
+                    MissionManager::quitTask(sock, missionData->iTaskNum, false);
+                    
+                    for (int i = 0; i < 6; i++)
+                        if (plr->tasks[i] == missionData->iTaskNum)
+                            plr->tasks[i] = failTaskID;
+                    return;
+                }
+            }
+        }
+    }
+
+    INITSTRUCT(sP_FE2CL_REP_PC_TASK_END_SUCC, response);
+
+    response.iTaskNum = missionData->iTaskNum;
+
+    if (!endTask(sock, missionData->iTaskNum, missionData->iBox1Choice)) {
+        return;
+    }
+
+    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_END_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_END_SUCC));
+}
+
+static void setMission(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID))
+        return; // malformed packet
+
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    sP_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID* missionData = (sP_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID*)data->buf;
+    INITSTRUCT(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, response);
+    response.iCurrentMissionID = missionData->iCurrentMissionID;
+    plr->CurrentMissionID = missionData->iCurrentMissionID;
+
+    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, sizeof(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID));
+}
+
+static void quitMission(CNSocket* sock, CNPacketData* data) {
+    if (data->size != sizeof(sP_CL2FE_REQ_PC_TASK_STOP))
+        return; // malformed packet
+
+    sP_CL2FE_REQ_PC_TASK_STOP* missionData = (sP_CL2FE_REQ_PC_TASK_STOP*)data->buf;
+    quitTask(sock, missionData->iTaskNum, true);
+}
+
+void MissionManager::quitTask(CNSocket* sock, int32_t taskNum, bool manual) {
+    Player* plr = PlayerManager::getPlayer(sock);
+
+    if (Tasks.find(taskNum) == Tasks.end())
+        return; // sanity check
+
+    // update player
+    int i;
+    for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+        if (plr->tasks[i] == taskNum) {
+            plr->tasks[i] = 0;
+            for (int j = 0; j < 3; j++) {
+                plr->RemainingNPCCount[i][j] = 0;
+            }
+        }
+    }
+    if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != 0) {
+        std::cout << "[WARN] Player quit non-active mission!?" << std::endl;
+    }
+    // remove current mission
+    plr->CurrentMissionID = 0;
+
+    TaskData& task = *Tasks[taskNum];
+
+    // clean up quest items
+    if (manual) {
+        for (i = 0; i < 3; i++) {
+            if (task["m_iSUItem"][i] == 0 && task["m_iCSUItemID"][i] == 0)
+                continue;
+
+            /*
+             * It's ok to do this only server-side, because the server decides which
+             * slot later items will be placed in.
+             */
+            for (int j = 0; j < AQINVEN_COUNT; j++)
+                if (plr->QInven[j].iID == task["m_iSUItem"][i] || plr->QInven[j].iID == task["m_iCSUItemID"][i] || plr->QInven[j].iID == task["m_iSTItemID"][i])
+                    memset(&plr->QInven[j], 0, sizeof(sItemBase));
+        }
+    } else {
+        INITSTRUCT(sP_FE2CL_REP_PC_TASK_END_FAIL, failResp);
+        failResp.iErrorCode = 1;
+        failResp.iTaskNum = taskNum;
+        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_TASK_END_FAIL, sizeof(sP_FE2CL_REP_PC_TASK_END_FAIL));
+    }
+
+    INITSTRUCT(sP_FE2CL_REP_PC_TASK_STOP_SUCC, response);
+    response.iTaskNum = taskNum;
+    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_STOP_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_STOP_SUCC));
 }
 
 void MissionManager::updateFusionMatter(CNSocket* sock, int fusion) {
@@ -566,32 +587,6 @@ void MissionManager::mobKilled(CNSocket *sock, int mobid, int rolledQItem) {
     }
 }
 
-void MissionManager::saveMission(Player* player, int missionId) {
-    // sanity check missionID so we don't get exceptions
-    if (missionId < 0 || missionId > 1023) {
-        std::cout << "[WARN] Client submitted invalid missionId: " <<missionId<< std::endl;
-        return;
-    }
-
-    // Missions are stored in int64_t array
-    int row = missionId / 64;
-    int column = missionId % 64;
-    player->aQuestFlag[row] |= (1ULL << column);
-}
-
-bool MissionManager::isQuestItemFull(CNSocket* sock, int itemId, int itemCount) {
-    Player* plr = PlayerManager::getPlayer(sock);
-
-    int slot = findQSlot(plr, itemId);
-    if (slot == -1) {
-        // this should never happen
-        std::cout << "[WARN] Player has no room for quest item!?" << std::endl;
-        return true;
-    }
-
-    return (itemCount == plr->QInven[slot].iOpt);
-}
-
 void MissionManager::failInstancedMissions(CNSocket* sock) {
     // loop through all tasks; if the required instance is being left, "fail" the task
     Player* plr = PlayerManager::getPlayer(sock);
@@ -609,4 +604,11 @@ void MissionManager::failInstancedMissions(CNSocket* sock) {
             }
         }
     }
+}
+
+void MissionManager::init() {
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_START, taskStart);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_END, taskEnd);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID, setMission);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TASK_STOP, quitMission);
 }

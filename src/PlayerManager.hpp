@@ -16,7 +16,6 @@ namespace PlayerManager {
     extern std::map<CNSocket*, Player*> players;
     void init();
 
-    void addPlayer(CNSocket* key, Player plr);
     void removePlayer(CNSocket* key);
 
     void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, uint64_t I, int angle);
@@ -26,31 +25,13 @@ namespace PlayerManager {
 
     void sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size);
 
-    void enterPlayer(CNSocket* sock, CNPacketData* data);
-    void loadPlayer(CNSocket* sock, CNPacketData* data);
-    void heartbeatPlayer(CNSocket* sock, CNPacketData* data);
-    void revivePlayer(CNSocket* sock, CNPacketData* data);
-    void exitGame(CNSocket* sock, CNPacketData* data);
-
-    void setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data);
-    void changePlayerGuide(CNSocket *sock, CNPacketData *data);
-
-    void enterPlayerVehicle(CNSocket* sock, CNPacketData* data);
-    void exitPlayerVehicle(CNSocket* sock, CNPacketData* data);
-
-    void setFirstUseFlag(CNSocket* sock, CNPacketData* data);
-
     Player *getPlayer(CNSocket* key);
     std::string getPlayerName(Player *plr, bool id=true);
-    WarpLocation* getRespawnPoint(Player *plr);
 
     bool isAccountInUse(int accountId);
     void exitDuplicate(int accountId);
-    void setSpecialState(CNSocket* sock, CNPacketData* data);
     Player *getPlayerFromID(int32_t iID);
     CNSocket *getSockFromID(int32_t iID);
     CNSocket *getSockFromName(std::string firstname, std::string lastname);
     CNSocket *getSockFromAny(int by, int id, int uid, std::string firstname, std::string lastname);
-
-    void sendNanoBookSubset(CNSocket *sock);
 }

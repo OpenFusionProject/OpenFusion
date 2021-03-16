@@ -15,7 +15,6 @@
 #include "BuddyManager.hpp"
 #include "db/Database.hpp"
 #include "TableData.hpp"
-#include "ChunkManager.hpp"
 #include "GroupManager.hpp"
 #include "Monitor.hpp"
 #include "RacingManager.hpp"

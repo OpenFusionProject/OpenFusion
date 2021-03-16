@@ -17,9 +17,4 @@ namespace RacingManager {
     extern std::map<int32_t, std::pair<std::vector<int>, std::vector<int>>> EPRewards;
 
     void init();
-
-    void racingStart(CNSocket* sock, CNPacketData* data);
-    void racingGetPod(CNSocket* sock, CNPacketData* data);
-    void racingCancel(CNSocket* sock, CNPacketData* data);
-    void racingEnd(CNSocket* sock, CNPacketData* data);
 }

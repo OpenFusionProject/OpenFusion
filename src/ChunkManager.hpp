@@ -22,13 +22,7 @@ enum {
 };
 
 namespace ChunkManager {
-    void init();
-    void cleanup();
-
     extern std::map<ChunkPos, Chunk*> chunks;
-
-    void newChunk(ChunkPos pos);
-    void deleteChunk(ChunkPos pos);
 
     void updatePlayerChunk(CNSocket* sock, ChunkPos from, ChunkPos to);
     void updateNPCChunk(int32_t id, ChunkPos from, ChunkPos to);
@@ -44,13 +38,10 @@ namespace ChunkManager {
     void removeNPCFromChunks(std::set<Chunk*> chnks, int32_t id);
 
     bool chunkExists(ChunkPos chunk);
-    void emptyChunk(ChunkPos chunkPos);
     ChunkPos chunkPosAt(int posX, int posY, uint64_t instanceID);
     std::set<Chunk*> getViewableChunks(ChunkPos chunkPos);
 
-    std::vector<ChunkPos> getChunksInMap(uint64_t mapNum);
     bool inPopulatedChunks(std::set<Chunk*>* chnks);
     void createInstance(uint64_t);
-    void destroyInstance(uint64_t);
     void destroyInstanceIfEmpty(uint64_t);
 }

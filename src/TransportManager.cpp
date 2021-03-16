@@ -10,20 +10,15 @@
 #include <unordered_map>
 #include <cmath>
 
+using namespace TransportManager;
+
 std::map<int32_t, TransportRoute> TransportManager::Routes;
 std::map<int32_t, TransportLocation> TransportManager::Locations;
 std::map<int32_t, std::queue<WarpLocation>> TransportManager::SkywayPaths;
 std::unordered_map<CNSocket*, std::queue<WarpLocation>> TransportManager::SkywayQueues;
 std::unordered_map<int32_t, std::queue<WarpLocation>> TransportManager::NPCQueues;
 
-void TransportManager::init() {
-    REGISTER_SHARD_TIMER(tickTransportationSystem, 1000);
-
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION, transportRegisterLocationHandler);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_TRANSPORTATION, transportWarpHandler);
-}
-
-void TransportManager::transportRegisterLocationHandler(CNSocket* sock, CNPacketData* data) {
+static void transportRegisterLocationHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION))
         return; // malformed packet
 
@@ -99,7 +94,7 @@ void TransportManager::transportRegisterLocationHandler(CNSocket* sock, CNPacket
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC, sizeof(sP_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC));
 }
 
-void TransportManager::transportWarpHandler(CNSocket* sock, CNPacketData* data) {
+static void transportWarpHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_WARP_USE_TRANSPORTATION))
         return; // malformed packet
 
@@ -196,16 +191,11 @@ void TransportManager::testMssRoute(CNSocket *sock, std::vector<WarpLocation>* r
     SkywayQueues[sock] = path;
 }
 
-void TransportManager::tickTransportationSystem(CNServer* serv, time_t currTime) {
-    stepNPCPathing();
-    stepSkywaySystem();
-}
-
 /*
  * Go through every socket that has broomstick points queued up, and advance to the next point.
  * If the player has disconnected or finished the route, clean up and remove them from the queue.
  */
-void TransportManager::stepSkywaySystem() {
+static void stepSkywaySystem() {
 
     // using an unordered map so we can remove finished players in one iteration
     std::unordered_map<CNSocket*, std::queue<WarpLocation>>::iterator it = SkywayQueues.begin();
@@ -254,7 +244,7 @@ void TransportManager::stepSkywaySystem() {
     }
 }
 
-void TransportManager::stepNPCPathing() {
+static void stepNPCPathing() {
 
     // all NPC pathing queues
     std::unordered_map<int32_t, std::queue<WarpLocation>>::iterator it = NPCQueues.begin();
@@ -334,6 +324,11 @@ void TransportManager::stepNPCPathing() {
     }
 }
 
+static void tickTransportationSystem(CNServer* serv, time_t currTime) {
+    stepNPCPathing();
+    stepSkywaySystem();
+}
+
 /*
  * Linearly interpolate between two points and insert the results into a queue.
  */
@@ -354,4 +349,11 @@ void TransportManager::lerp(std::queue<WarpLocation>* queue, WarpLocation start,
 }
 void TransportManager::lerp(std::queue<WarpLocation>* queue, WarpLocation start, WarpLocation end, int gapSize) {
     lerp(queue, start, end, gapSize, 1);
+}
+
+void TransportManager::init() {
+    REGISTER_SHARD_TIMER(tickTransportationSystem, 1000);
+
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION, transportRegisterLocationHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_TRANSPORTATION, transportWarpHandler);
 }

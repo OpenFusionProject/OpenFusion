@@ -1,7 +1,18 @@
 #include "Email.hpp"
 
+#include "CNProtocol.hpp"
+#include "CNStructs.hpp"
+#include "CNShardServer.hpp"
+
+#include "db/Database.hpp"
+#include "PlayerManager.hpp"
+#include "ItemManager.hpp"
+#include "ChatManager.hpp"
+
+using namespace Email;
+
 // New email notification
-void Email::emailUpdateCheck(CNSocket* sock, CNPacketData* data) {
+static void emailUpdateCheck(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_EMAIL_UPDATE_CHECK))
         return; // malformed packet
 
@@ -11,7 +22,7 @@ void Email::emailUpdateCheck(CNSocket* sock, CNPacketData* data) {
 }
 
 // Retrieve page of emails
-void Email::emailReceivePageList(CNSocket* sock, CNPacketData* data) {
+static void emailReceivePageList(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_RECV_EMAIL_PAGE_LIST))
         return; // malformed packet
 
@@ -41,7 +52,7 @@ void Email::emailReceivePageList(CNSocket* sock, CNPacketData* data) {
 }
 
 // Read individual email
-void Email::emailRead(CNSocket* sock, CNPacketData* data) {
+static void emailRead(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_READ_EMAIL))
         return; // malformed packet
 
@@ -66,7 +77,7 @@ void Email::emailRead(CNSocket* sock, CNPacketData* data) {
 }
 
 // Retrieve attached taros from email
-void Email::emailReceiveTaros(CNSocket* sock, CNPacketData* data) {
+static void emailReceiveTaros(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_RECV_EMAIL_CANDY))
         return; // malformed packet
 
@@ -89,7 +100,7 @@ void Email::emailReceiveTaros(CNSocket* sock, CNPacketData* data) {
 }
 
 // Retrieve individual attached item from email
-void Email::emailReceiveItemSingle(CNSocket* sock, CNPacketData* data) {
+static void emailReceiveItemSingle(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM))
         return; // malformed packet
 
@@ -128,7 +139,7 @@ void Email::emailReceiveItemSingle(CNSocket* sock, CNPacketData* data) {
 }
 
 // Retrieve all attached items from email
-void Email::emailReceiveItemAll(CNSocket* sock, CNPacketData* data) {
+static void emailReceiveItemAll(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM_ALL))
         return; // malformed packet
 
@@ -173,7 +184,7 @@ void Email::emailReceiveItemAll(CNSocket* sock, CNPacketData* data) {
 }
 
 // Delete an email
-void Email::emailDelete(CNSocket* sock, CNPacketData* data) {
+static void emailDelete(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_DELETE_EMAIL))
         return; // malformed packet
 
@@ -190,7 +201,7 @@ void Email::emailDelete(CNSocket* sock, CNPacketData* data) {
 }
 
 // Send an email
-void Email::emailSend(CNSocket* sock, CNPacketData* data) {
+static void emailSend(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_SEND_EMAIL))
         return; // malformed packet
 

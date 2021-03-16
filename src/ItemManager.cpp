@@ -11,6 +11,8 @@
 #include <string.h> // for memset()
 #include <assert.h>
 
+using namespace ItemManager;
+
 std::map<std::pair<int32_t, int32_t>, ItemManager::Item> ItemManager::ItemData;
 std::map<int32_t, CrocPotEntry> ItemManager::CrocPotTable;
 std::map<int32_t, std::vector<int>> ItemManager::RarityRatios;
@@ -25,9 +27,9 @@ std::map<int32_t, MobDrop> ItemManager::MobDrops;
 #ifdef ACADEMY
 std::map<int32_t, int32_t> ItemManager::NanoCapsules; // crate id -> nano id
 
-void nanoCapsuleHandler(CNSocket* sock, int slot, sItemBase *chest) {
+static void nanoCapsuleHandler(CNSocket* sock, int slot, sItemBase *chest) {
     Player* plr = PlayerManager::getPlayer(sock);
-    int32_t nanoId = ItemManager::NanoCapsules[chest->iID];
+    int32_t nanoId = NanoCapsules[chest->iID];
 
     // chest opening acknowledgement packet
     INITSTRUCT(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, resp);
@@ -79,7 +81,93 @@ void nanoCapsuleHandler(CNSocket* sock, int slot, sItemBase *chest) {
 }
 #endif
 
-void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
+static int getRarity(Crate& crate, int itemSetId) {
+    // find rarity ratio
+    if (RarityRatios.find(crate.rarityRatioId) == RarityRatios.end()) {
+        std::cout << "[WARN] Rarity Ratio " << crate.rarityRatioId << " not found!" << std::endl;
+        return -1;
+    }
+
+    std::vector<int> rarityRatio = RarityRatios[crate.rarityRatioId];
+
+    /*
+     * First we have to check if specified item set contains items with all specified rarities,
+     * and if not eliminate them from the draw
+     * it is simpler to do here than to fix individually in the file
+     */
+
+    // remember that rarities start from 1!
+    for (int i = 0; i < rarityRatio.size(); i++){
+        if (CrateItems.find(std::make_pair(itemSetId, i+1)) == CrateItems.end())
+            rarityRatio[i] = 0;
+    }
+
+    int total = 0;
+    for (int value : rarityRatio)
+        total += value;
+
+    if (total == 0) {
+        std::cout << "Item Set " << itemSetId << " has no items assigned?!" << std::endl;
+        return -1;
+    }
+
+    // now return a random rarity number
+    int randomNum = rand() % total;
+    int rarity = 0;
+    int sum = 0;
+    do {
+        sum += rarityRatio[rarity];
+        rarity++;
+    } while (sum <= randomNum);
+
+    return rarity;
+}
+
+static int getCrateItem(sItemBase& result, int itemSetId, int rarity, int playerGender) {
+    auto key = std::make_pair(itemSetId, rarity);
+
+    if (CrateItems.find(key) == CrateItems.end()) {
+        std::cout << "[WARN] Item Set ID " << itemSetId << " Rarity " << rarity << " does not exist" << std::endl;
+        return -1;
+    }
+
+    // only take into account items that have correct gender
+    std::vector<std::map<std::pair<int32_t, int32_t>, Item>::iterator> items;
+    for (auto crateitem : CrateItems[key]) {
+        int gender = crateitem->second.gender;
+        // if gender is incorrect, exclude item
+        if (gender != 0 && gender != playerGender)
+            continue;
+        items.push_back(crateitem);
+    }
+
+    if (items.size() == 0) {
+        std::cout << "[WARN] Set ID " << itemSetId << " Rarity " << rarity << " contains no valid items" << std::endl;
+        return -1;
+    }
+
+    auto item = items[rand() % items.size()];
+
+    result.iID = item->first.first;
+    result.iType = item->first.second;
+    result.iOpt = 1;
+
+    return 0;
+}
+
+static int getItemSetId(Crate& crate, int crateId) {
+    int itemSetsCount = crate.itemSets.size();
+    if (itemSetsCount == 0) {
+        std::cout << "[WARN] Crate " << crateId << " has no item sets assigned?!" << std::endl;
+        return -1;
+    }
+
+    // if crate points to multiple itemSets, choose a random one
+    int itemSetIndex = rand() % itemSetsCount;
+    return crate.itemSets[itemSetIndex];
+}
+
+static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_ITEM_MOVE))
         return; // ignore the malformed packet
 
@@ -100,20 +188,20 @@ void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 
     // get the fromItem
     sItemBase *fromItem;
-    switch ((ItemManager::SlotType)itemmove->eFrom) {
-    case ItemManager::SlotType::EQUIP:
+    switch ((SlotType)itemmove->eFrom) {
+    case SlotType::EQUIP:
         if (itemmove->iFromSlotNum >= AEQUIP_COUNT)
             return;
 
         fromItem = &plr->Equip[itemmove->iFromSlotNum];
         break;
-    case ItemManager::SlotType::INVENTORY:
+    case SlotType::INVENTORY:
         if (itemmove->iFromSlotNum >= AINVEN_COUNT)
             return;
 
         fromItem = &plr->Inven[itemmove->iFromSlotNum];
         break;
-    case ItemManager::SlotType::BANK:
+    case SlotType::BANK:
         if (itemmove->iFromSlotNum >= ABANK_COUNT)
             return;
 
@@ -126,20 +214,20 @@ void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 
     // get the toItem
     sItemBase* toItem;
-    switch ((ItemManager::SlotType)itemmove->eTo) {
-    case ItemManager::SlotType::EQUIP:
+    switch ((SlotType)itemmove->eTo) {
+    case SlotType::EQUIP:
         if (itemmove->iToSlotNum >= AEQUIP_COUNT)
             return;
 
         toItem = &plr->Equip[itemmove->iToSlotNum];
         break;
-    case ItemManager::SlotType::INVENTORY:
+    case SlotType::INVENTORY:
         if (itemmove->iToSlotNum >= AINVEN_COUNT)
             return;
 
         toItem = &plr->Inven[itemmove->iToSlotNum];
         break;
-    case ItemManager::SlotType::BANK:
+    case SlotType::BANK:
         if (itemmove->iToSlotNum >= ABANK_COUNT)
             return;
 
@@ -151,7 +239,7 @@ void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     }
 
     // if equipping an item, validate that it's of the correct type for the slot
-    if ((ItemManager::SlotType)itemmove->eTo == ItemManager::SlotType::EQUIP) {
+    if ((SlotType)itemmove->eTo == SlotType::EQUIP) {
         if (fromItem->iType == 10 && itemmove->iToSlotNum != 8)
             return; // vehicle in wrong slot
         else if (fromItem->iType != 10
@@ -169,8 +257,8 @@ void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     resp.FromSlotItem = *fromItem;
 
     // swap/stack items in session
-    ItemManager::Item* itemDat = ItemManager::getItemData(toItem->iID, toItem->iType);
-    ItemManager::Item* itemDatFrom = ItemManager::getItemData(fromItem->iID, fromItem->iType);
+    Item* itemDat = getItemData(toItem->iID, toItem->iType);
+    Item* itemDatFrom = getItemData(fromItem->iID, fromItem->iType);
     if (itemDat != nullptr && itemDatFrom != nullptr && itemDat->stackSize > 1 && itemDat == itemDatFrom && fromItem->iOpt < itemDat->stackSize && toItem->iOpt < itemDat->stackSize) {
         // items are stackable, identical, and not maxed, so run stacking logic
 
@@ -203,11 +291,11 @@ void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
     }
 
     // send equip change to viewable players
-    if (itemmove->eFrom == (int)ItemManager::SlotType::EQUIP || itemmove->eTo == (int)ItemManager::SlotType::EQUIP) {
+    if (itemmove->eFrom == (int)SlotType::EQUIP || itemmove->eTo == (int)SlotType::EQUIP) {
         INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, equipChange);
 
         equipChange.iPC_ID = plr->iID;
-        if (itemmove->eTo == (int)ItemManager::SlotType::EQUIP) {
+        if (itemmove->eTo == (int)SlotType::EQUIP) {
             equipChange.iEquipSlotNum = itemmove->iToSlotNum;
             equipChange.EquipSlotItem = resp.FromSlotItem;
         } else {
@@ -223,14 +311,14 @@ void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         PlayerManager::sendToViewable(sock, (void*)&equipChange, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
 
         // set equipment stats serverside
-        ItemManager::setItemStats(plr);
+        setItemStats(plr);
     }
 
     // send response
     sock->sendPacket((void*)&resp, P_FE2CL_PC_ITEM_MOVE_SUCC, sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC));
 }
 
-void itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
+static void itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_ITEM_DELETE))
         return; // ignore the malformed packet
 
@@ -250,7 +338,7 @@ void itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_ITEM_DELETE_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC));
 }
 
-void itemUseHandler(CNSocket* sock, CNPacketData* data) {
+static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_ITEM_USE))
         return; // ignore the malformed packet
     sP_CL2FE_REQ_ITEM_USE* request = (sP_CL2FE_REQ_ITEM_USE*)data->buf;
@@ -333,7 +421,7 @@ void itemUseHandler(CNSocket* sock, CNPacketData* data) {
     NPCManager::EggBuffs[key] = until;
 }
 
-void itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
+static void itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_BANK_OPEN))
         return; // ignore the malformed packet
 
@@ -348,7 +436,7 @@ void itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BANK_OPEN_SUCC, sizeof(sP_FE2CL_REP_PC_BANK_OPEN_SUCC));
 }
 
-void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
+static void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     if (data->size != sizeof(sP_CL2FE_REQ_ITEM_CHEST_OPEN))
         return; // ignore the malformed packet
 
@@ -370,7 +458,7 @@ void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
 
 #ifdef ACADEMY
     // check if chest isn't a nano capsule
-    if (ItemManager::NanoCapsules.find(chest->iID) != ItemManager::NanoCapsules.end())
+    if (NanoCapsules.find(chest->iID) != NanoCapsules.end())
         return nanoCapsuleHandler(sock, pkt->iSlotNum, chest);
 #endif
 
@@ -406,24 +494,24 @@ void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     bool failing = false;
 
     // find the crate
-    if (ItemManager::Crates.find(chest->iID) == ItemManager::Crates.end()) {
+    if (Crates.find(chest->iID) == Crates.end()) {
         std::cout << "[WARN] Crate " << chest->iID << " not found!" << std::endl;
         failing = true;
     }
-    Crate& crate = ItemManager::Crates[chest->iID];
+    Crate& crate = Crates[chest->iID];
 
     if (!failing)
-        itemSetId = ItemManager::getItemSetId(crate, chest->iID);
+        itemSetId = getItemSetId(crate, chest->iID);
     if (itemSetId == -1)
         failing = true;
 
     if (!failing)
-        rarity = ItemManager::getRarity(crate, itemSetId);
+        rarity = getRarity(crate, itemSetId);
     if (rarity == -1)
         failing = true;
 
     if (!failing)
-        ret = ItemManager::getCrateItem(item->sItem, itemSetId, rarity, plr->PCStyle.iGender);
+        ret = getCrateItem(item->sItem, itemSetId, rarity, plr->PCStyle.iGender);
     if (ret == -1)
         failing = true;
 
@@ -444,92 +532,6 @@ void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, sizeof(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC));
 }
 
-int ItemManager::getItemSetId(Crate& crate, int crateId) {
-    int itemSetsCount = crate.itemSets.size();
-    if (itemSetsCount == 0) {
-        std::cout << "[WARN] Crate " << crateId << " has no item sets assigned?!" << std::endl;
-        return -1;
-    }
-
-    // if crate points to multiple itemSets, choose a random one
-    int itemSetIndex = rand() % itemSetsCount;
-    return crate.itemSets[itemSetIndex];
-}
-
-int ItemManager::getRarity(Crate& crate, int itemSetId) {
-    // find rarity ratio
-    if (RarityRatios.find(crate.rarityRatioId) == RarityRatios.end()) {
-        std::cout << "[WARN] Rarity Ratio " << crate.rarityRatioId << " not found!" << std::endl;
-        return -1;
-    }
-
-    std::vector<int> rarityRatio = RarityRatios[crate.rarityRatioId];
-
-    /*
-     * First we have to check if specified item set contains items with all specified rarities,
-     * and if not eliminate them from the draw
-     * it is simpler to do here than to fix individually in the file
-     */
-
-    // remember that rarities start from 1!
-    for (int i = 0; i < rarityRatio.size(); i++){
-        if (CrateItems.find(std::make_pair(itemSetId, i+1)) == CrateItems.end())
-            rarityRatio[i] = 0;
-    }
-
-    int total = 0;
-    for (int value : rarityRatio)
-        total += value;
-
-    if (total == 0) {
-        std::cout << "Item Set " << itemSetId << " has no items assigned?!" << std::endl;
-        return -1;
-    }
-
-    // now return a random rarity number
-    int randomNum = rand() % total;
-    int rarity = 0;
-    int sum = 0;
-    do {
-        sum += rarityRatio[rarity];
-        rarity++;
-    } while (sum <= randomNum);
-
-    return rarity;
-}
-
-int ItemManager::getCrateItem(sItemBase& result, int itemSetId, int rarity, int playerGender) {
-    auto key = std::make_pair(itemSetId, rarity);
-
-    if (CrateItems.find(key) == CrateItems.end()) {
-        std::cout << "[WARN] Item Set ID " << itemSetId << " Rarity " << rarity << " does not exist" << std::endl;
-        return -1;
-    }
-
-    // only take into account items that have correct gender
-    std::vector<std::map<std::pair<int32_t, int32_t>, Item>::iterator> items;
-    for (auto crateitem : CrateItems[key]) {
-        int gender = crateitem->second.gender;
-        // if gender is incorrect, exclude item
-        if (gender != 0 && gender != playerGender)
-            continue;
-        items.push_back(crateitem);
-    }
-
-    if (items.size() == 0) {
-        std::cout << "[WARN] Set ID " << itemSetId << " Rarity " << rarity << " contains no valid items" << std::endl;
-        return -1;
-    }
-
-    auto item = items[rand() % items.size()];
-
-    result.iID = item->first.first;
-    result.iType = item->first.second;
-    result.iOpt = 1;
-
-    return 0;
-}
-
 // TODO: use this in cleaned up ItemManager
 int ItemManager::findFreeSlot(Player *plr) {
     int i;
@@ -542,7 +544,7 @@ int ItemManager::findFreeSlot(Player *plr) {
     return -1;
 }
 
-ItemManager::Item* ItemManager::getItemData(int32_t id, int32_t type) {
+Item* ItemManager::getItemData(int32_t id, int32_t type) {
     if(ItemData.find(std::make_pair(id, type)) !=  ItemData.end())
         return &ItemData[std::make_pair(id, type)];
     return nullptr;
@@ -593,7 +595,7 @@ void ItemManager::setItemStats(Player* plr) {
     Item* itemStatsDat;
 
     for (int i = 0; i < 4; i++) {
-        itemStatsDat = ItemManager::getItemData(plr->Equip[i].iID, plr->Equip[i].iType);
+        itemStatsDat = getItemData(plr->Equip[i].iID, plr->Equip[i].iType);
         if (itemStatsDat == nullptr) {
             std::cout << "[WARN] setItemStats(): getItemData() returned NULL" << std::endl;
             continue;
@@ -606,6 +608,7 @@ void ItemManager::setItemStats(Player* plr) {
 }
 
 // HACK: work around the invisible weapon bug
+// TODO: I don't think this makes a difference at all? Check and remove, if necessary.
 void ItemManager::updateEquips(CNSocket* sock, Player* plr) {
     for (int i = 0; i < 4; i++) {
         INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, resp);
@@ -616,6 +619,81 @@ void ItemManager::updateEquips(CNSocket* sock, Player* plr) {
 
         PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
     }
+}
+
+static void getMobDrop(sItemBase *reward, MobDrop* drop, MobDropChance* chance, int rolled) {
+    reward->iType = 9;
+    reward->iOpt = 1;
+
+    int total = 0;
+    for (int ratio : chance->cratesRatio)
+        total += ratio;
+
+    // randomizing a crate
+    int randomNum = rolled % total;
+    int i = 0;
+    int sum = 0;
+    do {
+        reward->iID = drop->crateIDs[i];
+        sum += chance->cratesRatio[i];
+        i++;
+    }
+    while (sum<=randomNum);
+}
+
+static void giveEventDrop(CNSocket* sock, Player* player, int rolled) {
+    // random drop chance
+    if (rand() % 100 > settings::EVENTCRATECHANCE)
+        return;
+
+    // no slot = no reward
+    int slot = findFreeSlot(player);
+    if (slot == -1)
+        return;
+
+    const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+
+    uint8_t respbuf[resplen];
+    sP_FE2CL_REP_REWARD_ITEM* reward = (sP_FE2CL_REP_REWARD_ITEM*)respbuf;
+    sItemReward* item = (sItemReward*)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
+
+    // don't forget to zero the buffer!
+    memset(respbuf, 0, resplen);
+
+    // leave everything here as it is
+    reward->m_iCandy = player->money;
+    reward->m_iFusionMatter = player->fusionmatter;
+    reward->m_iBatteryN = player->batteryN;
+    reward->m_iBatteryW = player->batteryW;
+    reward->iFatigue = 100; // prevents warning message
+    reward->iFatigue_Level = 1;
+    reward->iItemCnt = 1; // remember to update resplen if you change this
+
+    // which crate to drop
+    int crateId;
+    switch (settings::EVENTMODE) {
+    // knishmas
+    case 1: crateId = 1187; break;
+    // halloween
+    case 2: crateId = 1181; break;
+    // spring
+    case 3: crateId = 1126; break;
+    // what
+    default:
+        std::cout << "[WARN] Unknown event Id " << settings::EVENTMODE << std::endl;
+        return;
+    }
+
+    item->sItem.iType = 9;
+    item->sItem.iID = crateId;
+    item->sItem.iOpt = 1;
+    item->iSlotNum = slot;
+    item->eIL = 1; // Inventory Location. 1 means player inventory.
+
+    // update player
+    player->Inven[slot] = item->sItem;
+    sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
 }
 
 void ItemManager::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int rolledPotions,
@@ -687,7 +765,7 @@ void ItemManager::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int ro
     reward->iFatigue_Level = 1;
     reward->iItemCnt = 1; // remember to update resplen if you change this
 
-    int slot = ItemManager::findFreeSlot(plr);
+    int slot = findFreeSlot(plr);
 
     bool awardDrop = false;
     MobDropChance *chance = nullptr;
@@ -720,81 +798,6 @@ void ItemManager::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int ro
     // event crates
     if (settings::EVENTMODE != 0)
         giveEventDrop(sock, plr, rolledEvent);
-}
-
-void ItemManager::getMobDrop(sItemBase *reward, MobDrop* drop, MobDropChance* chance, int rolled) {
-    reward->iType = 9;
-    reward->iOpt = 1;
-
-    int total = 0;
-    for (int ratio : chance->cratesRatio)
-        total += ratio;
-
-    // randomizing a crate
-    int randomNum = rolled % total;
-    int i = 0;
-    int sum = 0;
-    do {
-        reward->iID = drop->crateIDs[i];
-        sum += chance->cratesRatio[i];
-        i++;
-    }
-    while (sum<=randomNum);
-}
-
-void ItemManager::giveEventDrop(CNSocket* sock, Player* player, int rolled) {
-    // random drop chance
-    if (rand() % 100 > settings::EVENTCRATECHANCE)
-        return;
-
-    // no slot = no reward
-    int slot = ItemManager::findFreeSlot(player);
-    if (slot == -1)
-        return;
-
-    const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
-    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
-
-    uint8_t respbuf[resplen];
-    sP_FE2CL_REP_REWARD_ITEM* reward = (sP_FE2CL_REP_REWARD_ITEM*)respbuf;
-    sItemReward* item = (sItemReward*)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
-
-    // don't forget to zero the buffer!
-    memset(respbuf, 0, resplen);
-
-    // leave everything here as it is
-    reward->m_iCandy = player->money;
-    reward->m_iFusionMatter = player->fusionmatter;
-    reward->m_iBatteryN = player->batteryN;
-    reward->m_iBatteryW = player->batteryW;
-    reward->iFatigue = 100; // prevents warning message
-    reward->iFatigue_Level = 1;
-    reward->iItemCnt = 1; // remember to update resplen if you change this
-
-    // which crate to drop
-    int crateId;
-    switch (settings::EVENTMODE) {
-    // knishmas
-    case 1: crateId = 1187; break;
-    // halloween
-    case 2: crateId = 1181; break;
-    // spring
-    case 3: crateId = 1126; break;
-    // what
-    default:
-        std::cout << "[WARN] Unknown event Id " << settings::EVENTMODE << std::endl;
-        return;
-    }
-
-    item->sItem.iType = 9;
-    item->sItem.iID = crateId;
-    item->sItem.iOpt = 1;
-    item->iSlotNum = slot;
-    item->eIL = 1; // Inventory Location. 1 means player inventory.
-
-    // update player
-    player->Inven[slot] = item->sItem;
-    sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
 }
 
 void ItemManager::init() {

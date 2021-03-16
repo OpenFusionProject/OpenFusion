@@ -1,7 +1,9 @@
 #include "Trading.hpp"
 #include "PlayerManager.hpp"
 
-bool doTrade(Player* plr, Player* plr2) {
+using namespace Trading;
+
+static bool doTrade(Player* plr, Player* plr2) {
     // init dummy inventories
     sItemBase plrInven[AINVEN_COUNT];
     sItemBase plr2Inven[AINVEN_COUNT];

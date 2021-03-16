@@ -21,23 +21,11 @@
 #include <vector>
 #include <cmath>
 
+using namespace PlayerManager;
+
 std::map<CNSocket*, Player*> PlayerManager::players;
 
-void PlayerManager::init() {
-    // register packet types
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ENTER, enterPlayer);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_LOADING_COMPLETE, loadPlayer);
-    REGISTER_SHARD_PACKET(P_CL2FE_REP_LIVE_CHECK, heartbeatPlayer);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_REGEN, revivePlayer);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_EXIT, exitGame);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SPECIAL_STATE_SWITCH, setSpecialSwitchPlayer);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_ON, enterPlayerVehicle);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_OFF, exitPlayerVehicle);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_CHANGE_MENTOR, changePlayerGuide);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_FIRST_USE_FLAG_SET, setFirstUseFlag);
-}
-
-void PlayerManager::addPlayer(CNSocket* key, Player plr) {
+static void addPlayer(CNSocket* key, Player plr) {
     Player *p = new Player();
 
     memcpy(p, &plr, sizeof(Player));
@@ -174,7 +162,36 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z) {
     sendPlayerTo(sock, X, Y, Z, getPlayer(sock)->instanceID);
 }
 
-void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
+/*
+ * Sends all nanos, from 0 to 58 (the contents of the Nanos array in PC_ENTER_SUCC are totally irrelevant).
+ * The first Nano in the in-game nanobook is the Unstable Nano, which is Van Kleiss.
+ * 0 (in plr->Nanos) is the null nano entry.
+ * 58 is a "Coming Soon" duplicate entry for an actual Van Kleiss nano, identical to the Unstable Nano.
+ * Nanos the player hasn't unlocked will (and should) be greyed out. Thus, all nanos should be accounted
+ * for in these packets, even if the player hasn't unlocked them.
+ */
+static void sendNanoBookSubset(CNSocket *sock) {
+#ifdef ACADEMY
+    Player *plr = getPlayer(sock);
+
+    int16_t id = 0;
+    INITSTRUCT(sP_FE2CL_REP_NANO_BOOK_SUBSET, pkt);
+
+    pkt.PCUID = plr->iID;
+    pkt.bookSize = NANO_COUNT;
+
+    while (id < NANO_COUNT) {
+        pkt.elementOffset = id;
+
+        for (int i = id - pkt.elementOffset; id < NANO_COUNT && i < 10; id++, i = id - pkt.elementOffset)
+            pkt.element[i] = plr->Nanos[id];
+
+        sock->sendPacket((void*)&pkt, P_FE2CL_REP_NANO_BOOK_SUBSET, sizeof(sP_FE2CL_REP_NANO_BOOK_SUBSET));
+    }
+#endif
+}
+
+static void enterPlayer(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_ENTER))
         return; // ignore the malformed packet
 
@@ -306,38 +323,9 @@ void PlayerManager::enterPlayer(CNSocket* sock, CNPacketData* data) {
     // initial buddy sync
     BuddyManager::refreshBuddyList(sock);
 
-    for (auto& pair : PlayerManager::players)
+    for (auto& pair : players)
         if (pair.second->notify)
             ChatManager::sendServerMessage(pair.first, "[ADMIN]" + getPlayerName(&plr) + " has joined.");
-}
-
-/*
- * Sends all nanos, from 0 to 58 (the contents of the Nanos array in PC_ENTER_SUCC are totally irrelevant).
- * The first Nano in the in-game nanobook is the Unstable Nano, which is Van Kleiss.
- * 0 (in plr->Nanos) is the null nano entry.
- * 58 is a "Coming Soon" duplicate entry for an actual Van Kleiss nano, identical to the Unstable Nano.
- * Nanos the player hasn't unlocked will (and should) be greyed out. Thus, all nanos should be accounted
- * for in these packets, even if the player hasn't unlocked them.
- */
-void PlayerManager::sendNanoBookSubset(CNSocket *sock) {
-#ifdef ACADEMY
-    Player *plr = getPlayer(sock);
-
-    int16_t id = 0;
-    INITSTRUCT(sP_FE2CL_REP_NANO_BOOK_SUBSET, pkt);
-
-    pkt.PCUID = plr->iID;
-    pkt.bookSize = NANO_COUNT;
-
-    while (id < NANO_COUNT) {
-        pkt.elementOffset = id;
-
-        for (int i = id - pkt.elementOffset; id < NANO_COUNT && i < 10; id++, i = id - pkt.elementOffset)
-            pkt.element[i] = plr->Nanos[id];
-
-        sock->sendPacket((void*)&pkt, P_FE2CL_REP_NANO_BOOK_SUBSET, sizeof(sP_FE2CL_REP_NANO_BOOK_SUBSET));
-    }
-#endif
 }
 
 void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size) {
@@ -353,7 +341,7 @@ void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, siz
     }
 }
 
-void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
+static void loadPlayer(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_LOADING_COMPLETE))
         return; // ignore the malformed packet
 
@@ -373,11 +361,11 @@ void PlayerManager::loadPlayer(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC));
 }
 
-void PlayerManager::heartbeatPlayer(CNSocket* sock, CNPacketData* data) {
+static void heartbeatPlayer(CNSocket* sock, CNPacketData* data) {
     getPlayer(sock)->lastHeartbeat = getTime();
 }
 
-void PlayerManager::exitGame(CNSocket* sock, CNPacketData* data) {
+static void exitGame(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_EXIT))
         return;
 
@@ -390,12 +378,27 @@ void PlayerManager::exitGame(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_EXIT_SUCC, sizeof(sP_FE2CL_REP_PC_EXIT_SUCC));
 }
 
-void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
+static WarpLocation* getRespawnPoint(Player *plr) {
+    WarpLocation* best = nullptr;
+    uint32_t curDist, bestDist = UINT32_MAX;
+
+    for (auto& targ : NPCManager::RespawnPoints) {
+        curDist = sqrt(pow(plr->x - targ.x, 2) + pow(plr->y - targ.y, 2));
+        if (curDist < bestDist && targ.instanceID == MAPNUM(plr->instanceID)) { // only mapNum needs to match
+            best = &targ;
+            bestDist = curDist;
+        }
+    }
+
+    return best;
+}
+
+static void revivePlayer(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_REGEN))
         return;
 
-    Player *plr = PlayerManager::getPlayer(sock);
-    WarpLocation* target = PlayerManager::getRespawnPoint(plr);
+    Player *plr = getPlayer(sock);
+    WarpLocation* target = getRespawnPoint(plr);
 
     sP_CL2FE_REQ_PC_REGEN* reviveData = (sP_CL2FE_REQ_PC_REGEN*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_REGEN_SUCC, response);
@@ -466,7 +469,7 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     resp2.PCRegenDataForOtherPC.iHP = plr->HP;
     resp2.PCRegenDataForOtherPC.iAngle = plr->angle;
 
-    Player *otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
+    Player *otherPlr = getPlayerFromID(plr->iIDGroup);
     if (otherPlr != nullptr) {
         int bitFlag = GroupManager::getGroupFlags(otherPlr);
         resp2.PCRegenDataForOtherPC.iConditionBitFlag = plr->iConditionBitFlag = plr->iSelfConditionBitFlag | bitFlag;
@@ -485,7 +488,7 @@ void PlayerManager::revivePlayer(CNSocket* sock, CNPacketData* data) {
     updatePlayerPosition(sock, x, y, z, plr->instanceID, plr->angle);
 }
 
-void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
+static void enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     Player* plr = getPlayer(sock);
 
     bool expired = plr->Equip[8].iTimeLimit < getTimestamp() && plr->Equip[8].iTimeLimit != 0;
@@ -514,7 +517,7 @@ void PlayerManager::enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     }
 }
 
-void PlayerManager::exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
+static void exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     Player* plr = getPlayer(sock);
 
     if (plr->iPCState & 8) {
@@ -531,11 +534,11 @@ void PlayerManager::exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     }
 }
 
-void PlayerManager::setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {
+static void setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {
     BuiltinCommands::setSpecialState(sock, data);
 }
 
-void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
+static void changePlayerGuide(CNSocket *sock, CNPacketData *data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_CHANGE_MENTOR))
         return;
 
@@ -565,7 +568,7 @@ void PlayerManager::changePlayerGuide(CNSocket *sock, CNPacketData *data) {
     plr->mentor = pkt->iMentor;
 }
 
-void PlayerManager::setFirstUseFlag(CNSocket* sock, CNPacketData* data) {
+static void setFirstUseFlag(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET))
         return;
 
@@ -609,24 +612,9 @@ std::string PlayerManager::getPlayerName(Player *plr, bool id) {
     return ret;
 }
 
-WarpLocation* PlayerManager::getRespawnPoint(Player *plr) {
-    WarpLocation* best = nullptr;
-    uint32_t curDist, bestDist = UINT32_MAX;
-
-    for (auto& targ : NPCManager::RespawnPoints) {
-        curDist = sqrt(pow(plr->x - targ.x, 2) + pow(plr->y - targ.y, 2));
-        if (curDist < bestDist && targ.instanceID == MAPNUM(plr->instanceID)) { // only mapNum needs to match
-            best = &targ;
-            bestDist = curDist;
-        }
-    }
-
-    return best;
-}
-
 bool PlayerManager::isAccountInUse(int accountId) {
     std::map<CNSocket*, Player*>::iterator it;
-    for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++) {
+    for (it = players.begin(); it != players.end(); it++) {
         if (it->second->accountId == accountId)
             return true;
     }
@@ -698,3 +686,17 @@ CNSocket *PlayerManager::getSockFromAny(int by, int id, int uid, std::string fir
 }
 
 #pragma endregion
+
+void PlayerManager::init() {
+    // register packet types
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ENTER, enterPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_LOADING_COMPLETE, loadPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REP_LIVE_CHECK, heartbeatPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_REGEN, revivePlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_EXIT, exitGame);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_SPECIAL_STATE_SWITCH, setSpecialSwitchPlayer);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_ON, enterPlayerVehicle);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_OFF, exitPlayerVehicle);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_CHANGE_MENTOR, changePlayerGuide);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_FIRST_USE_FLAG_SET, setFirstUseFlag);
+}

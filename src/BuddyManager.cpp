@@ -12,17 +12,28 @@
 #include <algorithm>
 #include <thread>
 
-void BuddyManager::init() {
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_REQUEST_MAKE_BUDDY, requestBuddy);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_FIND_NAME_MAKE_BUDDY, reqBuddyByName);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_ACCEPT_MAKE_BUDDY, reqAcceptBuddy);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_FIND_NAME_ACCEPT_BUDDY, reqFindNameBuddyAccept);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_GET_BUDDY_STATE, reqPktGetBuddyState);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SET_BUDDY_BLOCK, reqBuddyBlock);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SET_PC_BLOCK, reqPlayerBlock);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_REMOVE_BUDDY, reqBuddyDelete);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_BUDDY_WARP, reqBuddyWarp);
+using namespace BuddyManager;
+
+#pragma region Helper methods
+
+static int getAvailableBuddySlot(Player* plr) {
+    int slot = -1;
+    for (int i = 0; i < 50; i++) {
+        if (plr->buddyIDs[i] == 0)
+            return i;
+    }
+    return slot;
 }
+
+static bool playerHasBuddyWithID(Player* plr, int buddyID) {
+    for (int i = 0; i < 50; i++) {
+        if (plr->buddyIDs[i] == buddyID)
+            return true;
+    }
+    return false;
+}
+
+#pragma endregion
 
 // Refresh buddy list
 void BuddyManager::refreshBuddyList(CNSocket* sock) {
@@ -76,7 +87,7 @@ void BuddyManager::refreshBuddyList(CNSocket* sock) {
 }
 
 // Buddy request
-void BuddyManager::requestBuddy(CNSocket* sock, CNPacketData* data) {
+static void requestBuddy(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_REQUEST_MAKE_BUDDY))
         return; // malformed packet
 
@@ -117,7 +128,7 @@ void BuddyManager::requestBuddy(CNSocket* sock, CNPacketData* data) {
 }
 
 // Sending buddy request by player name
-void BuddyManager::reqBuddyByName(CNSocket* sock, CNPacketData* data) {
+static void reqBuddyByName(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_FIND_NAME_MAKE_BUDDY)) {
         return; // malformed packet
     }
@@ -144,7 +155,7 @@ void BuddyManager::reqBuddyByName(CNSocket* sock, CNPacketData* data) {
 }
 
 // Accepting buddy request
-void BuddyManager::reqAcceptBuddy(CNSocket* sock, CNPacketData* data) {
+static void reqAcceptBuddy(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_ACCEPT_MAKE_BUDDY))
         return; // malformed packet
 
@@ -213,7 +224,7 @@ void BuddyManager::reqAcceptBuddy(CNSocket* sock, CNPacketData* data) {
 }
 
 // Accepting buddy request from the find name request
-void BuddyManager::reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
+static void reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_FIND_NAME_ACCEPT_BUDDY)) {
         return; // malformed packet
     }
@@ -284,7 +295,7 @@ void BuddyManager::reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
 }
 
 // Getting buddy state
-void BuddyManager::reqPktGetBuddyState(CNSocket* sock, CNPacketData* data) {
+static void reqPktGetBuddyState(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     /*
@@ -307,7 +318,7 @@ void BuddyManager::reqPktGetBuddyState(CNSocket* sock, CNPacketData* data) {
 }
 
 // Blocking the buddy
-void BuddyManager::reqBuddyBlock(CNSocket* sock, CNPacketData* data) {
+static void reqBuddyBlock(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SET_BUDDY_BLOCK))
         return; // malformed packet
 
@@ -353,7 +364,7 @@ void BuddyManager::reqBuddyBlock(CNSocket* sock, CNPacketData* data) {
 }
 
 // block non-buddy
-void BuddyManager::reqPlayerBlock(CNSocket* sock, CNPacketData* data) {
+static void reqPlayerBlock(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_SET_PC_BLOCK))
         return;
 
@@ -381,7 +392,7 @@ void BuddyManager::reqPlayerBlock(CNSocket* sock, CNPacketData* data) {
 }
 
 // Deleting the buddy
-void BuddyManager::reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
+static void reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_REMOVE_BUDDY))
         return; // malformed packet
 
@@ -431,7 +442,7 @@ void BuddyManager::reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
 }
 
 // Warping to buddy
-void BuddyManager::reqBuddyWarp(CNSocket* sock, CNPacketData* data) {
+static void reqBuddyWarp(CNSocket* sock, CNPacketData* data) {
     if (data->size != sizeof(sP_CL2FE_REQ_PC_BUDDY_WARP))
         return; // malformed packet
     Player *plr = PlayerManager::getPlayer(sock);
@@ -472,23 +483,14 @@ fail:
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BUDDY_WARP_FAIL, sizeof(sP_FE2CL_REP_PC_BUDDY_WARP_FAIL));
 }
 
-#pragma region Helper methods
-
-int BuddyManager::getAvailableBuddySlot(Player* plr) {
-    int slot = -1;
-    for (int i = 0; i < 50; i++) {
-        if (plr->buddyIDs[i] == 0)
-            return i;
-    }
-    return slot;
+void BuddyManager::init() {
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_REQUEST_MAKE_BUDDY, requestBuddy);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_FIND_NAME_MAKE_BUDDY, reqBuddyByName);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_ACCEPT_MAKE_BUDDY, reqAcceptBuddy);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_FIND_NAME_ACCEPT_BUDDY, reqFindNameBuddyAccept);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_GET_BUDDY_STATE, reqPktGetBuddyState);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SET_BUDDY_BLOCK, reqBuddyBlock);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_SET_PC_BLOCK, reqPlayerBlock);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_REMOVE_BUDDY, reqBuddyDelete);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_BUDDY_WARP, reqBuddyWarp);
 }
-
-bool BuddyManager::playerHasBuddyWithID(Player* plr, int buddyID) {
-    for (int i = 0; i < 50; i++) {
-        if (plr->buddyIDs[i] == buddyID)
-            return true;
-    }
-    return false;
-}
-
-#pragma endregion
