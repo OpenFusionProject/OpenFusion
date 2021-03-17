@@ -3,6 +3,7 @@
 #include "NPCManager.hpp"
 #include "settings.hpp"
 #include "Combat.hpp"
+#include "Eggs.hpp"
 
 using namespace Chunking;
 
@@ -113,7 +114,7 @@ void Chunking::addPlayerToChunks(std::set<Chunk*> chnks, CNSocket* sock) {
                 break;
             case NPC_EGG:
                 INITSTRUCT(sP_FE2CL_SHINY_ENTER, enterEggData);
-                NPCManager::npcDataToEggData(&npc->appearanceData, &enterEggData.ShinyAppearanceData);
+                Eggs::npcDataToEggData(&npc->appearanceData, &enterEggData.ShinyAppearanceData);
                 sock->sendPacket((void*)&enterEggData, P_FE2CL_SHINY_ENTER, sizeof(sP_FE2CL_SHINY_ENTER));
                 break;
             default:
@@ -183,7 +184,7 @@ void Chunking::addNPCToChunks(std::set<Chunk*> chnks, int32_t id) {
         break;
     case NPC_EGG:
         INITSTRUCT(sP_FE2CL_SHINY_ENTER, enterEggData);
-        NPCManager::npcDataToEggData(&npc->appearanceData, &enterEggData.ShinyAppearanceData);
+        Eggs::npcDataToEggData(&npc->appearanceData, &enterEggData.ShinyAppearanceData);
 
         for (Chunk* chunk : chnks) {
             for (CNSocket* sock : chunk->players) {

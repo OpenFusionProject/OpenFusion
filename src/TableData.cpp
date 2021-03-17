@@ -9,6 +9,7 @@
 #include "Racing.hpp"
 #include "Vendor.hpp"
 #include "Abilities.hpp"
+#include "Eggs.hpp"
 
 #include "JSON.hpp"
 
@@ -378,7 +379,7 @@ static void loadEggs(int32_t* nextId) {
             toAdd.effectId = (int)eggType["EffectId"];
             toAdd.duration = (int)eggType["Duration"];
             toAdd.regen= (int)eggType["Regen"];
-            NPCManager::EggTypes[(int)eggType["Id"]] = toAdd;
+            Eggs::EggTypes[(int)eggType["Id"]] = toAdd;
         }
 
         // Egg instances
@@ -390,11 +391,11 @@ static void loadEggs(int32_t* nextId) {
 
             Egg* addEgg = new Egg((int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, (int)egg["iType"], id, false);
             NPCManager::NPCs[id] = addEgg;
-            NPCManager::Eggs[id] = addEgg;
+            Eggs::Eggs[id] = addEgg;
             NPCManager::updateNPCPosition(id, (int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, 0);
         }
 
-        std::cout << "[INFO] Loaded " <<NPCManager::Eggs.size()<<" eggs" <<std::endl;
+        std::cout << "[INFO] Loaded " <<Eggs::Eggs.size()<<" eggs" <<std::endl;
 
     }
     catch (const std::exception& err) {
@@ -539,7 +540,7 @@ static void loadGruntwork(int32_t *nextId) {
 
             Egg* addEgg = new Egg((int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, (int)egg["iType"], id, false);
             NPCManager::NPCs[id] = addEgg;
-            NPCManager::Eggs[id] = addEgg;
+            Eggs::Eggs[id] = addEgg;
             NPCManager::updateNPCPosition(id, (int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, 0);
             RunningEggs[id] = addEgg;
         }
@@ -1053,7 +1054,7 @@ void TableData::flush() {
         nlohmann::json egg;
         BaseNPC* npc = pair.second;
 
-        if (NPCManager::Eggs.find(pair.first) == NPCManager::Eggs.end())
+        if (Eggs::Eggs.find(pair.first) == Eggs::Eggs.end())
             continue;
         egg["iX"] = npc->appearanceData.iX;
         egg["iY"] = npc->appearanceData.iY;

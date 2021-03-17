@@ -3,6 +3,7 @@
 #include "PlayerManager.hpp"
 #include "TableData.hpp"
 #include "NPCManager.hpp"
+#include "Eggs.hpp"
 #include "MobAI.hpp"
 #include "Items.hpp"
 #include "db/Database.hpp"
@@ -485,7 +486,7 @@ static void buffCommand(std::string full, std::vector<std::string>& args, CNSock
     if (*tmp)
         return;
 
-    if (NPCManager::eggBuffPlayer(sock, skillId, 0, duration)<0)
+    if (Eggs::eggBuffPlayer(sock, skillId, 0, duration)<0)
         Chat::sendServerMessage(sock, "/buff: unknown skill Id");
     
 }
@@ -501,7 +502,7 @@ static void eggCommand(std::string full, std::vector<std::string>& args, CNSocke
     if (*tmp)
         return;
 
-    if (NPCManager::EggTypes.find(eggType) == NPCManager::EggTypes.end()) {
+    if (Eggs::EggTypes.find(eggType) == Eggs::EggTypes.end()) {
         Chat::sendServerMessage(sock, "/egg: Unknown egg type");
         return;
     }
@@ -518,7 +519,7 @@ static void eggCommand(std::string full, std::vector<std::string>& args, CNSocke
 
     Egg* egg = new Egg(plr->x + addX, plr->y + addY, plr->z, plr->instanceID, eggType, id, false); // change last arg to true after gruntwork
     NPCManager::NPCs[id] = egg;
-    NPCManager::Eggs[id] = egg;
+    Eggs::Eggs[id] = egg;
     NPCManager::updateNPCPosition(id, plr->x + addX, plr->y + addY, plr->z, plr->instanceID, plr->angle);
 
     // add to template

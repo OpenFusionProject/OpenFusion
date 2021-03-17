@@ -6,6 +6,7 @@
 #include "Player.hpp"
 #include "Abilities.hpp"
 #include "Missions.hpp"
+#include "Eggs.hpp"
 
 #include <string.h> // for memset()
 #include <assert.h>
@@ -417,7 +418,7 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
 
     std::pair<CNSocket*, int32_t> key = std::make_pair(sock, value1);
     time_t until = getTime() + (time_t)Nanos::SkillTable[144].durationTime[0] * 100;
-    NPCManager::EggBuffs[key] = until;
+    Eggs::EggBuffs[key] = until;
 }
 
 static void itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {

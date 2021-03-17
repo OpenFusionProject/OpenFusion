@@ -4,6 +4,7 @@
 #include "NPCManager.hpp"
 #include "Nanos.hpp"
 #include "Groups.hpp"
+#include "Eggs.hpp"
 
 /*
  * TODO: This file is in desperate need of deduplication and rewriting.
@@ -521,7 +522,7 @@ bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, in
         respdata[i].bProtected = 0;
         std::pair<CNSocket*, int32_t> key = std::make_pair(sock, bitFlag);
         time_t until = getTime() + (time_t)duration * 100;
-        NPCManager::EggBuffs[key] = until;
+        Eggs::EggBuffs[key] = until;
     }
     respdata[i].iConditionBitFlag = plr->iConditionBitFlag;
 

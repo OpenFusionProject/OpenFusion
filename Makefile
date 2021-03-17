@@ -51,6 +51,7 @@ CXXSRC=\
 	src/Chat.cpp\
 	src/CustomCommands.cpp\
 	src/Email.cpp\
+	src/Eggs.cpp\
 	src/main.cpp\
 	src/Missions.cpp\
 	src/MobAI.cpp\
@@ -92,6 +93,7 @@ CXXHDR=\
 	src/Chat.hpp\
 	src/CustomCommands.hpp\
 	src/Email.hpp\
+	src/Eggs.hpp\
 	src/Missions.hpp\
 	src/MobAI.hpp\
 	src/Combat.hpp\

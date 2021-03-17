@@ -14,6 +14,7 @@
 #include "Racing.hpp"
 #include "BuiltinCommands.hpp"
 #include "Abilities.hpp"
+#include "Eggs.hpp"
 
 #include "settings.hpp"
 
@@ -72,10 +73,10 @@ void PlayerManager::removePlayer(CNSocket* key) {
     Chunking::destroyInstanceIfEmpty(fromInstance);
 
     // remove player's buffs from the server
-    auto it = NPCManager::EggBuffs.begin();
-    while (it != NPCManager::EggBuffs.end()) {
+    auto it = Eggs::EggBuffs.begin();
+    while (it != Eggs::EggBuffs.end()) {
         if (it->first.first == key) {
-            it = NPCManager::EggBuffs.erase(it);
+            it = Eggs::EggBuffs.erase(it);
         }
         else
             it++;
