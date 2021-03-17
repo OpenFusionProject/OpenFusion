@@ -1,6 +1,5 @@
-#include "CNLoginServer.hpp"
-#include "CNShared.hpp"
-#include "CNStructs.hpp"
+#include "servers/CNLoginServer.hpp"
+#include "core/CNShared.hpp"
 #include "db/Database.hpp"
 #include "PlayerManager.hpp"
 #include "Items.hpp"
@@ -63,7 +62,7 @@ void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
         }
         default:
             if (settings::VERBOSITY)
-                std::cerr << "OpenFusion: LOGIN UNIMPLM ERR. PacketType: " << Defines::p2str(CL2LS, data->type) << " (" << data->type << ")" << std::endl;
+                std::cerr << "OpenFusion: LOGIN UNIMPLM ERR. PacketType: " << Packets::p2str(CL2LS, data->type) << " (" << data->type << ")" << std::endl;
             break;
         /*
          * Unimplemented CL2LS packets:

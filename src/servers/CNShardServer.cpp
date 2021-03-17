@@ -1,12 +1,11 @@
-#include "CNProtocol.hpp"
-#include "CNStructs.hpp"
-#include "CNShardServer.hpp"
+#include "core/Core.hpp"
+#include "db/Database.hpp"
+#include "servers/Monitor.hpp"
+#include "servers/CNShardServer.hpp"
 #include "PlayerManager.hpp"
 #include "MobAI.hpp"
-#include "CNShared.hpp"
+#include "core/CNShared.hpp"
 #include "settings.hpp"
-#include "db/Database.hpp"
-#include "Monitor.hpp"
 #include "TableData.hpp" // for flush()
 
 #include <iostream>
@@ -33,7 +32,7 @@ void CNShardServer::handlePacket(CNSocket* sock, CNPacketData* data) {
     if (ShardPackets.find(data->type) != ShardPackets.end())
         ShardPackets[data->type](sock, data);
     else if (settings::VERBOSITY > 0)
-        std::cerr << "OpenFusion: SHARD UNIMPLM ERR. PacketType: " << Defines::p2str(CL2FE, data->type) << " (" << data->type << ")" << std::endl;
+        std::cerr << "OpenFusion: SHARD UNIMPLM ERR. PacketType: " << Packets::p2str(CL2FE, data->type) << " (" << data->type << ")" << std::endl;
 
     if (PlayerManager::players.find(sock) != PlayerManager::players.end())
         PlayerManager::players[sock]->lastHeartbeat = getTime();

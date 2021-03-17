@@ -1,8 +1,7 @@
-#include "CNShardServer.hpp"
+#include "servers/CNShardServer.hpp"
 #include "PlayerManager.hpp"
 #include "Chat.hpp"
-#include "CNStructs.hpp"
-#include "Monitor.hpp"
+#include "servers/Monitor.hpp"
 #include "settings.hpp"
 
 #include <cstdio>

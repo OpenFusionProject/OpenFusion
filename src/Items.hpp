@@ -1,6 +1,6 @@
 #pragma once
 
-#include "CNShardServer.hpp"
+#include "servers/CNShardServer.hpp"
 #include "Player.hpp"
 #include "MobAI.hpp"
 

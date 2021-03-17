@@ -1,5 +1,5 @@
 /*
- * CNShared.hpp
+ * core/CNShared.hpp
  *     There's some data shared between the Login Server and the Shard Server. Of course all of this needs to be thread-safe. No mucking about on this one!
  */
 

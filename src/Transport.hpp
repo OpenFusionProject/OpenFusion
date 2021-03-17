@@ -1,6 +1,6 @@
 #pragma once
 
-#include "CNShardServer.hpp"
+#include "servers/CNShardServer.hpp"
 #include "NPCManager.hpp"
 
 #include <unordered_map>

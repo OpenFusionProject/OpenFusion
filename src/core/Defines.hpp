@@ -941,6 +941,6 @@ enum {
    N_PACKETS = N_CL2LS + N_CL2FE + N_FE2CL + N_LS2CL
 };
 
-namespace Defines {
+namespace Packets {
     std::string p2str(int type, int val);
 }

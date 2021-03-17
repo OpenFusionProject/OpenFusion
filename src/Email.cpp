@@ -1,8 +1,7 @@
 #include "Email.hpp"
 
-#include "CNProtocol.hpp"
-#include "CNStructs.hpp"
-#include "CNShardServer.hpp"
+#include "core/Core.hpp"
+#include "servers/CNShardServer.hpp"
 
 #include "db/Database.hpp"
 #include "PlayerManager.hpp"

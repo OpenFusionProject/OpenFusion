@@ -1,6 +1,6 @@
 #pragma once
 
-#include "CNProtocol.hpp"
+#include "core/Core.hpp"
 #include "PlayerManager.hpp"
 #include "NPC.hpp"
 

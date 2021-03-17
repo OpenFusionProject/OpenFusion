@@ -1,7 +1,6 @@
 #pragma once
 
-#include "CNProtocol.hpp"
-#include "Defines.hpp"
+#include "core/Core.hpp"
 
 #include <map>
 

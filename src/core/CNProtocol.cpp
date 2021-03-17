@@ -1,4 +1,4 @@
-#include "CNProtocol.hpp"
+#include "core/CNProtocol.hpp"
 #include "CNStructs.hpp"
 
 #include <assert.h>
@@ -469,7 +469,7 @@ void CNServer::printPacket(CNPacketData *data, int type) {
         return;
     }
 
-    std::cout << "OpenFusion: received " << Defines::p2str(type, data->type) << " (" << data->type << ")" << std::endl;
+    std::cout << "OpenFusion: received " << Packets::p2str(type, data->type) << " (" << data->type << ")" << std::endl;
 }
 
 bool CNServer::checkExtraSockets(int i) { return false; } // stubbed

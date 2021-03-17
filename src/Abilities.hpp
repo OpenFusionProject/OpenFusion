@@ -1,6 +1,6 @@
 #pragma once
 
-#include "CNProtocol.hpp"
+#include "core/Core.hpp"
 #include "Combat.hpp"
 
 typedef void (*PowerHandler)(CNSocket*, std::vector<int>, int16_t, int16_t, int16_t, int16_t, int16_t, int32_t, int16_t);

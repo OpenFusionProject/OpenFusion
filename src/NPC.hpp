@@ -1,6 +1,5 @@
 #pragma once
 
-#include "CNStructs.hpp"
 #include "Chunking.hpp"
 
 class BaseNPC {

@@ -1,7 +1,6 @@
 #include <iostream>
 #include "settings.hpp"
 #include "INIReader.hpp"
-#include "CNStructs.hpp" // for ACADEMY
 
 // defaults :)
 int settings::VERBOSITY = 1;

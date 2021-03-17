@@ -3,8 +3,7 @@
 #include <string>
 #include <cstring>
 
-#include "CNProtocol.hpp"
-#include "CNStructs.hpp"
+#include "core/Core.hpp"
 #include "Chunking.hpp"
 
 #define ACTIVE_MISSION_COUNT 6

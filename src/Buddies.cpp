@@ -1,5 +1,4 @@
-#include "CNShardServer.hpp"
-#include "CNStructs.hpp"
+#include "servers/CNShardServer.hpp"
 #include "Buddies.hpp"
 #include "PlayerManager.hpp"
 #include "Buddies.hpp"

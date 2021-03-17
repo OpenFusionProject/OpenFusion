@@ -1,6 +1,6 @@
 #pragma once
 
-#include "CNShardServer.hpp"
+#include "servers/CNShardServer.hpp"
 
 struct EPInfo {
     int zoneX, zoneY, EPID, maxScore, maxTime;

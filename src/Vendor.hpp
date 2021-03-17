@@ -1,8 +1,7 @@
 #pragma once
 
-#include "CNProtocol.hpp"
-#include "CNStructs.hpp"
-#include "CNShardServer.hpp"
+#include "core/Core.hpp"
+#include "servers/CNShardServer.hpp"
 
 #include "Items.hpp"
 #include "PlayerManager.hpp"

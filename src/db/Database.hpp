@@ -1,6 +1,7 @@
 #pragma once
-#include "CNStructs.hpp"
+
 #include "Player.hpp"
+
 #include <string>
 #include <vector>
 

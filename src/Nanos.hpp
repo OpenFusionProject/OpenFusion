@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "Player.hpp"
-#include "CNShardServer.hpp"
+#include "servers/CNShardServer.hpp"
 
 struct NanoData {
     int style;

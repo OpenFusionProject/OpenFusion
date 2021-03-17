@@ -1,8 +1,7 @@
 #pragma once
 
-#include "CNProtocol.hpp"
-#include "CNShared.hpp"
-#include "CNShardServer.hpp"
+#include "core/Core.hpp"
+#include "servers/CNShardServer.hpp"
 #include "NPC.hpp"
 #include "MobAI.hpp"
 

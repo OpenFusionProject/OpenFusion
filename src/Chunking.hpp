@@ -1,7 +1,6 @@
 #pragma once
 
-#include "CNProtocol.hpp"
-#include "CNStructs.hpp"
+#include "core/Core.hpp"
 
 #include <utility>
 #include <set>

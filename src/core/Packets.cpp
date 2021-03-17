@@ -200,7 +200,7 @@ PacketMap cl2fe_map[] = {
     STRINGIFY(P_CL2FE_REQ_PC_ITEM_ENCHANT),
 };
 
-std::string Defines::p2str(int type, int val) {
+std::string Packets::p2str(int type, int val) {
     switch (type) {
     case CL2LS:
        val = val - CL2LS - 1;

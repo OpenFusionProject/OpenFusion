@@ -1,9 +1,8 @@
 #pragma once
 
 #include "Player.hpp"
-#include "CNProtocol.hpp"
-#include "CNStructs.hpp"
-#include "CNProtocol.hpp"
+#include "core/Core.hpp"
+#include "core/Core.hpp"
 
 namespace Buddies {
 	void init();

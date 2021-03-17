@@ -1,9 +1,8 @@
 #pragma once
 
 #include "Player.hpp"
-#include "CNProtocol.hpp"
-#include "CNStructs.hpp"
-#include "CNShardServer.hpp"
+#include "core/Core.hpp"
+#include "servers/CNShardServer.hpp"
 #include "Chunking.hpp"
 
 #include <utility>

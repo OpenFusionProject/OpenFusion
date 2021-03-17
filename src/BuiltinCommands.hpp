@@ -1,6 +1,6 @@
 #pragma once
 
-#include "CNProtocol.hpp"
+#include "core/Core.hpp"
 
 namespace BuiltinCommands {
     void init();

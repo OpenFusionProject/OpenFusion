@@ -1,5 +1,4 @@
-#include "CNShardServer.hpp"
-#include "CNStructs.hpp"
+#include "servers/CNShardServer.hpp"
 #include "Nanos.hpp"
 #include "PlayerManager.hpp"
 #include "NPCManager.hpp"

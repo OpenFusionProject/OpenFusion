@@ -37,6 +37,12 @@ CHDR=\
 	vendor/bcrypt/winbcrypt.h\
 
 CXXSRC=\
+	src/core/CNProtocol.cpp\
+	src/core/CNShared.cpp\
+	src/core/Packets.cpp\
+	src/servers/CNLoginServer.cpp\
+	src/servers/CNShardServer.cpp\
+	src/servers/Monitor.cpp\
 	src/db/init.cpp\
 	src/db/login.cpp\
 	src/db/shard.cpp\
@@ -44,11 +50,6 @@ CXXSRC=\
 	src/db/email.cpp\
 	src/Chat.cpp\
 	src/CustomCommands.cpp\
-	src/CNLoginServer.cpp\
-	src/CNProtocol.cpp\
-	src/CNShardServer.cpp\
-	src/CNShared.cpp\
-	src/Defines.cpp\
 	src/Email.cpp\
 	src/main.cpp\
 	src/Missions.cpp\
@@ -67,28 +68,29 @@ CXXSRC=\
 	src/Chunking.cpp\
 	src/Buddies.cpp\
 	src/Groups.cpp\
-	src/Monitor.cpp\
 	src/Racing.cpp\
 	src/Vendor.cpp\
 	src/Trading.cpp\
 
 # headers (for timestamp purposes)
 CXXHDR=\
+	src/core/CNProtocol.hpp\
+	src/core/CNShared.hpp\
+	src/core/CNStructs.hpp\
+	src/core/Defines.hpp\
+	src/core/Core.hpp\
+	src/servers/CNLoginServer.hpp\
+	src/servers/CNShardServer.hpp\
+	src/servers/Monitor.hpp\
+	src/db/Database.hpp\
+	src/db/internal.hpp\
 	vendor/bcrypt/BCrypt.hpp\
 	vendor/INIReader.hpp\
 	vendor/JSON.hpp\
 	vendor/INIReader.hpp\
 	vendor/JSON.hpp\
-	src/db/Database.hpp\
-	src/db/internal.hpp\
 	src/Chat.hpp\
 	src/CustomCommands.hpp\
-	src/CNLoginServer.hpp\
-	src/CNProtocol.hpp\
-	src/CNShardServer.hpp\
-	src/CNShared.hpp\
-	src/CNStructs.hpp\
-	src/Defines.hpp\
 	src/Email.hpp\
 	src/Missions.hpp\
 	src/MobAI.hpp\
@@ -107,7 +109,6 @@ CXXHDR=\
 	src/Chunking.hpp\
 	src/Buddies.hpp\
 	src/Groups.hpp\
-	src/Monitor.hpp\
 	src/Racing.hpp\
 	src/Vendor.hpp\
 	src/Trading.hpp\
