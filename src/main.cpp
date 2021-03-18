@@ -21,6 +21,8 @@
 #include "Trading.hpp"
 #include "Email.hpp"
 #include "Vendor.hpp"
+#include "Chat.hpp"
+#include "Eggs.hpp"
 
 #include "settings.hpp"
 
@@ -104,8 +106,10 @@ int main() {
     Buddies::init();
     CustomCommands::init();
     Combat::init();
+    Chat::init();
     MobAI::init();
     Items::init();
+    Eggs::init();
     Missions::init();
     Nanos::init();
     NPCManager::init();
