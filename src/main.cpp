@@ -148,7 +148,8 @@ int main() {
 
 // helper functions
 
-std::string U16toU8(char16_t* src) {
+std::string U16toU8(char16_t* src, size_t max) {
+    src[max-1] = '\0'; // force a NULL terminatorstd::string U16toU8(char16_t* src) {
     try {
         std::wstring_convert<std::codecvt_utf8_utf16<char16_t>,char16_t> convert;
         return convert.to_bytes(src);

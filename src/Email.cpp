@@ -289,10 +289,10 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
         0, // ReadFlag (unread)
         (pkt->iCash > 0 || attachments.size() > 0) ? 1 : 0, // ItemFlag
         plr->iID, // SenderID
-        U16toU8(plr->PCStyle.szFirstName), // SenderFirstName
-        U16toU8(plr->PCStyle.szLastName), // SenderLastName
-        Chat::sanitizeText(U16toU8(pkt->szSubject)), // SubjectLine
-        Chat::sanitizeText(U16toU8(pkt->szContent), true), // MsgBody
+        AUTOU16TOU8(plr->PCStyle.szFirstName), // SenderFirstName
+        AUTOU16TOU8(plr->PCStyle.szLastName), // SenderLastName
+        Chat::sanitizeText(AUTOU16TOU8(pkt->szSubject)), // SubjectLine
+        Chat::sanitizeText(AUTOU16TOU8(pkt->szContent), true), // MsgBody
         pkt->iCash, // Taros
         (uint64_t)getTimestamp(), // SendTime
         0 // DeleteTime (unimplemented)

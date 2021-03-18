@@ -137,7 +137,7 @@ static void reqBuddyByName(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_REP_PC_FIND_NAME_MAKE_BUDDY_SUCC, resp);
 
-    CNSocket* otherSock = PlayerManager::getSockFromName(U16toU8(pkt->szFirstName), U16toU8(pkt->szLastName));
+    CNSocket* otherSock = PlayerManager::getSockFromName(AUTOU16TOU8(pkt->szFirstName), AUTOU16TOU8(pkt->szLastName));
     if (otherSock == nullptr)
         return; // no player found
 

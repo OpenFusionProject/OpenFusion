@@ -131,7 +131,7 @@ static void setGMSpecialOnOff(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_GM_REQ_TARGET_PC_SPECIAL_STATE_ONOFF *req = (sP_CL2FE_GM_REQ_TARGET_PC_SPECIAL_STATE_ONOFF*)data->buf;
 
     CNSocket *otherSock = PlayerManager::getSockFromAny(req->eTargetSearchBy, req->iTargetPC_ID, req->iTargetPC_UID,
-        U16toU8(req->szTargetPC_FirstName), U16toU8(req->szTargetPC_LastName));
+        AUTOU16TOU8(req->szTargetPC_FirstName), AUTOU16TOU8(req->szTargetPC_LastName));
     if (otherSock == nullptr) {
         Chat::sendServerMessage(sock, "player to teleport not found");
         return;
@@ -159,7 +159,7 @@ static void locatePlayer(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_GM_REQ_PC_LOCATION *req = (sP_CL2FE_GM_REQ_PC_LOCATION*)data->buf;
 
     CNSocket *otherSock = PlayerManager::getSockFromAny(req->eTargetSearchBy, req->iTargetPC_ID, req->iTargetPC_UID,
-        U16toU8(req->szTargetPC_FirstName), U16toU8(req->szTargetPC_LastName));
+        AUTOU16TOU8(req->szTargetPC_FirstName), AUTOU16TOU8(req->szTargetPC_LastName));
     if (otherSock == nullptr) {
         Chat::sendServerMessage(sock, "player not found");
         return;
@@ -197,7 +197,7 @@ static void kickPlayer(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_GM_REQ_KICK_PLAYER *req = (sP_CL2FE_GM_REQ_KICK_PLAYER*)data->buf;
 
     CNSocket *otherSock = PlayerManager::getSockFromAny(req->eTargetSearchBy, req->iTargetPC_ID, req->iTargetPC_UID,
-        U16toU8(req->szTargetPC_FirstName), U16toU8(req->szTargetPC_LastName));
+        AUTOU16TOU8(req->szTargetPC_FirstName), AUTOU16TOU8(req->szTargetPC_LastName));
     if (otherSock == nullptr) {
         Chat::sendServerMessage(sock, "player not found");
         return;
@@ -258,7 +258,7 @@ static void teleportPlayer(CNSocket *sock, CNPacketData *data) {
 
     // player to teleport
     CNSocket *targetSock = PlayerManager::getSockFromAny(req->eTargetPCSearchBy, req->iTargetPC_ID, req->iTargetPC_UID,
-        U16toU8(req->szTargetPC_FirstName), U16toU8(req->szTargetPC_LastName));
+        AUTOU16TOU8(req->szTargetPC_FirstName), AUTOU16TOU8(req->szTargetPC_LastName));
     if (targetSock == nullptr) {
         Chat::sendServerMessage(sock, "player to teleport not found");
         return;
@@ -283,7 +283,7 @@ static void teleportPlayer(CNSocket *sock, CNPacketData *data) {
     case eCN_GM_TeleportMapType__SomeoneLocation:
         // player to teleport to
         goalSock = PlayerManager::getSockFromAny(req->eGoalPCSearchBy, req->iGoalPC_ID, req->iGoalPC_UID,
-            U16toU8(req->szGoalPC_FirstName), U16toU8(req->szGoalPC_LastName));
+            AUTOU16TOU8(req->szGoalPC_FirstName), AUTOU16TOU8(req->szGoalPC_LastName));
         if (goalSock == nullptr) {
             Chat::sendServerMessage(sock, "teleportation target player not found");
             return;

@@ -107,8 +107,8 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
          * The std::string -> char* -> std::string maneuver should remove any
          * trailing garbage after the null terminator.
          */
-        userLogin = std::string(U16toU8(login->szID).c_str());
-        userPassword = std::string(U16toU8(login->szPassword).c_str());
+        userLogin = std::string(AUTOU16TOU8(login->szID).c_str());
+        userPassword = std::string(AUTOU16TOU8(login->szPassword).c_str());
     }
 
     // the client inserts a "\n" in the password if you press enter key in the middle of the password
@@ -288,9 +288,9 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC, resp);
 
     int errorCode = 0;
-    if (!CNLoginServer::isCharacterNameGood(U16toU8(save->szFirstName), U16toU8(save->szLastName))) {
+    if (!CNLoginServer::isCharacterNameGood(AUTOU16TOU8(save->szFirstName), AUTOU16TOU8(save->szLastName))) {
         errorCode = 4;
-    } else if (!Database::isNameFree(U16toU8(save->szFirstName), U16toU8(save->szLastName))) {
+    } else if (!Database::isNameFree(AUTOU16TOU8(save->szFirstName), AUTOU16TOU8(save->szLastName))) {
         errorCode = 1;
     }
 
@@ -330,7 +330,7 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
     DEBUGLOG(
         std::cout << "Login Server: new character created" << std::endl;
         std::cout << "\tSlot: " << (int)save->iSlotNum << std::endl;
-        std::cout << "\tName: " << U16toU8(save->szFirstName) << " " << U16toU8(save->szLastName) << std::endl;
+        std::cout << "\tName: " << AUTOU16TOU8(save->szFirstName) << " " << AUTOU16TOU8(save->szLastName) << std::endl;
     )
 }
 
@@ -406,7 +406,7 @@ void CNLoginServer::characterCreate(CNSocket* sock, CNPacketData* data) {
         std::cout << "Login Server: Character creation completed" << std::endl;
         std::cout << "\tPC_UID: " << character->PCStyle.iPC_UID << std::endl;
         std::cout << "\tNameCheck: " << (int)character->PCStyle.iNameCheck << std::endl;
-        std::cout << "\tName: " << U16toU8(character->PCStyle.szFirstName) << " " << U16toU8(character->PCStyle.szLastName) << std::endl;
+        std::cout << "\tName: " << AUTOU16TOU8(character->PCStyle.szFirstName) << " " << AUTOU16TOU8(character->PCStyle.szLastName) << std::endl;
         std::cout << "\tGender: " << (int)character->PCStyle.iGender << std::endl;
         std::cout << "\tFace: " << (int)character->PCStyle.iFaceStyle << std::endl;
         std::cout << "\tHair: " << (int)character->PCStyle.iHairStyle << std::endl;
@@ -513,10 +513,10 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
     sP_CL2LS_REQ_CHANGE_CHAR_NAME* save = (sP_CL2LS_REQ_CHANGE_CHAR_NAME*)data->buf;
 
     int errorCode = 0;
-    if (!CNLoginServer::isCharacterNameGood(U16toU8(save->szFirstName), U16toU8(save->szLastName))) {
+    if (!CNLoginServer::isCharacterNameGood(AUTOU16TOU8(save->szFirstName), AUTOU16TOU8(save->szLastName))) {
         errorCode = 4;
     }
-    else if (!Database::isNameFree(U16toU8(save->szFirstName), U16toU8(save->szLastName))) {
+    else if (!Database::isNameFree(AUTOU16TOU8(save->szFirstName), AUTOU16TOU8(save->szLastName))) {
         errorCode = 1;
     }
 
@@ -547,7 +547,7 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
 
     DEBUGLOG(
         std::cout << "Login Server: Name check success for character [" << save->iPCUID << "]" << std::endl;
-        std::cout << "\tNew name: " << U16toU8(save->szFirstName) << " " << U16toU8(save->szLastName) << std::endl;     
+        std::cout << "\tNew name: " << AUTOU16TOU8(save->szFirstName) << " " << AUTOU16TOU8(save->szLastName) << std::endl;     
     )
 }
 
@@ -559,7 +559,7 @@ void CNLoginServer::duplicateExit(CNSocket* sock, CNPacketData* data) {
 
     sP_CL2LS_REQ_PC_EXIT_DUPLICATE* exit = (sP_CL2LS_REQ_PC_EXIT_DUPLICATE*)data->buf;
     Database::Account account = {};
-    Database::findAccount(&account, U16toU8(exit->szID));
+    Database::findAccount(&account, AUTOU16TOU8(exit->szID));
 
     // sanity check
     if (account.AccountID == 0) {

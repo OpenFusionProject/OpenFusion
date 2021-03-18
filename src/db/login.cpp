@@ -161,8 +161,8 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         )";
     sqlite3_stmt* stmt;
-    std::string firstName = U16toU8(save->szFirstName);
-    std::string lastName =  U16toU8(save->szLastName);
+    std::string firstName = AUTOU16TOU8(save->szFirstName);
+    std::string lastName =  AUTOU16TOU8(save->szLastName);
 
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, AccountID);
@@ -519,8 +519,8 @@ bool Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save, int accountId) {
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
-    std::string firstName = U16toU8(save->szFirstName);
-    std::string lastName = U16toU8(save->szLastName);
+    std::string firstName = AUTOU16TOU8(save->szFirstName);
+    std::string lastName = AUTOU16TOU8(save->szLastName);
 
     sqlite3_bind_text(stmt, 1, firstName.c_str(), -1, NULL);
     sqlite3_bind_text(stmt, 2, lastName.c_str(), -1, NULL);

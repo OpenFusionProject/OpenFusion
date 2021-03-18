@@ -209,7 +209,7 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_ENTER:" << std::endl;
-        std::cout << "\tID: " << U16toU8(enter->szID) << std::endl;
+        std::cout << "\tID: " << AUTOU16TOU8(enter->szID) << std::endl;
         std::cout << "\tSerial: " << enter->iEnterSerialKey << std::endl;
         std::cout << "\tTemp: " << enter->iTempValue << std::endl;
         std::cout << "\tPC_UID: " << plr.PCStyle.iPC_UID << std::endl;
@@ -607,7 +607,7 @@ std::string PlayerManager::getPlayerName(Player *plr, bool id) {
     if (id && plr->accountLevel <= 30)
         ret += "(GM) ";
 
-    ret += U16toU8(plr->PCStyle.szFirstName) + " " + U16toU8(plr->PCStyle.szLastName);
+    ret += AUTOU16TOU8(plr->PCStyle.szFirstName) + " " + AUTOU16TOU8(plr->PCStyle.szLastName);
 
     if (id)
         ret += " [" + std::to_string(plr->iID) + "]";
@@ -662,8 +662,8 @@ CNSocket *PlayerManager::getSockFromID(int32_t iID) {
 
 CNSocket *PlayerManager::getSockFromName(std::string firstname, std::string lastname) {
     for (auto& pair : players)
-        if (U16toU8(pair.second->PCStyle.szFirstName) == firstname
-        && U16toU8(pair.second->PCStyle.szLastName) == lastname)
+        if (AUTOU16TOU8(pair.second->PCStyle.szFirstName) == firstname
+        && AUTOU16TOU8(pair.second->PCStyle.szLastName) == lastname)
             return pair.first;
 
     return nullptr;

@@ -16,7 +16,7 @@ static void chatHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
-    std::string fullChat = sanitizeText(U16toU8(chat->szFreeChat));
+    std::string fullChat = sanitizeText(AUTOU16TOU8(chat->szFreeChat));
     if (fullChat.length() > 1 && fullChat[0] == CMD_PREFIX) { // PREFIX
         CustomCommands::runCmd(fullChat, sock);
         return;
@@ -50,7 +50,7 @@ static void menuChatHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_SEND_MENUCHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_MENUCHAT_MESSAGE*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
-    std::string fullChat = sanitizeText(U16toU8(chat->szFreeChat));
+    std::string fullChat = sanitizeText(AUTOU16TOU8(chat->szFreeChat));
     std::string logLine = "[MenuChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
 
     std::cout << logLine << std::endl;
@@ -131,7 +131,7 @@ static void announcementHandler(CNSocket* sock, CNPacketData* data) {
         break;
     }
 
-    std::string logLine = "[Bcast " + std::to_string(announcement->iAreaType) + "] " + PlayerManager::getPlayerName(plr, false) + ": " + U16toU8(msg.szAnnounceMsg);
+    std::string logLine = "[Bcast " + std::to_string(announcement->iAreaType) + "] " + PlayerManager::getPlayerName(plr, false) + ": " + AUTOU16TOU8(msg.szAnnounceMsg);
     std::cout << logLine << std::endl;
     dump.push_back("**" + logLine + "**");
 }
@@ -157,7 +157,7 @@ static void buddyChatHandler(CNSocket* sock, CNPacketData* data) {
     resp.iToPCUID = pkt->iBuddyPCUID;
     resp.iEmoteCode = pkt->iEmoteCode;
 
-    std::string fullChat = sanitizeText(U16toU8(pkt->szFreeChat));
+    std::string fullChat = sanitizeText(AUTOU16TOU8(pkt->szFreeChat));
 
     if (fullChat.length() > 1 && fullChat[0] == CMD_PREFIX) { // PREFIX
         CustomCommands::runCmd(fullChat, sock);
@@ -198,7 +198,7 @@ static void buddyMenuChatHandler(CNSocket* sock, CNPacketData* data) {
     resp.iToPCUID = pkt->iBuddyPCUID;
     resp.iEmoteCode = pkt->iEmoteCode;
 
-    std::string fullChat = sanitizeText(U16toU8(pkt->szFreeChat));
+    std::string fullChat = sanitizeText(AUTOU16TOU8(pkt->szFreeChat));
     std::string logLine = "[BuddyMenuChat] " + PlayerManager::getPlayerName(plr) + " (to " + PlayerManager::getPlayerName(otherPlr) + "): " + fullChat;
 
     std::cout << logLine << std::endl;
@@ -231,7 +231,7 @@ static void tradeChatHandler(CNSocket* sock, CNPacketData* data) {
     resp.iID_Request = pacdat->iID_Request;
     resp.iID_From = pacdat->iID_From;
     resp.iID_To = pacdat->iID_To;
-    std::string fullChat = sanitizeText(U16toU8(pacdat->szFreeChat));
+    std::string fullChat = sanitizeText(AUTOU16TOU8(pacdat->szFreeChat));
     U8toU16(fullChat, resp.szFreeChat, sizeof(resp.szFreeChat));
 
     std::string logLine = "[TradeChat] " + PlayerManager::getPlayerName(plr) + " (to " + PlayerManager::getPlayerName(otherPlr) + "): " + fullChat;
@@ -255,7 +255,7 @@ static void groupChatHandler(CNSocket* sock, CNPacketData* data) {
     if (otherPlr == nullptr)
         return;
 
-    std::string fullChat = sanitizeText(U16toU8(chat->szFreeChat));
+    std::string fullChat = sanitizeText(AUTOU16TOU8(chat->szFreeChat));
 
     if (fullChat.length() > 1 && fullChat[0] == CMD_PREFIX) { // PREFIX
         CustomCommands::runCmd(fullChat, sock);
@@ -290,7 +290,7 @@ static void groupMenuChatHandler(CNSocket* sock, CNPacketData* data) {
     if (otherPlr == nullptr)
         return;
 
-    std::string fullChat = sanitizeText(U16toU8(chat->szFreeChat));
+    std::string fullChat = sanitizeText(AUTOU16TOU8(chat->szFreeChat));
     std::string logLine = "[GroupMenuChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
 
     std::cout << logLine << std::endl;
