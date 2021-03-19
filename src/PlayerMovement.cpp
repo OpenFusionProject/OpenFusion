@@ -3,12 +3,9 @@
 #include "core/Core.hpp"
 
 static void movePlayer(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_MOVE))
-        return; // ignore the malformed packet
-
     Player* plr = PlayerManager::getPlayer(sock);
 
-    sP_CL2FE_REQ_PC_MOVE* moveData = (sP_CL2FE_REQ_PC_MOVE*)data->buf;
+    auto* moveData = (sP_CL2FE_REQ_PC_MOVE*)data->buf;
     PlayerManager::updatePlayerPosition(sock, moveData->iX, moveData->iY, moveData->iZ, plr->instanceID, moveData->iAngle);
 
     uint64_t tm = getTime();
@@ -30,16 +27,13 @@ static void movePlayer(CNSocket* sock, CNPacketData* data) {
     moveResponse.iCliTime = moveData->iCliTime; // maybe don't send this??? seems unneeded...
     moveResponse.iSvrTime = tm;
 
-    PlayerManager::sendToViewable(sock, (void*)&moveResponse, P_FE2CL_PC_MOVE, sizeof(sP_FE2CL_PC_MOVE));
+    PlayerManager::sendToViewable(sock, moveResponse, P_FE2CL_PC_MOVE);
 }
 
 static void stopPlayer(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_STOP))
-        return; // ignore the malformed packet
-
     Player* plr = PlayerManager::getPlayer(sock);
 
-    sP_CL2FE_REQ_PC_STOP* stopData = (sP_CL2FE_REQ_PC_STOP*)data->buf;
+    auto stopData = (sP_CL2FE_REQ_PC_STOP*)data->buf;
     PlayerManager::updatePlayerPosition(sock, stopData->iX, stopData->iY, stopData->iZ, plr->instanceID, plr->angle);
 
     uint64_t tm = getTime();
@@ -55,16 +49,13 @@ static void stopPlayer(CNSocket* sock, CNPacketData* data) {
     stopResponse.iCliTime = stopData->iCliTime; // maybe don't send this??? seems unneeded...
     stopResponse.iSvrTime = tm;
 
-    PlayerManager::sendToViewable(sock, (void*)&stopResponse, P_FE2CL_PC_STOP, sizeof(sP_FE2CL_PC_STOP));
+    PlayerManager::sendToViewable(sock, stopResponse, P_FE2CL_PC_STOP);
 }
 
 static void jumpPlayer(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_JUMP))
-        return; // ignore the malformed packet
-
     Player* plr = PlayerManager::getPlayer(sock);
 
-    sP_CL2FE_REQ_PC_JUMP* jumpData = (sP_CL2FE_REQ_PC_JUMP*)data->buf;
+    auto jumpData = (sP_CL2FE_REQ_PC_JUMP*)data->buf;
     PlayerManager::updatePlayerPosition(sock, jumpData->iX, jumpData->iY, jumpData->iZ, plr->instanceID, jumpData->iAngle);
 
     uint64_t tm = getTime();
@@ -86,16 +77,13 @@ static void jumpPlayer(CNSocket* sock, CNPacketData* data) {
     jumpResponse.iCliTime = jumpData->iCliTime; // maybe don't send this??? seems unneeded...
     jumpResponse.iSvrTime = tm;
 
-    PlayerManager::sendToViewable(sock, (void*)&jumpResponse, P_FE2CL_PC_JUMP, sizeof(sP_FE2CL_PC_JUMP));
+    PlayerManager::sendToViewable(sock, jumpResponse, P_FE2CL_PC_JUMP);
 }
 
 static void jumppadPlayer(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_JUMPPAD))
-        return; // ignore the malformed packet
-
     Player* plr = PlayerManager::getPlayer(sock);
 
-    sP_CL2FE_REQ_PC_JUMPPAD* jumppadData = (sP_CL2FE_REQ_PC_JUMPPAD*)data->buf;
+    auto jumppadData = (sP_CL2FE_REQ_PC_JUMPPAD*)data->buf;
     PlayerManager::updatePlayerPosition(sock, jumppadData->iX, jumppadData->iY, jumppadData->iZ, plr->instanceID, jumppadData->iAngle);
 
     uint64_t tm = getTime();
@@ -115,16 +103,13 @@ static void jumppadPlayer(CNSocket* sock, CNPacketData* data) {
     jumppadResponse.iCliTime = jumppadData->iCliTime;
     jumppadResponse.iSvrTime = tm;
 
-    PlayerManager::sendToViewable(sock, (void*)&jumppadResponse, P_FE2CL_PC_JUMPPAD, sizeof(sP_FE2CL_PC_JUMPPAD));
+    PlayerManager::sendToViewable(sock, jumppadResponse, P_FE2CL_PC_JUMPPAD);
 }
 
 static void launchPlayer(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_LAUNCHER))
-        return; // ignore the malformed packet
-
     Player* plr = PlayerManager::getPlayer(sock);
 
-    sP_CL2FE_REQ_PC_LAUNCHER* launchData = (sP_CL2FE_REQ_PC_LAUNCHER*)data->buf;
+    auto launchData = (sP_CL2FE_REQ_PC_LAUNCHER*)data->buf;
     PlayerManager::updatePlayerPosition(sock, launchData->iX, launchData->iY, launchData->iZ, plr->instanceID, launchData->iAngle);
 
     uint64_t tm = getTime();
@@ -145,13 +130,10 @@ static void launchPlayer(CNSocket* sock, CNPacketData* data) {
     launchResponse.iCliTime = launchData->iCliTime;
     launchResponse.iSvrTime = tm;
 
-    PlayerManager::sendToViewable(sock, (void*)&launchResponse, P_FE2CL_PC_LAUNCHER, sizeof(sP_FE2CL_PC_LAUNCHER));
+    PlayerManager::sendToViewable(sock, launchResponse, P_FE2CL_PC_LAUNCHER);
 }
 
 static void ziplinePlayer(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_ZIPLINE))
-        return; // ignore the malformed packet
-
     Player* plr = PlayerManager::getPlayer(sock);
 
     sP_CL2FE_REQ_PC_ZIPLINE* ziplineData = (sP_CL2FE_REQ_PC_ZIPLINE*)data->buf;
@@ -182,16 +164,13 @@ static void ziplinePlayer(CNSocket* sock, CNPacketData* data) {
     ziplineResponse.iRollMax = ziplineData->iRollMax;
     ziplineResponse.iRoll = ziplineData->iRoll;
 
-    PlayerManager::sendToViewable(sock, (void*)&ziplineResponse, P_FE2CL_PC_ZIPLINE, sizeof(sP_FE2CL_PC_ZIPLINE));
+    PlayerManager::sendToViewable(sock, ziplineResponse, P_FE2CL_PC_ZIPLINE);
 }
 
 static void movePlatformPlayer(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_MOVEPLATFORM))
-        return; // ignore the malformed packet
-
     Player* plr = PlayerManager::getPlayer(sock);
 
-    sP_CL2FE_REQ_PC_MOVEPLATFORM* platformData = (sP_CL2FE_REQ_PC_MOVEPLATFORM*)data->buf;
+    auto platformData = (sP_CL2FE_REQ_PC_MOVEPLATFORM*)data->buf;
     PlayerManager::updatePlayerPosition(sock, platformData->iX, platformData->iY, platformData->iZ, plr->instanceID, platformData->iAngle);
 
     uint64_t tm = getTime();
@@ -216,16 +195,13 @@ static void movePlatformPlayer(CNSocket* sock, CNPacketData* data) {
     platResponse.cKeyValue = platformData->cKeyValue;
     platResponse.iPlatformID = platformData->iPlatformID;
 
-    PlayerManager::sendToViewable(sock, (void*)&platResponse, P_FE2CL_PC_MOVEPLATFORM, sizeof(sP_FE2CL_PC_MOVEPLATFORM));
+    PlayerManager::sendToViewable(sock, platResponse, P_FE2CL_PC_MOVEPLATFORM);
 }
 
 static void moveSliderPlayer(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_MOVETRANSPORTATION))
-        return; // ignore the malformed packet
-
     Player* plr = PlayerManager::getPlayer(sock);
 
-    sP_CL2FE_REQ_PC_MOVETRANSPORTATION* sliderData = (sP_CL2FE_REQ_PC_MOVETRANSPORTATION*)data->buf;
+    auto sliderData = (sP_CL2FE_REQ_PC_MOVETRANSPORTATION*)data->buf;
     PlayerManager::updatePlayerPosition(sock, sliderData->iX, sliderData->iY, sliderData->iZ, plr->instanceID, sliderData->iAngle);
 
     uint64_t tm = getTime();
@@ -249,13 +225,10 @@ static void moveSliderPlayer(CNSocket* sock, CNPacketData* data) {
     sliderResponse.cKeyValue = sliderData->cKeyValue;
     sliderResponse.iT_ID = sliderData->iT_ID;
 
-    PlayerManager::sendToViewable(sock, (void*)&sliderResponse, P_FE2CL_PC_MOVETRANSPORTATION, sizeof(sP_FE2CL_PC_MOVETRANSPORTATION));
+    PlayerManager::sendToViewable(sock, sliderResponse, P_FE2CL_PC_MOVETRANSPORTATION);
 }
 
 static void moveSlopePlayer(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_SLOPE))
-        return; // ignore the malformed packet
-
     Player* plr = PlayerManager::getPlayer(sock);
 
     sP_CL2FE_REQ_PC_SLOPE* slopeData = (sP_CL2FE_REQ_PC_SLOPE*)data->buf;
@@ -279,7 +252,7 @@ static void moveSlopePlayer(CNSocket* sock, CNPacketData* data) {
     slopeResponse.cKeyValue = slopeData->cKeyValue;
     slopeResponse.iSlopeID = slopeData->iSlopeID;
 
-    PlayerManager::sendToViewable(sock, (void*)&slopeResponse, P_FE2CL_PC_SLOPE, sizeof(sP_FE2CL_PC_SLOPE));
+    PlayerManager::sendToViewable(sock, slopeResponse, P_FE2CL_PC_SLOPE);
 }
 
 void PlayerMovement::init() {

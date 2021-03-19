@@ -123,7 +123,7 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
         resp.iZ = Z;
         resp.iCandy = plr->money;
         resp.eIL = 4; // do not take away any items
-        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
+        sock->sendPacket(resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC);
     }
 
     if (I != INSTANCE_OVERWORLD) {
@@ -141,14 +141,15 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
             pkt.iMapCoordZ_Max = INT32_MAX;
         }
 
-        sock->sendPacket((void*)&pkt, P_FE2CL_INSTANCE_MAP_INFO, sizeof(sP_FE2CL_INSTANCE_MAP_INFO));
+        sock->sendPacket(pkt, P_FE2CL_INSTANCE_MAP_INFO);
     }
 
     INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, pkt2);
     pkt2.iX = X;
     pkt2.iY = Y;
     pkt2.iZ = Z;
-    sock->sendPacket((void*)&pkt2, P_FE2CL_REP_PC_GOTO_SUCC, sizeof(sP_FE2CL_REP_PC_GOTO_SUCC));
+    sock->sendPacket(pkt2, P_FE2CL_REP_PC_GOTO_SUCC);
+
     Chunking::updatePlayerChunk(sock, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
     updatePlayerPosition(sock, X, Y, Z, I, plr->angle);
 
@@ -189,16 +190,14 @@ static void sendNanoBookSubset(CNSocket *sock) {
         for (int i = id - pkt.elementOffset; id < NANO_COUNT && i < 10; id++, i = id - pkt.elementOffset)
             pkt.element[i] = plr->Nanos[id];
 
+        // TODO: add NANO_BOOK_SUBSET to Defines.c, so we can switch this to the new system later
         sock->sendPacket((void*)&pkt, P_FE2CL_REP_NANO_BOOK_SUBSET, sizeof(sP_FE2CL_REP_NANO_BOOK_SUBSET));
     }
 #endif
 }
 
 static void enterPlayer(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_ENTER))
-        return; // ignore the malformed packet
-
-    sP_CL2FE_REQ_PC_ENTER* enter = (sP_CL2FE_REQ_PC_ENTER*)data->buf;
+    auto* enter = (sP_CL2FE_REQ_PC_ENTER*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_ENTER_SUCC, response);
 
     // TODO: check if serialkey exists, if it doesn't send sP_FE2CL_REP_PC_ENTER_FAIL
@@ -307,7 +306,7 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
     sock->setFEKey(plr.FEKey);
     sock->setActiveKey(SOCKETKEY_FE); // send all packets using the FE key from now on
 
-    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_ENTER_SUCC, sizeof(sP_FE2CL_REP_PC_ENTER_SUCC));
+    sock->sendPacket(response, P_FE2CL_REP_PC_ENTER_SUCC);
 
     // transmit MOTD after entering the game, so the client hopefully changes modes on time
     Chat::sendServerMessage(sock, settings::MOTDSTRING);
@@ -345,9 +344,6 @@ void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, siz
 }
 
 static void loadPlayer(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_LOADING_COMPLETE))
-        return; // ignore the malformed packet
-
     sP_CL2FE_REQ_PC_LOADING_COMPLETE* complete = (sP_CL2FE_REQ_PC_LOADING_COMPLETE*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, response);
     Player *plr = getPlayer(sock);
@@ -361,7 +357,7 @@ static void loadPlayer(CNSocket* sock, CNPacketData* data) {
 
     updatePlayerPosition(sock, plr->x, plr->y, plr->z, plr->instanceID, plr->angle);
 
-    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, sizeof(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC));
+    sock->sendPacket(response, P_FE2CL_REP_PC_LOADING_COMPLETE_SUCC);
 }
 
 static void heartbeatPlayer(CNSocket* sock, CNPacketData* data) {
@@ -369,16 +365,13 @@ static void heartbeatPlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 static void exitGame(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_EXIT))
-        return;
-
-    sP_CL2FE_REQ_PC_EXIT* exitData = (sP_CL2FE_REQ_PC_EXIT*)data->buf;
+    auto exitData = (sP_CL2FE_REQ_PC_EXIT*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_EXIT_SUCC, response);
 
     response.iID = exitData->iID;
     response.iExitCode = 1;
 
-    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_EXIT_SUCC, sizeof(sP_FE2CL_REP_PC_EXIT_SUCC));
+    sock->sendPacket(response, P_FE2CL_REP_PC_EXIT_SUCC);
 }
 
 static WarpLocation* getRespawnPoint(Player *plr) {
@@ -397,13 +390,10 @@ static WarpLocation* getRespawnPoint(Player *plr) {
 }
 
 static void revivePlayer(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_REGEN))
-        return;
-
     Player *plr = getPlayer(sock);
     WarpLocation* target = getRespawnPoint(plr);
 
-    sP_CL2FE_REQ_PC_REGEN* reviveData = (sP_CL2FE_REQ_PC_REGEN*)data->buf;
+    auto reviveData = (sP_CL2FE_REQ_PC_REGEN*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_REGEN_SUCC, response);
     INITSTRUCT(sP_FE2CL_PC_REGEN, resp2);
 
@@ -462,7 +452,7 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
     response.bMoveLocation = 0;
     response.PCRegenData.iMapNum = MAPNUM(plr->instanceID);
 
-    sock->sendPacket((void*)&response, P_FE2CL_REP_PC_REGEN_SUCC, sizeof(sP_FE2CL_REP_PC_REGEN_SUCC));
+    sock->sendPacket(response, P_FE2CL_REP_PC_REGEN_SUCC);
 
     // Update other players
     resp2.PCRegenDataForOtherPC.iPC_ID = plr->iID;
@@ -481,7 +471,7 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
         resp2.PCRegenDataForOtherPC.iSpecialState = plr->iSpecialState;
         resp2.PCRegenDataForOtherPC.Nano = plr->Nanos[plr->activeNano];
 
-        sendToViewable(sock, (void*)&resp2, P_FE2CL_PC_REGEN, sizeof(sP_FE2CL_PC_REGEN));
+        sendToViewable(sock, resp2, P_FE2CL_PC_REGEN);
     }
 
     if (!move)
@@ -502,18 +492,18 @@ static void enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
 
     if (plr->Equip[8].iID > 0 && !expired) {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_SUCC, response);
-        sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_ON_SUCC));
+        sock->sendPacket(response, P_FE2CL_PC_VEHICLE_ON_SUCC);
 
         // send to other players
         plr->iPCState |= 8;
         INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
         response2.iPC_ID = plr->iID;
         response2.iState = plr->iPCState;
-        sendToViewable(sock, (void*)&response2, P_FE2CL_PC_STATE_CHANGE, sizeof(sP_FE2CL_PC_STATE_CHANGE));
+        sendToViewable(sock, response2, P_FE2CL_PC_STATE_CHANGE);
 
     } else {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_FAIL, response);
-        sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_ON_FAIL, sizeof(sP_FE2CL_PC_VEHICLE_ON_FAIL));
+        sock->sendPacket(response, P_FE2CL_PC_VEHICLE_ON_FAIL);
 
         // check if vehicle didn't expire
         if (expired) {
@@ -529,7 +519,7 @@ static void exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
 
     if (plr->iPCState & 8) {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
-        sock->sendPacket((void*)&response, P_FE2CL_PC_VEHICLE_OFF_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_OFF_SUCC));
+        sock->sendPacket(response, P_FE2CL_PC_VEHICLE_OFF_SUCC);
 
         // send to other players
         plr->iPCState &= ~8;
@@ -537,7 +527,7 @@ static void exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
         response2.iPC_ID = plr->iID;
         response2.iState = plr->iPCState;
 
-        sendToViewable(sock, (void*)&response2, P_FE2CL_PC_STATE_CHANGE, sizeof(sP_FE2CL_PC_STATE_CHANGE));
+        sendToViewable(sock, response2, P_FE2CL_PC_STATE_CHANGE);
     }
 }
 
@@ -546,10 +536,7 @@ static void setSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 static void changePlayerGuide(CNSocket *sock, CNPacketData *data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_CHANGE_MENTOR))
-        return;
-
-    sP_CL2FE_REQ_PC_CHANGE_MENTOR *pkt = (sP_CL2FE_REQ_PC_CHANGE_MENTOR*)data->buf;
+    auto pkt = (sP_CL2FE_REQ_PC_CHANGE_MENTOR*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_CHANGE_MENTOR_SUCC, resp);
     Player *plr = getPlayer(sock);
 
@@ -557,7 +544,7 @@ static void changePlayerGuide(CNSocket *sock, CNPacketData *data) {
     resp.iMentorCnt = 1;
     resp.iFusionMatter = plr->fusionmatter; // no cost
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_CHANGE_MENTOR_SUCC, sizeof(sP_FE2CL_REP_PC_CHANGE_MENTOR_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_CHANGE_MENTOR_SUCC);
     // if it's changed from computress
     if (plr->mentor == 5) {
         // we're warping to the past
@@ -576,10 +563,7 @@ static void changePlayerGuide(CNSocket *sock, CNPacketData *data) {
 }
 
 static void setFirstUseFlag(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET))
-        return;
-
-    sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET* flag = (sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET*)data->buf;
+    auto flag = (sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET*)data->buf;
     Player* plr = getPlayer(sock);
 
     if (flag->iFlagCode < 1 || flag->iFlagCode > 128) {
@@ -638,7 +622,7 @@ void PlayerManager::exitDuplicate(int accountId) {
 
             INITSTRUCT(sP_FE2CL_REP_PC_EXIT_DUPLICATE, resp);
             resp.iErrorCode = 0;
-            sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_EXIT_DUPLICATE, sizeof(sP_FE2CL_REP_PC_EXIT_DUPLICATE));
+            sock->sendPacket(resp, P_FE2CL_REP_PC_EXIT_DUPLICATE);
 
             sock->kill();
             CNShardServer::_killConnection(sock);

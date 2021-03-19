@@ -56,18 +56,12 @@ static std::pair<int,int> getDamage(int attackPower, int defensePower, bool shou
 }
 
 static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
-    sP_CL2FE_REQ_PC_ATTACK_NPCs* pkt = (sP_CL2FE_REQ_PC_ATTACK_NPCs*)data->buf;
+    auto pkt = (sP_CL2FE_REQ_PC_ATTACK_NPCs*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
-
-    // sanity check
-    if (!validInVarPacket(sizeof(sP_CL2FE_REQ_PC_ATTACK_NPCs), pkt->iNPCCnt, sizeof(int32_t), data->size)) {
-        std::cout << "[WARN] bad sP_CL2FE_REQ_PC_ATTACK_NPCs packet size\n";
-        return;
-    }
-
-    int32_t *pktdata = (int32_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_PC_ATTACK_NPCs));
+    auto targets = (int32_t*)data->trailers;
 
     // rapid fire anti-cheat
+    // TODO: move this out of here, when generalizing packet frequency validation
     time_t currTime = getTime();
     if (currTime - plr->lastShot < plr->fireRate * 80)
         plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // gain suspicion for rapid firing
@@ -83,33 +77,27 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         sock->kill();
 
     /*
-     * Due to the possibility of multiplication overflow (and regular buffer overflow),
-     * both incoming and outgoing variable-length packets must be validated, at least if
-     * the number of trailing structs isn't well known (ie. it's from the client).
+     * IMPORTANT: This validates memory safety in addition to preventing
+     * ordinary cheating. If the client sends a very large number of trailing
+     * values, it could overflow the *response* buffer, which isn't otherwise
+     * being validated anymore.
      */
-    if (!validOutVarPacket(sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC), pkt->iNPCCnt, sizeof(sAttackResult))) {
-        std::cout << "[WARN] bad sP_FE2CL_PC_ATTACK_NPCs_SUCC packet size\n";
+    if (pkt->iNPCCnt > 3) {
+        std::cout << "[WARN] Player tried to attack more than 3 NPCs at once" << std::endl;
         return;
     }
 
-    // initialize response struct
-    size_t resplen = sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC) + pkt->iNPCCnt * sizeof(sAttackResult);
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-
-    memset(respbuf, 0, resplen);
-
-    sP_FE2CL_PC_ATTACK_NPCs_SUCC *resp = (sP_FE2CL_PC_ATTACK_NPCs_SUCC*)respbuf;
-    sAttackResult *respdata = (sAttackResult*)(respbuf+sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC));
+    INITVARPACKET(respbuf, sP_FE2CL_PC_ATTACK_NPCs_SUCC, resp, sAttackResult, respdata);
 
     resp->iNPCCnt = pkt->iNPCCnt;
 
-    for (int i = 0; i < pkt->iNPCCnt; i++) {
-        if (MobAI::Mobs.find(pktdata[i]) == MobAI::Mobs.end()) {
+    for (int i = 0; i < data->trCnt; i++) {
+        if (MobAI::Mobs.find(targets[i]) == MobAI::Mobs.end()) {
             // not sure how to best handle this
             std::cout << "[WARN] pcAttackNpcs: mob ID not found" << std::endl;
             return;
         }
-        Mob *mob = MobAI::Mobs[pktdata[i]];
+        Mob *mob = MobAI::Mobs[targets[i]];
 
         std::pair<int,int> damage;
 
@@ -119,7 +107,8 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
             damage.first = plr->pointDamage;
 
         int difficulty = (int)mob->data["m_iNpcLevel"];
-        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW > 6 + difficulty), Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
+        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW > 6 + difficulty),
+            Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
         
         if (plr->batteryW >= 6 + difficulty)
             plr->batteryW -= 6 + difficulty;
@@ -135,28 +124,22 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     }
 
     resp->iBatteryW = plr->batteryW;
-    sock->sendPacket((void*)respbuf, P_FE2CL_PC_ATTACK_NPCs_SUCC, resplen);
+    sock->sendPacket(respbuf, P_FE2CL_PC_ATTACK_NPCs_SUCC);
 
     // a bit of a hack: these are the same size, so we can reuse the response packet
     assert(sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC) == sizeof(sP_FE2CL_PC_ATTACK_NPCs));
-    sP_FE2CL_PC_ATTACK_NPCs *resp1 = (sP_FE2CL_PC_ATTACK_NPCs*)respbuf;
+    auto *resp1 = (sP_FE2CL_PC_ATTACK_NPCs*)respbuf;
 
     resp1->iPC_ID = plr->iID;
 
     // send to other players
-    PlayerManager::sendToViewable(sock, (void*)respbuf, P_FE2CL_PC_ATTACK_NPCs, resplen);
+    PlayerManager::sendToViewable(sock, respbuf, P_FE2CL_PC_ATTACK_NPCs);
 }
 
 void Combat::npcAttackPc(Mob *mob, time_t currTime) {
     Player *plr = PlayerManager::getPlayer(mob->target);
 
-    const size_t resplen = sizeof(sP_FE2CL_PC_ATTACK_NPCs_SUCC) + sizeof(sAttackResult);
-    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-    memset(respbuf, 0, resplen);
-
-    sP_FE2CL_NPC_ATTACK_PCs *pkt = (sP_FE2CL_NPC_ATTACK_PCs*)respbuf;
-    sAttackResult *atk = (sAttackResult*)(respbuf + sizeof(sP_FE2CL_NPC_ATTACK_PCs));
+    INITVARPACKET(respbuf, sP_FE2CL_NPC_ATTACK_PCs, pkt, sAttackResult, atk);
 
     auto damage = getDamage(450 + (int)mob->data["m_iPower"], plr->defense, false, false, -1, -1, 0);
 
@@ -171,8 +154,8 @@ void Combat::npcAttackPc(Mob *mob, time_t currTime) {
     atk->iHP = plr->HP;
     atk->iHitFlag = damage.second;
 
-    mob->target->sendPacket((void*)respbuf, P_FE2CL_NPC_ATTACK_PCs, resplen);
-    PlayerManager::sendToViewable(mob->target, (void*)respbuf, P_FE2CL_NPC_ATTACK_PCs, resplen);
+    mob->target->sendPacket(respbuf, P_FE2CL_NPC_ATTACK_PCs);
+    PlayerManager::sendToViewable(mob->target, respbuf, P_FE2CL_NPC_ATTACK_PCs);
 
     if (plr->HP <= 0) {
         mob->target = nullptr;
@@ -315,10 +298,8 @@ static void combatBegin(CNSocket *sock, CNPacketData *data) {
 static void combatEnd(CNSocket *sock, CNPacketData *data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
-    if (plr != nullptr) {
-        plr->inCombat = false;
-        plr->healCooldown = 4000;
-    }
+    plr->inCombat = false;
+    plr->healCooldown = 4000;
 }
 
 static void dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
@@ -608,7 +589,7 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    // client sends us 8 byters, where last 4 bytes are mob ID,
+    // client sends us 8 bytes, where last 4 bytes are mob ID,
     // we use int64 pointer to move around but have to remember to cast it to int32
     int64_t* pktdata = (int64_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_PC_ROCKET_STYLE_HIT));
 
