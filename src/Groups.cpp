@@ -9,6 +9,14 @@
 #include <algorithm>
 #include <thread>
 
+/*
+ * NOTE: Variadic response packets that list group members are technically
+ * double-variadic, as they have two count members with trailing struct counts,
+ * and are thus incompatible with the generic sendPacket() wrapper.
+ * That means we still have to (carefully) use validOutVarPacket() in this
+ * source file.
+ */
+
 using namespace Groups;
 
 static void requestGroup(CNSocket* sock, CNPacketData* data) {

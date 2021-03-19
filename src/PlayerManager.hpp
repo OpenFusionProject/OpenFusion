@@ -22,8 +22,6 @@ namespace PlayerManager {
     void sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I);
     void sendPlayerTo(CNSocket* sock, int X, int Y, int Z);
 
-    void sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size);
-
     Player *getPlayer(CNSocket* key);
     std::string getPlayerName(Player *plr, bool id=true);
 
@@ -33,4 +31,21 @@ namespace PlayerManager {
     CNSocket *getSockFromID(int32_t iID);
     CNSocket *getSockFromName(std::string firstname, std::string lastname);
     CNSocket *getSockFromAny(int by, int id, int uid, std::string firstname, std::string lastname);
+
+    void sendToViewable(CNSocket *sock, void* buf, uint32_t type, size_t size);
+
+    // TODO: unify this under the new Entity system
+    template<class T>
+    void sendToViewable(CNSocket *sock, T& pkt, uint32_t type) {
+        Player* plr = getPlayer(sock);
+        for (auto it = plr->viewableChunks->begin(); it != plr->viewableChunks->end(); it++) {
+            Chunk* chunk = *it;
+            for (CNSocket* otherSock : chunk->players) {
+                if (otherSock == sock)
+                    continue;
+
+                otherSock->sendPacket(pkt, type);
+            }
+        }
+    }
 }

@@ -83,6 +83,14 @@ inline void* xmalloc(size_t sz) {
     return res;
 }
 
+inline constexpr bool isInboundPacketID(uint32_t id) {
+    return ((id & CL2LS) == CL2LS) || ((id & CL2FE) == CL2FE);
+}
+
+inline constexpr bool isOutboundPacketID(uint32_t id) {
+    return ((id & LS2CL) == LS2CL) || ((id & FE2CL) == FE2CL);
+}
+
 // overflow-safe validation of variable-length packets
 // for outbound packets
 inline constexpr bool validOutVarPacket(size_t base, int32_t npayloads, size_t plsize) {
@@ -168,6 +176,7 @@ private:
     int recvData(buffer_t* data, int size);
 
     inline void parsePacket(uint8_t *buf, size_t size);
+    void validatingSendPacket(void *buf, uint32_t packetType);
 
 public:
     SOCKET sock;
@@ -186,6 +195,16 @@ public:
     void sendPacket(void* buf, uint32_t packetType, size_t size);
     void step();
     bool isAlive();
+
+    // generic, validating wrapper for sendPacket()
+    template<class T>
+    inline void sendPacket(T& pkt, uint32_t packetType) {
+        /*
+         * We do most of the logic in a helper, to lower the amount of code
+         * that gets generated multiple times with each template instantiation.
+         */
+        validatingSendPacket((void*)&pkt, packetType);
+    }
 };
 
 class CNServer;
@@ -219,14 +238,14 @@ protected:
 
     bool active = true;
 
+    void addPollFD(SOCKET s);
+    void removePollFD(int i);
+
 public:
     PacketHandler pHandler;
 
     CNServer();
     CNServer(uint16_t p);
-
-    void addPollFD(SOCKET s);
-    void removePollFD(int i);
 
     void start();
     void kill();

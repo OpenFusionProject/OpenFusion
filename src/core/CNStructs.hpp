@@ -28,6 +28,11 @@
 #define INITSTRUCT(T, x) T x; \
     memset(&x, 0, sizeof(T));
 
+#define INITVARPACKET(_buf, _Pkt, _pkt, _Trailer, _trailer) uint8_t _buf[CN_PACKET_BUFFER_SIZE]; \
+    memset(&_buf, 0, CN_PACKET_BUFFER_SIZE); \
+    auto _pkt = (_Pkt*)_buf; \
+    auto _trailer = (_Trailer*)(_pkt + 1);
+
 // macros to extract fields from instanceIDs
 #define MAPNUM(x) ((x) & 0xffffffff)
 #define PLAYERID(x) ((x) >> 32)

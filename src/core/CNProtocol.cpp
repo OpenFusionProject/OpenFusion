@@ -119,6 +119,28 @@ void CNSocket::kill() {
 #endif
 }
 
+void CNSocket::validatingSendPacket(void *pkt, uint32_t packetType) {
+    assert(isOutboundPacketID(packetType));
+    assert(Packets::packets.find(packetType) != Packets::packets.end());
+
+    PacketDesc& desc = Packets::packets[packetType];
+    size_t resplen = desc.size;
+
+    /*
+     * Note that this validation doesn't happen on time to prevent a buffer
+     * overflow if it would have taken place, but we do it anyway so the
+     * assertion failure at least makes it clear that something isn't being
+     * validated properly.
+     */
+    if (desc.variadic) {
+        int32_t ntrailers = *(int32_t*)(((uint8_t*)pkt) + desc.cntMembOfs);
+        assert(validOutVarPacket(desc.size, ntrailers, desc.trailerSize));
+        resplen = desc.size + ntrailers * desc.trailerSize;
+    }
+
+    sendPacket(pkt, packetType, resplen);
+}
+
 void CNSocket::sendPacket(void* buf, uint32_t type, size_t size) {
     if (!alive)
         return;
@@ -168,13 +190,18 @@ inline void CNSocket::parsePacket(uint8_t *buf, size_t size) {
         return;
     }
 
+    if (!isInboundPacketID(type)) {
+        std::cerr << "OpenFusion: UNEXPECTED PACKET: " << (int)type << std::endl;
+        return;
+    }
+
     PacketDesc& desc = Packets::packets[type];
 
     /*
      * Some packet structs with no meaningful contents have length 1, but
      * the client doesn't transmit that byte at all, so we special-case that.
      * It's important that we do that by zeroing that byte, as the server could
-     * bypothetically try and read from it and get a byte of the previous
+     * hypothetically try and read from it and get a byte of the previous
      * packet's contents.
      *
      * Assigning a zero byte to the body like this is safe, since there's a
