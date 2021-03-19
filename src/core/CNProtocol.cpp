@@ -59,7 +59,8 @@ int CNSocketEncryption::decryptData(uint8_t* buffer, uint8_t* key, int size) {
 
 // ========================================================[[ CNPacketData ]]========================================================
 
-CNPacketData::CNPacketData(void* b, uint32_t t, int l): buf(b), size(l), type(t) {}
+CNPacketData::CNPacketData(void *b, uint32_t t, int l, int trnum, void *trs):
+    buf(b), size(l), type(t), trCnt(trnum), trailers(trs) {}
 
 // ========================================================[[ CNSocket ]]========================================================
 
@@ -157,6 +158,55 @@ void CNSocket::setActiveKey(ACTIVEKEY key) {
     activeKey = key;
 }
 
+inline void CNSocket::parsePacket(uint8_t *buf, size_t size) {
+    uint32_t type = *((uint32_t*)buf);
+    uint8_t *body = buf + 4;
+    size_t pktSize = size - 4;
+
+    if (Packets::packets.find(type) == Packets::packets.end()) {
+        std::cerr << "OpenFusion: UNKNOWN PACKET: " << (int)type << std::endl;
+        return;
+    }
+
+    PacketDesc& desc = Packets::packets[type];
+
+    /*
+     * Some packet structs with no meaningful contents have length 1, but
+     * the client doesn't transmit that byte at all, so we special-case that.
+     * It's important that we do that by zeroing that byte, as the server could
+     * bypothetically try and read from it and get a byte of the previous
+     * packet's contents.
+     *
+     * Assigning a zero byte to the body like this is safe, since there's a
+     * huge empty buffer behind that pointer.
+     */
+    if (!desc.variadic && desc.size == 1 && pktSize == 0) {
+        pktSize = 1;
+        *body = 0;
+    }
+
+    int32_t ntrailers = 0;
+    if (desc.variadic) {
+        ntrailers = *(int32_t*)(body + desc.cntMembOfs);
+        if (!validInVarPacket(desc.size, ntrailers, desc.trailerSize, pktSize)) {
+            std::cerr << "[WARN] Received invalid variadic packet: " << desc.name << " (" << type << ")" << std::endl;
+            return;
+        }
+
+    } else if (!desc.variadic && pktSize != desc.size) {
+        std::cerr << "[WARN] Received " << desc.name << " (" << type << ") of wrong size ("
+            << (int)pktSize << " vs " << desc.size << ")" << std::endl;
+        return;
+    }
+
+    void *trailers = nullptr;
+    if (desc.variadic)
+        trailers = body + desc.size;
+
+    CNPacketData pkt(body, type, pktSize, ntrailers, trailers);
+    pHandler(this, &pkt);
+}
+
 void CNSocket::step() {
     // read step
 
@@ -206,11 +256,7 @@ void CNSocket::step() {
         // decrypt readBuffer and copy to CNPacketData
         CNSocketEncryption::decryptData((uint8_t*)&readBuffer, (uint8_t*)(&EKey), readSize);
 
-        void* tmpBuf = readBuffer+sizeof(uint32_t);
-        CNPacketData tmp(tmpBuf, *((uint32_t*)readBuffer), readSize-sizeof(int32_t));
-
-        // call packet handler!!
-        pHandler(this, &tmp);
+        parsePacket(readBuffer, readSize);
 
         // reset vars :)
         readSize = 0;
@@ -447,7 +493,7 @@ void CNServer::kill() {
     connections.clear();
 }
 
-void CNServer::printPacket(CNPacketData *data, int type) {
+void CNServer::printPacket(CNPacketData *data) {
     if (settings::VERBOSITY < 2)
         return;
 
@@ -466,7 +512,7 @@ void CNServer::printPacket(CNPacketData *data, int type) {
         return;
     }
 
-    std::cout << "OpenFusion: received " << Packets::p2str(type, data->type) << " (" << data->type << ")" << std::endl;
+    std::cout << "OpenFusion: received " << Packets::p2str(data->type) << " (" << data->type << ")" << std::endl;
 }
 
 bool CNServer::checkExtraSockets(int i) { return false; } // stubbed

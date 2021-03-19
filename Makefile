@@ -78,6 +78,7 @@ CXXHDR=\
 	src/core/CNProtocol.hpp\
 	src/core/CNShared.hpp\
 	src/core/CNStructs.hpp\
+	src/core/Packets.hpp\
 	src/core/Defines.hpp\
 	src/core/Core.hpp\
 	src/servers/CNLoginServer.hpp\

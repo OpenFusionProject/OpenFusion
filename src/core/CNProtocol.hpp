@@ -53,6 +53,7 @@
 #include <algorithm>
 
 #include "Defines.hpp"
+#include "Packets.hpp"
 #include "settings.hpp"
 
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
@@ -84,7 +85,7 @@ inline void* xmalloc(size_t sz) {
 
 // overflow-safe validation of variable-length packets
 // for outbound packets
-inline bool validOutVarPacket(size_t base, int32_t npayloads, size_t plsize) {
+inline constexpr bool validOutVarPacket(size_t base, int32_t npayloads, size_t plsize) {
     // check for multiplication overflow
     if (npayloads > 0 && (CN_PACKET_BUFFER_SIZE - 8) / (size_t)npayloads < plsize)
         return false;
@@ -101,7 +102,7 @@ inline bool validOutVarPacket(size_t base, int32_t npayloads, size_t plsize) {
 }
 
 // for inbound packets
-inline bool validInVarPacket(size_t base, int32_t npayloads, size_t plsize, size_t datasize) {
+inline constexpr bool validInVarPacket(size_t base, int32_t npayloads, size_t plsize, size_t datasize) {
     // check for multiplication overflow
     if (npayloads > 0 && (CN_PACKET_BUFFER_SIZE - 8) / (size_t)npayloads < plsize)
         return false;
@@ -134,11 +135,13 @@ namespace CNSocketEncryption {
 }
 
 struct CNPacketData {
-    void* buf;
+    void *buf;
     int size;
     uint32_t type;
+    int trCnt;
+    void *trailers;
 
-    CNPacketData(void* b, uint32_t t, int l);
+    CNPacketData(void* b, uint32_t t, int l, int trnum, void *trs);
 };
 
 enum ACTIVEKEY {
@@ -163,6 +166,8 @@ private:
 
     bool sendData(uint8_t* data, int size);
     int recvData(buffer_t* data, int size);
+
+    inline void parsePacket(uint8_t *buf, size_t size);
 
 public:
     SOCKET sock;
@@ -225,7 +230,7 @@ public:
 
     void start();
     void kill();
-    static void printPacket(CNPacketData *data, int type);
+    static void printPacket(CNPacketData *data);
     virtual bool checkExtraSockets(int i);
     virtual void newConnection(CNSocket* cns);
     virtual void killConnection(CNSocket* cns);
