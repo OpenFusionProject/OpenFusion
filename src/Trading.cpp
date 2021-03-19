@@ -98,9 +98,6 @@ static bool doTrade(Player* plr, Player* plr2) {
 }
 
 static void tradeOffer(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_OFFER))
-        return; // ignore the malformed packet
-
     sP_CL2FE_REQ_PC_TRADE_OFFER* pacdat = (sP_CL2FE_REQ_PC_TRADE_OFFER*)data->buf;
 
     CNSocket* otherSock = PlayerManager::getSockFromID(pacdat->iID_To);
@@ -127,9 +124,6 @@ static void tradeOffer(CNSocket* sock, CNPacketData* data) {
 }
 
 static void tradeOfferAccept(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_OFFER_ACCEPT))
-        return; // ignore the malformed packet
-
     sP_CL2FE_REQ_PC_TRADE_OFFER_ACCEPT* pacdat = (sP_CL2FE_REQ_PC_TRADE_OFFER_ACCEPT*)data->buf;
 
     CNSocket* otherSock = PlayerManager::getSockFromID(pacdat->iID_From);
@@ -174,9 +168,6 @@ static void tradeOfferAccept(CNSocket* sock, CNPacketData* data) {
 }
 
 static void tradeOfferRefusal(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_OFFER_REFUSAL))
-        return; // ignore the malformed packet
-
     sP_CL2FE_REQ_PC_TRADE_OFFER_REFUSAL* pacdat = (sP_CL2FE_REQ_PC_TRADE_OFFER_REFUSAL*)data->buf;
 
     CNSocket* otherSock = PlayerManager::getSockFromID(pacdat->iID_From);
@@ -192,9 +183,6 @@ static void tradeOfferRefusal(CNSocket* sock, CNPacketData* data) {
 }
 
 static void tradeConfirm(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_CONFIRM))
-        return; // ignore the malformed packet
-
     sP_CL2FE_REQ_PC_TRADE_CONFIRM* pacdat = (sP_CL2FE_REQ_PC_TRADE_CONFIRM*)data->buf;
 
     CNSocket* otherSock; // weird flip flop because we need to know who the other player is
@@ -270,9 +258,6 @@ static void tradeConfirm(CNSocket* sock, CNPacketData* data) {
 }
 
 static void tradeConfirmCancel(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_CONFIRM_CANCEL))
-        return; // ignore the malformed packet
-
     sP_CL2FE_REQ_PC_TRADE_CONFIRM_CANCEL* pacdat = (sP_CL2FE_REQ_PC_TRADE_CONFIRM_CANCEL*)data->buf;
 
     CNSocket* otherSock; // weird flip flop because we need to know who the other player is
@@ -301,9 +286,6 @@ static void tradeConfirmCancel(CNSocket* sock, CNPacketData* data) {
 }
 
 static void tradeRegisterItem(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_ITEM_REGISTER))
-        return; // ignore the malformed packet
-
     sP_CL2FE_REQ_PC_TRADE_ITEM_REGISTER* pacdat = (sP_CL2FE_REQ_PC_TRADE_ITEM_REGISTER*)data->buf;
 
     if (pacdat->Item.iSlotNum < 0 || pacdat->Item.iSlotNum > 4)
@@ -346,9 +328,6 @@ static void tradeRegisterItem(CNSocket* sock, CNPacketData* data) {
 }
 
 static void tradeUnregisterItem(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_ITEM_UNREGISTER))
-        return; // ignore the malformed packet
-
     sP_CL2FE_REQ_PC_TRADE_ITEM_UNREGISTER* pacdat = (sP_CL2FE_REQ_PC_TRADE_ITEM_UNREGISTER*)data->buf;
 
     if (pacdat->Item.iSlotNum < 0 || pacdat->Item.iSlotNum > 4)
@@ -390,9 +369,6 @@ static void tradeUnregisterItem(CNSocket* sock, CNPacketData* data) {
 }
 
 static void tradeRegisterCash(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_CASH_REGISTER))
-        return; // ignore the malformed packet
-
     sP_CL2FE_REQ_PC_TRADE_CASH_REGISTER* pacdat = (sP_CL2FE_REQ_PC_TRADE_CASH_REGISTER*)data->buf;
 
     Player* plr = PlayerManager::getPlayer(sock);

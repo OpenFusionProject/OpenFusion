@@ -311,9 +311,6 @@ bool Missions::startTask(Player* plr, int TaskID) {
 }
 
 static void taskStart(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TASK_START))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_TASK_START* missionData = (sP_CL2FE_REQ_PC_TASK_START*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_SUCC, response);
     Player *plr = PlayerManager::getPlayer(sock);
@@ -349,9 +346,6 @@ static void taskStart(CNSocket* sock, CNPacketData* data) {
 }
 
 static void taskEnd(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TASK_END))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_TASK_END* missionData = (sP_CL2FE_REQ_PC_TASK_END*)data->buf;
 
     // failed timed missions give an iNPC_ID of 0
@@ -406,9 +400,6 @@ static void taskEnd(CNSocket* sock, CNPacketData* data) {
 }
 
 static void setMission(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID))
-        return; // malformed packet
-
     Player* plr = PlayerManager::getPlayer(sock);
 
     sP_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID* missionData = (sP_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID*)data->buf;
@@ -420,9 +411,6 @@ static void setMission(CNSocket* sock, CNPacketData* data) {
 }
 
 static void quitMission(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TASK_STOP))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_TASK_STOP* missionData = (sP_CL2FE_REQ_PC_TASK_STOP*)data->buf;
     quitTask(sock, missionData->iTaskNum, true);
 }

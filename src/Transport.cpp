@@ -18,9 +18,6 @@ std::unordered_map<CNSocket*, std::queue<WarpLocation>> Transport::SkywayQueues;
 std::unordered_map<int32_t, std::queue<WarpLocation>> Transport::NPCQueues;
 
 static void transportRegisterLocationHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION))
-        return; // malformed packet
-
     sP_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION* transport = (sP_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
@@ -94,9 +91,6 @@ static void transportRegisterLocationHandler(CNSocket* sock, CNPacketData* data)
 }
 
 static void transportWarpHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_WARP_USE_TRANSPORTATION))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_WARP_USE_TRANSPORTATION* req = (sP_CL2FE_REQ_PC_WARP_USE_TRANSPORTATION*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 

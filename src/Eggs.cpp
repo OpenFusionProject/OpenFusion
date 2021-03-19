@@ -149,9 +149,6 @@ void Eggs::npcDataToEggData(sNPCAppearanceData* npc, sShinyAppearanceData* egg) 
 }
 
 static void eggPickup(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_SHINY_PICKUP))
-        return; // malformed packet
-
     sP_CL2FE_REQ_SHINY_PICKUP* pickup = (sP_CL2FE_REQ_SHINY_PICKUP*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 

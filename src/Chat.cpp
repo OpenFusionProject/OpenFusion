@@ -10,9 +10,6 @@ std::vector<std::string> Chat::dump;
 using namespace Chat;
 
 static void chatHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE))
-        return; // malformed packet
-
     sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
@@ -44,9 +41,6 @@ static void chatHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 static void menuChatHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_SEND_MENUCHAT_MESSAGE))
-        return; // malformed packet
-
     sP_CL2FE_REQ_SEND_MENUCHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_MENUCHAT_MESSAGE*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
@@ -70,11 +64,6 @@ static void menuChatHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 static void emoteHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT))
-        return; // ignore the malformed packet
-
-    // you can dance with friends!!!!!!!!
-
     sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT* emote = (sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
@@ -100,9 +89,6 @@ void Chat::sendServerMessage(CNSocket* sock, std::string msg) {
 }
 
 static void announcementHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_GM_REQ_PC_ANNOUNCE))
-        return; // ignore malformed packet
-
     Player* plr = PlayerManager::getPlayer(sock);
     if (plr->accountLevel > 30)
         return; // only players with account level less than 30 (GM) are allowed to use this command
@@ -138,9 +124,6 @@ static void announcementHandler(CNSocket* sock, CNPacketData* data) {
 
 // Buddy freechatting
 static void buddyChatHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE))
-        return; // malformed packet
-
     sP_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE* pkt = (sP_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
@@ -179,9 +162,6 @@ static void buddyChatHandler(CNSocket* sock, CNPacketData* data) {
 
 // Buddy menuchat
 static void buddyMenuChatHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE))
-        return; // malformed packet
-
     sP_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE* pkt = (sP_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
@@ -211,8 +191,6 @@ static void buddyMenuChatHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 static void tradeChatHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TRADE_EMOTES_CHAT))
-        return; // malformed packet
     sP_CL2FE_REQ_PC_TRADE_EMOTES_CHAT* pacdat = (sP_CL2FE_REQ_PC_TRADE_EMOTES_CHAT*)data->buf;
 
     CNSocket* otherSock; // weird flip flop because we need to know who the other player is
@@ -245,9 +223,6 @@ static void tradeChatHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 static void groupChatHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_SEND_ALL_GROUP_FREECHAT_MESSAGE))
-        return; // malformed packet
-
     sP_CL2FE_REQ_SEND_ALL_GROUP_FREECHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_ALL_GROUP_FREECHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
@@ -280,9 +255,6 @@ static void groupChatHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 static void groupMenuChatHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE))
-        return; // malformed packet
-
     sP_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);

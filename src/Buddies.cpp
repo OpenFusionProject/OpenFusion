@@ -87,9 +87,6 @@ void Buddies::refreshBuddyList(CNSocket* sock) {
 
 // Buddy request
 static void requestBuddy(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_REQUEST_MAKE_BUDDY))
-        return; // malformed packet
-
     sP_CL2FE_REQ_REQUEST_MAKE_BUDDY* req = (sP_CL2FE_REQ_REQUEST_MAKE_BUDDY*)data->buf;
 
     Player* plr = PlayerManager::getPlayer(sock);
@@ -128,10 +125,6 @@ static void requestBuddy(CNSocket* sock, CNPacketData* data) {
 
 // Sending buddy request by player name
 static void reqBuddyByName(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_FIND_NAME_MAKE_BUDDY)) {
-        return; // malformed packet
-    }
-
     sP_CL2FE_REQ_PC_FIND_NAME_MAKE_BUDDY* pkt = (sP_CL2FE_REQ_PC_FIND_NAME_MAKE_BUDDY*)data->buf;
     Player* plrReq = PlayerManager::getPlayer(sock);
 
@@ -155,9 +148,6 @@ static void reqBuddyByName(CNSocket* sock, CNPacketData* data) {
 
 // Accepting buddy request
 static void reqAcceptBuddy(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_ACCEPT_MAKE_BUDDY))
-        return; // malformed packet
-
     sP_CL2FE_REQ_ACCEPT_MAKE_BUDDY* req = (sP_CL2FE_REQ_ACCEPT_MAKE_BUDDY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(req->iBuddyID);
@@ -224,10 +214,6 @@ static void reqAcceptBuddy(CNSocket* sock, CNPacketData* data) {
 
 // Accepting buddy request from the find name request
 static void reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_FIND_NAME_ACCEPT_BUDDY)) {
-        return; // malformed packet
-    }
-
     sP_CL2FE_REQ_PC_FIND_NAME_ACCEPT_BUDDY* pkt = (sP_CL2FE_REQ_PC_FIND_NAME_ACCEPT_BUDDY*)data->buf;
 
     Player* plrReq = PlayerManager::getPlayer(sock);
@@ -318,9 +304,6 @@ static void reqPktGetBuddyState(CNSocket* sock, CNPacketData* data) {
 
 // Blocking the buddy
 static void reqBuddyBlock(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_SET_BUDDY_BLOCK))
-        return; // malformed packet
-
     sP_CL2FE_REQ_SET_BUDDY_BLOCK* pkt = (sP_CL2FE_REQ_SET_BUDDY_BLOCK*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
@@ -364,9 +347,6 @@ static void reqBuddyBlock(CNSocket* sock, CNPacketData* data) {
 
 // block non-buddy
 static void reqPlayerBlock(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_SET_PC_BLOCK))
-        return;
-
     sP_CL2FE_REQ_SET_PC_BLOCK* pkt = (sP_CL2FE_REQ_SET_PC_BLOCK*)data->buf;
 
     Player* plr = PlayerManager::getPlayer(sock);
@@ -392,9 +372,6 @@ static void reqPlayerBlock(CNSocket* sock, CNPacketData* data) {
 
 // Deleting the buddy
 static void reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_REMOVE_BUDDY))
-        return; // malformed packet
-
     // note! this packet is used both for removing buddies and blocks
     sP_CL2FE_REQ_REMOVE_BUDDY* pkt = (sP_CL2FE_REQ_REMOVE_BUDDY*)data->buf;
 
@@ -442,8 +419,6 @@ static void reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
 
 // Warping to buddy
 static void reqBuddyWarp(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_BUDDY_WARP))
-        return; // malformed packet
     Player *plr = PlayerManager::getPlayer(sock);
 
     sP_CL2FE_REQ_PC_BUDDY_WARP* pkt = (sP_CL2FE_REQ_PC_BUDDY_WARP*)data->buf;

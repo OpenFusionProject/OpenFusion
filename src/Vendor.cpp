@@ -5,9 +5,6 @@ using namespace Vendor;
 std::map<int32_t, std::vector<VendorListing>> Vendor::VendorTables;
 
 static void vendorBuy(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
@@ -60,9 +57,6 @@ static void vendorBuy(CNSocket* sock, CNPacketData* data) {
 }
 
 static void vendorSell(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
@@ -126,9 +120,6 @@ static void vendorSell(CNSocket* sock, CNPacketData* data) {
 }
 
 static void vendorBuyback(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
@@ -205,9 +196,6 @@ static void vendorBuyback(CNSocket* sock, CNPacketData* data) {
 }
 
 static void vendorTable(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE* req = (sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE*)data->buf;
 
     if (req->iVendorID != req->iNPC_ID || Vendor::VendorTables.find(req->iVendorID) == Vendor::VendorTables.end())
@@ -237,9 +225,6 @@ static void vendorTable(CNSocket* sock, CNPacketData* data) {
 }
 
 static void vendorStart(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_START))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_VENDOR_START* req = (sP_CL2FE_REQ_PC_VENDOR_START*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_START_SUCC, resp);
 
@@ -250,9 +235,6 @@ static void vendorStart(CNSocket* sock, CNPacketData* data) {
 }
 
 static void vendorBuyBattery(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_VENDOR_BATTERY_BUY))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_VENDOR_BATTERY_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_BATTERY_BUY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
@@ -287,9 +269,6 @@ static void vendorBuyBattery(CNSocket* sock, CNPacketData* data) {
 }
 
 static void vendorCombineItems(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_ITEM_COMBINATION))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_ITEM_COMBINATION* req = (sP_CL2FE_REQ_PC_ITEM_COMBINATION*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 

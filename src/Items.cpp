@@ -168,9 +168,6 @@ static int getItemSetId(Crate& crate, int crateId) {
 }
 
 static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_ITEM_MOVE))
-        return; // ignore the malformed packet
-
     sP_CL2FE_REQ_ITEM_MOVE* itemmove = (sP_CL2FE_REQ_ITEM_MOVE*)data->buf;
     INITSTRUCT(sP_FE2CL_PC_ITEM_MOVE_SUCC, resp);
 
@@ -319,9 +316,6 @@ static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 static void itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_ITEM_DELETE))
-        return; // ignore the malformed packet
-
     sP_CL2FE_REQ_PC_ITEM_DELETE* itemdel = (sP_CL2FE_REQ_PC_ITEM_DELETE*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC, resp);
 
@@ -339,8 +333,6 @@ static void itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_ITEM_USE))
-        return; // ignore the malformed packet
     sP_CL2FE_REQ_ITEM_USE* request = (sP_CL2FE_REQ_ITEM_USE*)data->buf;
     Player* player = PlayerManager::getPlayer(sock);
 
@@ -422,9 +414,6 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 static void itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_BANK_OPEN))
-        return; // ignore the malformed packet
-
     Player* plr = PlayerManager::getPlayer(sock);
 
     // just send bank inventory
@@ -437,9 +426,6 @@ static void itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 static void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_ITEM_CHEST_OPEN))
-        return; // ignore the malformed packet
-
     sP_CL2FE_REQ_ITEM_CHEST_OPEN *pkt = (sP_CL2FE_REQ_ITEM_CHEST_OPEN *)data->buf;
 
     // sanity check

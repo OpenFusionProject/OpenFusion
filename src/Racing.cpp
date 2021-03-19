@@ -13,9 +13,6 @@ std::map<CNSocket*, EPRace> Racing::EPRaces;
 std::map<int32_t, std::pair<std::vector<int>, std::vector<int>>> Racing::EPRewards;
 
 static void racingStart(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_EP_RACE_START))
-        return; // malformed packet
-
     sP_CL2FE_REQ_EP_RACE_START* req = (sP_CL2FE_REQ_EP_RACE_START*)data->buf;
 
     if (NPCManager::NPCs.find(req->iStartEcomID) == NPCManager::NPCs.end())
@@ -37,9 +34,6 @@ static void racingStart(CNSocket* sock, CNPacketData* data) {
 }
 
 static void racingGetPod(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_EP_GET_RING))
-        return; // malformed packet
-
     if (EPRaces.find(sock) == EPRaces.end())
         return; // race not found
 
@@ -57,9 +51,6 @@ static void racingGetPod(CNSocket* sock, CNPacketData* data) {
 }
 
 static void racingCancel(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_EP_RACE_CANCEL))
-        return; // malformed packet
-
     if (EPRaces.find(sock) == EPRaces.end())
         return; // race not found
 
@@ -70,9 +61,6 @@ static void racingCancel(CNSocket* sock, CNPacketData* data) {
 }
 
 static void racingEnd(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_EP_RACE_END))
-        return; // malformed packet
-
     if (EPRaces.find(sock) == EPRaces.end())
         return; // race not found
 

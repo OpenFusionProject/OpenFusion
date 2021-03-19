@@ -218,9 +218,6 @@ bool Nanos::getNanoBoost(Player* plr) {
 #pragma endregion
 
 static void nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_NANO_EQUIP))
-        return; // malformed packet
-
     sP_CL2FE_REQ_NANO_EQUIP* nano = (sP_CL2FE_REQ_NANO_EQUIP*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_NANO_EQUIP_SUCC, resp);
     Player *plr = PlayerManager::getPlayer(sock);
@@ -255,9 +252,6 @@ static void nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 static void nanoUnEquipHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_NANO_UNEQUIP))
-        return; // malformed packet
-
     sP_CL2FE_REQ_NANO_UNEQUIP* nano = (sP_CL2FE_REQ_NANO_UNEQUIP*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_NANO_UNEQUIP_SUCC, resp);
     Player *plr = PlayerManager::getPlayer(sock);
@@ -279,9 +273,6 @@ static void nanoUnEquipHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 static void nanoGMGiveHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_GIVE_NANO))
-        return; // ignore the malformed packet
-
     // Cmd: /nano <nanoID>
     sP_CL2FE_REQ_PC_GIVE_NANO* nano = (sP_CL2FE_REQ_PC_GIVE_NANO*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
@@ -295,9 +286,6 @@ static void nanoGMGiveHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 static void nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_NANO_ACTIVE))
-        return; // malformed packet
-
     sP_CL2FE_REQ_NANO_ACTIVE* pkt = (sP_CL2FE_REQ_NANO_ACTIVE*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
@@ -337,25 +325,16 @@ static void nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 static void nanoSkillSetHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_NANO_TUNE))
-        return; // malformed packet
-
     sP_CL2FE_REQ_NANO_TUNE* skill = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
     setNanoSkill(sock, skill);
 }
 
 static void nanoSkillSetGMHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_GIVE_NANO_SKILL))
-        return; // malformed packet
-
     sP_CL2FE_REQ_NANO_TUNE* skillGM = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
     setNanoSkill(sock, skillGM);
 }
 
 static void nanoRecallRegisterHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_REGIST_RXCOM))
-        return;
-
     sP_CL2FE_REQ_REGIST_RXCOM* recallData = (sP_CL2FE_REQ_REGIST_RXCOM*)data->buf;
 
     if (NPCManager::NPCs.find(recallData->iNPCID) == NPCManager::NPCs.end())
@@ -374,9 +353,6 @@ static void nanoRecallRegisterHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 static void nanoRecallHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_WARP_USE_RECALL))
-        return;
-
     sP_CL2FE_REQ_WARP_USE_RECALL* recallData = (sP_CL2FE_REQ_WARP_USE_RECALL*)data->buf;
 
     Player* plr = PlayerManager::getPlayer(sock);
@@ -401,9 +377,6 @@ static void nanoRecallHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 static void nanoPotionHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_CHARGE_NANO_STAMINA))
-        return;
-
     Player* player = PlayerManager::getPlayer(sock);
 
     // sanity checks

@@ -6,9 +6,6 @@
 
 // helper function, not a packet handler
 void BuiltinCommands::setSpecialState(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_GM_REQ_PC_SPECIAL_STATE_SWITCH))
-        return; // ignore the malformed packet
-
     sP_CL2FE_GM_REQ_PC_SPECIAL_STATE_SWITCH* setData = (sP_CL2FE_GM_REQ_PC_SPECIAL_STATE_SWITCH*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
@@ -36,9 +33,6 @@ static void setGMSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 static void gotoPlayer(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_GOTO))
-        return; // ignore the malformed packet
-
     Player *plr = PlayerManager::getPlayer(sock);
     if (plr->accountLevel > 50)
         return;
@@ -57,9 +51,6 @@ static void gotoPlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 static void setValuePlayer(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_GM_REQ_PC_SET_VALUE))
-        return; // ignore the malformed packet
-
     Player *plr = PlayerManager::getPlayer(sock);
     if (plr->accountLevel > 50)
         return;
@@ -119,9 +110,6 @@ static void setValuePlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 static void setGMSpecialOnOff(CNSocket *sock, CNPacketData *data) {
-    if (data->size != sizeof(sP_CL2FE_GM_REQ_TARGET_PC_SPECIAL_STATE_ONOFF))
-        return; // sanity check
-
     Player *plr = PlayerManager::getPlayer(sock);
 
     // access check
@@ -147,9 +135,6 @@ static void setGMSpecialOnOff(CNSocket *sock, CNPacketData *data) {
 }
 
 static void locatePlayer(CNSocket *sock, CNPacketData *data) {
-    if (data->size != sizeof(sP_CL2FE_GM_REQ_PC_LOCATION))
-        return; // sanity check
-
     Player *plr = PlayerManager::getPlayer(sock);
 
     // access check
@@ -185,9 +170,6 @@ static void locatePlayer(CNSocket *sock, CNPacketData *data) {
 }
 
 static void kickPlayer(CNSocket *sock, CNPacketData *data) {
-    if (data->size != sizeof(sP_CL2FE_GM_REQ_KICK_PLAYER))
-        return; // sanity check
-
     Player *plr = PlayerManager::getPlayer(sock);
 
     // access check
@@ -223,9 +205,6 @@ static void kickPlayer(CNSocket *sock, CNPacketData *data) {
 }
 
 static void warpToPlayer(CNSocket *sock, CNPacketData *data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_WARP_TO_PC))
-        return; // sanity check
-
     Player *plr = PlayerManager::getPlayer(sock);
 
     // access check
@@ -245,9 +224,6 @@ static void warpToPlayer(CNSocket *sock, CNPacketData *data) {
 
 // GM teleport command
 static void teleportPlayer(CNSocket *sock, CNPacketData *data) {
-    if (data->size != sizeof(sP_CL2FE_GM_REQ_TARGET_PC_TELEPORT))
-        return; // sanity check
-
     Player *plr = PlayerManager::getPlayer(sock);
 
     // access check
@@ -302,9 +278,6 @@ static void teleportPlayer(CNSocket *sock, CNPacketData *data) {
 }
 
 static void itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_GIVE_ITEM))
-        return; // ignore the malformed packet
-
     sP_CL2FE_REQ_PC_GIVE_ITEM* itemreq = (sP_CL2FE_REQ_PC_GIVE_ITEM*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 

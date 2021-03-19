@@ -95,9 +95,6 @@ void NPCManager::sendToViewable(BaseNPC *npc, void *buf, uint32_t type, size_t s
 }
 
 static void npcBarkHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_BARKER))
-        return; // malformed packet
-
     sP_CL2FE_REQ_BARKER* req = (sP_CL2FE_REQ_BARKER*)data->buf;
 
     // get bark IDs from task data
@@ -118,9 +115,6 @@ static void npcBarkHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 static void npcUnsummonHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_NPC_UNSUMMON))
-        return; // malformed packet
-
     Player* plr = PlayerManager::getPlayer(sock);
 
     if (plr->accountLevel > 30)
@@ -155,9 +149,6 @@ BaseNPC *NPCManager::summonNPC(int x, int y, int z, uint64_t instance, int type,
 }
 
 static void npcSummonHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_NPC_SUMMON))
-        return; // malformed packet
-
     sP_CL2FE_REQ_NPC_SUMMON* req = (sP_CL2FE_REQ_NPC_SUMMON*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
@@ -274,16 +265,11 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
 }
 
 static void npcWarpHandler(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_WARP_USE_NPC))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_WARP_USE_NPC* warpNpc = (sP_CL2FE_REQ_PC_WARP_USE_NPC*)data->buf;
     handleWarp(sock, warpNpc->iWarpID);
 }
 
 static void npcWarpTimeMachine(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_TIME_TO_GO_WARP))
-        return; // malformed packet
     // this is just a warp request
     handleWarp(sock, 28);
 }

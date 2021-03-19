@@ -20,9 +20,6 @@
 using namespace Groups;
 
 static void requestGroup(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_GROUP_INVITE))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_GROUP_INVITE* recv = (sP_CL2FE_REQ_PC_GROUP_INVITE*)data->buf;
 
     Player* plr = PlayerManager::getPlayer(sock);
@@ -56,9 +53,6 @@ static void requestGroup(CNSocket* sock, CNPacketData* data) {
 }
 
 static void refuseGroup(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_GROUP_INVITE_REFUSE))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_GROUP_INVITE_REFUSE* recv = (sP_CL2FE_REQ_PC_GROUP_INVITE_REFUSE*)data->buf;
 
     CNSocket* otherSock = PlayerManager::getSockFromID(recv->iID_From);
@@ -76,9 +70,6 @@ static void refuseGroup(CNSocket* sock, CNPacketData* data) {
 }
 
 static void joinGroup(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_GROUP_JOIN))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_GROUP_JOIN* recv = (sP_CL2FE_REQ_PC_GROUP_JOIN*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(recv->iID_From);

@@ -12,9 +12,6 @@ using namespace Email;
 
 // New email notification
 static void emailUpdateCheck(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_EMAIL_UPDATE_CHECK))
-        return; // malformed packet
-
     INITSTRUCT(sP_FE2CL_REP_PC_NEW_EMAIL, resp);
     resp.iNewEmailCnt = Database::getUnreadEmailCount(PlayerManager::getPlayer(sock)->iID);
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_NEW_EMAIL, sizeof(sP_FE2CL_REP_PC_NEW_EMAIL));
@@ -22,9 +19,6 @@ static void emailUpdateCheck(CNSocket* sock, CNPacketData* data) {
 
 // Retrieve page of emails
 static void emailReceivePageList(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_RECV_EMAIL_PAGE_LIST))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_RECV_EMAIL_PAGE_LIST* pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_PAGE_LIST*)data->buf;
 
     INITSTRUCT(sP_FE2CL_REP_PC_RECV_EMAIL_PAGE_LIST_SUCC, resp);
@@ -52,9 +46,6 @@ static void emailReceivePageList(CNSocket* sock, CNPacketData* data) {
 
 // Read individual email
 static void emailRead(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_READ_EMAIL))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_READ_EMAIL* pkt = (sP_CL2FE_REQ_PC_READ_EMAIL*)data->buf;
 
     Player* plr = PlayerManager::getPlayer(sock);
@@ -77,9 +68,6 @@ static void emailRead(CNSocket* sock, CNPacketData* data) {
 
 // Retrieve attached taros from email
 static void emailReceiveTaros(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_RECV_EMAIL_CANDY))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_RECV_EMAIL_CANDY* pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_CANDY*)data->buf;
 
     Player* plr = PlayerManager::getPlayer(sock);
@@ -100,9 +88,6 @@ static void emailReceiveTaros(CNSocket* sock, CNPacketData* data) {
 
 // Retrieve individual attached item from email
 static void emailReceiveItemSingle(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM* pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
@@ -139,9 +124,6 @@ static void emailReceiveItemSingle(CNSocket* sock, CNPacketData* data) {
 
 // Retrieve all attached items from email
 static void emailReceiveItemAll(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM_ALL))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM_ALL* pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM_ALL*)data->buf;
 
     // move items to player inventory
@@ -184,9 +166,6 @@ static void emailReceiveItemAll(CNSocket* sock, CNPacketData* data) {
 
 // Delete an email
 static void emailDelete(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_DELETE_EMAIL))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_DELETE_EMAIL* pkt = (sP_CL2FE_REQ_PC_DELETE_EMAIL*)data->buf;
 
     Database::deleteEmails(PlayerManager::getPlayer(sock)->iID, pkt->iEmailIndexArray);
@@ -201,9 +180,6 @@ static void emailDelete(CNSocket* sock, CNPacketData* data) {
 
 // Send an email
 static void emailSend(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2FE_REQ_PC_SEND_EMAIL))
-        return; // malformed packet
-
     sP_CL2FE_REQ_PC_SEND_EMAIL* pkt = (sP_CL2FE_REQ_PC_SEND_EMAIL*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
