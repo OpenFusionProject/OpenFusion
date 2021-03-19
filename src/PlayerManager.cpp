@@ -494,6 +494,10 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
 static void enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     Player* plr = getPlayer(sock);
 
+    // vehicles are only allowed in the overworld
+    if (plr->instanceID != 0)
+        return;
+
     bool expired = plr->Equip[8].iTimeLimit < getTimestamp() && plr->Equip[8].iTimeLimit != 0;
 
     if (plr->Equip[8].iID > 0 && !expired) {
