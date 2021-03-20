@@ -14,12 +14,12 @@ using namespace Email;
 static void emailUpdateCheck(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_PC_NEW_EMAIL, resp);
     resp.iNewEmailCnt = Database::getUnreadEmailCount(PlayerManager::getPlayer(sock)->iID);
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_NEW_EMAIL, sizeof(sP_FE2CL_REP_PC_NEW_EMAIL));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_NEW_EMAIL);
 }
 
 // Retrieve page of emails
 static void emailReceivePageList(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_RECV_EMAIL_PAGE_LIST* pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_PAGE_LIST*)data->buf;
+    auto pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_PAGE_LIST*)data->buf;
 
     INITSTRUCT(sP_FE2CL_REP_PC_RECV_EMAIL_PAGE_LIST_SUCC, resp);
     resp.iPageNum = pkt->iPageNum;
@@ -41,12 +41,12 @@ static void emailReceivePageList(CNSocket* sock, CNPacketData* data) {
         resp.aEmailInfo[i] = *emailInfo;
     }
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_RECV_EMAIL_PAGE_LIST_SUCC, sizeof(sP_FE2CL_REP_PC_RECV_EMAIL_PAGE_LIST_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_RECV_EMAIL_PAGE_LIST_SUCC);
 }
 
 // Read individual email
 static void emailRead(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_READ_EMAIL* pkt = (sP_CL2FE_REQ_PC_READ_EMAIL*)data->buf;
+    auto pkt = (sP_CL2FE_REQ_PC_READ_EMAIL*)data->buf;
 
     Player* plr = PlayerManager::getPlayer(sock);
 
@@ -63,12 +63,12 @@ static void emailRead(CNSocket* sock, CNPacketData* data) {
     }
     U8toU16(email.MsgBody, (char16_t*)resp.szContent, sizeof(resp.szContent));
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_READ_EMAIL_SUCC, sizeof(sP_FE2CL_REP_PC_READ_EMAIL_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_READ_EMAIL_SUCC);
 }
 
 // Retrieve attached taros from email
 static void emailReceiveTaros(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_RECV_EMAIL_CANDY* pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_CANDY*)data->buf;
+    auto pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_CANDY*)data->buf;
 
     Player* plr = PlayerManager::getPlayer(sock);
 
@@ -83,12 +83,12 @@ static void emailReceiveTaros(CNSocket* sock, CNPacketData* data) {
     resp.iCandy = plr->money;
     resp.iEmailIndex = pkt->iEmailIndex;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_RECV_EMAIL_CANDY_SUCC, sizeof(sP_FE2CL_REP_PC_RECV_EMAIL_CANDY_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_RECV_EMAIL_CANDY_SUCC);
 }
 
 // Retrieve individual attached item from email
 static void emailReceiveItemSingle(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM* pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM*)data->buf;
+    auto pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
     if (pkt->iSlotNum < 0 || pkt->iSlotNum >= AINVEN_COUNT || pkt->iSlotNum < 1 || pkt->iSlotNum > 4)
@@ -111,7 +111,7 @@ static void emailReceiveItemSingle(CNSocket* sock, CNPacketData* data) {
     resp.iEmailItemSlot = pkt->iEmailItemSlot;
     resp.iSlotNum = pkt->iSlotNum;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_RECV_EMAIL_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_RECV_EMAIL_ITEM_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_RECV_EMAIL_ITEM_SUCC);
 
     // update inventory
     INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp2);
@@ -119,12 +119,12 @@ static void emailReceiveItemSingle(CNSocket* sock, CNPacketData* data) {
     resp2.iSlotNum = resp.iSlotNum;
     resp2.Item = itemTo;
 
-    sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_GIVE_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC));
+    sock->sendPacket(resp2, P_FE2CL_REP_PC_GIVE_ITEM_SUCC);
 }
 
 // Retrieve all attached items from email
 static void emailReceiveItemAll(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM_ALL* pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM_ALL*)data->buf;
+    auto pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM_ALL*)data->buf;
 
     // move items to player inventory
     Player* plr = PlayerManager::getPlayer(sock);
@@ -152,7 +152,7 @@ static void emailReceiveItemAll(CNSocket* sock, CNPacketData* data) {
         resp2.iSlotNum = slot;
         resp2.Item = itemTo;
 
-        sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_GIVE_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC));
+        sock->sendPacket(resp2, P_FE2CL_REP_PC_GIVE_ITEM_SUCC);
     }
 
     // delete all items from db
@@ -161,12 +161,12 @@ static void emailReceiveItemAll(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_PC_RECV_EMAIL_ITEM_ALL_SUCC, resp);
     resp.iEmailIndex = pkt->iEmailIndex;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_RECV_EMAIL_ITEM_ALL_SUCC, sizeof(sP_FE2CL_REP_PC_RECV_EMAIL_ITEM_ALL_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_RECV_EMAIL_ITEM_ALL_SUCC);
 }
 
 // Delete an email
 static void emailDelete(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_DELETE_EMAIL* pkt = (sP_CL2FE_REQ_PC_DELETE_EMAIL*)data->buf;
+    auto pkt = (sP_CL2FE_REQ_PC_DELETE_EMAIL*)data->buf;
 
     Database::deleteEmails(PlayerManager::getPlayer(sock)->iID, pkt->iEmailIndexArray);
 
@@ -175,12 +175,12 @@ static void emailDelete(CNSocket* sock, CNPacketData* data) {
         resp.iEmailIndexArray[i] = pkt->iEmailIndexArray[i]; // i'm scared of memcpy
     }
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_DELETE_EMAIL_SUCC, sizeof(sP_FE2CL_REP_PC_DELETE_EMAIL_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_DELETE_EMAIL_SUCC);
 }
 
 // Send an email
 static void emailSend(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_SEND_EMAIL* pkt = (sP_CL2FE_REQ_PC_SEND_EMAIL*)data->buf;
+    auto pkt = (sP_CL2FE_REQ_PC_SEND_EMAIL*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
     // sanity checks
@@ -220,7 +220,7 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
         INITSTRUCT(sP_FE2CL_REP_PC_SEND_EMAIL_FAIL, errResp);
         errResp.iErrorCode = 1;
         errResp.iTo_PCUID = pkt->iTo_PCUID;
-        sock->sendPacket((void*)&errResp, P_FE2CL_REP_PC_SEND_EMAIL_FAIL, sizeof(sP_FE2CL_REP_PC_SEND_EMAIL_FAIL));
+        sock->sendPacket(errResp, P_FE2CL_REP_PC_SEND_EMAIL_FAIL);
         return;
     }
 
@@ -235,7 +235,7 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
             INITSTRUCT(sP_FE2CL_REP_PC_SEND_EMAIL_FAIL, resp);
             resp.iErrorCode = 9; // error code 9 tells the player they can't send attachments across time
             resp.iTo_PCUID = pkt->iTo_PCUID;
-            sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_SEND_EMAIL_FAIL, sizeof(sP_FE2CL_REP_PC_SEND_EMAIL_FAIL));
+            sock->sendPacket(resp, P_FE2CL_REP_PC_SEND_EMAIL_FAIL);
             return;
         }
     }
@@ -289,7 +289,7 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
         INITSTRUCT(sP_FE2CL_REP_PC_SEND_EMAIL_FAIL, errResp);
         errResp.iErrorCode = 1;
         errResp.iTo_PCUID = pkt->iTo_PCUID;
-        sock->sendPacket((void*)&errResp, P_FE2CL_REP_PC_SEND_EMAIL_FAIL, sizeof(sP_FE2CL_REP_PC_SEND_EMAIL_FAIL));
+        sock->sendPacket(errResp, P_FE2CL_REP_PC_SEND_EMAIL_FAIL);
         return;
     }
 
@@ -298,12 +298,12 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
     tarosResp.iPC_ID = plr->iID;
     tarosResp.iSetValueType = 5;
     tarosResp.iSetValue = plr->money;
-    sock->sendPacket((void*)&tarosResp, P_FE2CL_GM_REP_PC_SET_VALUE, sizeof(sP_FE2CL_GM_REP_PC_SET_VALUE));
+    sock->sendPacket(tarosResp, P_FE2CL_GM_REP_PC_SET_VALUE);
 
     resp.iCandy = plr->money;
     resp.iTo_PCUID = pkt->iTo_PCUID;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_SEND_EMAIL_SUCC, sizeof(sP_FE2CL_REP_PC_SEND_EMAIL_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_SEND_EMAIL_SUCC);
 }
 
 void Email::init() {

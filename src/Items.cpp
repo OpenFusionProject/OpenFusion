@@ -66,15 +66,15 @@ static void nanoCapsuleHandler(CNSocket* sock, int slot, sItemBase *chest) {
     sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
 
     // transmit chest opening acknowledgement packet
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, sizeof(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_ITEM_CHEST_OPEN_SUCC);
 
     // check if player doesn't already have this nano
     if (plr->Nanos[nanoId].iID != 0) {
         INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
         msg.iDuringTime = 4;
-        std::string text = "You have already aquired this nano!";
+        std::string text = "You have already acquired this nano!";
         U8toU16(text, msg.szAnnounceMsg, sizeof(text));
-        sock->sendPacket((void*)&msg, P_FE2CL_GM_REP_PC_ANNOUNCE, sizeof(sP_FE2CL_GM_REP_PC_ANNOUNCE));
+        sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
         return;
     }
     Nanos::addNano(sock, nanoId, -1, false);
@@ -168,7 +168,7 @@ static int getItemSetId(Crate& crate, int crateId) {
 }
 
 static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_ITEM_MOVE* itemmove = (sP_CL2FE_REQ_ITEM_MOVE*)data->buf;
+    auto itemmove = (sP_CL2FE_REQ_ITEM_MOVE*)data->buf;
     INITSTRUCT(sP_FE2CL_PC_ITEM_MOVE_SUCC, resp);
 
     Player* plr = PlayerManager::getPlayer(sock);
@@ -305,18 +305,18 @@ static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
             plr->iPCState = 0;
 
         // send equip event to other players
-        PlayerManager::sendToViewable(sock, (void*)&equipChange, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
+        PlayerManager::sendToViewable(sock, equipChange, P_FE2CL_PC_EQUIP_CHANGE);
 
         // set equipment stats serverside
         setItemStats(plr);
     }
 
     // send response
-    sock->sendPacket((void*)&resp, P_FE2CL_PC_ITEM_MOVE_SUCC, sizeof(sP_FE2CL_PC_ITEM_MOVE_SUCC));
+    sock->sendPacket(resp, P_FE2CL_PC_ITEM_MOVE_SUCC);
 }
 
 static void itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_ITEM_DELETE* itemdel = (sP_CL2FE_REQ_PC_ITEM_DELETE*)data->buf;
+    auto itemdel = (sP_CL2FE_REQ_PC_ITEM_DELETE*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC, resp);
 
     Player* plr = PlayerManager::getPlayer(sock);
@@ -329,11 +329,11 @@ static void itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
     plr->Inven[itemdel->iSlotNum].iType = 0;
     plr->Inven[itemdel->iSlotNum].iOpt = 0;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_ITEM_DELETE_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_ITEM_DELETE_SUCC);
 }
 
 static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_ITEM_USE* request = (sP_CL2FE_REQ_ITEM_USE*)data->buf;
+    auto request = (sP_CL2FE_REQ_ITEM_USE*)data->buf;
     Player* player = PlayerManager::getPlayer(sock);
 
     if (request->iSlotNum < 0 || request->iSlotNum >= AINVEN_COUNT)
@@ -347,7 +347,7 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
     if (!(gumball.iOpt > 0 && gumball.iType == 7 && gumball.iID>=119 && gumball.iID<=121)) {
         std::cout << "[WARN] Gumball not found" << std::endl;
         INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_FAIL, response);
-        sock->sendPacket((void*)&response, P_FE2CL_REP_PC_ITEM_USE_FAIL, sizeof(sP_FE2CL_REP_PC_ITEM_USE_FAIL));
+        sock->sendPacket(response, P_FE2CL_REP_PC_ITEM_USE_FAIL);
         return;
     }
 
@@ -358,7 +358,7 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
         (  gumball.iID == 121 && nanoStyle == 2))) {
         std::cout << "[WARN] Gumball type doesn't match nano type" << std::endl;
         INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_FAIL, response);
-        sock->sendPacket((void*)&response, P_FE2CL_REP_PC_ITEM_USE_FAIL, sizeof(sP_FE2CL_REP_PC_ITEM_USE_FAIL));
+        sock->sendPacket(response, P_FE2CL_REP_PC_ITEM_USE_FAIL);
         return;
     }
 
@@ -402,7 +402,7 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
     pkt.eTBU = 1; // eTimeBuffUpdate
     pkt.eTBT = 1; // eTimeBuffType 1 means nano
     pkt.iConditionBitFlag = player->iConditionBitFlag |= value1;
-    sock->sendPacket((void*)&pkt, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+    sock->sendPacket(pkt, P_FE2CL_PC_BUFF_UPDATE);
 
     sock->sendPacket((void*)&respbuf, P_FE2CL_REP_PC_ITEM_USE_SUCC, resplen);
     // update inventory serverside
@@ -422,11 +422,11 @@ static void itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
         resp.aBank[i] = plr->Bank[i];
     }
     resp.iExtraBank = 1;
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_BANK_OPEN_SUCC, sizeof(sP_FE2CL_REP_PC_BANK_OPEN_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_BANK_OPEN_SUCC);
 }
 
 static void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
-    sP_CL2FE_REQ_ITEM_CHEST_OPEN *pkt = (sP_CL2FE_REQ_ITEM_CHEST_OPEN *)data->buf;
+    auto pkt = (sP_CL2FE_REQ_ITEM_CHEST_OPEN *)data->buf;
 
     // sanity check
     if (pkt->eIL != 1 || pkt->iSlotNum < 0 || pkt->iSlotNum >= AINVEN_COUNT)
@@ -515,7 +515,7 @@ static void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
 
     // transmit chest opening acknowledgement packet
     std::cout << "opening chest..." << std::endl;
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_ITEM_CHEST_OPEN_SUCC, sizeof(sP_FE2CL_REP_ITEM_CHEST_OPEN_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_ITEM_CHEST_OPEN_SUCC);
 }
 
 // TODO: use this in cleaned up Items
@@ -552,7 +552,7 @@ void Items::checkItemExpire(CNSocket* sock, Player* player) {
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
     // we know it's only one trailing struct, so we can skip full validation
     uint8_t respbuf[resplen]; // not a variable length array, don't worry
-    sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM* packet = (sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM*)respbuf;
+    auto packet = (sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM*)respbuf;
     sTimeLimitItemDeleteInfo2CL* itemData = (sTimeLimitItemDeleteInfo2CL*)(respbuf + sizeof(sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM));
     memset(respbuf, 0, resplen);
 
@@ -603,7 +603,7 @@ void Items::updateEquips(CNSocket* sock, Player* plr) {
         resp.iEquipSlotNum = i;
         resp.EquipSlotItem = plr->Equip[i];
 
-        PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_PC_EQUIP_CHANGE, sizeof(sP_FE2CL_PC_EQUIP_CHANGE));
+        PlayerManager::sendToViewable(sock, resp, P_FE2CL_PC_EQUIP_CHANGE);
     }
 }
 

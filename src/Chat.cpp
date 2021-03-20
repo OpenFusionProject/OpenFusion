@@ -10,7 +10,7 @@ std::vector<std::string> Chat::dump;
 using namespace Chat;
 
 static void chatHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE*)data->buf;
+    auto chat = (sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
     std::string fullChat = sanitizeText(AUTOU16TOU8(chat->szFreeChat));
@@ -34,14 +34,14 @@ static void chatHandler(CNSocket* sock, CNPacketData* data) {
     resp.iPC_ID = plr->iID;
     resp.iEmoteCode = chat->iEmoteCode;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC);
 
     // send to visible players
-    PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC));
+    PlayerManager::sendToViewable(sock, resp, P_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC);
 }
 
 static void menuChatHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_SEND_MENUCHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_MENUCHAT_MESSAGE*)data->buf;
+    auto chat = (sP_CL2FE_REQ_SEND_MENUCHAT_MESSAGE*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
     std::string fullChat = sanitizeText(AUTOU16TOU8(chat->szFreeChat));
@@ -57,24 +57,24 @@ static void menuChatHandler(CNSocket* sock, CNPacketData* data) {
     resp.iPC_ID = PlayerManager::getPlayer(sock)->iID;
     resp.iEmoteCode = chat->iEmoteCode;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC);
 
     // send to visible players
-    PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC));
+    PlayerManager::sendToViewable(sock, resp, P_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC);
 }
 
 static void emoteHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT* emote = (sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT*)data->buf;
+    auto emote = (sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_PC_AVATAR_EMOTES_CHAT, resp);
     resp.iEmoteCode = emote->iEmoteCode;
     resp.iID_From = plr->iID;
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_AVATAR_EMOTES_CHAT, sizeof(sP_FE2CL_REP_PC_AVATAR_EMOTES_CHAT));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_AVATAR_EMOTES_CHAT);
 
     // send to visible players (players within render distance)
-    PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_REP_PC_AVATAR_EMOTES_CHAT, sizeof(sP_FE2CL_REP_PC_AVATAR_EMOTES_CHAT));
+    PlayerManager::sendToViewable(sock, resp, P_FE2CL_REP_PC_AVATAR_EMOTES_CHAT);
 }
 
 void Chat::sendServerMessage(CNSocket* sock, std::string msg) {
@@ -85,14 +85,14 @@ void Chat::sendServerMessage(CNSocket* sock, std::string msg) {
     U8toU16(msg, (char16_t*)motd.szSystemMsg, sizeof(motd.szSystemMsg));
 
     // send the packet :)
-    sock->sendPacket((void*)&motd, P_FE2CL_PC_MOTD_LOGIN, sizeof(sP_FE2CL_PC_MOTD_LOGIN));
+    sock->sendPacket(motd, P_FE2CL_PC_MOTD_LOGIN);
 }
 
 static void announcementHandler(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
     if (plr->accountLevel > 30)
         return; // only players with account level less than 30 (GM) are allowed to use this command
-    sP_CL2FE_GM_REQ_PC_ANNOUNCE* announcement = (sP_CL2FE_GM_REQ_PC_ANNOUNCE*)data->buf;
+    auto announcement = (sP_CL2FE_GM_REQ_PC_ANNOUNCE*)data->buf;
 
     INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
     msg.iAnnounceType = announcement->iAnnounceType;
@@ -102,8 +102,8 @@ static void announcementHandler(CNSocket* sock, CNPacketData* data) {
 
     switch (announcement->iAreaType) {
     case 0: // area (all players in viewable chunks)
-        sock->sendPacket((void*)&msg, P_FE2CL_GM_REP_PC_ANNOUNCE, sizeof(sP_FE2CL_GM_REP_PC_ANNOUNCE));
-        PlayerManager::sendToViewable(sock, (void*)&msg, P_FE2CL_GM_REP_PC_ANNOUNCE, sizeof(sP_FE2CL_GM_REP_PC_ANNOUNCE));
+        sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
+        PlayerManager::sendToViewable(sock, msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
         break;
     case 1: // shard
     case 2: // world
@@ -111,7 +111,7 @@ static void announcementHandler(CNSocket* sock, CNPacketData* data) {
     case 3: // global (all players)
         for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++) {
             CNSocket* allSock = it->first;
-            allSock->sendPacket((void*)&msg, P_FE2CL_GM_REP_PC_ANNOUNCE, sizeof(sP_FE2CL_GM_REP_PC_ANNOUNCE));
+            allSock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
         }
     default:
         break;
@@ -124,7 +124,7 @@ static void announcementHandler(CNSocket* sock, CNPacketData* data) {
 
 // Buddy freechatting
 static void buddyChatHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE* pkt = (sP_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE*)data->buf;
+    auto pkt = (sP_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
     INITSTRUCT(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, resp);
@@ -156,13 +156,13 @@ static void buddyChatHandler(CNSocket* sock, CNPacketData* data) {
 
     U8toU16(fullChat, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC)); // confirm send to sender
-    otherSock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC)); // broadcast send to receiver
+    sock->sendPacket(resp, P_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC); // confirm send to sender
+    otherSock->sendPacket(resp, P_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC); // broadcast send to receiver
 }
 
 // Buddy menuchat
 static void buddyMenuChatHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE* pkt = (sP_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE*)data->buf;
+    auto pkt = (sP_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
     INITSTRUCT(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, resp);
@@ -186,12 +186,12 @@ static void buddyMenuChatHandler(CNSocket* sock, CNPacketData* data) {
 
     U8toU16(fullChat, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC)); // confirm send to sender
-    otherSock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC)); // broadcast send to receiver
+    sock->sendPacket(resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC); // confirm send to sender
+    otherSock->sendPacket(resp, P_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC); // broadcast send to receiver
 }
 
 static void tradeChatHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_TRADE_EMOTES_CHAT* pacdat = (sP_CL2FE_REQ_PC_TRADE_EMOTES_CHAT*)data->buf;
+    auto pacdat = (sP_CL2FE_REQ_PC_TRADE_EMOTES_CHAT*)data->buf;
 
     CNSocket* otherSock; // weird flip flop because we need to know who the other player is
     if (pacdat->iID_Request == pacdat->iID_From)
@@ -218,8 +218,8 @@ static void tradeChatHandler(CNSocket* sock, CNPacketData* data) {
     dump.push_back(logLine);
 
     resp.iEmoteCode = pacdat->iEmoteCode;
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_EMOTES_CHAT, sizeof(sP_FE2CL_REP_PC_TRADE_EMOTES_CHAT));
-    otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_EMOTES_CHAT, sizeof(sP_FE2CL_REP_PC_TRADE_EMOTES_CHAT));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_TRADE_EMOTES_CHAT);
+    otherSock->sendPacket(resp, P_FE2CL_REP_PC_TRADE_EMOTES_CHAT);
 }
 
 static void groupChatHandler(CNSocket* sock, CNPacketData* data) {

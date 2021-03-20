@@ -100,8 +100,8 @@ static void levelCommand(std::string full, std::vector<std::string>& args, CNSoc
     resp.iPC_ID = plr->iID;
     resp.iPC_Level = level;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
-    PlayerManager::sendToViewable(sock, (void*)&resp, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_CHANGE_LEVEL);
+    PlayerManager::sendToViewable(sock, resp, P_FE2CL_REP_PC_CHANGE_LEVEL);
 }
 
 static void mssCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
@@ -357,7 +357,7 @@ static void npcRotateCommand(std::string full, std::vector<std::string>& args, C
     // update rotation clientside
     INITSTRUCT(sP_FE2CL_NPC_ENTER, pkt);
     pkt.NPCAppearanceData = npc->appearanceData;
-    sock->sendPacket((void*)&pkt, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
+    sock->sendPacket(pkt, P_FE2CL_NPC_ENTER);
 }
 
 static void refreshCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
@@ -710,12 +710,12 @@ static void lairUnlockCommand(std::string full, std::vector<std::string>& args, 
     Missions::startTask(plr, taskID);
     taskResp.iTaskNum = taskID;
     taskResp.iRemainTime = 0;
-    sock->sendPacket((void*)&taskResp, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
+    sock->sendPacket(taskResp, P_FE2CL_REP_PC_TASK_START_SUCC);
 
     INITSTRUCT(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, missionResp);
     missionResp.iCurrentMissionID = missionID;
     plr->CurrentMissionID = missionID;
-    sock->sendPacket((void*)&missionResp, P_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, sizeof(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID));
+    sock->sendPacket(missionResp, P_FE2CL_REP_PC_SET_CURRENT_MISSION_ID);
 }
 
 static void hideCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
@@ -804,7 +804,7 @@ static void redeemCommand(std::string full, std::vector<std::string>& args, CNSo
         // save serverside
         plr->Inven[resp.iSlotNum] = resp.Item;
 
-        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_GIVE_ITEM_SUCC, sizeof(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC));
+        sock->sendPacket(resp, P_FE2CL_REP_PC_GIVE_ITEM_SUCC);
     }
     std::string msg = itemCount == 1 ? "You have redeemed a code item" : "You have redeemed code items";
     Chat::sendServerMessage(sock, msg);
@@ -834,7 +834,7 @@ static void registerallCommand(std::string full, std::vector<std::string>& args,
     resp.aWyvernLocationFlag[0] = plr->aSkywayLocationFlag[0];
     resp.aWyvernLocationFlag[1] = plr->aSkywayLocationFlag[1];
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC, sizeof(sP_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC);
 }
 
 static void unregisterallCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
@@ -851,7 +851,7 @@ static void unregisterallCommand(std::string full, std::vector<std::string>& arg
     resp.aWyvernLocationFlag[0] = plr->aSkywayLocationFlag[0];
     resp.aWyvernLocationFlag[1] = plr->aSkywayLocationFlag[1];
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC, sizeof(sP_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC);
 }
 
 static void banCommand(std::string full, std::vector<std::string>& args, CNSocket *sock) {
@@ -903,7 +903,7 @@ static void banCommand(std::string full, std::vector<std::string>& args, CNSocke
     pkt.iExitCode = 3; // "a GM has terminated your connection"
 
     // send to target player
-    otherSock->sendPacket((void*)&pkt, P_FE2CL_REP_PC_EXIT_SUCC, sizeof(sP_FE2CL_REP_PC_EXIT_SUCC));
+    otherSock->sendPacket(pkt, P_FE2CL_REP_PC_EXIT_SUCC);
 
     // ensure that the connection has terminated
     otherSock->kill();
