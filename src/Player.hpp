@@ -83,10 +83,10 @@ struct Player {
     uint64_t iFirstUseFlag[2];
 
     ChunkPos chunkPos;
-    std::set<Chunk*> *viewableChunks;
+    std::set<Chunk*> viewableChunks;
     time_t lastHeartbeat;
 
     int suspicionRating;
     time_t lastShot;
-    std::vector<sItemBase> *buyback;
+    std::vector<sItemBase> buyback;
 };

@@ -35,9 +35,7 @@ static void addPlayer(CNSocket* key, Player plr) {
 
     players[key] = p;
     p->chunkPos = std::make_tuple(0, 0, 0);
-    p->viewableChunks = new std::set<Chunk*>();
     p->lastHeartbeat = 0;
-    p->buyback = new std::vector<sItemBase>();
 
     std::cout << getPlayerName(p) << " has joined!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
@@ -64,8 +62,6 @@ void PlayerManager::removePlayer(CNSocket* key) {
 
     std::cout << getPlayerName(plr) << " has left!" << std::endl;
 
-    delete plr->buyback;
-    delete plr->viewableChunks;
     delete plr;
     players.erase(key);
 
@@ -331,7 +327,7 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
 
 void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size) {
     Player* plr = getPlayer(sock);
-    for (auto it = plr->viewableChunks->begin(); it != plr->viewableChunks->end(); it++) {
+    for (auto it = plr->viewableChunks.begin(); it != plr->viewableChunks.end(); it++) {
         Chunk* chunk = *it;
         for (CNSocket* otherSock : chunk->players) {
             if (otherSock == sock)

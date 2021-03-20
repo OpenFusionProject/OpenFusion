@@ -249,7 +249,7 @@ static void summonWCommand(std::string full, std::vector<std::string>& args, CNS
 static void unsummonWCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
 
-    BaseNPC* npc = NPCManager::getNearestNPC(plr->viewableChunks, plr->x, plr->y, plr->z);
+    BaseNPC* npc = NPCManager::getNearestNPC(&plr->viewableChunks, plr->x, plr->y, plr->z);
 
     if (npc == nullptr) {
         Chat::sendServerMessage(sock, "/unsummonW: No NPCs found nearby");
@@ -331,7 +331,7 @@ static void toggleAiCommand(std::string full, std::vector<std::string>& args, CN
 static void npcRotateCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
 
-    BaseNPC* npc = NPCManager::getNearestNPC(plr->viewableChunks, plr->x, plr->y, plr->z);
+    BaseNPC* npc = NPCManager::getNearestNPC(&plr->viewableChunks, plr->x, plr->y, plr->z);
 
     if (npc == nullptr) {
         Chat::sendServerMessage(sock, "[NPCR] No NPCs found nearby");
@@ -413,7 +413,7 @@ static void npcInstanceCommand(std::string full, std::vector<std::string>& args,
         return;
     }
 
-    BaseNPC* npc = NPCManager::getNearestNPC(plr->viewableChunks, plr->x, plr->y, plr->z);
+    BaseNPC* npc = NPCManager::getNearestNPC(&plr->viewableChunks, plr->x, plr->y, plr->z);
 
     if (npc == nullptr) {
         Chat::sendServerMessage(sock, "[NPCI] No NPCs found nearby");
@@ -650,7 +650,7 @@ static void flushCommand(std::string full, std::vector<std::string>& args, CNSoc
 
 static void whoisCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
-    BaseNPC* npc = NPCManager::getNearestNPC(plr->viewableChunks, plr->x, plr->y, plr->z);
+    BaseNPC* npc = NPCManager::getNearestNPC(&plr->viewableChunks, plr->x, plr->y, plr->z);
 
     if (npc == nullptr) {
         Chat::sendServerMessage(sock, "[WHOIS] No NPCs found nearby");

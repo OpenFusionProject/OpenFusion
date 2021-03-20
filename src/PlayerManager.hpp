@@ -38,7 +38,7 @@ namespace PlayerManager {
     template<class T>
     void sendToViewable(CNSocket *sock, T& pkt, uint32_t type) {
         Player* plr = getPlayer(sock);
-        for (auto it = plr->viewableChunks->begin(); it != plr->viewableChunks->end(); it++) {
+        for (auto it = plr->viewableChunks.begin(); it != plr->viewableChunks.end(); it++) {
             Chunk* chunk = *it;
             for (CNSocket* otherSock : chunk->players) {
                 if (otherSock == sock)

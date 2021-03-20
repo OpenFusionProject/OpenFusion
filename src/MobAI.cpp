@@ -119,7 +119,7 @@ bool MobAI::aggroCheck(Mob *mob, time_t currTime) {
     CNSocket *closest = nullptr;
     int closestDistance = INT_MAX;
 
-    for (auto it = mob->viewableChunks->begin(); it != mob->viewableChunks->end(); it++) {
+    for (auto it = mob->viewableChunks.begin(); it != mob->viewableChunks.end(); it++) {
         Chunk* chunk = *it;
         for (CNSocket *s : chunk->players) {
             Player *plr = PlayerManager::getPlayer(s);
@@ -296,7 +296,7 @@ static void useAbilities(Mob *mob, time_t currTime) {
         std::vector<int> targetData = {0, 0, 0, 0, 0};
 
         // find the players within range of eruption
-        for (auto it = mob->viewableChunks->begin(); it != mob->viewableChunks->end(); it++) {
+        for (auto it = mob->viewableChunks.begin(); it != mob->viewableChunks.end(); it++) {
             Chunk* chunk = *it;
             for (CNSocket *s : chunk->players) {
                 Player *plr = PlayerManager::getPlayer(s);

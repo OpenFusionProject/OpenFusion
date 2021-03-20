@@ -125,7 +125,7 @@ static void eggStep(CNServer* serv, time_t currTime) {
 
     // check dead eggs and eggs in inactive chunks
     for (auto egg : Eggs::Eggs) {
-        if (!egg.second->dead || !Chunking::inPopulatedChunks(egg.second->viewableChunks))
+        if (!egg.second->dead || !Chunking::inPopulatedChunks(&egg.second->viewableChunks))
             continue;
         if (egg.second->deadUntil <= timeStamp) {
             // respawn it

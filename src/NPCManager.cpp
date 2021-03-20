@@ -66,7 +66,6 @@ void NPCManager::destroyNPC(int32_t id) {
         Eggs::Eggs.erase(id);
 
     // finally, remove it from the map and free it
-    delete entity->viewableChunks;
     NPCs.erase(id);
     delete entity;
 }
@@ -86,7 +85,7 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z, uint64_t I, 
 }
 
 void NPCManager::sendToViewable(BaseNPC *npc, void *buf, uint32_t type, size_t size) {
-    for (auto it = npc->viewableChunks->begin(); it != npc->viewableChunks->end(); it++) {
+    for (auto it = npc->viewableChunks.begin(); it != npc->viewableChunks.end(); it++) {
         Chunk* chunk = *it;
         for (CNSocket *s : chunk->players) {
             s->sendPacket(buf, type, size);

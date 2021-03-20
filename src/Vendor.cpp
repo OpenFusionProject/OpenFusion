@@ -104,11 +104,11 @@ static void vendorSell(CNSocket* sock, CNPacketData* data) {
     }
 
     // add to buyback list
-    plr->buyback->push_back(original);
+    plr->buyback.push_back(original);
     // forget oldest member if there's more than 5
-    if (plr->buyback->size() > 5)
-        plr->buyback->erase(plr->buyback->begin());
-    //std::cout << (int)plr->buyback->size() << " items in buyback\n";
+    if (plr->buyback.size() > 5)
+        plr->buyback.erase(plr->buyback.begin());
+    //std::cout << (int)plr->buyback.size() << " items in buyback\n";
 
     // response parameters
     resp.iInvenSlotNum = req->iInvenSlotNum;
@@ -133,13 +133,13 @@ static void vendorBuyback(CNSocket* sock, CNPacketData* data) {
     int idx = req->iListID - 1;
 
     // sanity check
-    if (idx < 0 || idx >= plr->buyback->size()) {
+    if (idx < 0 || idx >= plr->buyback.size()) {
         sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL));
         return;
     }
 
     // get the item out of the buyback list
-    sItemBase item = (*plr->buyback)[idx];
+    sItemBase item = plr->buyback[idx];
     /*
      * NOTE: The client sends the index of the exact item the user clicked on.
      * We then operate on that item, but we remove the *first* identical item
@@ -149,18 +149,18 @@ static void vendorBuyback(CNSocket* sock, CNPacketData* data) {
      * does the exact same thing, so this *is* the correct thing to do to keep
      * them in sync.
      */
-    for (auto it = plr->buyback->begin(); it != plr->buyback->end(); it++) {
+    for (auto it = plr->buyback.begin(); it != plr->buyback.end(); it++) {
         /*
          * XXX: we really need a standard item comparison function that
          * will work properly across all builds (ex. with iSerial)
          */
         if (it->iType == item.iType && it->iID == item.iID && it->iOpt == item.iOpt
             && it->iTimeLimit == item.iTimeLimit) {
-            plr->buyback->erase(it);
+            plr->buyback.erase(it);
             break;
         }
     }
-    //std::cout << (int)plr->buyback->size() << " items in buyback\n";
+    //std::cout << (int)plr->buyback.size() << " items in buyback\n";
 
     Items::Item* itemDat = Items::getItemData(item.iID, item.iType);
 

@@ -26,9 +26,9 @@ static void newChunk(ChunkPos pos) {
     std::set<Chunk*> surroundings = getViewableChunks(pos);
     for (Chunk* c : surroundings) {
         for (CNSocket* sock : c->players)
-            PlayerManager::getPlayer(sock)->viewableChunks->insert(chunk);
+            PlayerManager::getPlayer(sock)->viewableChunks.insert(chunk);
         for (int32_t id : c->NPCs)
-            NPCManager::NPCs[id]->viewableChunks->insert(chunk);
+            NPCManager::NPCs[id]->viewableChunks.insert(chunk);
     }
 }
 
@@ -45,9 +45,9 @@ static void deleteChunk(ChunkPos pos) {
     for(Chunk* c : surroundings)
     {
         for (CNSocket* sock : c->players)
-            PlayerManager::getPlayer(sock)->viewableChunks->erase(chunk);
+            PlayerManager::getPlayer(sock)->viewableChunks.erase(chunk);
         for (int32_t id : c->NPCs)
-            NPCManager::NPCs[id]->viewableChunks->erase(chunk);
+            NPCManager::NPCs[id]->viewableChunks.erase(chunk);
     }
 
     chunks.erase(pos); // remove from map
@@ -353,8 +353,8 @@ void Chunking::updatePlayerChunk(CNSocket* sock, ChunkPos from, ChunkPos to) {
 
     plr->chunkPos = to; // update cached chunk position
     // updated cached viewable chunks
-    plr->viewableChunks->clear();
-    plr->viewableChunks->insert(newViewables.begin(), newViewables.end());
+    plr->viewableChunks.clear();
+    plr->viewableChunks.insert(newViewables.begin(), newViewables.end());
 }
 
 void Chunking::updateNPCChunk(int32_t id, ChunkPos from, ChunkPos to) {
@@ -389,8 +389,8 @@ void Chunking::updateNPCChunk(int32_t id, ChunkPos from, ChunkPos to) {
 
     npc->chunkPos = to; // update cached chunk position
     // updated cached viewable chunks
-    npc->viewableChunks->clear();
-    npc->viewableChunks->insert(newViewables.begin(), newViewables.end());
+    npc->viewableChunks.clear();
+    npc->viewableChunks.insert(newViewables.begin(), newViewables.end());
 }
 
 bool Chunking::chunkExists(ChunkPos chunk) {
