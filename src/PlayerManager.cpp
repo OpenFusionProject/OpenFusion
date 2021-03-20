@@ -190,14 +190,13 @@ static void sendNanoBookSubset(CNSocket *sock) {
         for (int i = id - pkt.elementOffset; id < NANO_COUNT && i < 10; id++, i = id - pkt.elementOffset)
             pkt.element[i] = plr->Nanos[id];
 
-        // TODO: add NANO_BOOK_SUBSET to Defines.c, so we can switch this to the new system later
-        sock->sendPacket((void*)&pkt, P_FE2CL_REP_NANO_BOOK_SUBSET, sizeof(sP_FE2CL_REP_NANO_BOOK_SUBSET));
+        sock->sendPacket(pkt, P_FE2CL_REP_NANO_BOOK_SUBSET);
     }
 #endif
 }
 
 static void enterPlayer(CNSocket* sock, CNPacketData* data) {
-    auto* enter = (sP_CL2FE_REQ_PC_ENTER*)data->buf;
+    auto enter = (sP_CL2FE_REQ_PC_ENTER*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_ENTER_SUCC, response);
 
     // TODO: check if serialkey exists, if it doesn't send sP_FE2CL_REP_PC_ENTER_FAIL
