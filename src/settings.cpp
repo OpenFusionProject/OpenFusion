@@ -2,6 +2,9 @@
 #include "settings.hpp"
 #include "INIReader.hpp"
 
+// so we get the ACADEMY definition
+#include "core/CNStructs.hpp"
+
 // defaults :)
 int settings::VERBOSITY = 1;
 
