@@ -18,7 +18,7 @@ std::unordered_map<CNSocket*, std::queue<WarpLocation>> Transport::SkywayQueues;
 std::unordered_map<int32_t, std::queue<WarpLocation>> Transport::NPCQueues;
 
 static void transportRegisterLocationHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION* transport = (sP_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION*)data->buf;
+    auto transport = (sP_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
     bool newReg = false; // this is a new registration
@@ -32,7 +32,7 @@ static void transportRegisterLocationHandler(CNSocket* sock, CNPacketData* data)
             failResp.iErrorCode = 0; // TODO: review what error code to use here
             failResp.iLocationID = transport->iLocationID;
 
-            sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_FAIL, sizeof(sP_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_FAIL));
+            sock->sendPacket(failResp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_FAIL);
             return;
         }
 
@@ -51,7 +51,7 @@ static void transportRegisterLocationHandler(CNSocket* sock, CNPacketData* data)
             failResp.iErrorCode = 0; // TODO: review what error code to use here
             failResp.iLocationID = transport->iLocationID;
 
-            sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_FAIL, sizeof(sP_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_FAIL));
+            sock->sendPacket(failResp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_FAIL);
             return;
         }
 
@@ -72,7 +72,7 @@ static void transportRegisterLocationHandler(CNSocket* sock, CNPacketData* data)
         failResp.iErrorCode = 0; // TODO: review what error code to use here
         failResp.iLocationID = transport->iLocationID;
 
-        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_FAIL, sizeof(sP_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_FAIL));
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_FAIL);
         return;
     }
 
@@ -87,11 +87,11 @@ static void transportRegisterLocationHandler(CNSocket* sock, CNPacketData* data)
     resp.aWyvernLocationFlag[0] = plr->aSkywayLocationFlag[0];
     resp.aWyvernLocationFlag[1] = plr->aSkywayLocationFlag[1];
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC, sizeof(sP_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_REGIST_TRANSPORTATION_LOCATION_SUCC);
 }
 
 static void transportWarpHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_WARP_USE_TRANSPORTATION* req = (sP_CL2FE_REQ_PC_WARP_USE_TRANSPORTATION*)data->buf;
+    auto req = (sP_CL2FE_REQ_PC_WARP_USE_TRANSPORTATION*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
     /*
@@ -108,7 +108,7 @@ static void transportWarpHandler(CNSocket* sock, CNPacketData* data) {
         failResp.iErrorCode = 0; // TODO: error code
         failResp.iTransportationID = req->iTransporationID;
 
-        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_FAIL, sizeof(sP_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_FAIL));
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_FAIL);
         return;
     }
 
@@ -144,7 +144,7 @@ static void transportWarpHandler(CNSocket* sock, CNPacketData* data) {
         alert.iAnnounceType = 0; // don't think this lets us make a confirm dialog
         alert.iDuringTime = 3;
         U8toU16("Skyway route " + std::to_string(route.mssRouteNum) + " isn't pathed yet. You will not be charged any taros.", (char16_t*)alert.szAnnounceMsg, sizeof(alert.szAnnounceMsg));
-        sock->sendPacket((void*)&alert, P_FE2CL_ANNOUNCE_MSG, sizeof(sP_FE2CL_ANNOUNCE_MSG));
+        sock->sendPacket(alert, P_FE2CL_ANNOUNCE_MSG);
 
         std::cout << "[WARN] MSS route " << route.mssRouteNum << " not pathed" << std::endl;
         break;
@@ -160,7 +160,7 @@ static void transportWarpHandler(CNSocket* sock, CNPacketData* data) {
     resp.iX = (target == nullptr) ? plr->x : target->x;
     resp.iY = (target == nullptr) ? plr->y : target->y;
     resp.iZ = (target == nullptr) ? plr->z : target->z;
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_WARP_USE_TRANSPORTATION_SUCC);
 
     if (target == nullptr)
         return;
@@ -212,9 +212,9 @@ static void stepSkywaySystem() {
             rideSucc.eRT = 0;
             rideBroadcast.iPC_ID = plr->iID;
             rideBroadcast.eRT = 0;
-            it->first->sendPacket((void*)&rideSucc, P_FE2CL_REP_PC_RIDING_SUCC, sizeof(sP_FE2CL_REP_PC_RIDING_SUCC));
+            it->first->sendPacket(rideSucc, P_FE2CL_REP_PC_RIDING_SUCC);
             // send packet to players in view
-            PlayerManager::sendToViewable(it->first, (void*)&rideBroadcast, P_FE2CL_PC_RIDING, sizeof(sP_FE2CL_PC_RIDING));
+            PlayerManager::sendToViewable(it->first, rideBroadcast, P_FE2CL_PC_RIDING);
             it = SkywayQueues.erase(it); // remove player from tracking map + update iterator
             plr->onMonkey = false;
         } else {
@@ -226,11 +226,11 @@ static void stepSkywaySystem() {
             bmstk.iToX = point.x;
             bmstk.iToY = point.y;
             bmstk.iToZ = point.z;
-            it->first->sendPacket((void*)&bmstk, P_FE2CL_PC_BROOMSTICK_MOVE, sizeof(sP_FE2CL_PC_BROOMSTICK_MOVE));
+            it->first->sendPacket(bmstk, P_FE2CL_PC_BROOMSTICK_MOVE);
             // set player location to point to update viewables
             PlayerManager::updatePlayerPosition(it->first, point.x, point.y, point.z, plr->instanceID, plr->angle);
             // send packet to players in view
-            PlayerManager::sendToViewable(it->first, (void*)&bmstk, P_FE2CL_PC_BROOMSTICK_MOVE, sizeof(sP_FE2CL_PC_BROOMSTICK_MOVE));
+            PlayerManager::sendToViewable(it->first, bmstk, P_FE2CL_PC_BROOMSTICK_MOVE);
 
             it++; // go to next entry in map
         }

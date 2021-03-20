@@ -110,7 +110,7 @@ static void npcBarkHandler(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_BARKER, resp);
     resp.iNPC_ID = req->iNPC_ID;
     resp.iMissionStringID = barks[rand() % barks.size()];
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_BARKER, sizeof(sP_FE2CL_REP_BARKER));
+    sock->sendPacket(resp, P_FE2CL_REP_BARKER);
 }
 
 static void npcUnsummonHandler(CNSocket* sock, CNPacketData* data) {
@@ -148,7 +148,7 @@ BaseNPC *NPCManager::summonNPC(int x, int y, int z, uint64_t instance, int type,
 }
 
 static void npcSummonHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_NPC_SUMMON* req = (sP_CL2FE_REQ_NPC_SUMMON*)data->buf;
+    auto req = (sP_CL2FE_REQ_NPC_SUMMON*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
     int limit = NPCData.back()["m_iNpcNumber"];
@@ -175,13 +175,13 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
 
         // send to self
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, off);
-        sock->sendPacket((void*)&off, P_FE2CL_PC_VEHICLE_OFF_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_OFF_SUCC));
+        sock->sendPacket(off, P_FE2CL_PC_VEHICLE_OFF_SUCC);
 
         // send to others
         INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, chg);
         chg.iPC_ID = plr->iID;
         chg.iState = plr->iPCState;
-        PlayerManager::sendToViewable(sock, (void*)&chg, P_FE2CL_PC_STATE_CHANGE, sizeof(sP_FE2CL_PC_STATE_CHANGE));
+        PlayerManager::sendToViewable(sock, chg, P_FE2CL_PC_STATE_CHANGE);
     }
 
     // std::cerr << "Warped to Map Num:" << Warps[warpId].instanceID << " NPC ID " << Warps[warpId].npcID << std::endl;
@@ -225,13 +225,13 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
 
                     // send to self
                     INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, off);
-                    sockTo->sendPacket((void*)&off, P_FE2CL_PC_VEHICLE_OFF_SUCC, sizeof(sP_FE2CL_PC_VEHICLE_OFF_SUCC));
+                    sockTo->sendPacket(off, P_FE2CL_PC_VEHICLE_OFF_SUCC);
 
                     // send to others
                     INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, chg);
                     chg.iPC_ID = otherPlr->iID;
                     chg.iState = otherPlr->iPCState;
-                    PlayerManager::sendToViewable(sockTo, (void*)&chg, P_FE2CL_PC_STATE_CHANGE, sizeof(sP_FE2CL_PC_STATE_CHANGE));
+                    PlayerManager::sendToViewable(sockTo, chg, P_FE2CL_PC_STATE_CHANGE);
                 }
 
                 PlayerManager::sendPlayerTo(sockTo, Warps[warpId].x, Warps[warpId].y, Warps[warpId].z, instanceID);
@@ -249,7 +249,7 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
         uint64_t fromInstance = plr->instanceID; // pre-warp instance, saved for post-warp
         plr->instanceID = INSTANCE_OVERWORLD;
         Missions::failInstancedMissions(sock); // fail any instanced missions
-        sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC, sizeof(sP_FE2CL_REP_PC_WARP_USE_NPC_SUCC));
+        sock->sendPacket(resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC);
 
         Chunking::updatePlayerChunk(sock, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
         PlayerManager::updatePlayerPosition(sock, resp.iX, resp.iY, resp.iZ, INSTANCE_OVERWORLD, plr->angle);
@@ -264,7 +264,7 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
 }
 
 static void npcWarpHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_WARP_USE_NPC* warpNpc = (sP_CL2FE_REQ_PC_WARP_USE_NPC*)data->buf;
+    auto warpNpc = (sP_CL2FE_REQ_PC_WARP_USE_NPC*)data->buf;
     handleWarp(sock, warpNpc->iWarpID);
 }
 

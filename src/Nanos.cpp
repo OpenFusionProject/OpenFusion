@@ -51,7 +51,7 @@ void Nanos::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spendfm) 
     // Update player
     plr->Nanos[nanoID] = resp.Nano;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_NANO_CREATE_SUCC, sizeof(sP_FE2CL_REP_PC_NANO_CREATE_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_NANO_CREATE_SUCC);
 
     /*
      * iPC_Level in NANO_CREATE_SUCC sets the player's level.
@@ -66,7 +66,7 @@ void Nanos::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spendfm) 
     resp2.iPC_Level = level;
 
     // Update other players' perception of the player's level
-    PlayerManager::sendToViewable(sock, (void*)&resp2, P_FE2CL_REP_PC_CHANGE_LEVEL, sizeof(sP_FE2CL_REP_PC_CHANGE_LEVEL));
+    PlayerManager::sendToViewable(sock, resp2, P_FE2CL_REP_PC_CHANGE_LEVEL);
 }
 
 void Nanos::summonNano(CNSocket *sock, int slot, bool silent) {
@@ -119,13 +119,13 @@ void Nanos::summonNano(CNSocket *sock, int slot, bool silent) {
     }
 
     if (!silent) // silent nano death but only for the summoning player
-        sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_ACTIVE_SUCC, sizeof(sP_FE2CL_REP_NANO_ACTIVE_SUCC));
+        sock->sendPacket(resp, P_FE2CL_REP_NANO_ACTIVE_SUCC);
 
     // Send to other players, these players can't handle silent nano deaths so this packet needs to be sent.
     INITSTRUCT(sP_FE2CL_NANO_ACTIVE, pkt1);
     pkt1.iPC_ID = plr->iID;
     pkt1.Nano = plr->Nanos[nanoID];
-    PlayerManager::sendToViewable(sock, (void*)&pkt1, P_FE2CL_NANO_ACTIVE, sizeof(sP_FE2CL_NANO_ACTIVE));
+    PlayerManager::sendToViewable(sock, pkt1, P_FE2CL_NANO_ACTIVE);
 }
 
 static void setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
@@ -152,7 +152,7 @@ static void setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
     // check if there's any garbage in the item slot array (this'll happen when a nano station isn't used)
     for (int i = 0; i < 10; i++) {
         if (skill->aiNeedItemSlotNum[i] < 0 || skill->aiNeedItemSlotNum[i] >= AINVEN_COUNT) {
-            sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_TUNE_SUCC, sizeof(sP_FE2CL_REP_NANO_TUNE_SUCC));
+            sock->sendPacket(resp, P_FE2CL_REP_NANO_TUNE_SUCC);
             return; // stop execution, don't run consumption logic
         }
     }
@@ -194,7 +194,7 @@ static void setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
         }
     }
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_TUNE_SUCC, sizeof(sP_FE2CL_REP_NANO_TUNE_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_NANO_TUNE_SUCC);
 
     DEBUGLOG(
         std::cout << PlayerManager::getPlayerName(plr) << " set skill id " << skill->iTuneID << " for nano: " << skill->iNanoID << std::endl;
@@ -218,7 +218,7 @@ bool Nanos::getNanoBoost(Player* plr) {
 #pragma endregion
 
 static void nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_NANO_EQUIP* nano = (sP_CL2FE_REQ_NANO_EQUIP*)data->buf;
+    auto nano = (sP_CL2FE_REQ_NANO_EQUIP*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_NANO_EQUIP_SUCC, resp);
     Player *plr = PlayerManager::getPlayer(sock);
 
@@ -241,18 +241,18 @@ static void nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
         pkt.eTBU = 2; // eTimeBuffUpdate
         pkt.eTBT = 1; // eTimeBuffType 1 means nano
         pkt.iConditionBitFlag = plr->iConditionBitFlag &= ~value1;
-        sock->sendPacket((void*)&pkt, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+        sock->sendPacket(pkt, P_FE2CL_PC_BUFF_UPDATE);
     }
 
     // unsummon nano if replaced
     if (plr->activeNano == plr->equippedNanos[nano->iNanoSlotNum])
         summonNano(sock, -1);
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_EQUIP_SUCC, sizeof(sP_FE2CL_REP_NANO_EQUIP_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_NANO_EQUIP_SUCC);
 }
 
 static void nanoUnEquipHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_NANO_UNEQUIP* nano = (sP_CL2FE_REQ_NANO_UNEQUIP*)data->buf;
+    auto nano = (sP_CL2FE_REQ_NANO_UNEQUIP*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_NANO_UNEQUIP_SUCC, resp);
     Player *plr = PlayerManager::getPlayer(sock);
 
@@ -269,24 +269,11 @@ static void nanoUnEquipHandler(CNSocket* sock, CNPacketData* data) {
     // update player
     plr->equippedNanos[nano->iNanoSlotNum] = 0;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_NANO_UNEQUIP_SUCC, sizeof(sP_FE2CL_REP_NANO_UNEQUIP_SUCC));
-}
-
-static void nanoGMGiveHandler(CNSocket* sock, CNPacketData* data) {
-    // Cmd: /nano <nanoID>
-    sP_CL2FE_REQ_PC_GIVE_NANO* nano = (sP_CL2FE_REQ_PC_GIVE_NANO*)data->buf;
-    Player *plr = PlayerManager::getPlayer(sock);
-
-    // Add nano to player
-    addNano(sock, nano->iNanoID, 0);
-
-    DEBUGLOG(
-        std::cout << PlayerManager::getPlayerName(plr) << " requested to add nano id: " << nano->iNanoID << std::endl;
-    )
+    sock->sendPacket(resp, P_FE2CL_REP_NANO_UNEQUIP_SUCC);
 }
 
 static void nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_NANO_ACTIVE* pkt = (sP_CL2FE_REQ_NANO_ACTIVE*)data->buf;
+    auto pkt = (sP_CL2FE_REQ_NANO_ACTIVE*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
     summonNano(sock, pkt->iNanoSlotNum);
@@ -325,17 +312,17 @@ static void nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 static void nanoSkillSetHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_NANO_TUNE* skill = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
+    auto skill = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
     setNanoSkill(sock, skill);
 }
 
 static void nanoSkillSetGMHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_NANO_TUNE* skillGM = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
+    auto skillGM = (sP_CL2FE_REQ_NANO_TUNE*)data->buf;
     setNanoSkill(sock, skillGM);
 }
 
 static void nanoRecallRegisterHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_REGIST_RXCOM* recallData = (sP_CL2FE_REQ_REGIST_RXCOM*)data->buf;
+    auto recallData = (sP_CL2FE_REQ_REGIST_RXCOM*)data->buf;
 
     if (NPCManager::NPCs.find(recallData->iNPCID) == NPCManager::NPCs.end())
         return;
@@ -349,11 +336,11 @@ static void nanoRecallRegisterHandler(CNSocket* sock, CNPacketData* data) {
     response.iX = plr->recallX = npc->appearanceData.iX;
     response.iY = plr->recallY = npc->appearanceData.iY;
     response.iZ = plr->recallZ = npc->appearanceData.iZ;
-    sock->sendPacket((void*)&response, P_FE2CL_REP_REGIST_RXCOM, sizeof(sP_FE2CL_REP_REGIST_RXCOM));
+    sock->sendPacket(response, P_FE2CL_REP_REGIST_RXCOM);
 }
 
 static void nanoRecallHandler(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_WARP_USE_RECALL* recallData = (sP_CL2FE_REQ_WARP_USE_RECALL*)data->buf;
+    auto recallData = (sP_CL2FE_REQ_WARP_USE_RECALL*)data->buf;
 
     Player* plr = PlayerManager::getPlayer(sock);
     Player* otherPlr = PlayerManager::getPlayerFromID(recallData->iGroupMemberID);
@@ -372,7 +359,7 @@ static void nanoRecallHandler(CNSocket* sock, CNPacketData* data) {
         PlayerManager::sendPlayerTo(sock, otherPlr->recallX, otherPlr->recallY, otherPlr->recallZ, otherPlr->recallInstance);
     else {
         INITSTRUCT(sP_FE2CL_REP_WARP_USE_RECALL_FAIL, response)
-        sock->sendPacket((void*)&response, P_FE2CL_REP_WARP_USE_RECALL_FAIL, sizeof(sP_FE2CL_REP_WARP_USE_RECALL_FAIL));
+        sock->sendPacket(response, P_FE2CL_REP_WARP_USE_RECALL_FAIL);
     }
 }
 
@@ -396,7 +383,7 @@ static void nanoPotionHandler(CNSocket* sock, CNPacketData* data) {
     response.iNanoStamina = nano.iStamina + difference;
     response.iBatteryN = player->batteryN - difference;
 
-    sock->sendPacket((void*)&response, P_FE2CL_REP_CHARGE_NANO_STAMINA, sizeof(sP_FE2CL_REP_CHARGE_NANO_STAMINA));
+    sock->sendPacket(response, P_FE2CL_REP_CHARGE_NANO_STAMINA);
     // now update serverside
     player->batteryN -= difference;
     player->Nanos[nano.iID].iStamina += difference;
@@ -407,7 +394,6 @@ void Nanos::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_ACTIVE, nanoSummonHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_EQUIP, nanoEquipHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_UNEQUIP, nanoUnEquipHandler);
-    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GIVE_NANO, nanoGMGiveHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_TUNE, nanoSkillSetHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GIVE_NANO_SKILL, nanoSkillSetGMHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NANO_SKILL_USE, nanoSkillUseHandler);

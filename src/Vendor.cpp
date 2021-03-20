@@ -5,7 +5,7 @@ using namespace Vendor;
 std::map<int32_t, std::vector<VendorListing>> Vendor::VendorTables;
 
 static void vendorBuy(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY*)data->buf;
+    auto req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
     // prepare fail packet
@@ -16,20 +16,20 @@ static void vendorBuy(CNSocket* sock, CNPacketData* data) {
 
     if (itemDat == nullptr) {
         std::cout << "[WARN] Item id " << req->Item.iID << " with type " << req->Item.iType << " not found (buy)" << std::endl;
-        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL));
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL);
         return;
     }
 
     int itemCost = itemDat->buyPrice * (itemDat->stackSize > 1 ? req->Item.iOpt : 1);
     int slot = Items::findFreeSlot(plr);
     if (itemCost > plr->money || slot == -1) {
-        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL));
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL);
         return;
     }
 
     // crates don't have a stack size in TableData, so we can't check those
     if (itemDat->stackSize != 0 && req->Item.iOpt > itemDat->stackSize) {
-        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL));
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL);
         return;
     }
 
@@ -53,11 +53,11 @@ static void vendorBuy(CNSocket* sock, CNPacketData* data) {
     resp.iInvenSlotNum = slot;
     resp.Item = req->Item;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_SUCC);
 }
 
 static void vendorSell(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL*)data->buf;
+    auto req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
     // prepare a fail packet
@@ -66,7 +66,7 @@ static void vendorSell(CNSocket* sock, CNPacketData* data) {
 
     if (req->iInvenSlotNum < 0 || req->iInvenSlotNum >= AINVEN_COUNT || req->iItemCnt < 0) {
         std::cout << "[WARN] Client failed to sell item in slot " << req->iInvenSlotNum << std::endl;
-        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL));
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL);
         return;
     }
 
@@ -75,13 +75,13 @@ static void vendorSell(CNSocket* sock, CNPacketData* data) {
 
     if (itemData == nullptr || !itemData->sellable || item->iOpt < req->iItemCnt) { // sanity + sellable check
         std::cout << "[WARN] Item id " << item->iID << " with type " << item->iType << " not found (sell)" << std::endl;
-        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL));
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL);
         return;
     }
 
     // fail to sell croc-potted items
     if (item->iOpt >= 1 << 16) {
-        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL));
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL);
         return;
     }
 
@@ -116,11 +116,11 @@ static void vendorSell(CNSocket* sock, CNPacketData* data) {
     resp.Item = original; // the item that gets sent to buyback
     resp.ItemStay = *item; // the void item that gets put in the slot
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC);
 }
 
 static void vendorBuyback(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY*)data->buf;
+    auto req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
     // prepare fail packet
@@ -134,7 +134,7 @@ static void vendorBuyback(CNSocket* sock, CNPacketData* data) {
 
     // sanity check
     if (idx < 0 || idx >= plr->buyback.size()) {
-        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL));
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL);
         return;
     }
 
@@ -166,7 +166,7 @@ static void vendorBuyback(CNSocket* sock, CNPacketData* data) {
 
     if (itemDat == nullptr) {
         std::cout << "[WARN] Item id " << item.iID << " with type " << item.iType << " not found (rebuy)" << std::endl;
-        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL));
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL);
         return;
     }
 
@@ -174,7 +174,7 @@ static void vendorBuyback(CNSocket* sock, CNPacketData* data) {
     int itemCost = itemDat->sellPrice * (itemDat->stackSize > 1 ? item.iOpt : 1);
     int slot = Items::findFreeSlot(plr);
     if (itemCost > plr->money || slot == -1) {
-        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL));
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL);
         return;
     }
 
@@ -192,11 +192,11 @@ static void vendorBuyback(CNSocket* sock, CNPacketData* data) {
     resp.iInvenSlotNum = slot;
     resp.Item = item;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_SUCC);
 }
 
 static void vendorTable(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE* req = (sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE*)data->buf;
+    auto req = (sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE*)data->buf;
 
     if (req->iVendorID != req->iNPC_ID || Vendor::VendorTables.find(req->iVendorID) == Vendor::VendorTables.end())
         return;
@@ -221,28 +221,28 @@ static void vendorTable(CNSocket* sock, CNPacketData* data) {
         resp.item[i] = vItem;
     }
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC);
 }
 
 static void vendorStart(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_VENDOR_START* req = (sP_CL2FE_REQ_PC_VENDOR_START*)data->buf;
+    auto req = (sP_CL2FE_REQ_PC_VENDOR_START*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_START_SUCC, resp);
 
     resp.iNPC_ID = req->iNPC_ID;
     resp.iVendorID = req->iVendorID;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_START_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_START_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_VENDOR_START_SUCC);
 }
 
 static void vendorBuyBattery(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_VENDOR_BATTERY_BUY* req = (sP_CL2FE_REQ_PC_VENDOR_BATTERY_BUY*)data->buf;
+    auto req = (sP_CL2FE_REQ_PC_VENDOR_BATTERY_BUY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
     int cost = req->Item.iOpt * 100;
     if ((req->Item.iID == 3 ? (plr->batteryW >= 9999) : (plr->batteryN >= 9999)) || plr->money < cost || req->Item.iOpt < 0) { // sanity check
         INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL, failResp);
         failResp.iErrorCode = 0;
-        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL, sizeof(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL));
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL);
         return;
     }
 
@@ -265,11 +265,11 @@ static void vendorBuyBattery(CNSocket* sock, CNPacketData* data) {
     resp.iBatteryW = plr->batteryW;
     resp.iBatteryN = plr->batteryN;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_VENDOR_BATTERY_BUY_SUCC, sizeof(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_VENDOR_BATTERY_BUY_SUCC);
 }
 
 static void vendorCombineItems(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_PC_ITEM_COMBINATION* req = (sP_CL2FE_REQ_PC_ITEM_COMBINATION*)data->buf;
+    auto req = (sP_CL2FE_REQ_PC_ITEM_COMBINATION*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
     // prepare fail packet
@@ -281,7 +281,7 @@ static void vendorCombineItems(CNSocket* sock, CNPacketData* data) {
     // sanity check slot indices
     if (req->iCostumeItemSlot < 0 || req->iCostumeItemSlot >= AINVEN_COUNT || req->iStatItemSlot < 0 || req->iStatItemSlot >= AINVEN_COUNT) {
         std::cout << "[WARN] Inventory slot(s) out of range (" << req->iStatItemSlot << " and " << req->iCostumeItemSlot << ")" << std::endl;
-        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, sizeof(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL));
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_ITEM_COMBINATION_FAIL);
         return;
     }
 
@@ -294,7 +294,7 @@ static void vendorCombineItems(CNSocket* sock, CNPacketData* data) {
     if (itemStatsDat == nullptr || itemLooksDat == nullptr
         || Items::CrocPotTable.find(abs(itemStatsDat->level - itemLooksDat->level)) == Items::CrocPotTable.end()) {
         std::cout << "[WARN] Either item ids or croc pot value set not found" << std::endl;
-        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, sizeof(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL));
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_ITEM_COMBINATION_FAIL);
         return;
     }
 
@@ -302,7 +302,7 @@ static void vendorCombineItems(CNSocket* sock, CNPacketData* data) {
     if (itemStats->iType != itemLooks->iType
         || (itemStats->iType == 0 && itemStatsDat->weaponType != itemLooksDat->weaponType)) {
         std::cout << "[WARN] Player attempted to combine mismatched items" << std::endl;
-        sock->sendPacket((void*)&failResp, P_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, sizeof(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL));
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_ITEM_COMBINATION_FAIL);
         return;
     }
 
@@ -357,7 +357,7 @@ static void vendorCombineItems(CNSocket* sock, CNPacketData* data) {
     resp.iStatItemSlot = req->iStatItemSlot;
     resp.sNewItem = *itemLooks;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_ITEM_COMBINATION_SUCC, sizeof(sP_FE2CL_REP_PC_ITEM_COMBINATION_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_PC_ITEM_COMBINATION_SUCC);
 }
 
 void Vendor::init() {

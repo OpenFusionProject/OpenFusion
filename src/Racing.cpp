@@ -13,7 +13,7 @@ std::map<CNSocket*, EPRace> Racing::EPRaces;
 std::map<int32_t, std::pair<std::vector<int>, std::vector<int>>> Racing::EPRewards;
 
 static void racingStart(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_EP_RACE_START* req = (sP_CL2FE_REQ_EP_RACE_START*)data->buf;
+    auto req = (sP_CL2FE_REQ_EP_RACE_START*)data->buf;
 
     if (NPCManager::NPCs.find(req->iStartEcomID) == NPCManager::NPCs.end())
         return; // starting line agent not found
@@ -30,14 +30,14 @@ static void racingStart(CNSocket* sock, CNPacketData* data) {
     resp.iStartTick = 0; // ignored
     resp.iLimitTime = EPData[mapNum].maxTime;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_EP_RACE_START_SUCC, sizeof(sP_FE2CL_REP_EP_RACE_START_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_EP_RACE_START_SUCC);
 }
 
 static void racingGetPod(CNSocket* sock, CNPacketData* data) {
     if (EPRaces.find(sock) == EPRaces.end())
         return; // race not found
 
-    sP_CL2FE_REQ_EP_GET_RING* req = (sP_CL2FE_REQ_EP_GET_RING*)data->buf;
+    auto req = (sP_CL2FE_REQ_EP_GET_RING*)data->buf;
 
     // without an anticheat system, we really don't have a choice but to honor the request
     EPRaces[sock].ringCount++;
@@ -47,7 +47,7 @@ static void racingGetPod(CNSocket* sock, CNPacketData* data) {
     resp.iRingLID = req->iRingLID; // could be used to check for proximity in the future
     resp.iRingCount_Get = EPRaces[sock].ringCount;
 
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_EP_GET_RING_SUCC, sizeof(sP_FE2CL_REP_EP_GET_RING_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_EP_GET_RING_SUCC);
 }
 
 static void racingCancel(CNSocket* sock, CNPacketData* data) {
@@ -57,14 +57,14 @@ static void racingCancel(CNSocket* sock, CNPacketData* data) {
     EPRaces.erase(sock);
 
     INITSTRUCT(sP_FE2CL_REP_EP_RACE_CANCEL_SUCC, resp);
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_EP_RACE_CANCEL_SUCC, sizeof(sP_FE2CL_REP_EP_RACE_CANCEL_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_EP_RACE_CANCEL_SUCC);
 }
 
 static void racingEnd(CNSocket* sock, CNPacketData* data) {
     if (EPRaces.find(sock) == EPRaces.end())
         return; // race not found
 
-    sP_CL2FE_REQ_EP_RACE_END* req = (sP_CL2FE_REQ_EP_RACE_END*)data->buf;
+    auto req = (sP_CL2FE_REQ_EP_RACE_END*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
     if (NPCManager::NPCs.find(req->iEndEcomID) == NPCManager::NPCs.end())
@@ -144,7 +144,7 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
     }
 
     EPRaces.erase(sock);
-    sock->sendPacket((void*)&resp, P_FE2CL_REP_EP_RACE_END_SUCC, sizeof(sP_FE2CL_REP_EP_RACE_END_SUCC));
+    sock->sendPacket(resp, P_FE2CL_REP_EP_RACE_END_SUCC);
 }
 
 void Racing::init() {

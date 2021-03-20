@@ -3,6 +3,7 @@
 #include "Chat.hpp"
 #include "Items.hpp"
 #include "Missions.hpp"
+#include "Nanos.hpp"
 
 // helper function, not a packet handler
 void BuiltinCommands::setSpecialState(CNSocket* sock, CNPacketData* data) {
@@ -312,10 +313,26 @@ static void itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
     }
 }
 
+static void nanoGMGiveHandler(CNSocket* sock, CNPacketData* data) {
+    auto nano = (sP_CL2FE_REQ_PC_GIVE_NANO*)data->buf;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    if (plr->accountLevel > 50)
+        return;
+
+    // Add nano to player
+    Nanos::addNano(sock, nano->iNanoID, 0);
+
+    DEBUGLOG(
+        std::cout << PlayerManager::getPlayerName(plr) << " requested to add nano id: " << nano->iNanoID << std::endl;
+    )
+}
+
 void BuiltinCommands::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GOTO, gotoPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_SET_VALUE, setValuePlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GIVE_ITEM, itemGMGiveHandler);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_GIVE_NANO, nanoGMGiveHandler);
 
     REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_SPECIAL_STATE_SWITCH, setGMSpecialSwitchPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_TARGET_PC_SPECIAL_STATE_ONOFF, setGMSpecialOnOff);
