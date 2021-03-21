@@ -80,7 +80,7 @@ void loginFail(LoginError errorCode, std::string userLogin, CNSocket* sock) {
     INITSTRUCT(sP_LS2CL_REP_LOGIN_FAIL, resp);
     U8toU16(userLogin, resp.szID, sizeof(resp.szID));
     resp.iErrorCode = (int)errorCode;
-    sock->sendPacket((void*)&resp, P_LS2CL_REP_LOGIN_FAIL, sizeof(sP_LS2CL_REP_LOGIN_FAIL));
+    sock->sendPacket(resp, P_LS2CL_REP_LOGIN_FAIL);
 
     DEBUGLOG(
         std::cout << "Login Server: Login fail. Error code " << (int)errorCode << std::endl;
@@ -90,10 +90,7 @@ void loginFail(LoginError errorCode, std::string userLogin, CNSocket* sock) {
 }
 
 void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2LS_REQ_LOGIN))
-        return; // ignore the malformed packet
-
-    sP_CL2LS_REQ_LOGIN* login = (sP_CL2LS_REQ_LOGIN*)data->buf;
+    auto login = (sP_CL2LS_REQ_LOGIN*)data->buf;
     // TODO: implement better way of sending credentials
     std::string userLogin((char*)login->szCookie_TEGid);
     std::string userPassword((char*)login->szCookie_authid);
@@ -125,7 +122,7 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
         text += "Password has to be 8 - 32 characters long";          
         U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
         msg.iDuringTime = 15;
-        sock->sendPacket((void*)&msg, P_FE2CL_GM_REP_PC_ANNOUNCE, sizeof(sP_FE2CL_GM_REP_PC_ANNOUNCE));
+        sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
 
         // we still have to send login fail to prevent softlock
         return loginFail(LoginError::LOGIN_ERROR, userLogin, sock);
@@ -158,7 +155,7 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
 
         U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
         msg.iDuringTime = 99999999;
-        sock->sendPacket((void*)&msg, P_FE2CL_GM_REP_PC_ANNOUNCE, sizeof(sP_FE2CL_GM_REP_PC_ANNOUNCE));
+        sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
         // don't send fail packet
         return;
     }
@@ -194,7 +191,7 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
 #endif
 
     // send the resp in with original key
-    sock->sendPacket((void*)&resp, P_LS2CL_REP_LOGIN_SUCC, sizeof(sP_LS2CL_REP_LOGIN_SUCC));
+    sock->sendPacket(resp, P_LS2CL_REP_LOGIN_SUCC);
 
     // update keys
     sock->setEKey(CNSocketEncryption::createNewKey(resp.uiSvrTime, resp.iCharCount + 1, resp.iSlotNum + 1));
@@ -210,7 +207,7 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
     // now send the characters :)
     std::vector<sP_LS2CL_REP_CHAR_INFO>::iterator it;
     for (it = characters.begin(); it != characters.end(); it++)
-        sock->sendPacket((void*)&*it, P_LS2CL_REP_CHAR_INFO, sizeof(sP_LS2CL_REP_CHAR_INFO));
+        sock->sendPacket(*it, P_LS2CL_REP_CHAR_INFO);
 
     DEBUGLOG(
         std::string message = "Login Server: Loaded " + std::to_string(resp.iCharCount) + " character";
@@ -221,7 +218,6 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
 }
 
 void CNLoginServer::newAccount(CNSocket* sock, std::string userLogin, std::string userPassword, int32_t clientVerC) {   
-
     int userID = Database::addAccount(userLogin, userPassword);
     // if query somehow failed
     if (userID == 0)
@@ -241,7 +237,7 @@ void CNLoginServer::newAccount(CNSocket* sock, std::string userLogin, std::strin
     resp.uiSvrTime = getTime();
 
     // send the resp in with original key
-    sock->sendPacket((void*)&resp, P_LS2CL_REP_LOGIN_SUCC, sizeof(sP_LS2CL_REP_LOGIN_SUCC));
+    sock->sendPacket(resp, P_LS2CL_REP_LOGIN_SUCC);
 
     // update keys
     sock->setEKey(CNSocketEncryption::createNewKey(resp.uiSvrTime, resp.iCharCount + 1, resp.iSlotNum + 1));
@@ -253,18 +249,15 @@ void CNLoginServer::newAccount(CNSocket* sock, std::string userLogin, std::strin
 }
 
 void CNLoginServer::nameCheck(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2LS_REQ_CHECK_CHAR_NAME))
-        return;
-
     // responding to this packet only makes the client send the next packet (either name save or name change)
     // so we're always sending SUCC here and actually validating the name when the next packet arrives
 
-    sP_CL2LS_REQ_CHECK_CHAR_NAME* nameCheck = (sP_CL2LS_REQ_CHECK_CHAR_NAME*)data->buf;
+    auto nameCheck = (sP_CL2LS_REQ_CHECK_CHAR_NAME*)data->buf;
 
     INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC, resp);
     memcpy(resp.szFirstName, nameCheck->szFirstName, sizeof(resp.szFirstName));
     memcpy(resp.szLastName, nameCheck->szLastName, sizeof(resp.szLastName));
-    sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_SUCC));
+    sock->sendPacket(resp, P_LS2CL_REP_CHECK_CHAR_NAME_SUCC);
 
     loginSessions[sock].lastHeartbeat = getTime();
 }
@@ -272,7 +265,7 @@ void CNLoginServer::nameCheck(CNSocket* sock, CNPacketData* data) {
 void invalidCharacter(CNSocket* sock) {
     INITSTRUCT(sP_LS2CL_REP_SHARD_SELECT_FAIL, fail);
     fail.iErrorCode = 2;
-    sock->sendPacket((void*)&fail, P_LS2CL_REP_SHARD_SELECT_FAIL, sizeof(sP_LS2CL_REP_SHARD_SELECT_FAIL));
+    sock->sendPacket(fail, P_LS2CL_REP_SHARD_SELECT_FAIL);
 
     DEBUGLOG(
         std::cout << "Login Server: Selected character error" << std::endl;
@@ -281,10 +274,7 @@ void invalidCharacter(CNSocket* sock) {
 }
 
 void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2LS_REQ_SAVE_CHAR_NAME))
-        return;
-
-    sP_CL2LS_REQ_SAVE_CHAR_NAME* save = (sP_CL2LS_REQ_SAVE_CHAR_NAME*)data->buf;
+    auto save = (sP_CL2LS_REQ_SAVE_CHAR_NAME*)data->buf;
     INITSTRUCT(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC, resp);
 
     int errorCode = 0;
@@ -297,7 +287,7 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
     if (errorCode != 0) {
         INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL, resp);
         resp.iErrorCode = errorCode;
-        sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_FAIL, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL));
+        sock->sendPacket(resp, P_LS2CL_REP_CHECK_CHAR_NAME_FAIL);
 
         DEBUGLOG(
             std::cout << "Login Server: name check fail. Error code " << errorCode << std::endl;
@@ -323,7 +313,7 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
 
     loginSessions[sock].lastHeartbeat = getTime();
 
-    sock->sendPacket((void*)&resp, P_LS2CL_REP_SAVE_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC));
+    sock->sendPacket(resp, P_LS2CL_REP_SAVE_CHAR_NAME_SUCC);
 
     Database::updateSelected(loginSessions[sock].userID, save->iSlotNum);
 
@@ -335,7 +325,6 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
 }
 
 bool validateCharacterCreation(sP_CL2LS_REQ_CHAR_CREATE* character) {
-
     // all the values have been determined from analyzing client code and xdt
     // and double checked using cheat engine
 
@@ -370,10 +359,7 @@ bool validateCharacterCreation(sP_CL2LS_REQ_CHAR_CREATE* character) {
 }
 
 void CNLoginServer::characterCreate(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2LS_REQ_CHAR_CREATE))
-        return;
-
-    sP_CL2LS_REQ_CHAR_CREATE* character = (sP_CL2LS_REQ_CHAR_CREATE*)data->buf;
+    auto character = (sP_CL2LS_REQ_CHAR_CREATE*)data->buf;
 
     if (!validateCharacterCreation(character))
     {
@@ -399,7 +385,7 @@ void CNLoginServer::characterCreate(CNSocket* sock, CNPacketData* data) {
 
     loginSessions[sock].lastHeartbeat = getTime();
 
-    sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_CREATE_SUCC, sizeof(sP_LS2CL_REP_CHAR_CREATE_SUCC));
+    sock->sendPacket(resp, P_LS2CL_REP_CHAR_CREATE_SUCC);
     Database::updateSelected(loginSessions[sock].userID, player.slot);   
 
     DEBUGLOG(
@@ -423,10 +409,7 @@ void CNLoginServer::characterCreate(CNSocket* sock, CNPacketData* data) {
 }
 
 void CNLoginServer::characterDelete(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2LS_REQ_CHAR_DELETE))
-        return;
-
-    sP_CL2LS_REQ_CHAR_DELETE* del = (sP_CL2LS_REQ_CHAR_DELETE*)data->buf;
+    auto del = (sP_CL2LS_REQ_CHAR_DELETE*)data->buf;
 
     int removedSlot = Database::deleteCharacter(del->iPC_UID, loginSessions[sock].userID);
     if (removedSlot == 0)
@@ -434,7 +417,7 @@ void CNLoginServer::characterDelete(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_LS2CL_REP_CHAR_DELETE_SUCC, resp);
     resp.iSlotNum = removedSlot;
-    sock->sendPacket((void*)&resp, P_LS2CL_REP_CHAR_DELETE_SUCC, sizeof(sP_LS2CL_REP_CHAR_DELETE_SUCC));
+    sock->sendPacket(resp, P_LS2CL_REP_CHAR_DELETE_SUCC);
     loginSessions[sock].lastHeartbeat = getTime();
 
     DEBUGLOG(
@@ -443,10 +426,7 @@ void CNLoginServer::characterDelete(CNSocket* sock, CNPacketData* data) {
 }
 
 void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2LS_REQ_CHAR_SELECT))
-        return;
-
-    sP_CL2LS_REQ_CHAR_SELECT* selection = (sP_CL2LS_REQ_CHAR_SELECT*)data->buf;
+    auto selection = (sP_CL2LS_REQ_CHAR_SELECT*)data->buf;
     // we're doing a small hack and immediately send SHARD_SELECT_SUCC
     INITSTRUCT(sP_LS2CL_REP_SHARD_SELECT_SUCC, resp);
 
@@ -484,16 +464,14 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
     resp.iEnterSerialKey = passPlayer.iID;
     CNSharedData::setPlayer(resp.iEnterSerialKey, passPlayer);
 
-    sock->sendPacket((void*)&resp, P_LS2CL_REP_SHARD_SELECT_SUCC, sizeof(sP_LS2CL_REP_SHARD_SELECT_SUCC));
+    sock->sendPacket(resp, P_LS2CL_REP_SHARD_SELECT_SUCC);
 
     // update current slot in DB
     Database::updateSelected(loginSessions[sock].userID, passPlayer.slot);
 }
 
 void CNLoginServer::finishTutorial(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2LS_REQ_SAVE_CHAR_TUTOR))
-        return;
-    sP_CL2LS_REQ_SAVE_CHAR_TUTOR* save = (sP_CL2LS_REQ_SAVE_CHAR_TUTOR*)data->buf;
+    auto save = (sP_CL2LS_REQ_SAVE_CHAR_TUTOR*)data->buf;
 
     if (!Database::finishTutorial(save->iPC_UID, loginSessions[sock].userID))
         return invalidCharacter(sock);
@@ -507,10 +485,7 @@ void CNLoginServer::finishTutorial(CNSocket* sock, CNPacketData* data) {
 }
 
 void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2LS_REQ_CHANGE_CHAR_NAME))
-        return;
-
-    sP_CL2LS_REQ_CHANGE_CHAR_NAME* save = (sP_CL2LS_REQ_CHANGE_CHAR_NAME*)data->buf;
+    auto save = (sP_CL2LS_REQ_CHANGE_CHAR_NAME*)data->buf;
 
     int errorCode = 0;
     if (!CNLoginServer::isCharacterNameGood(AUTOU16TOU8(save->szFirstName), AUTOU16TOU8(save->szLastName))) {
@@ -523,7 +498,7 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
     if (errorCode != 0) {
         INITSTRUCT(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL, resp);
         resp.iErrorCode = errorCode;
-        sock->sendPacket((void*)&resp, P_LS2CL_REP_CHECK_CHAR_NAME_FAIL, sizeof(sP_LS2CL_REP_CHECK_CHAR_NAME_FAIL));
+        sock->sendPacket(resp, P_LS2CL_REP_CHECK_CHAR_NAME_FAIL);
 
         DEBUGLOG(
             std::cout << "Login Server: name check fail. Error code " << errorCode << std::endl;
@@ -543,7 +518,7 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
 
     loginSessions[sock].lastHeartbeat = getTime();
 
-    sock->sendPacket((void*)&resp, P_LS2CL_REP_CHANGE_CHAR_NAME_SUCC, sizeof(sP_LS2CL_REP_CHANGE_CHAR_NAME_SUCC));
+    sock->sendPacket(resp, P_LS2CL_REP_CHANGE_CHAR_NAME_SUCC);
 
     DEBUGLOG(
         std::cout << "Login Server: Name check success for character [" << save->iPCUID << "]" << std::endl;
@@ -552,9 +527,6 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
 }
 
 void CNLoginServer::duplicateExit(CNSocket* sock, CNPacketData* data) {
-    if (data->size != sizeof(sP_CL2LS_REQ_PC_EXIT_DUPLICATE))
-        return;
-
     // TODO: FIX THIS PACKET
 
     sP_CL2LS_REQ_PC_EXIT_DUPLICATE* exit = (sP_CL2LS_REQ_PC_EXIT_DUPLICATE*)data->buf;
@@ -598,7 +570,7 @@ void CNLoginServer::onStep() {
         }
 
         INITSTRUCT(sP_LS2CL_REQ_LIVE_CHECK, pkt);
-        pair.first->sendPacket((void*)&pkt, P_LS2CL_REQ_LIVE_CHECK, sizeof(sP_LS2CL_REQ_LIVE_CHECK));
+        pair.first->sendPacket(pkt, P_LS2CL_REQ_LIVE_CHECK);
     }
 }
 
@@ -621,7 +593,7 @@ bool CNLoginServer::exitDuplicate(int accountId) {
             CNSocket* sock = it->first;
             INITSTRUCT(sP_LS2CL_REP_PC_EXIT_DUPLICATE, resp);
             resp.iErrorCode = 0;
-            sock->sendPacket((void*)&resp, P_LS2CL_REP_PC_EXIT_DUPLICATE, sizeof(sP_LS2CL_REP_PC_EXIT_DUPLICATE));
+            sock->sendPacket(resp, P_LS2CL_REP_PC_EXIT_DUPLICATE);
             sock->kill();
             return true;
         }
