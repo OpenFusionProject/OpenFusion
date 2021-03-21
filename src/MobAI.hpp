@@ -11,51 +11,45 @@ enum class MobState {
     DEAD
 };
 
-struct Mob : public BaseNPC {
+struct Mob : public CombatNPC {
     // general
-    MobState state;
-    int maxHealth;
-    int spawnX;
-    int spawnY;
-    int spawnZ;
-    int level;
+    MobState state = MobState::INACTIVE;
 
-    std::unordered_map<int32_t,time_t> unbuffTimes;
+    std::unordered_map<int32_t,time_t> unbuffTimes = {};
 
     // dead
     time_t killedTime = 0;
-    time_t regenTime;
+    time_t regenTime = 0;
     bool summoned = false;
     bool despawned = false; // for the sake of death animations
 
     // roaming
-    int idleRange;
-    const int sightRange;
+    int idleRange = 0;
+    const int sightRange = 0;
     time_t nextMovement = 0;
     bool staticPath = false;
-    int roamX, roamY, roamZ;
+    int roamX = 0, roamY = 0, roamZ = 0;
 
     // combat
     CNSocket *target = nullptr;
     time_t nextAttack = 0;
     time_t lastDrainTime = 0;
     int skillStyle = -1; // -1 for nothing, 0-2 for corruption, -2 for eruption
-    int hitX, hitY, hitZ; // for use in ability targeting
+    int hitX = 0, hitY = 0, hitZ = 0; // for use in ability targeting
 
     // drop
-    int dropType;
+    int dropType = 0;
 
     // group
     int groupLeader = 0;
-    int offsetX, offsetY;
-    int groupMember[4] = {0, 0, 0, 0};
+    int offsetX = 0, offsetY = 0;
+    int groupMember[4] = {};
 
     // temporary; until we're sure what's what
-    nlohmann::json data;
+    nlohmann::json data = {};
 
     Mob(int x, int y, int z, int angle, uint64_t iID, int t, nlohmann::json d, int32_t id)
-        : BaseNPC(x, y, z, angle, iID, t, id),
-          maxHealth(d["m_iHP"]),
+        : CombatNPC(x, y, z, angle, iID, t, id, d["m_iHP"]),
           sightRange(d["m_iSightRange"]) {
         state = MobState::ROAMING;
 

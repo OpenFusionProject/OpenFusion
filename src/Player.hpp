@@ -12,86 +12,80 @@
 #define PC_MAXHEALTH(level) (925 + 75 * (level))
 
 struct Player : public Entity {
-    int accountId;
-    int accountLevel; // permission level (see CN_ACCOUNT_LEVEL enums)
-    int64_t SerialKey;
-    int32_t iID;
-    uint64_t FEKey;
+    int accountId = 0;
+    int accountLevel = 0; // permission level (see CN_ACCOUNT_LEVEL enums)
+    int64_t SerialKey = 0;
+    int32_t iID = 0;
+    uint64_t FEKey = 0;
 
-    int level;
-    int HP;
-    int slot; // player slot, not nano slot
-    int16_t mentor;
-    int32_t money;
-    int32_t fusionmatter;
-    int32_t batteryW;
-    int32_t batteryN;
-    sPCStyle PCStyle;
-    sPCStyle2 PCStyle2;
-    sNano Nanos[NANO_COUNT]; // acquired nanos
-    int equippedNanos[3];
-    int activeNano; // active nano (index into Nanos)
-    int8_t iPCState;
-    int32_t iWarpLocationFlag;
-    int64_t aSkywayLocationFlag[2];
-    int32_t iConditionBitFlag;
-    int32_t iSelfConditionBitFlag;
-    int8_t iSpecialState;
+    int level = 0;
+    int HP = 0;
+    int slot = 0; // player slot, not nano slot
+    int16_t mentor = 0;
+    int32_t money = 0;
+    int32_t fusionmatter = 0;
+    int32_t batteryW = 0;
+    int32_t batteryN = 0;
+    sPCStyle PCStyle = {};
+    sPCStyle2 PCStyle2 = {};
+    sNano Nanos[NANO_COUNT] = {}; // acquired nanos
+    int equippedNanos[3] = {};
+    int activeNano = 0; // active nano (index into Nanos)
+    int8_t iPCState = 0;
+    int32_t iWarpLocationFlag = 0;
+    int64_t aSkywayLocationFlag[2] = {};
+    int32_t iConditionBitFlag = 0;
+    int32_t iSelfConditionBitFlag = 0;
+    int8_t iSpecialState = 0;
 
-    //int x, y, z; in superclass
-    int angle;
-    int lastX, lastY, lastZ, lastAngle;
-    int recallX, recallY, recallZ, recallInstance; // also Lair entrances
-    //uint64_t instanceID; in superclass
-    sItemBase Equip[AEQUIP_COUNT];
-    sItemBase Inven[AINVEN_COUNT];
-    sItemBase Bank[ABANK_COUNT];
-    sItemTrade Trade[12];
-    int32_t moneyInTrade;
-    bool isTrading;
-    bool isTradeConfirm;
+    int angle = 0;
+    int lastX = 0, lastY = 0, lastZ = 0, lastAngle = 0;
+    int recallX = 0, recallY = 0, recallZ = 0, recallInstance = 0; // also Lair entrances
+    sItemBase Equip[AEQUIP_COUNT] = {};
+    sItemBase Inven[AINVEN_COUNT] = {};
+    sItemBase Bank[ABANK_COUNT] = {};
+    sItemTrade Trade[12] = {};
+    int32_t moneyInTrade = 0;
+    bool isTrading = false;
+    bool isTradeConfirm = false;
 
-    bool inCombat;
-    bool onMonkey;
-    int nanoDrainRate;
-    int healCooldown;
+    bool inCombat = false;
+    bool onMonkey = false;
+    int nanoDrainRate = 0;
+    int healCooldown = 0;
 
-    int pointDamage;
-    int groupDamage;
-    int fireRate;
-    int defense;
+    int pointDamage = 0;
+    int groupDamage = 0;
+    int fireRate = 0;
+    int defense = 0;
 
-    int64_t aQuestFlag[16];
-    int tasks[ACTIVE_MISSION_COUNT];
-    int RemainingNPCCount[ACTIVE_MISSION_COUNT][3];
-    sItemBase QInven[AQINVEN_COUNT];
-    int32_t CurrentMissionID;
+    int64_t aQuestFlag[16] = {};
+    int tasks[ACTIVE_MISSION_COUNT] = {};
+    int RemainingNPCCount[ACTIVE_MISSION_COUNT][3] = {};
+    sItemBase QInven[AQINVEN_COUNT] = {};
+    int32_t CurrentMissionID = 0;
 
-    sTimeLimitItemDeleteInfo2CL toRemoveVehicle;
+    sTimeLimitItemDeleteInfo2CL toRemoveVehicle = {};
 
-    int32_t iIDGroup;
-    int groupCnt;
-    int32_t groupIDs[4];
-    int32_t iGroupConditionBitFlag;
+    int32_t iIDGroup = 0;
+    int groupCnt = 0;
+    int32_t groupIDs[4] = {};
+    int32_t iGroupConditionBitFlag = 0;
 
-    bool notify;
-    bool hidden;
-    bool unwarpable;
+    bool notify = false;
+    bool hidden = false;
+    bool unwarpable = false;
 
-    bool buddiesSynced;
-    int64_t buddyIDs[50];
-    bool isBuddyBlocked[50];
+    bool buddiesSynced = false;
+    int64_t buddyIDs[50] = {};
+    bool isBuddyBlocked[50] = {};
 
-    uint64_t iFirstUseFlag[2];
+    uint64_t iFirstUseFlag[2] = {};
+    time_t lastHeartbeat = 0;
 
-    // in superclass:
-    //ChunkPos chunkPos;
-    //std::set<Chunk*> viewableChunks;
-    time_t lastHeartbeat;
-
-    int suspicionRating;
-    time_t lastShot;
-    std::vector<sItemBase> buyback;
+    int suspicionRating = 0;
+    time_t lastShot = 0;
+    std::vector<sItemBase> buyback = {};
 
     Player() { type = EntityType::PLAYER; }
 

@@ -57,8 +57,8 @@ void PlayerManager::removePlayer(CNSocket* key) {
     // save player to DB
     Database::updatePlayer(plr);
 
-    EntityRef ref = {key};
     // remove player visually and untrack
+    EntityRef ref = {key};
     Chunking::removeEntityFromChunks(Chunking::getViewableChunks(plr->chunkPos), ref);
     Chunking::untrackEntity(plr->chunkPos, ref);
 

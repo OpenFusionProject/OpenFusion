@@ -6,6 +6,7 @@
 #include <set>
 
 enum class EntityType {
+    INVALID,
     PLAYER,
     SIMPLE_NPC,
     COMBAT_NPC,
@@ -17,11 +18,11 @@ enum class EntityType {
 class Chunk;
 
 struct Entity {
-    EntityType type;
-    int x, y, z;
-    uint64_t instanceID;
-    ChunkPos chunkPos;
-    std::set<Chunk*> viewableChunks;
+    EntityType type = EntityType::INVALID;
+    int x = 0, y = 0, z = 0;
+    uint64_t instanceID = 0;
+    ChunkPos chunkPos = {};
+    std::set<Chunk*> viewableChunks = {};
 
     // destructor must be virtual, apparently
     virtual ~Entity() {}
@@ -74,12 +75,11 @@ struct EntityRef {
  */
 class BaseNPC : public Entity {
 public:
-    sNPCAppearanceData appearanceData;
+    sNPCAppearanceData appearanceData = {};
     //NPCClass npcClass;
 
-    int playersInView;
+    int playersInView = 0;
 
-    BaseNPC() {};
     BaseNPC(int x, int y, int z, int angle, uint64_t iID, int t, int id) { // XXX
         appearanceData.iX = x;
         appearanceData.iY = y;
@@ -109,9 +109,32 @@ public:
     virtual void disappearFromViewOf(CNSocket *sock) override;
 };
 
+struct CombatNPC : public BaseNPC {
+    int maxHealth = 0;
+    int spawnX = 0;
+    int spawnY = 0;
+    int spawnZ = 0;
+    int level = 0;
+
+    void (*_stepAI)() = nullptr;
+
+    // XXX
+    CombatNPC(int x, int y, int z, int angle, uint64_t iID, int t, int id, int maxHP) :
+        BaseNPC(x, y, z, angle, iID, t, id),
+        maxHealth(maxHP)
+    {}
+
+    virtual void stepAI() {
+        if (_stepAI != nullptr)
+            _stepAI();
+    }
+};
+
+// Mob is in MobAI.hpp, Player is in Player.hpp
+
 // TODO: decouple from BaseNPC
 struct Egg : public BaseNPC {
-    bool summoned;
+    bool summoned = false;
     bool dead = false;
     time_t deadUntil;
 
@@ -132,17 +155,3 @@ struct Bus : public BaseNPC {
     virtual void enterIntoViewOf(CNSocket *sock) override;
     virtual void disappearFromViewOf(CNSocket *sock) override;
 };
-
-#if 0
-struct NPC : public Entity {
-    void (*_stepAI)();
-
-    virtual void stepAI() {}
-};
-
-struct CombatNPC : public Entity {
-};
-
-struct Mob : public CombatNPC {
-};
-#endif
