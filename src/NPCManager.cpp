@@ -88,8 +88,9 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z, uint64_t I, 
 void NPCManager::sendToViewable(BaseNPC *npc, void *buf, uint32_t type, size_t size) {
     for (auto it = npc->viewableChunks.begin(); it != npc->viewableChunks.end(); it++) {
         Chunk* chunk = *it;
-        for (CNSocket *s : chunk->players) {
-            s->sendPacket(buf, type, size);
+        for (const EntityRef& ref : chunk->entities) {
+            if (ref.type == EntityType::PLAYER)
+                ref.sock->sendPacket(buf, type, size);
         }
     }
 }
@@ -282,8 +283,11 @@ BaseNPC* NPCManager::getNearestNPC(std::set<Chunk*>* chunks, int X, int Y, int Z
     int lastDist = INT_MAX;
     for (auto c = chunks->begin(); c != chunks->end(); c++) { // haha get it
         Chunk* chunk = *c;
-        for (auto _npc = chunk->NPCs.begin(); _npc != chunk->NPCs.end(); _npc++) {
-            BaseNPC* npcTemp = NPCs[*_npc];
+        for (auto ent = chunk->entities.begin(); ent != chunk->entities.end(); ent++) {
+            if (ent->type == EntityType::PLAYER)
+                continue;
+
+            BaseNPC* npcTemp = (BaseNPC*)ent->getEntity();
             int distXY = std::hypot(X - npcTemp->appearanceData.iX, Y - npcTemp->appearanceData.iY);
             int dist = std::hypot(distXY, Z - npcTemp->appearanceData.iZ);
             if (dist < lastDist) {

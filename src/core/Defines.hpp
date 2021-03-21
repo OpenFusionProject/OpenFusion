@@ -24,14 +24,6 @@ enum eCN_GM_TeleportType {
 	eCN_GM_TeleportMapType__Unstick
 };
 
-// NPC classes
-enum NPCClass {
-    NPC_BASE = 0,
-    NPC_MOB = 1,
-    NPC_BUS = 2,
-    NPC_EGG = 3
-};
-
 // nano powers
 enum {
     EST_NONE = 0,

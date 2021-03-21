@@ -139,7 +139,7 @@ static void loadPaths(int* nextId) {
             if (passedDistance >= SLIDER_GAP_SIZE) { // space them out uniformaly
                 passedDistance -= SLIDER_GAP_SIZE; // step down
                 // spawn a slider
-                BaseNPC* slider = new BaseNPC(point.x, point.y, point.z, 0, INSTANCE_OVERWORLD, 1, (*nextId)++, NPC_BUS);
+                BaseNPC* slider = new BaseNPC(point.x, point.y, point.z, 0, INSTANCE_OVERWORLD, 1, (*nextId)++, EntityType::BUS);
                 NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
                 NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->appearanceData.iX, slider->appearanceData.iY, slider->appearanceData.iZ, INSTANCE_OVERWORLD, 0);
                 Transport::NPCQueues[slider->appearanceData.iNPC_ID] = route;
@@ -965,7 +965,7 @@ void TableData::flush() {
             continue;
 
         int x, y, z;
-        if (npc->npcClass == NPC_MOB) {
+        if (npc->type == EntityType::MOB) {
             Mob *m = (Mob*)npc;
             x = m->spawnX;
             y = m->spawnY;
@@ -998,7 +998,7 @@ void TableData::flush() {
 
         int x, y, z;
         std::vector<Mob*> followers;
-        if (npc->npcClass == NPC_MOB) {
+        if (npc->type == EntityType::MOB) {
             Mob* m = (Mob*)npc;
             x = m->spawnX;
             y = m->spawnY;

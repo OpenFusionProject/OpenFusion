@@ -40,11 +40,11 @@ namespace PlayerManager {
         Player* plr = getPlayer(sock);
         for (auto it = plr->viewableChunks.begin(); it != plr->viewableChunks.end(); it++) {
             Chunk* chunk = *it;
-            for (CNSocket* otherSock : chunk->players) {
-                if (otherSock == sock)
+            for (const EntityRef& ref : chunk->entities) {
+                if (ref.type != EntityType::PLAYER || ref.sock == sock)
                     continue;
 
-                otherSock->sendPacket(pkt, type);
+                ref.sock->sendPacket(pkt, type);
             }
         }
     }

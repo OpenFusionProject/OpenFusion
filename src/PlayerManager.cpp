@@ -331,11 +331,11 @@ void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, siz
     Player* plr = getPlayer(sock);
     for (auto it = plr->viewableChunks.begin(); it != plr->viewableChunks.end(); it++) {
         Chunk* chunk = *it;
-        for (CNSocket* otherSock : chunk->players) {
-            if (otherSock == sock)
+        for (const EntityRef& ref : chunk->entities) {
+            if (ref.type != EntityType::PLAYER || ref.sock == sock)
                 continue;
 
-            otherSock->sendPacket(buf, type, size);
+            ref.sock->sendPacket(buf, type, size);
         }
     }
 }

@@ -256,13 +256,13 @@ static void stepNPCPathing() {
         }
 
         // skip if not simulating mobs
-        if (npc->npcClass == NPC_MOB && !MobAI::simulateMobs) {
+        if (npc->type == EntityType::MOB && !MobAI::simulateMobs) {
             it++;
             continue;
         }
 
         // do not roam if not roaming
-        if (npc->npcClass == NPC_MOB && ((Mob*)npc)->state != MobState::ROAMING) {
+        if (npc->type == EntityType::MOB && ((Mob*)npc)->state != MobState::ROAMING) {
             it++;
             continue;
         }
@@ -277,9 +277,11 @@ static void stepNPCPathing() {
         // update NPC location to update viewables
         NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, point.x, point.y, point.z, npc->instanceID, npc->appearanceData.iAngle);
 
-        switch (npc->npcClass) {
-        case NPC_BUS:
+        // TODO: move walking logic into Entity stack
+        switch (npc->type) {
+        case EntityType::BUS:
             INITSTRUCT(sP_FE2CL_TRANSPORTATION_MOVE, busMove);
+
             busMove.eTT = 3;
             busMove.iT_ID = npc->appearanceData.iNPC_ID;
             busMove.iMoveStyle = 0; // ???
@@ -290,7 +292,7 @@ static void stepNPCPathing() {
 
             NPCManager::sendToViewable(npc, &busMove, P_FE2CL_TRANSPORTATION_MOVE, sizeof(sP_FE2CL_TRANSPORTATION_MOVE));
             break;
-        case NPC_MOB:
+        case EntityType::MOB:
             MobAI::incNextMovement((Mob*)npc);
             /* fallthrough */
         default:
@@ -310,7 +312,7 @@ static void stepNPCPathing() {
          * Move processed point to the back to maintain cycle, unless this is a
          * dynamically calculated mob route.
          */
-        if (!(npc->npcClass == NPC_MOB && !((Mob*)npc)->staticPath))
+        if (!(npc->type == EntityType::MOB && !((Mob*)npc)->staticPath))
             queue->push(point);
 
         it++; // go to next entry in map

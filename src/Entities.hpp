@@ -9,6 +9,7 @@ enum class EntityType {
     PLAYER,
     SIMPLE_NPC,
     COMBAT_NPC,
+    MOB,
     EGG,
     BUS
 };
@@ -68,34 +69,37 @@ struct EntityRef {
     }
 };
 
+/*
+ * Subclasses
+ */
 class BaseNPC : public Entity {
 public:
     sNPCAppearanceData appearanceData;
-    NPCClass npcClass;
+    //NPCClass npcClass;
 
     int playersInView;
 
     BaseNPC() {};
-    BaseNPC(int x, int y, int z, int angle, uint64_t iID, int type, int id) { // XXX
+    BaseNPC(int x, int y, int z, int angle, uint64_t iID, int t, int id) { // XXX
         appearanceData.iX = x;
         appearanceData.iY = y;
         appearanceData.iZ = z;
-        appearanceData.iNPCType = type;
+        appearanceData.iNPCType = t;
         appearanceData.iHP = 400;
         appearanceData.iAngle = angle;
         appearanceData.iConditionBitFlag = 0;
         appearanceData.iBarkerType = 0;
         appearanceData.iNPC_ID = id;
 
-        npcClass = NPCClass::NPC_BASE;
+        type = EntityType::SIMPLE_NPC;
 
         instanceID = iID;
 
         chunkPos = std::make_tuple(0, 0, 0);
         playersInView = 0;
     };
-    BaseNPC(int x, int y, int z, int angle, uint64_t iID, int type, int id, NPCClass classType) : BaseNPC(x, y, z, angle, iID, type, id) {
-        npcClass = classType;
+    BaseNPC(int x, int y, int z, int angle, uint64_t iID, int t, int id, EntityType entityType) : BaseNPC(x, y, z, angle, iID, t, id) {
+        type = entityType;
     }
 
     // XXX: move to CombatNPC, probably
@@ -111,10 +115,10 @@ struct Egg : public BaseNPC {
     bool dead = false;
     time_t deadUntil;
 
-    Egg(int x, int y, int z, uint64_t iID, int type, int32_t id, bool summon)
-        : BaseNPC(x, y, z, 0, iID, type, id) {
+    Egg(int x, int y, int z, uint64_t iID, int t, int32_t id, bool summon)
+        : BaseNPC(x, y, z, 0, iID, t, id) {
         summoned = summon;
-        npcClass = NPCClass::NPC_EGG;
+        type = EntityType::EGG;
     }
 
     virtual bool isAlive() override { return !dead; }

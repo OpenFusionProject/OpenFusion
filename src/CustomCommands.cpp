@@ -662,7 +662,7 @@ static void whoisCommand(std::string full, std::vector<std::string>& args, CNSoc
     Chat::sendServerMessage(sock, "[WHOIS] Type: " + std::to_string(npc->appearanceData.iNPCType));
     Chat::sendServerMessage(sock, "[WHOIS] HP: " + std::to_string(npc->appearanceData.iHP));
     Chat::sendServerMessage(sock, "[WHOIS] CBF: " + std::to_string(npc->appearanceData.iConditionBitFlag));
-    Chat::sendServerMessage(sock, "[WHOIS] Class: " + std::to_string(npc->npcClass));
+    Chat::sendServerMessage(sock, "[WHOIS] EntityType: " + std::to_string((int)npc->type));
     Chat::sendServerMessage(sock, "[WHOIS] X: " + std::to_string(npc->appearanceData.iX));
     Chat::sendServerMessage(sock, "[WHOIS] Y: " + std::to_string(npc->appearanceData.iY));
     Chat::sendServerMessage(sock, "[WHOIS] Z: " + std::to_string(npc->appearanceData.iZ));
@@ -682,7 +682,11 @@ static void lairUnlockCommand(std::string full, std::vector<std::string>& args, 
     int taskID = -1;
     int missionID = -1;
     int found = 0;
-    for (int32_t id : chnk->NPCs) {
+    for (const EntityRef& ref : chnk->entities) {
+        if (ref.type == EntityType::PLAYER)
+            continue;
+
+        int32_t id = ref.id;
         if (NPCManager::NPCs.find(id) == NPCManager::NPCs.end())
             continue;
 

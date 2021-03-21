@@ -121,7 +121,12 @@ bool MobAI::aggroCheck(Mob *mob, time_t currTime) {
 
     for (auto it = mob->viewableChunks.begin(); it != mob->viewableChunks.end(); it++) {
         Chunk* chunk = *it;
-        for (CNSocket *s : chunk->players) {
+        for (const EntityRef& ref : chunk->entities) {
+            // TODO: support targetting other CombatNPCs
+            if (ref.type != EntityType::PLAYER)
+                continue;
+
+            CNSocket *s = ref.sock;
             Player *plr = PlayerManager::getPlayer(s);
 
             if (plr->HP <= 0)
@@ -298,7 +303,12 @@ static void useAbilities(Mob *mob, time_t currTime) {
         // find the players within range of eruption
         for (auto it = mob->viewableChunks.begin(); it != mob->viewableChunks.end(); it++) {
             Chunk* chunk = *it;
-            for (CNSocket *s : chunk->players) {
+            for (const EntityRef& ref : chunk->entities) {
+                // TODO: see aggroCheck()
+                if (ref.type != EntityType::PLAYER)
+                    continue;
+
+                CNSocket *s= ref.sock;
                 Player *plr = PlayerManager::getPlayer(s);
 
                 if (plr->HP <= 0)
