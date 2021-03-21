@@ -31,10 +31,11 @@ std::map<CNSocket*, Player*> PlayerManager::players;
 static void addPlayer(CNSocket* key, Player plr) {
     Player *p = new Player();
 
-    memcpy(p, &plr, sizeof(Player));
+    // copy object into heap memory
+    *p = plr;
 
     players[key] = p;
-    p->chunkPos = std::make_tuple(0, 0, 0);
+    p->chunkPos = std::make_tuple(0, 0, 0); // TODO: maybe replace with specialized "no chunk" value
     p->lastHeartbeat = 0;
 
     std::cout << getPlayerName(p) << " has joined!" << std::endl;
@@ -56,9 +57,10 @@ void PlayerManager::removePlayer(CNSocket* key) {
     // save player to DB
     Database::updatePlayer(plr);
 
+    EntityRef ref = {key};
     // remove player visually and untrack
-    Chunking::removePlayerFromChunks(Chunking::getViewableChunks(plr->chunkPos), key);
-    Chunking::untrackPlayer(plr->chunkPos, key);
+    Chunking::removeEntityFromChunks(Chunking::getViewableChunks(plr->chunkPos), ref);
+    Chunking::untrackEntity(plr->chunkPos, ref);
 
     std::cout << getPlayerName(plr) << " has left!" << std::endl;
 
@@ -92,7 +94,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, ui
     plr->instanceID = I;
     if (oldChunk == newChunk)
         return; // didn't change chunks
-    Chunking::updatePlayerChunk(sock, oldChunk, newChunk);
+    Chunking::updateEntityChunk({sock}, oldChunk, newChunk);
 }
 
 void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I) {
@@ -146,7 +148,7 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
     pkt2.iZ = Z;
     sock->sendPacket(pkt2, P_FE2CL_REP_PC_GOTO_SUCC);
 
-    Chunking::updatePlayerChunk(sock, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
+    Chunking::updateEntityChunk({sock}, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
     updatePlayerPosition(sock, X, Y, Z, I, plr->angle);
 
     // post-warp: check if the source instance has no more players in it and delete it if so
@@ -472,7 +474,7 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
     if (!move)
         return;
 
-    Chunking::updatePlayerChunk(sock, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
+    Chunking::updateEntityChunk({sock}, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
     updatePlayerPosition(sock, x, y, z, plr->instanceID, plr->angle);
 }
 

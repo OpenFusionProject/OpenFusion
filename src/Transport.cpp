@@ -165,7 +165,7 @@ static void transportWarpHandler(CNSocket* sock, CNPacketData* data) {
     if (target == nullptr)
         return;
     // we warped; update position and chunks
-    Chunking::updatePlayerChunk(sock, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
+    Chunking::updateEntityChunk({sock}, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
     PlayerManager::updatePlayerPosition(sock, target->x, target->y, target->z, INSTANCE_OVERWORLD, plr->angle);
 }
 

@@ -50,6 +50,7 @@ CXXSRC=\
 	src/db/email.cpp\
 	src/Chat.cpp\
 	src/CustomCommands.cpp\
+	src/Entities.cpp\
 	src/Email.cpp\
 	src/Eggs.cpp\
 	src/main.cpp\
@@ -93,6 +94,7 @@ CXXHDR=\
 	vendor/JSON.hpp\
 	src/Chat.hpp\
 	src/CustomCommands.hpp\
+	src/Entities.hpp\
 	src/Email.hpp\
 	src/Eggs.hpp\
 	src/Missions.hpp\

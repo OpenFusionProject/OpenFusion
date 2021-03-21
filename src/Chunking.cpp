@@ -16,20 +16,13 @@ static void newChunk(ChunkPos pos) {
     }
 
     Chunk *chunk = new Chunk();
-
-    chunk->players = std::set<CNSocket*>();
-    chunk->NPCs = std::set<int32_t>();
-
     chunks[pos] = chunk;
 
     // add the chunk to the cache of all players and NPCs in the surrounding chunks
     std::set<Chunk*> surroundings = getViewableChunks(pos);
-    for (Chunk* c : surroundings) {
-        for (CNSocket* sock : c->players)
-            PlayerManager::getPlayer(sock)->viewableChunks.insert(chunk);
-        for (int32_t id : c->NPCs)
-            NPCManager::NPCs[id]->viewableChunks.insert(chunk);
-    }
+    for (Chunk* c : surroundings)
+        for (const EntityRef& ref : c->entities)
+            ref.getEntity()->viewableChunks.insert(chunk);
 }
 
 static void deleteChunk(ChunkPos pos) {
@@ -43,260 +36,89 @@ static void deleteChunk(ChunkPos pos) {
     // remove the chunk from the cache of all players and NPCs in the surrounding chunks
     std::set<Chunk*> surroundings = getViewableChunks(pos);
     for(Chunk* c : surroundings)
-    {
-        for (CNSocket* sock : c->players)
-            PlayerManager::getPlayer(sock)->viewableChunks.erase(chunk);
-        for (int32_t id : c->NPCs)
-            NPCManager::NPCs[id]->viewableChunks.erase(chunk);
-    }
+        for (const EntityRef& ref : c->entities)
+            ref.getEntity()->viewableChunks.erase(chunk);
 
     chunks.erase(pos); // remove from map
     delete chunk; // free from memory
 }
 
-void Chunking::trackPlayer(ChunkPos chunkPos, CNSocket* sock) {
+void Chunking::trackEntity(ChunkPos chunkPos, const EntityRef& ref) {
     if (!chunkExists(chunkPos))
         return; // shouldn't happen
 
-    chunks[chunkPos]->players.insert(sock);
+    chunks[chunkPos]->entities.insert(ref);
+
+    if (ref.type == EntityType::PLAYER)
+        chunks[chunkPos]->nplayers++;
 }
 
-void Chunking::trackNPC(ChunkPos chunkPos, int32_t id) {
-    if (!chunkExists(chunkPos))
-        return; // shouldn't happen
-
-    chunks[chunkPos]->NPCs.insert(id);
-}
-
-void Chunking::untrackPlayer(ChunkPos chunkPos, CNSocket* sock) {
+void Chunking::untrackEntity(ChunkPos chunkPos, const EntityRef& ref) {
     if (!chunkExists(chunkPos))
         return; // do nothing if chunk doesn't even exist
 
     Chunk* chunk = chunks[chunkPos];
 
-    chunk->players.erase(sock); // gone
+    chunk->entities.erase(ref); // gone
 
-    // if chunk is empty, free it
-    if (chunk->NPCs.size() == 0 && chunk->players.size() == 0)
+    if (ref.type == EntityType::PLAYER)
+        chunks[chunkPos]->nplayers--;
+    assert(chunks[chunkPos]->nplayers >= 0);
+
+    // if chunk is completely empty, free it
+    if (chunk->entities.size() == 0)
         deleteChunk(chunkPos);
 }
 
-void Chunking::untrackNPC(ChunkPos chunkPos, int32_t id) {
-    if (!chunkExists(chunkPos))
-        return; // do nothing if chunk doesn't even exist
+void Chunking::addEntityToChunks(std::set<Chunk*> chnks, const EntityRef& ref) {
+    Entity *ent = ref.getEntity();
+    bool alive = ent->isAlive();
 
-    Chunk* chunk = chunks[chunkPos];
-
-    chunk->NPCs.erase(id); // gone
-
-    // if chunk is empty, free it
-    if (chunk->NPCs.size() == 0 && chunk->players.size() == 0)
-        deleteChunk(chunkPos);
-}
-
-void Chunking::addPlayerToChunks(std::set<Chunk*> chnks, CNSocket* sock) {
-    INITSTRUCT(sP_FE2CL_PC_NEW, newPlayer);
-
-    for (Chunk* chunk : chnks) {
-        // add npcs
-        for (int32_t id : chunk->NPCs) {
-            BaseNPC* npc = NPCManager::NPCs[id];
-            npc->playersInView++;
-
-            if (npc->appearanceData.iHP <= 0)
+    // TODO: maybe optimize this, potentially using AROUND packets?
+    for (Chunk *chunk : chnks) {
+        for (const EntityRef& otherRef : chunk->entities) {
+            // skip oneself
+            if (ref == otherRef)
                 continue;
 
-            switch (npc->npcClass) {
-            case NPC_BUS:
-                INITSTRUCT(sP_FE2CL_TRANSPORTATION_ENTER, enterBusData);
-                enterBusData.AppearanceData = { 3, npc->appearanceData.iNPC_ID, npc->appearanceData.iNPCType, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ };
-                sock->sendPacket((void*)&enterBusData, P_FE2CL_TRANSPORTATION_ENTER, sizeof(sP_FE2CL_TRANSPORTATION_ENTER));
-                break;
-            case NPC_EGG:
-                INITSTRUCT(sP_FE2CL_SHINY_ENTER, enterEggData);
-                Eggs::npcDataToEggData(&npc->appearanceData, &enterEggData.ShinyAppearanceData);
-                sock->sendPacket((void*)&enterEggData, P_FE2CL_SHINY_ENTER, sizeof(sP_FE2CL_SHINY_ENTER));
-                break;
-            default:
-                INITSTRUCT(sP_FE2CL_NPC_ENTER, enterData);
-                enterData.NPCAppearanceData = NPCManager::NPCs[id]->appearanceData;
-                sock->sendPacket((void*)&enterData, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
-                break;
+            Entity *other = otherRef.getEntity();
+
+            // notify all visible players of the existence of this Entity
+            if (alive && otherRef.type == EntityType::PLAYER) {
+                ent->enterIntoViewOf(otherRef.sock);
             }
-        }
 
-        // add players
-        for (CNSocket* otherSock : chunk->players) {
-            if (sock == otherSock)
-                continue; // that's us :P
-
-            Player* otherPlr = PlayerManager::getPlayer(otherSock);
-            Player* plr = PlayerManager::getPlayer(sock);
-
-            newPlayer.PCAppearanceData.iID = plr->iID;
-            newPlayer.PCAppearanceData.iHP = plr->HP;
-            newPlayer.PCAppearanceData.iLv = plr->level;
-            newPlayer.PCAppearanceData.iX = plr->x;
-            newPlayer.PCAppearanceData.iY = plr->y;
-            newPlayer.PCAppearanceData.iZ = plr->z;
-            newPlayer.PCAppearanceData.iAngle = plr->angle;
-            newPlayer.PCAppearanceData.PCStyle = plr->PCStyle;
-            newPlayer.PCAppearanceData.Nano = plr->Nanos[plr->activeNano];
-            newPlayer.PCAppearanceData.iPCState = plr->iPCState;
-            newPlayer.PCAppearanceData.iSpecialState = plr->iSpecialState;
-            memcpy(newPlayer.PCAppearanceData.ItemEquip, plr->Equip, sizeof(sItemBase) * AEQUIP_COUNT);
-
-            otherSock->sendPacket((void*)&newPlayer, P_FE2CL_PC_NEW, sizeof(sP_FE2CL_PC_NEW));
-
-            newPlayer.PCAppearanceData.iID = otherPlr->iID;
-            newPlayer.PCAppearanceData.iHP = otherPlr->HP;
-            newPlayer.PCAppearanceData.iLv = otherPlr->level;
-            newPlayer.PCAppearanceData.iX = otherPlr->x;
-            newPlayer.PCAppearanceData.iY = otherPlr->y;
-            newPlayer.PCAppearanceData.iZ = otherPlr->z;
-            newPlayer.PCAppearanceData.iAngle = otherPlr->angle;
-            newPlayer.PCAppearanceData.PCStyle = otherPlr->PCStyle;
-            newPlayer.PCAppearanceData.Nano = otherPlr->Nanos[otherPlr->activeNano];
-            newPlayer.PCAppearanceData.iPCState = otherPlr->iPCState;
-            newPlayer.PCAppearanceData.iSpecialState = otherPlr->iSpecialState;
-            memcpy(newPlayer.PCAppearanceData.ItemEquip, otherPlr->Equip, sizeof(sItemBase) * AEQUIP_COUNT);
-
-            sock->sendPacket((void*)&newPlayer, P_FE2CL_PC_NEW, sizeof(sP_FE2CL_PC_NEW));
+            // notify this *player* of the existence of all visible Entities
+            if (ref.type == EntityType::PLAYER && other->isAlive()) {
+                other->enterIntoViewOf(ref.sock);
+            }
         }
     }
 }
 
-void Chunking::addNPCToChunks(std::set<Chunk*> chnks, int32_t id) {
-    BaseNPC* npc = NPCManager::NPCs[id];
+void Chunking::removeEntityFromChunks(std::set<Chunk*> chnks, const EntityRef& ref) {
+    Entity *ent = ref.getEntity();
+    bool alive = ent->isAlive();
 
-    switch (npc->npcClass) {
-    case NPC_BUS:
-        INITSTRUCT(sP_FE2CL_TRANSPORTATION_ENTER, enterBusData);
-        enterBusData.AppearanceData = { 3, npc->appearanceData.iNPC_ID, npc->appearanceData.iNPCType, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ };
+    // TODO: same as above
+    for (Chunk *chunk : chnks) {
+        for (const EntityRef& otherRef : chunk->entities) {
+            // skip oneself
+            if (ref == otherRef)
+                continue;
 
-        for (Chunk* chunk : chnks) {
-            for (CNSocket* sock : chunk->players) {
-                // send to socket
-                sock->sendPacket((void*)&enterBusData, P_FE2CL_TRANSPORTATION_ENTER, sizeof(sP_FE2CL_TRANSPORTATION_ENTER));
-                npc->playersInView++;
+            Entity *other = otherRef.getEntity();
+
+            // notify all visible players of the departure of this Entity
+            if (alive && otherRef.type == EntityType::PLAYER) {
+                ent->disappearFromViewOf(otherRef.sock);
+            }
+
+            // notify this *player* of the departure of all visible Entities
+            if (ref.type == EntityType::PLAYER && other->isAlive()) {
+                other->disappearFromViewOf(ref.sock);
             }
         }
-        break;
-    case NPC_EGG:
-        INITSTRUCT(sP_FE2CL_SHINY_ENTER, enterEggData);
-        Eggs::npcDataToEggData(&npc->appearanceData, &enterEggData.ShinyAppearanceData);
-
-        for (Chunk* chunk : chnks) {
-            for (CNSocket* sock : chunk->players) {
-                // send to socket
-                sock->sendPacket((void*)&enterEggData, P_FE2CL_SHINY_ENTER, sizeof(sP_FE2CL_SHINY_ENTER));
-                npc->playersInView++;
-            }
-        }
-        break;
-    default:
-        // create struct
-        INITSTRUCT(sP_FE2CL_NPC_ENTER, enterData);
-        enterData.NPCAppearanceData = npc->appearanceData;
-
-        for (Chunk* chunk : chnks) {
-            for (CNSocket* sock : chunk->players) {
-                // send to socket
-                sock->sendPacket((void*)&enterData, P_FE2CL_NPC_ENTER, sizeof(sP_FE2CL_NPC_ENTER));
-                npc->playersInView++;
-            }
-        }
-        break;
-    }
-}
-
-void Chunking::removePlayerFromChunks(std::set<Chunk*> chnks, CNSocket* sock) {
-    INITSTRUCT(sP_FE2CL_PC_EXIT, exitPlayer);
-
-    // for chunks that need the player to be removed from
-    for (Chunk* chunk : chnks) {
-
-        // remove NPCs from view
-        for (int32_t id : chunk->NPCs) {
-            BaseNPC* npc = NPCManager::NPCs[id];
-            npc->playersInView--;
-
-            switch (npc->npcClass) {
-            case NPC_BUS:
-                INITSTRUCT(sP_FE2CL_TRANSPORTATION_EXIT, exitBusData);
-                exitBusData.eTT = 3;
-                exitBusData.iT_ID = id;
-                sock->sendPacket((void*)&exitBusData, P_FE2CL_TRANSPORTATION_EXIT, sizeof(sP_FE2CL_TRANSPORTATION_EXIT));
-                break;
-            case NPC_EGG:
-                INITSTRUCT(sP_FE2CL_SHINY_EXIT, exitEggData);
-                exitEggData.iShinyID = id;
-                sock->sendPacket((void*)&exitEggData, P_FE2CL_SHINY_EXIT, sizeof(sP_FE2CL_SHINY_EXIT));
-                break;
-            default:
-                INITSTRUCT(sP_FE2CL_NPC_EXIT, exitData);
-                exitData.iNPC_ID = id;
-                sock->sendPacket((void*)&exitData, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
-                break;
-            }
-        }
-
-        // remove players from eachother's views
-        for (CNSocket* otherSock : chunk->players) {
-            if (sock == otherSock)
-                continue; // that's us :P
-            exitPlayer.iID = PlayerManager::getPlayer(sock)->iID;
-            otherSock->sendPacket((void*)&exitPlayer, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT));
-            exitPlayer.iID = PlayerManager::getPlayer(otherSock)->iID;
-            sock->sendPacket((void*)&exitPlayer, P_FE2CL_PC_EXIT, sizeof(sP_FE2CL_PC_EXIT));
-        }
-    }
-
-}
-
-void Chunking::removeNPCFromChunks(std::set<Chunk*> chnks, int32_t id) {
-    BaseNPC* npc = NPCManager::NPCs[id];
-
-    switch (npc->npcClass) {
-    case NPC_BUS:
-        INITSTRUCT(sP_FE2CL_TRANSPORTATION_EXIT, exitBusData);
-        exitBusData.eTT = 3;
-        exitBusData.iT_ID = id;
-
-        for (Chunk* chunk : chnks) {
-            for (CNSocket* sock : chunk->players) {
-                // send to socket
-                sock->sendPacket((void*)&exitBusData, P_FE2CL_TRANSPORTATION_EXIT, sizeof(sP_FE2CL_TRANSPORTATION_EXIT));
-                npc->playersInView--;
-            }
-        }
-        break;
-    case NPC_EGG:
-        INITSTRUCT(sP_FE2CL_SHINY_EXIT, exitEggData);
-        exitEggData.iShinyID = id;
-
-        for (Chunk* chunk : chnks) {
-            for (CNSocket* sock : chunk->players) {
-                // send to socket
-                sock->sendPacket((void*)&exitEggData, P_FE2CL_SHINY_EXIT, sizeof(sP_FE2CL_SHINY_EXIT));
-                npc->playersInView--;
-            }
-        }
-        break;
-    default:
-        // create struct
-        INITSTRUCT(sP_FE2CL_NPC_EXIT, exitData);
-        exitData.iNPC_ID = id;
-
-        // remove it from the clients
-        for (Chunk* chunk : chnks) {
-            for (CNSocket* sock : chunk->players) {
-                // send to socket
-                sock->sendPacket((void*)&exitData, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
-                npc->playersInView--;
-            }
-        }
-        break;
     }
 }
 
@@ -308,29 +130,32 @@ static void emptyChunk(ChunkPos chunkPos) {
 
     Chunk* chunk = chunks[chunkPos];
 
-    if (chunk->players.size() > 0) {
+    if (chunk->nplayers > 0) {
         std::cout << "[WARN] Tried to empty chunk that still had players\n";
         return; // chunk doesn't exist, we don't need to do anything
     }
 
     // unspawn all of the mobs/npcs
-    std::set npcIDs(chunk->NPCs);
-    for (uint32_t id : npcIDs) {
+    std::set refs(chunk->entities);
+    for (const EntityRef& ref : refs) {
+        if (ref.type == EntityType::PLAYER)
+            assert(0);
+
         // every call of this will check if the chunk is empty and delete it if so
-        NPCManager::destroyNPC(id);
+        NPCManager::destroyNPC(ref.id);
     }
 }
 
-void Chunking::updatePlayerChunk(CNSocket* sock, ChunkPos from, ChunkPos to) {
-    Player* plr = PlayerManager::getPlayer(sock);
+void Chunking::updateEntityChunk(const EntityRef& ref, ChunkPos from, ChunkPos to) {
+    Entity* ent = ref.getEntity();
 
     // if the new chunk doesn't exist, make it first
     if (!chunkExists(to))
         newChunk(to);
 
     // move to other chunk's player set
-    untrackPlayer(from, sock); // this will delete the chunk if it's empty
-    trackPlayer(to, sock);
+    untrackEntity(from, ref); // this will delete the chunk if it's empty
+    trackEntity(to, ref);
 
     // calculate viewable chunks from both points
     std::set<Chunk*> oldViewables = getViewableChunks(from);
@@ -348,49 +173,13 @@ void Chunking::updatePlayerChunk(CNSocket* sock, ChunkPos from, ChunkPos to) {
         std::inserter(toEnter, toEnter.end())); // chunks we must be ENTERed into (new - old)
 
     // update views
-    removePlayerFromChunks(toExit, sock);
-    addPlayerToChunks(toEnter, sock);
+    removeEntityFromChunks(toExit, ref);
+    addEntityToChunks(toEnter, ref);
 
-    plr->chunkPos = to; // update cached chunk position
+    ent->chunkPos = to; // update cached chunk position
     // updated cached viewable chunks
-    plr->viewableChunks.clear();
-    plr->viewableChunks.insert(newViewables.begin(), newViewables.end());
-}
-
-void Chunking::updateNPCChunk(int32_t id, ChunkPos from, ChunkPos to) {
-    BaseNPC* npc = NPCManager::NPCs[id];
-
-    // if the new chunk doesn't exist, make it first
-    if (!chunkExists(to))
-        newChunk(to);
-
-    // move to other chunk's player set
-    untrackNPC(from, id); // this will delete the chunk if it's empty
-    trackNPC(to, id);
-
-    // calculate viewable chunks from both points
-    std::set<Chunk*> oldViewables = getViewableChunks(from);
-    std::set<Chunk*> newViewables = getViewableChunks(to);
-    std::set<Chunk*> toExit, toEnter;
-
-    /*
-     * Calculate diffs. This is done to prevent phasing on chunk borders.
-     * toExit will contain old viewables - new viewables, so the player will only be exited in chunks that are out of sight.
-     * toEnter contains the opposite: new viewables - old viewables, chunks where we previously weren't visible from before.
-     */
-    std::set_difference(oldViewables.begin(), oldViewables.end(), newViewables.begin(), newViewables.end(),
-        std::inserter(toExit, toExit.end())); // chunks we must be EXITed from (old - new)
-    std::set_difference(newViewables.begin(), newViewables.end(), oldViewables.begin(), oldViewables.end(),
-        std::inserter(toEnter, toEnter.end())); // chunks we must be ENTERed into (new - old)
-
-    // update views
-    removeNPCFromChunks(toExit, id);
-    addNPCToChunks(toEnter, id);
-
-    npc->chunkPos = to; // update cached chunk position
-    // updated cached viewable chunks
-    npc->viewableChunks.clear();
-    npc->viewableChunks.insert(newViewables.begin(), newViewables.end());
+    ent->viewableChunks.clear();
+    ent->viewableChunks.insert(newViewables.begin(), newViewables.end());
 }
 
 bool Chunking::chunkExists(ChunkPos chunk) {
@@ -441,9 +230,8 @@ static std::vector<ChunkPos> getChunksInMap(uint64_t mapNum) {
  * Used only for eggs; use npc->playersInView for everything visible
  */
 bool Chunking::inPopulatedChunks(std::set<Chunk*>* chnks) {
-
     for (auto it = chnks->begin(); it != chnks->end(); it++) {
-        if (!(*it)->players.empty())
+        if ((*it)->nplayers > 0)
             return true;
     }
 
@@ -451,7 +239,6 @@ bool Chunking::inPopulatedChunks(std::set<Chunk*>* chnks) {
 }
 
 void Chunking::createInstance(uint64_t instanceID) {
-
     std::vector<ChunkPos> templateChunks = getChunksInMap(MAPNUM(instanceID)); // base instance chunks
     if (getChunksInMap(instanceID).size() == 0) { // only instantiate if the instance doesn't exist already
         std::cout << "Creating instance " << instanceID << std::endl;
@@ -510,7 +297,6 @@ void Chunking::createInstance(uint64_t instanceID) {
 }
 
 static void destroyInstance(uint64_t instanceID) {
-    
     std::vector<ChunkPos> instanceChunks = getChunksInMap(instanceID);
     std::cout << "Deleting instance " << instanceID << " (" << instanceChunks.size() << " chunks)" << std::endl;
     for (ChunkPos& coords : instanceChunks) {
@@ -527,7 +313,7 @@ void Chunking::destroyInstanceIfEmpty(uint64_t instanceID) {
     for (ChunkPos& coords : sourceChunkCoords) {
         Chunk* chunk = chunks[coords];
 
-        if (chunk->players.size() > 0)
+        if (chunk->nplayers > 0)
             return; // there are still players inside
     }
 

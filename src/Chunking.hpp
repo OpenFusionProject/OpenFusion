@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/Core.hpp"
+#include "Entities.hpp"
 
 #include <utility>
 #include <set>
@@ -12,6 +13,8 @@ class Chunk {
 public:
     std::set<CNSocket*> players;
     std::set<int32_t> NPCs;
+    std::set<EntityRef> entities;
+    int nplayers = 0;
 };
 
 enum {
@@ -23,18 +26,13 @@ enum {
 namespace Chunking {
     extern std::map<ChunkPos, Chunk*> chunks;
 
-    void updatePlayerChunk(CNSocket* sock, ChunkPos from, ChunkPos to);
-    void updateNPCChunk(int32_t id, ChunkPos from, ChunkPos to);
+    void updateEntityChunk(const EntityRef& ref, ChunkPos from, ChunkPos to);
 
-    void trackPlayer(ChunkPos chunkPos, CNSocket* sock);
-    void trackNPC(ChunkPos chunkPos, int32_t id);
-    void untrackPlayer(ChunkPos chunkPos, CNSocket* sock);
-    void untrackNPC(ChunkPos chunkPos, int32_t id);
+    void trackEntity(ChunkPos chunkPos, const EntityRef& ref);
+    void untrackEntity(ChunkPos chunkPos, const EntityRef& ref);
 
-    void addPlayerToChunks(std::set<Chunk*> chnks, CNSocket* sock);
-    void addNPCToChunks(std::set<Chunk*> chnks, int32_t id);
-    void removePlayerFromChunks(std::set<Chunk*> chnks, CNSocket* sock);
-    void removeNPCFromChunks(std::set<Chunk*> chnks, int32_t id);
+    void addEntityToChunks(std::set<Chunk*> chnks, const EntityRef& ref);
+    void removeEntityFromChunks(std::set<Chunk*> chnks, const EntityRef& ref);
 
     bool chunkExists(ChunkPos chunk);
     ChunkPos chunkPosAt(int posX, int posY, uint64_t instanceID);
@@ -43,4 +41,18 @@ namespace Chunking {
     bool inPopulatedChunks(std::set<Chunk*>* chnks);
     void createInstance(uint64_t);
     void destroyInstanceIfEmpty(uint64_t);
+
+    // death row below this point
+    //void updatePlayerChunk(CNSocket* sock, ChunkPos from, ChunkPos to);
+    //void updateNPCChunk(int32_t id, ChunkPos from, ChunkPos to);
+
+    //void trackPlayer(ChunkPos chunkPos, CNSocket* sock);
+    //void trackNPC(ChunkPos chunkPos, int32_t id);
+    //void untrackPlayer(ChunkPos chunkPos, CNSocket* sock);
+    //void untrackNPC(ChunkPos chunkPos, int32_t id);
+
+    //void addPlayerToChunks(std::set<Chunk*> chnks, CNSocket* sock);
+    //void addNPCToChunks(std::set<Chunk*> chnks, int32_t id);
+    //void removePlayerFromChunks(std::set<Chunk*> chnks, CNSocket* sock);
+    //void removeNPCFromChunks(std::set<Chunk*> chnks, int32_t id);
 }

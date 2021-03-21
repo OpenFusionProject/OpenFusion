@@ -361,11 +361,12 @@ static void npcRotateCommand(std::string full, std::vector<std::string>& args, C
 }
 
 static void refreshCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
-    Player* plr = PlayerManager::getPlayer(sock);
+    EntityRef ref = {sock};
+    Entity* plr = ref.getEntity();
     ChunkPos currentChunk = plr->chunkPos;
     ChunkPos nullChunk = std::make_tuple(0, 0, 0);
-    Chunking::updatePlayerChunk(sock, currentChunk, nullChunk);
-    Chunking::updatePlayerChunk(sock, nullChunk, currentChunk);
+    Chunking::updateEntityChunk(ref, currentChunk, nullChunk);
+    Chunking::updateEntityChunk(ref, nullChunk, currentChunk);
 }
 
 static void instanceCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {

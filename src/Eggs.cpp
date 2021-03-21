@@ -133,7 +133,7 @@ static void eggStep(CNServer* serv, time_t currTime) {
             egg.second->deadUntil = 0;
             egg.second->appearanceData.iHP = 400;
             
-            Chunking::addNPCToChunks(Chunking::getViewableChunks(egg.second->chunkPos), egg.first);
+            Chunking::addEntityToChunks(Chunking::getViewableChunks(egg.second->chunkPos), {egg.first});
         }
     }
 
@@ -246,7 +246,7 @@ static void eggPickup(CNSocket* sock, CNPacketData* data) {
     if (egg->summoned)
         NPCManager::destroyNPC(eggId);
     else {
-        Chunking::removeNPCFromChunks(Chunking::getViewableChunks(egg->chunkPos), eggId);
+        Chunking::removeEntityFromChunks(Chunking::getViewableChunks(egg->chunkPos), {eggId});
         egg->dead = true;
         egg->deadUntil = getTime() + (time_t)type->regen * 1000;
         egg->appearanceData.iHP = 0;

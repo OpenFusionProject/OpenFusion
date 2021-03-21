@@ -52,10 +52,11 @@ void NPCManager::destroyNPC(int32_t id) {
     }
 
     // remove NPC from the chunk
-    Chunking::untrackNPC(entity->chunkPos, id);
+    EntityRef ref = {id};
+    Chunking::untrackEntity(entity->chunkPos, ref);
 
     // remove from viewable chunks
-    Chunking::removeNPCFromChunks(Chunking::getViewableChunks(entity->chunkPos), id);
+    Chunking::removeEntityFromChunks(Chunking::getViewableChunks(entity->chunkPos), ref);
 
     // remove from mob manager
     if (MobAI::Mobs.find(id) != MobAI::Mobs.end())
@@ -81,7 +82,7 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z, uint64_t I, 
     npc->instanceID = I;
     if (oldChunk == newChunk)
         return; // didn't change chunks
-    Chunking::updateNPCChunk(id, oldChunk, newChunk);
+    Chunking::updateEntityChunk({id}, oldChunk, newChunk);
 }
 
 void NPCManager::sendToViewable(BaseNPC *npc, void *buf, uint32_t type, size_t size) {
@@ -251,7 +252,7 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
         Missions::failInstancedMissions(sock); // fail any instanced missions
         sock->sendPacket(resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC);
 
-        Chunking::updatePlayerChunk(sock, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
+        Chunking::updateEntityChunk({sock}, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
         PlayerManager::updatePlayerPosition(sock, resp.iX, resp.iY, resp.iZ, INSTANCE_OVERWORLD, plr->angle);
 
         // remove the player's ongoing race, if any

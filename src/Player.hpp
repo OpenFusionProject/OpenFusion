@@ -5,12 +5,13 @@
 
 #include "core/Core.hpp"
 #include "Chunking.hpp"
+#include "Entities.hpp"
 
 #define ACTIVE_MISSION_COUNT 6
 
 #define PC_MAXHEALTH(level) (925 + 75 * (level))
 
-struct Player {
+struct Player : public Entity {
     int accountId;
     int accountLevel; // permission level (see CN_ACCOUNT_LEVEL enums)
     int64_t SerialKey;
@@ -37,10 +38,11 @@ struct Player {
     int32_t iSelfConditionBitFlag;
     int8_t iSpecialState;
 
-    int x, y, z, angle;
+    //int x, y, z; in superclass
+    int angle;
     int lastX, lastY, lastZ, lastAngle;
     int recallX, recallY, recallZ, recallInstance; // also Lair entrances
-    uint64_t instanceID;
+    //uint64_t instanceID; in superclass
     sItemBase Equip[AEQUIP_COUNT];
     sItemBase Inven[AINVEN_COUNT];
     sItemBase Bank[ABANK_COUNT];
@@ -82,11 +84,15 @@ struct Player {
 
     uint64_t iFirstUseFlag[2];
 
-    ChunkPos chunkPos;
-    std::set<Chunk*> viewableChunks;
+    // in superclass:
+    //ChunkPos chunkPos;
+    //std::set<Chunk*> viewableChunks;
     time_t lastHeartbeat;
 
     int suspicionRating;
     time_t lastShot;
     std::vector<sItemBase> buyback;
+
+    virtual void enterIntoViewOf(CNSocket *sock) override;
+    virtual void disappearFromViewOf(CNSocket *sock) override;
 };
