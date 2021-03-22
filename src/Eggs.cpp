@@ -13,7 +13,6 @@ using namespace Eggs;
 /// sock, CBFlag -> until
 std::map<std::pair<CNSocket*, int32_t>, time_t> Eggs::EggBuffs;
 std::unordered_map<int, EggType> Eggs::EggTypes;
-std::unordered_map<int, Egg*> Eggs::Eggs;
 
 int Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
     Player* plr = PlayerManager::getPlayer(sock);
@@ -35,10 +34,10 @@ int Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
     // we know it's only one trailing struct, so we can skip full validation
 
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-    sP_FE2CL_NPC_SKILL_HIT* skillUse = (sP_FE2CL_NPC_SKILL_HIT*)respbuf;
+    auto skillUse = (sP_FE2CL_NPC_SKILL_HIT*)respbuf;
 
     if (skillId == 183) { // damage egg
-        sSkillResult_Damage* skill = (sSkillResult_Damage*)(respbuf + sizeof(sP_FE2CL_NPC_SKILL_HIT));
+        auto skill = (sSkillResult_Damage*)(respbuf + sizeof(sP_FE2CL_NPC_SKILL_HIT));
         memset(respbuf, 0, resplen);
         skill->eCT = 1;
         skill->iID = plr->iID;
@@ -48,7 +47,7 @@ int Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
             plr->HP = 0;
         skill->iHP = plr->HP;
     } else if (skillId == 150) { // heal egg
-        sSkillResult_Heal_HP* skill = (sSkillResult_Heal_HP*)(respbuf + sizeof(sP_FE2CL_NPC_SKILL_HIT));
+        auto skill = (sSkillResult_Heal_HP*)(respbuf + sizeof(sP_FE2CL_NPC_SKILL_HIT));
         memset(respbuf, 0, resplen);
         skill->eCT = 1;
         skill->iID = plr->iID;
@@ -58,7 +57,7 @@ int Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
             plr->HP = PC_MAXHEALTH(plr->level);
         skill->iHP = plr->HP;
     } else { // regular buff egg
-        sSkillResult_Buff* skill = (sSkillResult_Buff*)(respbuf + sizeof(sP_FE2CL_NPC_SKILL_HIT));
+        auto skill = (sSkillResult_Buff*)(respbuf + sizeof(sP_FE2CL_NPC_SKILL_HIT));
         memset(respbuf, 0, resplen);
         skill->eCT = 1;
         skill->iID = plr->iID;
@@ -92,9 +91,9 @@ static void eggStep(CNServer* serv, time_t currTime) {
     auto it = EggBuffs.begin();
     while (it != EggBuffs.end()) {
         // check remaining time
-        if (it->second > timeStamp)
+        if (it->second > timeStamp) {
             it++;
-        else { // if time reached 0
+        } else { // if time reached 0
             CNSocket* sock = it->first.first;
             int32_t CBFlag = it->first.second;
             Player* plr = PlayerManager::getPlayer(sock);
@@ -109,13 +108,13 @@ static void eggStep(CNServer* serv, time_t currTime) {
                     resp.eTBT = 3; // for egg buffs
                     plr->iConditionBitFlag &= ~CBFlag;
                     resp.iConditionBitFlag = plr->iConditionBitFlag |= groupFlags | plr->iSelfConditionBitFlag;
-                    sock->sendPacket((void*)&resp, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
+                    sock->sendPacket(resp, P_FE2CL_PC_BUFF_UPDATE);
 
                     INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, resp2); // send a buff timeout to other players
                     resp2.eCT = 1;
                     resp2.iID = plr->iID;
                     resp2.iConditionBitFlag = plr->iConditionBitFlag;
-                    PlayerManager::sendToViewable(sock, (void*)&resp2, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
+                    PlayerManager::sendToViewable(sock, resp2, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT);
                 }
             }
             // remove buff from the map
@@ -124,16 +123,21 @@ static void eggStep(CNServer* serv, time_t currTime) {
     }
 
     // check dead eggs and eggs in inactive chunks
-    for (auto egg : Eggs::Eggs) {
-        if (!egg.second->dead || !Chunking::inPopulatedChunks(&egg.second->viewableChunks))
+    for (auto npc : NPCManager::NPCs) {
+        if (npc.second->type != EntityType::EGG)
             continue;
-        if (egg.second->deadUntil <= timeStamp) {
+
+        auto egg = (Egg*)npc.second;
+        if (!egg->dead || !Chunking::inPopulatedChunks(&egg->viewableChunks))
+            continue;
+
+        if (egg->deadUntil <= timeStamp) {
             // respawn it
-            egg.second->dead = false;
-            egg.second->deadUntil = 0;
-            egg.second->appearanceData.iHP = 400;
+            egg->dead = false;
+            egg->deadUntil = 0;
+            egg->appearanceData.iHP = 400;
             
-            Chunking::addEntityToChunks(Chunking::getViewableChunks(egg.second->chunkPos), {egg.first});
+            Chunking::addEntityToChunks(Chunking::getViewableChunks(egg->chunkPos), {npc.first});
         }
     }
 
@@ -149,16 +153,20 @@ void Eggs::npcDataToEggData(sNPCAppearanceData* npc, sShinyAppearanceData* egg) 
 }
 
 static void eggPickup(CNSocket* sock, CNPacketData* data) {
-    sP_CL2FE_REQ_SHINY_PICKUP* pickup = (sP_CL2FE_REQ_SHINY_PICKUP*)data->buf;
+    auto pickup = (sP_CL2FE_REQ_SHINY_PICKUP*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
-    int eggId = pickup->iShinyID;
+    EntityRef eggRef = {pickup->iShinyID};
 
-    if (Eggs::Eggs.find(eggId) == Eggs::Eggs.end()) {
+    if (!eggRef.isValid()) {
         std::cout << "[WARN] Player tried to open non existing egg?!" << std::endl;
         return;
     }
-    Egg* egg = Eggs::Eggs[eggId];
+    auto egg = (Egg*)eggRef.getEntity();
+    if (egg->type != EntityType::EGG) {
+        std::cout << "[WARN] Player tried to open something other than an?!" << std::endl;
+        return;
+    }
 
     if (egg->dead) {
         std::cout << "[WARN] Player tried to open a dead egg?!" << std::endl;
@@ -167,7 +175,7 @@ static void eggPickup(CNSocket* sock, CNPacketData* data) {
 
     /* this has some issues with position desync, leaving it out for now
     if (abs(egg->appearanceData.iX - plr->x)>500 || abs(egg->appearanceData.iY - plr->y) > 500) {
-        std::cout << "[WARN] Player tried to open an egg from the other chunk?!" << std::endl;
+        std::cout << "[WARN] Player tried to open an egg isn't nearby?!" << std::endl;
         return;
     }
     */
@@ -182,16 +190,14 @@ static void eggPickup(CNSocket* sock, CNPacketData* data) {
 
     // buff the player
     if (type->effectId != 0)
-        eggBuffPlayer(sock, type->effectId, eggId, type->duration);
+        eggBuffPlayer(sock, type->effectId, eggRef.id, type->duration);
 
     /*
      * SHINY_PICKUP_SUCC is only causing a GUI effect in the client
      * (buff icon pops up in the bottom of the screen)
      * so we don't send it for non-effect
      */
-
-    if (type->effectId != 0)
-    {
+    if (type->effectId != 0) {
         INITSTRUCT(sP_FE2CL_REP_SHINY_PICKUP_SUCC, resp);
         resp.iSkillID = type->effectId;
 
@@ -200,7 +206,7 @@ static void eggPickup(CNSocket* sock, CNPacketData* data) {
         if (resp.iSkillID == 183)
             resp.eCSTB = ECSB_INFECTION;
 
-        sock->sendPacket((void*)&resp, P_FE2CL_REP_SHINY_PICKUP_SUCC, sizeof(sP_FE2CL_REP_SHINY_PICKUP_SUCC));
+        sock->sendPacket(resp, P_FE2CL_REP_SHINY_PICKUP_SUCC);
     }
 
     // drop
@@ -244,9 +250,9 @@ static void eggPickup(CNSocket* sock, CNPacketData* data) {
     }
 
     if (egg->summoned)
-        NPCManager::destroyNPC(eggId);
+        NPCManager::destroyNPC(eggRef.id);
     else {
-        Chunking::removeEntityFromChunks(Chunking::getViewableChunks(egg->chunkPos), {eggId});
+        Chunking::removeEntityFromChunks(Chunking::getViewableChunks(egg->chunkPos), eggRef);
         egg->dead = true;
         egg->deadUntil = getTime() + (time_t)type->regen * 1000;
         egg->appearanceData.iHP = 0;

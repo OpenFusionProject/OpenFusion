@@ -45,6 +45,9 @@ struct Mob : public CombatNPC {
     int offsetX = 0, offsetY = 0;
     int groupMember[4] = {};
 
+    // for optimizing away AI in empty chunks
+    int playersInView = 0;
+
     // temporary; until we're sure what's what
     nlohmann::json data = {};
 
@@ -86,6 +89,9 @@ struct Mob : public CombatNPC {
     auto operator[](std::string s) {
         return data[s];
     }
+
+    virtual void enterIntoViewOf(CNSocket *sock) override;
+    virtual void disappearFromViewOf(CNSocket *sock) override;
 };
 
 namespace MobAI {

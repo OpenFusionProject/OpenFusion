@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <set>
 
-enum class EntityType {
+enum class EntityType : uint8_t {
     INVALID,
     PLAYER,
     SIMPLE_NPC,
@@ -32,6 +32,10 @@ struct Entity {
     // stubs
     virtual void enterIntoViewOf(CNSocket *sock) {}
     virtual void disappearFromViewOf(CNSocket *sock) {}
+
+    // we don't want objects of this base class to exist
+protected:
+    Entity() {}
 };
 
 struct EntityRef {
@@ -76,9 +80,6 @@ struct EntityRef {
 class BaseNPC : public Entity {
 public:
     sNPCAppearanceData appearanceData = {};
-    //NPCClass npcClass;
-
-    int playersInView = 0;
 
     BaseNPC(int x, int y, int z, int angle, uint64_t iID, int t, int id) { // XXX
         appearanceData.iX = x;
@@ -91,19 +92,8 @@ public:
         appearanceData.iBarkerType = 0;
         appearanceData.iNPC_ID = id;
 
-        type = EntityType::SIMPLE_NPC;
-
         instanceID = iID;
-
-        chunkPos = std::make_tuple(0, 0, 0);
-        playersInView = 0;
     };
-    BaseNPC(int x, int y, int z, int angle, uint64_t iID, int t, int id, EntityType entityType) : BaseNPC(x, y, z, angle, iID, t, id) {
-        type = entityType;
-    }
-
-    // XXX: move to CombatNPC, probably
-    virtual bool isAlive() override { return appearanceData.iHP > 0; }
 
     virtual void enterIntoViewOf(CNSocket *sock) override;
     virtual void disappearFromViewOf(CNSocket *sock) override;
@@ -121,13 +111,14 @@ struct CombatNPC : public BaseNPC {
     // XXX
     CombatNPC(int x, int y, int z, int angle, uint64_t iID, int t, int id, int maxHP) :
         BaseNPC(x, y, z, angle, iID, t, id),
-        maxHealth(maxHP)
-    {}
+        maxHealth(maxHP) {}
 
     virtual void stepAI() {
         if (_stepAI != nullptr)
             _stepAI();
     }
+
+    virtual bool isAlive() override { return appearanceData.iHP > 0; }
 };
 
 // Mob is in MobAI.hpp, Player is in Player.hpp
@@ -152,6 +143,11 @@ struct Egg : public BaseNPC {
 
 // TODO: decouple from BaseNPC
 struct Bus : public BaseNPC {
+    Bus(int x, int y, int z, int angle, uint64_t iID, int t, int id) :
+        BaseNPC(x, y, z, angle, iID, t, id) {
+        type = EntityType::BUS;
+    }
+
     virtual void enterIntoViewOf(CNSocket *sock) override;
     virtual void disappearFromViewOf(CNSocket *sock) override;
 };

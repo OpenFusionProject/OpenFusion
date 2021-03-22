@@ -499,7 +499,7 @@ static void eggCommand(std::string full, std::vector<std::string>& args, CNSocke
     }
 
     char* tmp;
-    int  eggType = std::strtol(args[1].c_str(), &tmp, 10);
+    int eggType = std::strtol(args[1].c_str(), &tmp, 10);
     if (*tmp)
         return;
 
@@ -520,7 +520,6 @@ static void eggCommand(std::string full, std::vector<std::string>& args, CNSocke
 
     Egg* egg = new Egg(plr->x + addX, plr->y + addY, plr->z, plr->instanceID, eggType, id, false); // change last arg to true after gruntwork
     NPCManager::NPCs[id] = egg;
-    Eggs::Eggs[id] = egg;
     NPCManager::updateNPCPosition(id, plr->x + addX, plr->y + addY, plr->z, plr->instanceID, plr->angle);
 
     // add to template

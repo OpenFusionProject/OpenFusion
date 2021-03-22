@@ -10,7 +10,6 @@
 #include "Racing.hpp"
 #include "Vendor.hpp"
 #include "Abilities.hpp"
-#include "Eggs.hpp"
 
 #include <cmath>
 #include <algorithm>
@@ -61,10 +60,6 @@ void NPCManager::destroyNPC(int32_t id) {
     // remove from mob manager
     if (MobAI::Mobs.find(id) != MobAI::Mobs.end())
         MobAI::Mobs.erase(id);
-
-    // remove from eggs
-    if (Eggs::Eggs.find(id) != Eggs::Eggs.end())
-        Eggs::Eggs.erase(id);
 
     // finally, remove it from the map and free it
     NPCs.erase(id);

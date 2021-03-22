@@ -4,6 +4,7 @@
 #include "PlayerManager.hpp"
 #include "NPCManager.hpp"
 #include "Eggs.hpp"
+#include "MobAI.hpp"
 
 #include <type_traits>
 
@@ -45,7 +46,10 @@ void BaseNPC::enterIntoViewOf(CNSocket *sock) {
     INITSTRUCT(sP_FE2CL_NPC_ENTER, pkt);
     pkt.NPCAppearanceData = appearanceData;
     sock->sendPacket(pkt, P_FE2CL_NPC_ENTER);
+}
 
+void Mob::enterIntoViewOf(CNSocket *sock) {
+    this->BaseNPC::enterIntoViewOf(sock);
     playersInView++;
 }
 
@@ -96,7 +100,10 @@ void BaseNPC::disappearFromViewOf(CNSocket *sock) {
     INITSTRUCT(sP_FE2CL_NPC_EXIT, pkt);
     pkt.iNPC_ID = appearanceData.iNPC_ID;
     sock->sendPacket(pkt, P_FE2CL_NPC_EXIT);
+}
 
+void Mob::disappearFromViewOf(CNSocket *sock) {
+    this->BaseNPC::disappearFromViewOf(sock);
     playersInView--;
 }
 

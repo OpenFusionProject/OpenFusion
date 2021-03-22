@@ -139,7 +139,7 @@ static void loadPaths(int* nextId) {
             if (passedDistance >= SLIDER_GAP_SIZE) { // space them out uniformaly
                 passedDistance -= SLIDER_GAP_SIZE; // step down
                 // spawn a slider
-                BaseNPC* slider = new BaseNPC(point.x, point.y, point.z, 0, INSTANCE_OVERWORLD, 1, (*nextId)++, EntityType::BUS);
+                Bus* slider = new Bus(point.x, point.y, point.z, 0, INSTANCE_OVERWORLD, 1, (*nextId)++);
                 NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
                 NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->appearanceData.iX, slider->appearanceData.iY, slider->appearanceData.iZ, INSTANCE_OVERWORLD, 0);
                 Transport::NPCQueues[slider->appearanceData.iNPC_ID] = route;
@@ -384,6 +384,7 @@ static void loadEggs(int32_t* nextId) {
 
         // Egg instances
         auto eggs = eggData["Eggs"];
+        int eggCount = 0;
         for (auto _egg = eggs.begin(); _egg != eggs.end(); _egg++) {
             auto egg = _egg.value();
             int id = (*nextId)++;
@@ -391,11 +392,11 @@ static void loadEggs(int32_t* nextId) {
 
             Egg* addEgg = new Egg((int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, (int)egg["iType"], id, false);
             NPCManager::NPCs[id] = addEgg;
-            Eggs::Eggs[id] = addEgg;
+            eggCount++;
             NPCManager::updateNPCPosition(id, (int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, 0);
         }
 
-        std::cout << "[INFO] Loaded " <<Eggs::Eggs.size()<<" eggs" <<std::endl;
+        std::cout << "[INFO] Loaded " << eggCount << " eggs" <<std::endl;
 
     }
     catch (const std::exception& err) {
@@ -540,7 +541,6 @@ static void loadGruntwork(int32_t *nextId) {
 
             Egg* addEgg = new Egg((int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, (int)egg["iType"], id, false);
             NPCManager::NPCs[id] = addEgg;
-            Eggs::Eggs[id] = addEgg;
             NPCManager::updateNPCPosition(id, (int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, 0);
             RunningEggs[id] = addEgg;
         }
@@ -1054,8 +1054,10 @@ void TableData::flush() {
         nlohmann::json egg;
         BaseNPC* npc = pair.second;
 
-        if (Eggs::Eggs.find(pair.first) == Eggs::Eggs.end())
+        if (NPCManager::NPCs.find(pair.first) == NPCManager::NPCs.end())
             continue;
+        // we can trust that if it exists, it probably is indeed an egg
+
         egg["iX"] = npc->appearanceData.iX;
         egg["iY"] = npc->appearanceData.iY;
         egg["iZ"] = npc->appearanceData.iZ;
