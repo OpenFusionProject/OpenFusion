@@ -8,6 +8,7 @@
 #include "Transport.hpp"
 #include "Racing.hpp"
 #include "Abilities.hpp"
+#include "Rand.hpp"
 
 #include <assert.h>
 
@@ -26,7 +27,7 @@ static std::pair<int,int> getDamage(int attackPower, int defensePower, bool shou
     // base calculation
     int damage = attackPower * attackPower / (attackPower + defensePower);
     damage = std::max(10 + attackPower / 10, damage - (defensePower - attackPower / 6) * difficulty / 100);
-    damage = damage * (rand() % 40 + 80) / 100;
+    damage = damage * (Rand::rand(40) + 80) / 100;
 
     // Adaptium/Blastons/Cosmix
     if (attackerStyle != -1 && defenderStyle != -1 && attackerStyle != defenderStyle) {
@@ -34,7 +35,7 @@ static std::pair<int,int> getDamage(int attackPower, int defensePower, bool shou
             defenderStyle += 3;
         if (defenderStyle - attackerStyle == 2)
             defenderStyle -= 3;
-        if (attackerStyle < defenderStyle) 
+        if (attackerStyle < defenderStyle)
             damage = damage * 5 / 4;
         else
             damage = damage * 4 / 5;
@@ -47,7 +48,7 @@ static std::pair<int,int> getDamage(int attackPower, int defensePower, bool shou
     ret.first = damage;
     ret.second = 1;
 
-    if (shouldCrit && rand() % 20 == 0) {
+    if (shouldCrit && Rand::rand(20) == 0) {
         ret.first *= 2; // critical hit
         ret.second = 2;
     }
@@ -117,7 +118,7 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         int difficulty = (int)mob->data["m_iNpcLevel"];
         damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW > 6 + difficulty),
             Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
-        
+
         if (plr->batteryW >= 6 + difficulty)
             plr->batteryW -= 6 + difficulty;
         else
@@ -224,12 +225,12 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
     if (sock != nullptr) {
         Player* plr = PlayerManager::getPlayer(sock);
 
-        int rolledBoosts = rand();
-        int rolledPotions = rand();
-        int rolledCrate = rand();
-        int rolledCrateType = rand();
-        int rolledEvent = rand();
-        int rolledQItem = rand();
+        int rolledBoosts = Rand::rand();
+        int rolledPotions = Rand::rand();
+        int rolledCrate = Rand::rand();
+        int rolledCrateType = Rand::rand();
+        int rolledEvent = Rand::rand();
+        int rolledQItem = Rand::rand();
 
         if (plr->groupCnt == 1 && plr->iIDGroup == plr->iID) {
             Items::giveMobDrop(sock, mob, rolledBoosts, rolledPotions, rolledCrate, rolledCrateType, rolledEvent);
@@ -522,7 +523,7 @@ static int8_t addBullet(Player* plr, bool isGrenade) {
     // temp solution Jade fix plz
     toAdd.weaponBoost = plr->batteryW > 0;
     if (toAdd.weaponBoost) {
-        int boostCost = rand() % 11 + 20;
+        int boostCost = Rand::rand(11) + 20;
         plr->batteryW = boostCost > plr->batteryW ? 0 : plr->batteryW - boostCost;
     }
 
@@ -634,7 +635,7 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
      * initialize response struct
      * rocket style hit doesn't work properly, so we're always sending this one
      */
-    
+
     size_t resplen = sizeof(sP_FE2CL_PC_GRENADE_STYLE_HIT) + pkt->iTargetCnt * sizeof(sAttackResult);
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
 
@@ -655,7 +656,7 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
             // not sure how to best handle this
             std::cout << "[WARN] projectileHit: NPC ID not found" << std::endl;
             return;
-        }        
+        }
 
         BaseNPC* npc = NPCManager::NPCs[pktdata[i]];
         if (npc->type != EntityType::MOB) {
@@ -684,7 +685,7 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
     resp->Bullet.iID = bullet->bulletType;
     sock->sendPacket((void*)respbuf, P_FE2CL_PC_GRENADE_STYLE_HIT, resplen);
     PlayerManager::sendToViewable(sock, (void*)respbuf, P_FE2CL_PC_GRENADE_STYLE_HIT, resplen);
-   
+
     Bullets[plr->iID].erase(resp->iBulletID);
 }
 

@@ -7,6 +7,7 @@
 #include "Abilities.hpp"
 #include "Missions.hpp"
 #include "Eggs.hpp"
+#include "Rand.hpp"
 
 #include <string.h> // for memset()
 #include <assert.h>
@@ -15,14 +16,18 @@ using namespace Items;
 
 std::map<std::pair<int32_t, int32_t>, Items::Item> Items::ItemData;
 std::map<int32_t, CrocPotEntry> Items::CrocPotTable;
-std::map<int32_t, std::vector<int>> Items::RarityRatios;
+std::map<int32_t, std::vector<int32_t>> Items::RarityWeights;
 std::map<int32_t, Crate> Items::Crates;
-// pair Itemset, Rarity -> vector of pointers (map iterators) to records in ItemData
-std::map<std::pair<int32_t, int32_t>, std::vector<std::map<std::pair<int32_t, int32_t>, Items::Item>::iterator>> Items::CrateItems;
+std::map<int32_t, DroppableItem> Items::DroppableItems;
 std::map<std::string, std::vector<std::pair<int32_t, int32_t>>> Items::CodeItems;
 
-std::map<int32_t, MobDropChance> Items::MobDropChances;
+std::map<int32_t, CrateDropChance> Items::CrateDropChances;
+std::map<int32_t, std::vector<int32_t>> Items::CrateDropTypes;
+std::map<int32_t, MiscDropChance> Items::MiscDropChances;
+std::map<int32_t, MiscDropType> Items::MiscDropTypes;
 std::map<int32_t, MobDrop> Items::MobDrops;
+std::map<int32_t, ItemSetType> Items::ItemSetTypes;
+std::map<int32_t, ItemSetChance> Items::ItemSetChances;
 
 #ifdef ACADEMY
 std::map<int32_t, int32_t> Items::NanoCapsules; // crate id -> nano id
@@ -58,7 +63,7 @@ static void nanoCapsuleHandler(CNSocket* sock, int slot, sItemBase *chest) {
 
     item->iSlotNum = slot;
     item->eIL = 1;
-    
+
     // update player serverside
     plr->Inven[slot] = item->sItem;
 
@@ -81,14 +86,29 @@ static void nanoCapsuleHandler(CNSocket* sock, int slot, sItemBase *chest) {
 }
 #endif
 
-static int getRarity(Crate& crate, int itemSetId) {
+static int choice(const std::vector<int>& weights, int rolled) {
+    int total = std::accumulate(weights.begin(), weights.end(), 0);
+    int randValue = rolled % total;
+    int currentIndex = -1;
+
+    do {
+        currentIndex++;
+        randValue -= weights[currentIndex];
+    } while (randValue >= 0);
+
+    return currentIndex;
+}
+
+static int getRarity(int crateId, int itemSetTypeId) {
+    Crate& crate = Items::Crates[crateId];
+
     // find rarity ratio
-    if (RarityRatios.find(crate.rarityRatioId) == RarityRatios.end()) {
-        std::cout << "[WARN] Rarity Ratio " << crate.rarityRatioId << " not found!" << std::endl;
+    if (Items::RarityWeights.find(crate.rarityWeightId) == Items::RarityWeights.end()) {
+        std::cout << "[WARN] Rarity Weight " << crate.rarityWeightId << " not found!" << std::endl;
         return -1;
     }
 
-    std::vector<int> rarityRatio = RarityRatios[crate.rarityRatioId];
+    std::vector<int>& rarityWeights = Items::RarityWeights[crate.rarityWeightId];
 
     /*
      * First we have to check if specified item set contains items with all specified rarities,
@@ -97,74 +117,137 @@ static int getRarity(Crate& crate, int itemSetId) {
      */
 
     // remember that rarities start from 1!
-    for (int i = 0; i < rarityRatio.size(); i++){
-        if (CrateItems.find(std::make_pair(itemSetId, i+1)) == CrateItems.end())
-            rarityRatio[i] = 0;
+    std::set<int> rarityIndices;
+    for (int droppableItemId : Items::ItemSetTypes[itemSetTypeId].droppableItemIds) {
+        if (Items::DroppableItems.find(droppableItemId) == Items::DroppableItems.end())
+            continue;
+
+        rarityIndices.insert(Items::DroppableItems[droppableItemId].rarity - 1);
+
+        // shortcut
+        if (rarityIndices.size() == rarityWeights.size())
+            break;
     }
 
-    int total = 0;
-    for (int value : rarityRatio)
-        total += value;
-
-    if (total == 0) {
-        std::cout << "Item Set " << itemSetId << " has no items assigned?!" << std::endl;
+    if (rarityIndices.empty()) {
+        std::cout << "[WARN] Item Set " << crate.itemSetTypeId << " has no valid items assigned?!" << std::endl;
         return -1;
     }
 
-    // now return a random rarity number
-    int randomNum = rand() % total;
-    int rarity = 0;
-    int sum = 0;
-    do {
-        sum += rarityRatio[rarity];
-        rarity++;
-    } while (sum <= randomNum);
+    std::vector<int> relevantWeights;
+    for (int index : rarityIndices)
+        relevantWeights.push_back(rarityWeights[index]);
 
-    return rarity;
+    // now return a random rarity number (starting from 1)
+    return Rand::randWeighted(relevantWeights) + 1;
 }
 
-static int getCrateItem(sItemBase& result, int itemSetId, int rarity, int playerGender) {
-    auto key = std::make_pair(itemSetId, rarity);
+static int getCrateItem(sItemBase* result, int itemSetTypeId, int itemSetChanceId, int rarity, int playerGender) {
+    // (int, vector<int>)
+    auto& [ignoreGender, droppableItemIds] = Items::ItemSetTypes[itemSetTypeId];
 
-    if (CrateItems.find(key) == CrateItems.end()) {
-        std::cout << "[WARN] Item Set ID " << itemSetId << " Rarity " << rarity << " does not exist" << std::endl;
-        return -1;
-    }
+    // collect valid items that match the rarity and (if not ignored) gender
+    std::vector<std::pair<int, DroppableItem*>> validItems;
+    for (int i = 0; i < droppableItemIds.size(); i++) {
+        int droppableItemId = droppableItemIds[i];
 
-    // only take into account items that have correct gender
-    std::vector<std::map<std::pair<int32_t, int32_t>, Item>::iterator> items;
-    for (auto crateitem : CrateItems[key]) {
-        int gender = crateitem->second.gender;
-        // if gender is incorrect, exclude item
-        if (gender != 0 && gender != playerGender)
+        if (Items::DroppableItems.find(droppableItemId) == Items::DroppableItems.end()) {
+            std::cout << "[WARN] Droppable item " << droppableItemId << " was not found, skipping..." << std::endl;
             continue;
-        items.push_back(crateitem);
+        }
+
+        DroppableItem* droppableItem = &Items::DroppableItems[droppableItemId];
+
+        if (droppableItem->rarity != rarity)
+            continue;
+
+        auto key = std::make_pair(droppableItem->itemId, droppableItem->type);
+
+        if (Items::ItemData.find(key) == Items::ItemData.end()) {
+            std::cout << "[WARN] Item-Type pair (" << key.first << ", " << key.second << ") specified by droppable item "
+                        << droppableItemId << " was not found, skipping..." << std::endl;
+            continue;
+        }
+
+        // if gender is incorrect, exclude item
+        int itemGender = Items::ItemData[key].gender;
+        if (!ignoreGender && itemGender != 0 && itemGender != playerGender)
+            continue;
+
+        validItems.push_back(std::make_pair(i, droppableItem));
     }
 
-    if (items.size() == 0) {
-        std::cout << "[WARN] Set ID " << itemSetId << " Rarity " << rarity << " contains no valid items" << std::endl;
+    if (validItems.empty()) {
+        std::cout << "[WARN] Set ID " << itemSetTypeId << " Chance ID " << itemSetChanceId
+                  << " Rarity " << rarity << " contains no valid items" << std::endl;
         return -1;
     }
 
-    auto item = items[rand() % items.size()];
+    // (int, map<int, int>)
+    auto& [defaultWeight, specialWeights] = Items::ItemSetChances[itemSetChanceId];
 
-    result.iID = item->first.first;
-    result.iType = item->first.second;
-    result.iOpt = 1;
+    // initialize all weights as the default weight for all item slots
+    std::vector<int> itemWeights(validItems.size(), defaultWeight);
+
+    if (!specialWeights.empty()) {
+        for (int i = 0; i < validItems.size(); i++) {
+            // (int, DroppableItem*)
+            auto& [dropIndex, droppableItem] = validItems[i];
+
+            if (specialWeights.find(dropIndex) == specialWeights.end())
+                continue;
+
+            int weight = specialWeights[dropIndex];
+            // allow 0 weights for convenience
+            if (weight > -1)
+                itemWeights[i] = weight;
+        }
+    }
+
+    int chosenIndex = Rand::randWeighted(itemWeights);
+    DroppableItem* item = validItems[chosenIndex].second;
+
+    result->iID = item->itemId;
+    result->iType = item->type;
+    result->iOpt = 1;
 
     return 0;
 }
 
-static int getItemSetId(Crate& crate, int crateId) {
-    int itemSetsCount = crate.itemSets.size();
-    if (itemSetsCount == 0) {
-        std::cout << "[WARN] Crate " << crateId << " has no item sets assigned?!" << std::endl;
+static int getValidCrateId(int crateId) {
+    // find the crate
+    if (Items::Crates.find(crateId) == Items::Crates.end()) {
+        std::cout << "[WARN] Crate " << crateId << " not found!" << std::endl;
         return -1;
     }
 
-    // if crate points to multiple itemSets, choose a random one
-    int itemSetIndex = rand() % itemSetsCount;
-    return crate.itemSets[itemSetIndex];
+    return crateId;
+}
+
+static int getValidItemSetTypeId(int crateId) {
+    Crate& crate = Items::Crates[crateId];
+
+    // find item set type
+    if (Items::ItemSetTypes.find(crate.itemSetTypeId) == Items::ItemSetTypes.end()) {
+        std::cout << "[WARN] Crate " << crateId << " was assigned item set "
+                  << crate.itemSetTypeId << " which is invalid!" << std::endl;
+        return -1;
+    }
+
+    return crate.itemSetTypeId;
+}
+
+static int getValidItemSetChanceId(int crateId) {
+    Crate& crate = Items::Crates[crateId];
+
+    // find item set chances
+    if (Items::ItemSetChances.find(crate.itemSetChanceId) == Items::ItemSetChances.end()) {
+        std::cout << "[WARN] Crate " << crateId << " was assigned item set chance object "
+                  << crate.itemSetChanceId << " which is invalid!" << std::endl;
+        return -1;
+    }
+
+    return crate.itemSetChanceId;
 }
 
 static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
@@ -486,36 +569,34 @@ static void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     item->iSlotNum = pkt->iSlotNum;
     item->eIL = 1;
 
-    int itemSetId = -1, rarity = -1, ret = -1;
-    bool failing = false;
+    int validItemSetTypeId = -1, validItemSetChanceId = -1, rarity = -1, ret = -1;
 
-    // find the crate
-    if (Crates.find(chest->iID) == Crates.end()) {
-        std::cout << "[WARN] Crate " << chest->iID << " not found!" << std::endl;
-        failing = true;
-    }
-    Crate& crate = Crates[chest->iID];
+    int validCrateId = getValidCrateId(chest->iID);
+    bool failing = (validCrateId == -1);
 
     if (!failing)
-        itemSetId = getItemSetId(crate, chest->iID);
-    if (itemSetId == -1)
-        failing = true;
+        validItemSetTypeId = getValidItemSetTypeId(validCrateId);
+    failing = (validItemSetTypeId == -1);
 
     if (!failing)
-        rarity = getRarity(crate, itemSetId);
-    if (rarity == -1)
-        failing = true;
+        validItemSetChanceId = getValidItemSetChanceId(validCrateId);
+    failing = (validItemSetChanceId == -1);
 
     if (!failing)
-        ret = getCrateItem(item->sItem, itemSetId, rarity, plr->PCStyle.iGender);
-    if (ret == -1)
-        failing = true;
+        rarity = getRarity(validCrateId, validItemSetTypeId);
+    failing = (rarity == -1);
+
+    if (!failing)
+        ret = getCrateItem(&item->sItem, validItemSetTypeId, validItemSetChanceId, rarity, plr->PCStyle.iGender);
+    failing = (ret == -1);
 
     // if we failed to open a crate, at least give the player a gumball (suggested by Jade)
     if (failing) {
         item->sItem.iType = 7;
-        item->sItem.iID = 119 + (rand() % 3);
+        item->sItem.iID = 119 + Rand::rand(3);
         item->sItem.iOpt = 1;
+
+        std::cout << "[WARN] Crate open failed, giving a Gumball..." << std::endl;
     }
     // update player
     plr->Inven[pkt->iSlotNum] = item->sItem;
@@ -617,29 +698,17 @@ void Items::updateEquips(CNSocket* sock, Player* plr) {
     }
 }
 
-static void getMobDrop(sItemBase *reward, MobDrop* drop, MobDropChance* chance, int rolled) {
+static void getMobDrop(sItemBase* reward, const std::vector<int>& weights, const std::vector<int>& crateIds, int rolled) {
+    int chosenIndex = choice(weights, rolled);
+
     reward->iType = 9;
     reward->iOpt = 1;
-
-    int total = 0;
-    for (int ratio : chance->cratesRatio)
-        total += ratio;
-
-    // randomizing a crate
-    int randomNum = rolled % total;
-    int i = 0;
-    int sum = 0;
-    do {
-        reward->iID = drop->crateIDs[i];
-        sum += chance->cratesRatio[i];
-        i++;
-    }
-    while (sum<=randomNum);
+    reward->iID = crateIds[chosenIndex];
 }
 
 static void giveEventDrop(CNSocket* sock, Player* player, int rolled) {
     // random drop chance
-    if (rand() % 100 > settings::EVENTCRATECHANCE)
+    if (Rand::rand(100) > settings::EVENTCRATECHANCE)
         return;
 
     // no slot = no reward
@@ -715,18 +784,47 @@ void Items::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int rolledPo
     // find correct mob drop
     MobDrop& drop = MobDrops[mob->dropType];
 
-    plr->money += drop.taros;
+    // use the keys to fetch data from other maps
+    // sanity check
+    if (Items::CrateDropChances.find(drop.crateDropChanceId) == Items::CrateDropChances.end()) {
+        std::cout << "[WARN] Crate Drop Chance Object " << drop.crateDropChanceId << " was not found" << std::endl;
+        return;
+    }
+    CrateDropChance crateDropChance = Items::CrateDropChances[drop.crateDropChanceId];
+
+    // sanity check
+    if (Items::CrateDropTypes.find(drop.crateDropTypeId) == Items::CrateDropTypes.end()) {
+        std::cout << "[WARN] Crate Drop Type Object " << drop.crateDropTypeId << " was not found" << std::endl;
+        return;
+    }
+    std::vector<int> crateDropType = Items::CrateDropTypes[drop.crateDropTypeId];
+
+    // sanity check
+    if (Items::MiscDropChances.find(drop.miscDropChanceId) == Items::MiscDropChances.end()) {
+        std::cout << "[WARN] Misc Drop Chance Object " << drop.miscDropChanceId << " was not found" << std::endl;
+        return;
+    }
+    MiscDropChance miscDropChance = Items::MiscDropChances[drop.miscDropChanceId];
+
+    // sanity check
+    if (Items::MiscDropTypes.find(drop.miscDropTypeId) == Items::MiscDropTypes.end()) {
+        std::cout << "[WARN] Misc Drop Type Object " << drop.miscDropTypeId << " was not found" << std::endl;
+        return;
+    }
+    MiscDropType miscDropType = Items::MiscDropTypes[drop.miscDropTypeId];
+
+    plr->money += miscDropType.taroAmount;
     // money nano boost
     if (plr->iConditionBitFlag & CSB_BIT_REWARD_CASH) {
         int boost = 0;
         if (Nanos::getNanoBoost(plr)) // for gumballs
             boost = 1;
-        plr->money += drop.taros * (5 + boost) / 25;
+        plr->money += miscDropType.taroAmount * (5 + boost) / 25;
     }
     // formula for scaling FM with player/mob level difference
     // TODO: adjust this better
     int levelDifference = plr->level - mob->level;
-    int fm = drop.fm;
+    int fm = miscDropType.fmAmount;
     if (levelDifference > 0)
         fm = levelDifference < 10 ? fm - (levelDifference * fm / 10) : 0;
     // scavenger nano boost
@@ -739,13 +837,11 @@ void Items::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int rolledPo
 
     Missions::updateFusionMatter(sock, fm);
 
-    // give boosts 1 in 3 times
-    if (drop.boosts > 0) {
-        if (rolledPotions % 3 == 0)
-            plr->batteryN += drop.boosts;
-        if (rolledBoosts % 3 == 0)
-            plr->batteryW += drop.boosts;
-    }
+    if (rolledPotions % miscDropChance.potionDropChanceTotal < miscDropChance.potionDropChance)
+        plr->batteryN += miscDropType.potionAmount;
+    if (rolledBoosts % miscDropChance.boostDropChanceTotal < miscDropChance.boostDropChance)
+        plr->batteryW += miscDropType.boostAmount;
+
     // caps
     if (plr->batteryW > 9999)
         plr->batteryW = 9999;
@@ -763,25 +859,14 @@ void Items::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int rolledPo
 
     int slot = findFreeSlot(plr);
 
-    bool awardDrop = false;
-    MobDropChance *chance = nullptr;
-    // sanity check
-    if (MobDropChances.find(drop.dropChanceType) == MobDropChances.end()) {
-        std::cout << "[WARN] Unknown Drop Chance Type: " << drop.dropChanceType << std::endl;
-        return; // this also prevents holiday crate drops, but oh well
-    } else {
-        chance = &MobDropChances[drop.dropChanceType];
-        awardDrop = (rolledCrate % 1000 < chance->dropChance);
-    }
-
     // no drop
-    if (slot == -1 || !awardDrop) {
+    if (slot == -1 || rolledCrate % crateDropChance.dropChanceTotal >= crateDropChance.dropChance) {
         // no room for an item, but you still get FM and taros
         reward->iItemCnt = 0;
         sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, sizeof(sP_FE2CL_REP_REWARD_ITEM));
     } else {
         // item reward
-        getMobDrop(&item->sItem, &drop, chance, rolledCrateType);
+        getMobDrop(&item->sItem, crateDropChance.crateWeights, crateDropType, rolledCrateType);
         item->iSlotNum = slot;
         item->eIL = 1; // Inventory Location. 1 means player inventory.
 

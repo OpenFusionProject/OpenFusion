@@ -10,21 +10,51 @@ struct CrocPotEntry {
 };
 
 struct Crate {
-    int rarityRatioId;
-    std::vector<int> itemSets;
+    int itemSetChanceId;
+    int itemSetTypeId;
+    int rarityWeightId;
 };
 
-struct MobDropChance {
-    int dropChance;
-    std::vector<int> cratesRatio;
+struct CrateDropChance {
+    int dropChance, dropChanceTotal;
+    std::vector<int> crateWeights;
+};
+
+struct MiscDropChance {
+    int potionDropChance, potionDropChanceTotal;
+    int boostDropChance, boostDropChanceTotal;
+    int taroDropChance, taroDropChanceTotal;
+    int fmDropChance, fmDropChanceTotal;
+};
+
+struct MiscDropType {
+    int potionAmount;
+    int boostAmount;
+    int taroAmount;
+    int fmAmount;
 };
 
 struct MobDrop {
-    std::vector<int> crateIDs;
-    int dropChanceType;
-    int taros;
-    int fm;
-    int boosts;
+    int crateDropChanceId;
+    int crateDropTypeId;
+    int miscDropChanceId;
+    int miscDropTypeId;
+};
+
+struct ItemSetType {
+    bool ignoreGender;
+    std::vector<int> droppableItemIds;
+};
+
+struct ItemSetChance {
+    int defaultItemWeight;
+    std::map<int, int> specialItemWeights;
+};
+
+struct DroppableItem {
+    int itemId;
+    int rarity;
+    int type;
 };
 
 namespace Items {
@@ -44,16 +74,19 @@ namespace Items {
     // hopefully this is fine since it's never modified after load
     extern std::map<std::pair<int32_t, int32_t>, Item> ItemData; // <id, type> -> data
     extern std::map<int32_t, CrocPotEntry> CrocPotTable; // level gap -> entry
-    extern std::map<int32_t, std::vector<int>> RarityRatios;
+    extern std::map<int32_t, std::vector<int32_t>> RarityWeights;
     extern std::map<int32_t, Crate> Crates;
-    // pair <Itemset, Rarity> -> vector of pointers (map iterators) to records in ItemData (it looks a lot scarier than it is)
-    extern std::map<std::pair<int32_t, int32_t>,
-        std::vector<std::map<std::pair<int32_t, int32_t>, Item>::iterator>> CrateItems;
+    extern std::map<int32_t, DroppableItem> DroppableItems;
     extern std::map<std::string, std::vector<std::pair<int32_t, int32_t>>> CodeItems; // code -> vector of <id, type>
 
     // mob drops
-    extern std::map<int32_t, MobDropChance> MobDropChances;
+    extern std::map<int32_t, CrateDropChance> CrateDropChances;
+    extern std::map<int32_t, std::vector<int32_t>> CrateDropTypes;
+    extern std::map<int32_t, MiscDropChance> MiscDropChances;
+    extern std::map<int32_t, MiscDropType> MiscDropTypes;
     extern std::map<int32_t, MobDrop> MobDrops;
+    extern std::map<int32_t, ItemSetType> ItemSetTypes;
+    extern std::map<int32_t, ItemSetChance> ItemSetChances;
 
     void init();
 

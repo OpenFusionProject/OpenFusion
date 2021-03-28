@@ -5,6 +5,7 @@
 #include "Nanos.hpp"
 #include "Combat.hpp"
 #include "Abilities.hpp"
+#include "Rand.hpp"
 
 #include <cmath>
 #include <limits.h>
@@ -334,7 +335,7 @@ static void useAbilities(Mob *mob, time_t currTime) {
         return;
     }
 
-    int random = rand() % 2000 * 1000;
+    int random = Rand::rand(2000) * 1000;
     int prob1 = (int)mob->data["m_iActiveSkill1Prob"]; // active skill probability
     int prob2 = (int)mob->data["m_iCorruptionTypeProb"]; // corruption probability
     int prob3 = (int)mob->data["m_iMegaTypeProb"]; // eruption probability
@@ -364,7 +365,7 @@ static void useAbilities(Mob *mob, time_t currTime) {
         if (mob->skillStyle == -1)
             mob->skillStyle = 2;
         if (mob->skillStyle == -2)
-            mob->skillStyle = rand() % 3;
+            mob->skillStyle = Rand::rand(3);
         pkt.iStyle = mob->skillStyle;
         NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_SKILL_CORRUPTION_READY, sizeof(sP_FE2CL_NPC_SKILL_CORRUPTION_READY));
         mob->nextAttack = currTime + 1800;
@@ -546,7 +547,7 @@ static void combatStep(Mob *mob, time_t currTime) {
             pkt1.iID = mob->appearanceData.iNPC_ID;
             pkt1.iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
             NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
-                    
+
             it = mob->unbuffTimes.erase(it);
         } else {
             it++;
@@ -563,7 +564,7 @@ static void combatStep(Mob *mob, time_t currTime) {
     int mobRange = (int)mob->data["m_iAtkRange"] + (int)mob->data["m_iRadius"];
 
     if (currTime >= mob->nextAttack) {
-        if (mob->skillStyle != -1 || distance <= mobRange || rand() % 20 == 0) // while not in attack range, 1 / 20 chance.
+        if (mob->skillStyle != -1 || distance <= mobRange || Rand::rand(20) == 0) // while not in attack range, 1 / 20 chance.
             useAbilities(mob, currTime);
         if (mob->target == nullptr)
             return;
@@ -610,7 +611,7 @@ static void combatStep(Mob *mob, time_t currTime) {
         NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
     }
 
-    /* attack logic 
+    /* attack logic
      * 2/5 represents 400 ms which is the time interval mobs use per movement logic step
      * if the mob is one move interval away, we should just start attacking anyways.
      */
@@ -638,7 +639,7 @@ void MobAI::incNextMovement(Mob *mob, time_t currTime) {
         currTime = getTime();
 
     int delay = (int)mob->data["m_iDelayTime"] * 1000;
-    mob->nextMovement = currTime + delay/2 + rand() % (delay/2);
+    mob->nextMovement = currTime + delay/2 + Rand::rand(delay/2);
 }
 
 static void roamingStep(Mob *mob, time_t currTime) {
@@ -681,8 +682,8 @@ static void roamingStep(Mob *mob, time_t currTime) {
     int minDistance = mob->idleRange / 2;
 
     // pick a random destination
-    farX = xStart + rand() % mob->idleRange;
-    farY = yStart + rand() % mob->idleRange;
+    farX = xStart + Rand::rand(mob->idleRange);
+    farY = yStart + Rand::rand(mob->idleRange);
 
     distance = std::abs(std::max(farX - mob->x, farY - mob->y));
     if (distance == 0)

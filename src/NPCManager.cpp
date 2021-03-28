@@ -10,6 +10,7 @@
 #include "Racing.hpp"
 #include "Vendors.hpp"
 #include "Abilities.hpp"
+#include "Rand.hpp"
 
 #include <cmath>
 #include <algorithm>
@@ -104,7 +105,7 @@ static void npcBarkHandler(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_REP_BARKER, resp);
     resp.iNPC_ID = req->iNPC_ID;
-    resp.iMissionStringID = barks[rand() % barks.size()];
+    resp.iMissionStringID = barks[Rand::rand(barks.size())];
     sock->sendPacket(resp, P_FE2CL_REP_BARKER);
 }
 
