@@ -202,117 +202,156 @@ static void loadDrops() {
         // read file into json
         inFile >> dropData;
 
-        // MobDropChances
-        nlohmann::json mobDropChances = dropData["MobDropChances"];
-        for (nlohmann::json::iterator _dropChance = mobDropChances.begin(); _dropChance != mobDropChances.end(); _dropChance++) {
-            auto dropChance = _dropChance.value();
-            MobDropChance toAdd = {};
-            toAdd.dropChance = (int)dropChance["DropChance"];
-            for (nlohmann::json::iterator _cratesRatio = dropChance["CratesRatio"].begin(); _cratesRatio != dropChance["CratesRatio"].end(); _cratesRatio++) {
-                toAdd.cratesRatio.push_back((int)_cratesRatio.value());
-            }
-            Items::MobDropChances[(int)dropChance["Type"]] = toAdd;
+        // CrateDropChances
+        nlohmann::json crateDropChances = dropData["CrateDropChances"];
+        for (nlohmann::json::iterator _crateDropChance = crateDropChances.begin(); _crateDropChance != crateDropChances.end(); _crateDropChance++) {
+            auto crateDropChance = _crateDropChance.value();
+            CrateDropChance toAdd = {};
+
+            toAdd.dropChance = (int)crateDropChance["DropChance"];
+            toAdd.dropChanceTotal = (int)crateDropChance["DropChanceTotal"];
+
+            nlohmann::json crateWeights = crateDropChance["CrateTypeDropWeights"];
+            for (nlohmann::json::iterator _crateWeight = crateWeights.begin(); _crateWeight != crateWeights.end(); _crateWeight++)
+                toAdd.crateWeights.push_back((int)_crateWeight.value());
+
+            Items::CrateDropChances[(int)crateDropChance["CrateDropChanceID"]] = toAdd;
+        }
+
+        // CrateDropTypes
+        nlohmann::json crateDropTypes = dropData["CrateDropTypes"];
+        for (nlohmann::json::iterator _crateDropType = crateDropTypes.begin(); _crateDropType != crateDropTypes.end(); _crateDropType++) {
+            auto crateDropType = _crateDropType.value();
+            std::vector<int> toAdd;
+
+            nlohmann::json crateIds = crateDropType["CrateIDs"];
+            for (nlohmann::json::iterator _crateId = crateIds.begin(); _crateId != crateIds.end(); _crateId++)
+                toAdd.push_back((int)_crateId.value());
+
+            Items::CrateDropTypes[(int)crateDropType["CrateDropTypeID"]] = toAdd;
+        }
+
+        // MiscDropChances
+        nlohmann::json miscDropChances = dropData["MiscDropChances"];
+        for (nlohmann::json::iterator _miscDropChance = miscDropChances.begin(); _miscDropChance != miscDropChances.end(); _miscDropChance++) {
+            auto miscDropChance = _miscDropChance.value();
+
+            Items::MiscDropChances[(int)miscDropChance["MiscDropChanceID"]] = {
+                (int)miscDropChance["PotionDropChance"],
+                (int)miscDropChance["PotionDropChanceTotal"],
+                (int)miscDropChance["BoostDropChance"],
+                (int)miscDropChance["BoostDropChanceTotal"],
+                (int)miscDropChance["TaroDropChance"],
+                (int)miscDropChance["TaroDropChanceTotal"],
+                (int)miscDropChance["FMDropChance"],
+                (int)miscDropChance["FMDropChanceTotal"]
+            };
+        }
+
+        // MiscDropTypes
+        nlohmann::json miscDropTypes = dropData["MiscDropTypes"];
+        for (nlohmann::json::iterator _miscDropType = miscDropTypes.begin(); _miscDropType != miscDropTypes.end(); _miscDropType++) {
+            auto miscDropType = _miscDropType.value();
+
+            Items::MiscDropTypes[(int)miscDropType["MiscDropTypeID"]] = {
+                (int)miscDropType["PotionAmount"],
+                (int)miscDropType["BoostAmount"],
+                (int)miscDropType["TaroAmount"],
+                (int)miscDropType["FMAmount"]
+            };
         }
 
         // MobDrops
         nlohmann::json mobDrops = dropData["MobDrops"];
-        for (nlohmann::json::iterator _drop = mobDrops.begin(); _drop != mobDrops.end(); _drop++) {
-            auto drop = _drop.value();
-            MobDrop toAdd = {};
-            for (nlohmann::json::iterator _crates = drop["CrateIDs"].begin(); _crates != drop["CrateIDs"].end(); _crates++) {
-                toAdd.crateIDs.push_back((int)_crates.value());
-            }
+        for (nlohmann::json::iterator _mobDrop = mobDrops.begin(); _mobDrop != mobDrops.end(); _mobDrop++) {
+            auto mobDrop = _mobDrop.value();
 
-            toAdd.dropChanceType = (int)drop["DropChance"];
-            // Check if DropChance exists
-            if (Items::MobDropChances.find(toAdd.dropChanceType) == Items::MobDropChances.end()) {
-                throw TableException(" MobDropChance not found: " + std::to_string((toAdd.dropChanceType)));
-            }
-            // Check if number of crates is correct
-            if (!(Items::MobDropChances[(int)drop["DropChance"]].cratesRatio.size() == toAdd.crateIDs.size())) {
-                throw TableException(" DropType " + std::to_string((int)drop["DropType"]) + " contains invalid number of crates");
-            }
-
-            toAdd.taros = (int)drop["Taros"];
-            toAdd.fm = (int)drop["FM"];
-            toAdd.boosts = (int)drop["Boosts"];
-            Items::MobDrops[(int)drop["DropType"]] = toAdd;
+            Items::MobDrops[(int)mobDrop["MobDropID"]] = {
+                (int)mobDrop["CrateDropChanceID"],
+                (int)mobDrop["CrateDropTypeID"],
+                (int)mobDrop["MiscDropChanceID"],
+                (int)mobDrop["MiscDropTypeID"],
+            };
         }
 
-        std::cout << "[INFO] Loaded " << Items::MobDrops.size() << " Mob Drop Types"<<  std::endl;
-
-        // Rarity Ratios
-        nlohmann::json rarities = dropData["RarityRatios"];
-        for (nlohmann::json::iterator _rarity = rarities.begin(); _rarity != rarities.end(); _rarity++) {
-            auto rarity = _rarity.value();
+        // RarityWeights
+        nlohmann::json rarityWeights = dropData["RarityWeights"];
+        for (nlohmann::json::iterator _rarityWeightsObject = rarityWeights.begin(); _rarityWeightsObject != rarityWeights.end(); _rarityWeightsObject++) {
+            auto rarityWeightsObject = _rarityWeightsObject.value();
             std::vector<int> toAdd;
-            for (nlohmann::json::iterator _ratio = rarity["Ratio"].begin(); _ratio != rarity["Ratio"].end(); _ratio++){
-                toAdd.push_back((int)_ratio.value());
-            }
-            Items::RarityRatios[(int)rarity["Type"]] = toAdd;
+
+            nlohmann::json weights = rarityWeightsObject["Weights"];
+            for (nlohmann::json::iterator _weight = weights.begin(); _weight != weights.end(); _weight++)
+                toAdd.push_back((int)_weight.value());
+
+            Items::RarityWeights[(int)rarityWeightsObject["RarityWeightID"]] = toAdd;
+        }
+
+        // ItemSetTypes
+        nlohmann::json itemSetTypes = dropData["ItemSetTypes"];
+        for (nlohmann::json::iterator _itemSetType = itemSetTypes.begin(); _itemSetType != itemSetTypes.end(); _itemSetType++) {
+            auto itemSetType = _itemSetType.value();
+            ItemSetType toAdd = {};
+
+            toAdd.ignoreGender = (bool)itemSetType["IgnoreGender"];
+
+            nlohmann::json droppableItemIds = itemSetType["DroppableItemIDs"];
+            for (nlohmann::json::iterator _droppableItemId = droppableItemIds.begin(); _droppableItemId != droppableItemIds.end(); _droppableItemId++)
+                toAdd.droppableItemIds.push_back((int)_droppableItemId.value());
+
+            Items::ItemSetTypes[(int)itemSetType["ItemSetTypeID"]] = toAdd;
+        }
+
+        // ItemSetChances
+        nlohmann::json itemSetChances = dropData["ItemSetChances"];
+        for (nlohmann::json::iterator _itemSetChanceObject = itemSetChances.begin(); _itemSetChanceObject != itemSetChances.end(); _itemSetChanceObject++) {
+            auto itemSetChanceObject = _itemSetChanceObject.value();
+            ItemSetChance toAdd = {};
+
+            toAdd.defaultItemWeight = (int)itemSetChanceObject["DefaultItemWeight"];
+
+            nlohmann::json specialItemWeightIndices = itemSetChanceObject["SpecialItemWeightIndices"];
+            nlohmann::json specialItemWeightVector = itemSetChanceObject["SpecialItemWeights"];
+            for (nlohmann::json::iterator _specialItemWeightIndex = specialItemWeightIndices.begin(), _specialItemWeight = specialItemWeightVector.begin();
+                 _specialItemWeightIndex != specialItemWeightIndices.end() && _specialItemWeight != specialItemWeightVector.end();
+                 _specialItemWeightIndex++, _specialItemWeight++)
+                toAdd.specialItemWeights[(int)_specialItemWeightIndex.value()] = (int)_specialItemWeight.value();
+
+            Items::ItemSetChances[(int)itemSetChanceObject["ItemSetChanceID"]] = toAdd;
         }
 
         // Crates
         nlohmann::json crates = dropData["Crates"];
         for (nlohmann::json::iterator _crate = crates.begin(); _crate != crates.end(); _crate++) {
             auto crate = _crate.value();
-            Crate toAdd;
-            toAdd.rarityRatioId = (int)crate["RarityRatio"];
-            for (nlohmann::json::iterator _itemSet = crate["ItemSets"].begin(); _itemSet != crate["ItemSets"].end(); _itemSet++) {
-                toAdd.itemSets.push_back((int)_itemSet.value());
-            }
-            Items::Crates[(int)crate["Id"]] = toAdd;
+
+            Items::Crates[(int)crate["CrateID"]] = {
+                (int)crate["ItemSetChanceID"],
+                (int)crate["ItemSetTypeID"],
+                (int)crate["RarityWeightID"]
+            };
         }
 
-        // Crate Items
-        nlohmann::json items = dropData["Items"];
-        int itemCount = 0;
-        for (nlohmann::json::iterator _item = items.begin(); _item != items.end(); _item++) {
-            auto item = _item.value();
-            std::pair<int32_t, int32_t> itemSetkey = std::make_pair((int)item["ItemSet"], (int)item["Rarity"]);
-            std::pair<int32_t, int32_t> itemDataKey = std::make_pair((int)item["Id"], (int)item["Type"]);
+        // DroppableItems
+        nlohmann::json droppableItems = dropData["DroppableItems"];
+        for (nlohmann::json::iterator _droppableItem = droppableItems.begin(); _droppableItem != droppableItems.end(); _droppableItem++) {
+            auto droppableItem = _droppableItem.value();
 
-            if (Items::ItemData.find(itemDataKey) == Items::ItemData.end()) {
-                char buff[255];
-                sprintf(buff, "Unknown item with Id %d and Type %d", (int)item["Id"], (int)item["Type"]);
-                throw TableException(std::string(buff));
-            }
-
-            std::map<std::pair<int32_t, int32_t>, Items::Item>::iterator toAdd = Items::ItemData.find(itemDataKey);
-
-            // if item collection doesn't exist, start a new one
-            if (Items::CrateItems.find(itemSetkey) == Items::CrateItems.end()) {
-                std::vector<std::map<std::pair<int32_t, int32_t>, Items::Item>::iterator> vector;
-                vector.push_back(toAdd);
-                Items::CrateItems[itemSetkey] = vector;
-            } else // else add a new element to existing collection
-                Items::CrateItems[itemSetkey].push_back(toAdd);
-
-            itemCount++;
+            Items::DroppableItems[(int)droppableItem["DroppableItemID"]] = {
+                (int)droppableItem["ItemID"],
+                (int)droppableItem["Rarity"],
+                (int)droppableItem["Type"]
+            };
         }
 
 #ifdef ACADEMY
+        // NanoCapsules
         nlohmann::json capsules = dropData["NanoCapsules"];
-
         for (nlohmann::json::iterator _capsule = capsules.begin(); _capsule != capsules.end(); _capsule++) {
             auto capsule = _capsule.value();
-            Items::NanoCapsules[(int)capsule["Crate"]] = (int)capsule["Nano"];
+            Items::NanoCapsules[(int)capsule["CrateID"]] = (int)capsule["Nano"];
         }
 #endif
-        nlohmann::json codes = dropData["CodeItems"];
-        for (nlohmann::json::iterator _code = codes.begin(); _code != codes.end(); _code++) {
-            auto code = _code.value();
-            std::string codeStr = code["Code"];
-            std::pair<int32_t, int32_t> item = std::make_pair((int)code["Id"], (int)code["Type"]);
-
-            if (Items::CodeItems.find(codeStr) == Items::CodeItems.end())
-                Items::CodeItems[codeStr] = std::vector<std::pair<int32_t, int32_t>>();
-
-            Items::CodeItems[codeStr].push_back(item);
-        }
-
-        std::cout << "[INFO] Loaded " << Items::Crates.size() << " Crates containing "
-                  << itemCount << " items" << std::endl;
 
         // Racing rewards
         nlohmann::json racing = dropData["Racing"];
@@ -358,6 +397,23 @@ static void loadDrops() {
         }
 
         std::cout << "[INFO] Loaded rewards for " << Racing::EPRewards.size() << " IZ races" << std::endl;
+
+        // CodeItems
+        nlohmann::json codes = dropData["CodeItems"];
+        for (nlohmann::json::iterator _code = codes.begin(); _code != codes.end(); _code++) {
+            auto code = _code.value();
+            std::string codeStr = code["Code"];
+            std::vector<std::pair<int32_t, int32_t>> itemVector;
+
+            nlohmann::json items = code["Items"];
+            for (nlohmann::json::iterator _item = items.begin(); _item != items.end(); _item++)
+                itemVector.push_back(std::make_pair((int)code["ItemID"], (int)code["Type"]));
+
+            Items::CodeItems[codeStr] = itemVector;
+        }
+
+        std::cout << "[INFO] Loaded " << Items::Crates.size() << " Crates containing "
+                  << Items::DroppableItems.size() << " unique items" << std::endl;
 
     }
     catch (const std::exception& err) {

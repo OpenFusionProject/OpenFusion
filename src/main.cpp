@@ -22,6 +22,7 @@
 #include "Vendors.hpp"
 #include "Chat.hpp"
 #include "Eggs.hpp"
+#include "Rand.hpp"
 
 #include "settings.hpp"
 
@@ -56,7 +57,7 @@ void terminate(int arg) {
 
     if (shardServer != nullptr && shardThread != nullptr)
         shardServer->kill();
-    
+
     Database::close();
     exit(0);
 }
@@ -93,7 +94,7 @@ int main() {
 #else
     initsignals();
 #endif
-    srand(getTime());
+    Rand::init();
     settings::init();
     std::cout << "[INFO] OpenFusion v" GIT_VERSION << std::endl;
     std::cout << "[INFO] Protocol version: " << PROTOCOL_VERSION << std::endl;

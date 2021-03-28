@@ -1,4 +1,5 @@
 #include "Vendors.hpp"
+#include "Rand.hpp"
 
 using namespace Vendors;
 
@@ -328,7 +329,7 @@ static void vendorCombineItems(CNSocket* sock, CNPacketData* data) {
         break;
     }
 
-    float rolled = (rand() * 1.0f / RAND_MAX) * 100.0f; // success chance out of 100
+    float rolled = Rand::randFloat(100.0f); // success chance out of 100
     //std::cout << rolled << " vs " << successChance << std::endl;
     plr->money -= cost;
 

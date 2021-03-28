@@ -4,6 +4,7 @@
 #include "Items.hpp"
 #include "Missions.hpp"
 #include "Nanos.hpp"
+#include "Rand.hpp"
 
 // helper function, not a packet handler
 void BuiltinCommands::setSpecialState(CNSocket* sock, CNPacketData* data) {
@@ -271,8 +272,8 @@ static void teleportPlayer(CNSocket *sock, CNPacketData *data) {
     case eCN_GM_TeleportMapType__Unstick:
         targetPlr = PlayerManager::getPlayer(targetSock);
 
-        PlayerManager::sendPlayerTo(targetSock, targetPlr->x - unstickRange/2 + rand() % unstickRange,
-            targetPlr->y - unstickRange/2 + rand() % unstickRange, targetPlr->z + 80);
+        PlayerManager::sendPlayerTo(targetSock, targetPlr->x - unstickRange/2 + Rand::rand(unstickRange),
+            targetPlr->y - unstickRange/2 + Rand::rand(unstickRange), targetPlr->z + 80);
         break;
     }
 }
