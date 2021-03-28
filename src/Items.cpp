@@ -790,28 +790,28 @@ void Items::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int rolledPo
         std::cout << "[WARN] Crate Drop Chance Object " << drop.crateDropChanceId << " was not found" << std::endl;
         return;
     }
-    CrateDropChance crateDropChance = Items::CrateDropChances[drop.crateDropChanceId];
+    CrateDropChance& crateDropChance = Items::CrateDropChances[drop.crateDropChanceId];
 
     // sanity check
     if (Items::CrateDropTypes.find(drop.crateDropTypeId) == Items::CrateDropTypes.end()) {
         std::cout << "[WARN] Crate Drop Type Object " << drop.crateDropTypeId << " was not found" << std::endl;
         return;
     }
-    std::vector<int> crateDropType = Items::CrateDropTypes[drop.crateDropTypeId];
+    std::vector<int>& crateDropType = Items::CrateDropTypes[drop.crateDropTypeId];
 
     // sanity check
     if (Items::MiscDropChances.find(drop.miscDropChanceId) == Items::MiscDropChances.end()) {
         std::cout << "[WARN] Misc Drop Chance Object " << drop.miscDropChanceId << " was not found" << std::endl;
         return;
     }
-    MiscDropChance miscDropChance = Items::MiscDropChances[drop.miscDropChanceId];
+    MiscDropChance& miscDropChance = Items::MiscDropChances[drop.miscDropChanceId];
 
     // sanity check
     if (Items::MiscDropTypes.find(drop.miscDropTypeId) == Items::MiscDropTypes.end()) {
         std::cout << "[WARN] Misc Drop Type Object " << drop.miscDropTypeId << " was not found" << std::endl;
         return;
     }
-    MiscDropType miscDropType = Items::MiscDropTypes[drop.miscDropTypeId];
+    MiscDropType& miscDropType = Items::MiscDropTypes[drop.miscDropTypeId];
 
     plr->money += miscDropType.taroAmount;
     // money nano boost
