@@ -213,7 +213,7 @@ static void loadDrops() {
 
             nlohmann::json crateWeights = crateDropChance["CrateTypeDropWeights"];
             for (nlohmann::json::iterator _crateWeight = crateWeights.begin(); _crateWeight != crateWeights.end(); _crateWeight++)
-                toAdd.crateWeights.push_back((int)_crateWeight.value());
+                toAdd.crateTypeDropWeights.push_back((int)_crateWeight.value());
 
             Items::CrateDropChances[(int)crateDropChance["CrateDropChanceID"]] = toAdd;
         }
@@ -295,9 +295,9 @@ static void loadDrops() {
 
             toAdd.ignoreGender = (bool)itemSetType["IgnoreGender"];
 
-            nlohmann::json droppableItemIds = itemSetType["DroppableItemIDs"];
-            for (nlohmann::json::iterator _droppableItemId = droppableItemIds.begin(); _droppableItemId != droppableItemIds.end(); _droppableItemId++)
-                toAdd.droppableItemIds.push_back((int)_droppableItemId.value());
+            nlohmann::json itemReferenceIds = itemSetType["ItemReferenceIDs"];
+            for (nlohmann::json::iterator itemReferenceId = itemReferenceIds.begin(); itemReferenceId != itemReferenceIds.end(); itemReferenceId++)
+                toAdd.itemReferenceIds.push_back((int)itemReferenceId.value());
 
             Items::ItemSetTypes[(int)itemSetType["ItemSetTypeID"]] = toAdd;
         }
@@ -310,12 +310,9 @@ static void loadDrops() {
 
             toAdd.defaultItemWeight = (int)itemSetChanceObject["DefaultItemWeight"];
 
-            nlohmann::json specialItemWeightIndices = itemSetChanceObject["SpecialItemWeightIndices"];
-            nlohmann::json specialItemWeightVector = itemSetChanceObject["SpecialItemWeights"];
-            for (nlohmann::json::iterator _specialItemWeightIndex = specialItemWeightIndices.begin(), _specialItemWeight = specialItemWeightVector.begin();
-                 _specialItemWeightIndex != specialItemWeightIndices.end() && _specialItemWeight != specialItemWeightVector.end();
-                 _specialItemWeightIndex++, _specialItemWeight++)
-                toAdd.specialItemWeights[(int)_specialItemWeightIndex.value()] = (int)_specialItemWeight.value();
+            nlohmann::json indexWeightMap = itemSetChanceObject["IndexWeightMap"];
+            for (nlohmann::json::iterator _indexWeightMapEntry = indexWeightMap.begin(); _indexWeightMapEntry != indexWeightMap.end(); _indexWeightMapEntry++)
+                toAdd.indexWeightMap[std::atoi(_indexWeightMapEntry.key().c_str())] = (int)_indexWeightMapEntry.value();
 
             Items::ItemSetChances[(int)itemSetChanceObject["ItemSetChanceID"]] = toAdd;
         }
@@ -332,15 +329,29 @@ static void loadDrops() {
             };
         }
 
-        // DroppableItems
-        nlohmann::json droppableItems = dropData["DroppableItems"];
-        for (nlohmann::json::iterator _droppableItem = droppableItems.begin(); _droppableItem != droppableItems.end(); _droppableItem++) {
-            auto droppableItem = _droppableItem.value();
+        // ItemReferences
+        nlohmann::json itemReferences = dropData["ItemReferences"];
+        for (nlohmann::json::iterator _itemReference = itemReferences.begin(); _itemReference != itemReferences.end(); _itemReference++) {
+            auto itemReference = _itemReference.value();
 
-            Items::DroppableItems[(int)droppableItem["DroppableItemID"]] = {
-                (int)droppableItem["ItemID"],
-                (int)droppableItem["Rarity"],
-                (int)droppableItem["Type"]
+            int itemReferenceId = (int)itemReference["ItemReferenceID"];
+            int itemId = (int)itemReference["ItemID"];
+            int type = (int)itemReference["Type"];
+
+            // validate and fetch relevant fields as they're loaded
+            auto key = std::make_pair(itemId, type);
+            if (Items::ItemData.find(key) == Items::ItemData.end()) {
+                std::cout << "[WARN] Item-Type pair (" << key.first << ", " << key.second << ") specified by item reference "
+                            << itemReferenceId << " was not found, skipping..." << std::endl;
+                continue;
+            }
+            Items::Item& item = Items::ItemData[key];
+
+            Items::ItemReferences[itemReferenceId] = {
+                itemId,
+                type,
+                item.rarity,
+                item.gender
             };
         }
 
@@ -405,15 +416,27 @@ static void loadDrops() {
             std::string codeStr = code["Code"];
             std::vector<std::pair<int32_t, int32_t>> itemVector;
 
-            nlohmann::json items = code["Items"];
-            for (nlohmann::json::iterator _item = items.begin(); _item != items.end(); _item++)
-                itemVector.push_back(std::make_pair((int)code["ItemID"], (int)code["Type"]));
+            nlohmann::json itemReferenceIds = code["ItemReferenceIDs"];
+            for (nlohmann::json::iterator _itemReferenceId = itemReferenceIds.begin(); _itemReferenceId != itemReferenceIds.end(); _itemReferenceId++) {
+                int itemReferenceId = (int)_itemReferenceId.value();
+
+                // validate and convert here
+                if (Items::ItemReferences.find(itemReferenceId) == Items::ItemReferences.end()) {
+                    std::cout << "[WARN] Item reference " << itemReferenceId << " for code "
+                              << codeStr << " was not found, skipping..." << std::endl;
+                    continue;
+                }
+
+                // no need to further check whether this is a real item or not, we already did this!
+                ItemReference& itemReference = Items::ItemReferences[itemReferenceId];
+                itemVector.push_back(std::make_pair(itemReference.itemId, itemReference.type));
+            }
 
             Items::CodeItems[codeStr] = itemVector;
         }
 
         std::cout << "[INFO] Loaded " << Items::Crates.size() << " Crates containing "
-                  << Items::DroppableItems.size() << " unique items" << std::endl;
+                  << Items::ItemReferences.size() << " unique items" << std::endl;
 
     }
     catch (const std::exception& err) {
