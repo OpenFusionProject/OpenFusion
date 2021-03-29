@@ -17,7 +17,7 @@ struct Crate {
 
 struct CrateDropChance {
     int dropChance, dropChanceTotal;
-    std::vector<int> crateWeights;
+    std::vector<int> crateTypeDropWeights;
 };
 
 struct MiscDropChance {
@@ -43,18 +43,19 @@ struct MobDrop {
 
 struct ItemSetType {
     bool ignoreGender;
-    std::vector<int> droppableItemIds;
+    std::vector<int> itemReferenceIds;
 };
 
 struct ItemSetChance {
     int defaultItemWeight;
-    std::map<int, int> specialItemWeights;
+    std::map<int, int> indexWeightMap;
 };
 
-struct DroppableItem {
+struct ItemReference {
     int itemId;
-    int rarity;
     int type;
+    int rarity;
+    int gender;
 };
 
 namespace Items {
@@ -76,7 +77,7 @@ namespace Items {
     extern std::map<int32_t, CrocPotEntry> CrocPotTable; // level gap -> entry
     extern std::map<int32_t, std::vector<int32_t>> RarityWeights;
     extern std::map<int32_t, Crate> Crates;
-    extern std::map<int32_t, DroppableItem> DroppableItems;
+    extern std::map<int32_t, ItemReference> ItemReferences;
     extern std::map<std::string, std::vector<std::pair<int32_t, int32_t>>> CodeItems; // code -> vector of <id, type>
 
     // mob drops

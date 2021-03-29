@@ -18,7 +18,7 @@ std::map<std::pair<int32_t, int32_t>, Items::Item> Items::ItemData;
 std::map<int32_t, CrocPotEntry> Items::CrocPotTable;
 std::map<int32_t, std::vector<int32_t>> Items::RarityWeights;
 std::map<int32_t, Crate> Items::Crates;
-std::map<int32_t, DroppableItem> Items::DroppableItems;
+std::map<int32_t, ItemReference> Items::ItemReferences;
 std::map<std::string, std::vector<std::pair<int32_t, int32_t>>> Items::CodeItems;
 
 std::map<int32_t, CrateDropChance> Items::CrateDropChances;
@@ -118,11 +118,11 @@ static int getRarity(int crateId, int itemSetTypeId) {
 
     // remember that rarities start from 1!
     std::set<int> rarityIndices;
-    for (int droppableItemId : Items::ItemSetTypes[itemSetTypeId].droppableItemIds) {
-        if (Items::DroppableItems.find(droppableItemId) == Items::DroppableItems.end())
+    for (int itemReferenceId : Items::ItemSetTypes[itemSetTypeId].itemReferenceIds) {
+        if (Items::ItemReferences.find(itemReferenceId) == Items::ItemReferences.end())
             continue;
 
-        rarityIndices.insert(Items::DroppableItems[droppableItemId].rarity - 1);
+        rarityIndices.insert(Items::ItemReferences[itemReferenceId].rarity - 1);
 
         // shortcut
         if (rarityIndices.size() == rarityWeights.size())
@@ -144,37 +144,29 @@ static int getRarity(int crateId, int itemSetTypeId) {
 
 static int getCrateItem(sItemBase* result, int itemSetTypeId, int itemSetChanceId, int rarity, int playerGender) {
     // (int, vector<int>)
-    auto& [ignoreGender, droppableItemIds] = Items::ItemSetTypes[itemSetTypeId];
+    auto& [ignoreGender, itemReferenceIds] = Items::ItemSetTypes[itemSetTypeId];
 
     // collect valid items that match the rarity and (if not ignored) gender
-    std::vector<std::pair<int, DroppableItem*>> validItems;
-    for (int i = 0; i < droppableItemIds.size(); i++) {
-        int droppableItemId = droppableItemIds[i];
+    std::vector<std::pair<int, ItemReference*>> validItems;
+    for (int i = 0; i < itemReferenceIds.size(); i++) {
+        int itemReferenceId = itemReferenceIds[i];
 
-        if (Items::DroppableItems.find(droppableItemId) == Items::DroppableItems.end()) {
-            std::cout << "[WARN] Droppable item " << droppableItemId << " was not found, skipping..." << std::endl;
+        if (Items::ItemReferences.find(itemReferenceId) == Items::ItemReferences.end()) {
+            std::cout << "[WARN] Item reference " << itemReferenceId << " in item set type "
+                      << itemSetTypeId << " was not found, skipping..." << std::endl;
             continue;
         }
 
-        DroppableItem* droppableItem = &Items::DroppableItems[droppableItemId];
+        ItemReference* item = &Items::ItemReferences[itemReferenceId];
 
-        if (droppableItem->rarity != rarity)
+        if (item->rarity != rarity)
             continue;
-
-        auto key = std::make_pair(droppableItem->itemId, droppableItem->type);
-
-        if (Items::ItemData.find(key) == Items::ItemData.end()) {
-            std::cout << "[WARN] Item-Type pair (" << key.first << ", " << key.second << ") specified by droppable item "
-                        << droppableItemId << " was not found, skipping..." << std::endl;
-            continue;
-        }
 
         // if gender is incorrect, exclude item
-        int itemGender = Items::ItemData[key].gender;
-        if (!ignoreGender && itemGender != 0 && itemGender != playerGender)
+        if (!ignoreGender && item->gender != 0 && item->gender != playerGender)
             continue;
 
-        validItems.push_back(std::make_pair(i, droppableItem));
+        validItems.push_back(std::make_pair(i, item));
     }
 
     if (validItems.empty()) {
@@ -184,20 +176,19 @@ static int getCrateItem(sItemBase* result, int itemSetTypeId, int itemSetChanceI
     }
 
     // (int, map<int, int>)
-    auto& [defaultWeight, specialWeights] = Items::ItemSetChances[itemSetChanceId];
+    auto& [defaultWeight, indexWeightMap] = Items::ItemSetChances[itemSetChanceId];
 
     // initialize all weights as the default weight for all item slots
     std::vector<int> itemWeights(validItems.size(), defaultWeight);
 
-    if (!specialWeights.empty()) {
+    if (!indexWeightMap.empty()) {
         for (int i = 0; i < validItems.size(); i++) {
-            // (int, DroppableItem*)
-            auto& [dropIndex, droppableItem] = validItems[i];
+            int dropIndex = validItems[i].first;
 
-            if (specialWeights.find(dropIndex) == specialWeights.end())
+            if (indexWeightMap.find(dropIndex) == indexWeightMap.end())
                 continue;
 
-            int weight = specialWeights[dropIndex];
+            int weight = indexWeightMap[dropIndex];
             // allow 0 weights for convenience
             if (weight > -1)
                 itemWeights[i] = weight;
@@ -205,7 +196,7 @@ static int getCrateItem(sItemBase* result, int itemSetTypeId, int itemSetChanceI
     }
 
     int chosenIndex = Rand::randWeighted(itemWeights);
-    DroppableItem* item = validItems[chosenIndex].second;
+    ItemReference* item = validItems[chosenIndex].second;
 
     result->iID = item->itemId;
     result->iType = item->type;
@@ -866,7 +857,7 @@ void Items::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int rolledPo
         sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, sizeof(sP_FE2CL_REP_REWARD_ITEM));
     } else {
         // item reward
-        getMobDrop(&item->sItem, crateDropChance.crateWeights, crateDropType, rolledCrateType);
+        getMobDrop(&item->sItem, crateDropChance.crateTypeDropWeights, crateDropType, rolledCrateType);
         item->iSlotNum = slot;
         item->eIL = 1; // Inventory Location. 1 means player inventory.
 
