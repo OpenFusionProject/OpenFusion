@@ -26,8 +26,7 @@ std::map<int32_t, std::vector<int32_t>> Items::CrateDropTypes;
 std::map<int32_t, MiscDropChance> Items::MiscDropChances;
 std::map<int32_t, MiscDropType> Items::MiscDropTypes;
 std::map<int32_t, MobDrop> Items::MobDrops;
-std::map<int32_t, ItemSetType> Items::ItemSetTypes;
-std::map<int32_t, ItemSetChance> Items::ItemSetChances;
+std::map<int32_t, ItemSet> Items::ItemSets;
 
 #ifdef ACADEMY
 std::map<int32_t, int32_t> Items::NanoCapsules; // crate id -> nano id
@@ -99,7 +98,7 @@ static int choice(const std::vector<int>& weights, int rolled) {
     return currentIndex;
 }
 
-static int getRarity(int crateId, int itemSetTypeId) {
+static int getRarity(int crateId, int itemSetId) {
     Crate& crate = Items::Crates[crateId];
 
     // find rarity ratio
@@ -118,7 +117,7 @@ static int getRarity(int crateId, int itemSetTypeId) {
 
     // remember that rarities start from 1!
     std::set<int> rarityIndices;
-    for (int itemReferenceId : Items::ItemSetTypes[itemSetTypeId].itemReferenceIds) {
+    for (int itemReferenceId : Items::ItemSets[itemSetId].itemReferenceIds) {
         if (Items::ItemReferences.find(itemReferenceId) == Items::ItemReferences.end())
             continue;
 
@@ -130,7 +129,7 @@ static int getRarity(int crateId, int itemSetTypeId) {
     }
 
     if (rarityIndices.empty()) {
-        std::cout << "[WARN] Item Set " << crate.itemSetTypeId << " has no valid items assigned?!" << std::endl;
+        std::cout << "[WARN] Item Set " << crate.itemSetId << " has no valid items assigned?!" << std::endl;
         return -1;
     }
 
@@ -142,53 +141,64 @@ static int getRarity(int crateId, int itemSetTypeId) {
     return Rand::randWeighted(relevantWeights) + 1;
 }
 
-static int getCrateItem(sItemBase* result, int itemSetTypeId, int itemSetChanceId, int rarity, int playerGender) {
-    // (int, vector<int>)
-    auto& [ignoreGender, itemReferenceIds] = Items::ItemSetTypes[itemSetTypeId];
+static int getCrateItem(sItemBase* result, int itemSetId, int rarity, int playerGender) {
+    ItemSet& itemSet = Items::ItemSets[itemSetId];
 
-    // collect valid items that match the rarity and (if not ignored) gender
+    // collect valid items that match the rarity and gender (if not ignored)
     std::vector<std::pair<int, ItemReference*>> validItems;
-    for (int i = 0; i < itemReferenceIds.size(); i++) {
-        int itemReferenceId = itemReferenceIds[i];
 
+    for (int itemReferenceId : itemSet.itemReferenceIds) {
         if (Items::ItemReferences.find(itemReferenceId) == Items::ItemReferences.end()) {
             std::cout << "[WARN] Item reference " << itemReferenceId << " in item set type "
-                      << itemSetTypeId << " was not found, skipping..." << std::endl;
+                      << itemSetId << " was not found, skipping..." << std::endl;
             continue;
         }
 
         ItemReference* item = &Items::ItemReferences[itemReferenceId];
 
-        if (item->rarity != rarity)
+        // alter rarity
+        int itemRarity;
+        if (itemSet.alterRarityMap.find(itemReferenceId) == itemSet.alterRarityMap.end())
+            itemRarity = item->rarity;
+        else
+            itemRarity = itemSet.alterRarityMap[itemReferenceId];
+
+        // if rarity doesn't match the selected one, exclude item
+        // rarity 0 bypasses this step for an individual item
+        if (!itemSet.ignoreRarity && itemRarity != 0 && itemRarity != rarity)
             continue;
+
+        // alter rarity
+        int itemGender;
+        if (itemSet.alterGenderMap.find(itemReferenceId) == itemSet.alterGenderMap.end())
+            itemGender = item->gender;
+        else
+            itemGender = itemSet.alterGenderMap[itemReferenceId];
 
         // if gender is incorrect, exclude item
-        if (!ignoreGender && item->gender != 0 && item->gender != playerGender)
+        // gender 0 bypasses this step for an individual item
+        if (!itemSet.ignoreGender && itemGender != 0 && itemGender != playerGender)
             continue;
 
-        validItems.push_back(std::make_pair(i, item));
+        validItems.push_back(std::make_pair(itemReferenceId, item));
     }
 
     if (validItems.empty()) {
-        std::cout << "[WARN] Set ID " << itemSetTypeId << " Chance ID " << itemSetChanceId
-                  << " Rarity " << rarity << " contains no valid items" << std::endl;
+        std::cout << "[WARN] Set ID " << itemSetId << " Rarity " << rarity << " contains no valid items" << std::endl;
         return -1;
     }
 
-    // (int, map<int, int>)
-    auto& [defaultWeight, indexWeightMap] = Items::ItemSetChances[itemSetChanceId];
+   // initialize all weights as the default weight for all item slots
+    std::vector<int> itemWeights(validItems.size(), itemSet.defaultItemWeight);
 
-    // initialize all weights as the default weight for all item slots
-    std::vector<int> itemWeights(validItems.size(), defaultWeight);
-
-    if (!indexWeightMap.empty()) {
+    if (!itemSet.alterItemWeightMap.empty()) {
         for (int i = 0; i < validItems.size(); i++) {
-            int dropIndex = validItems[i].first;
+            int itemReferenceId = validItems[i].first;
 
-            if (indexWeightMap.find(dropIndex) == indexWeightMap.end())
+            if (itemSet.alterItemWeightMap.find(itemReferenceId) == itemSet.alterItemWeightMap.end())
                 continue;
 
-            int weight = indexWeightMap[dropIndex];
+            int weight = itemSet.alterItemWeightMap[itemReferenceId];
             // allow 0 weights for convenience
             if (weight > -1)
                 itemWeights[i] = weight;
@@ -215,30 +225,17 @@ static int getValidCrateId(int crateId) {
     return crateId;
 }
 
-static int getValidItemSetTypeId(int crateId) {
+static int getValidItemSetId(int crateId) {
     Crate& crate = Items::Crates[crateId];
 
     // find item set type
-    if (Items::ItemSetTypes.find(crate.itemSetTypeId) == Items::ItemSetTypes.end()) {
+    if (Items::ItemSets.find(crate.itemSetId) == Items::ItemSets.end()) {
         std::cout << "[WARN] Crate " << crateId << " was assigned item set "
-                  << crate.itemSetTypeId << " which is invalid!" << std::endl;
+                  << crate.itemSetId << " which is invalid!" << std::endl;
         return -1;
     }
 
-    return crate.itemSetTypeId;
-}
-
-static int getValidItemSetChanceId(int crateId) {
-    Crate& crate = Items::Crates[crateId];
-
-    // find item set chances
-    if (Items::ItemSetChances.find(crate.itemSetChanceId) == Items::ItemSetChances.end()) {
-        std::cout << "[WARN] Crate " << crateId << " was assigned item set chance object "
-                  << crate.itemSetChanceId << " which is invalid!" << std::endl;
-        return -1;
-    }
-
-    return crate.itemSetChanceId;
+    return crate.itemSetId;
 }
 
 static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
@@ -560,25 +557,21 @@ static void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     item->iSlotNum = pkt->iSlotNum;
     item->eIL = 1;
 
-    int validItemSetTypeId = -1, validItemSetChanceId = -1, rarity = -1, ret = -1;
+    int validItemSetId = -1, rarity = -1, ret = -1;
 
     int validCrateId = getValidCrateId(chest->iID);
     bool failing = (validCrateId == -1);
 
     if (!failing)
-        validItemSetTypeId = getValidItemSetTypeId(validCrateId);
-    failing = (validItemSetTypeId == -1);
+        validItemSetId = getValidItemSetId(validCrateId);
+    failing = (validItemSetId == -1);
 
     if (!failing)
-        validItemSetChanceId = getValidItemSetChanceId(validCrateId);
-    failing = (validItemSetChanceId == -1);
-
-    if (!failing)
-        rarity = getRarity(validCrateId, validItemSetTypeId);
+        rarity = getRarity(validCrateId, validItemSetId);
     failing = (rarity == -1);
 
     if (!failing)
-        ret = getCrateItem(&item->sItem, validItemSetTypeId, validItemSetChanceId, rarity, plr->PCStyle.iGender);
+        ret = getCrateItem(&item->sItem, validItemSetId, rarity, plr->PCStyle.iGender);
     failing = (ret == -1);
 
     // if we failed to open a crate, at least give the player a gumball (suggested by Jade)
