@@ -287,34 +287,33 @@ static void loadDrops() {
             Items::RarityWeights[(int)rarityWeightsObject["RarityWeightID"]] = toAdd;
         }
 
-        // ItemSetTypes
-        nlohmann::json itemSetTypes = dropData["ItemSetTypes"];
-        for (nlohmann::json::iterator _itemSetType = itemSetTypes.begin(); _itemSetType != itemSetTypes.end(); _itemSetType++) {
-            auto itemSetType = _itemSetType.value();
-            ItemSetType toAdd = {};
+        // ItemSets
+        nlohmann::json itemSets = dropData["ItemSets"];
+        for (nlohmann::json::iterator _itemSet = itemSets.begin(); _itemSet != itemSets.end(); _itemSet++) {
+            auto itemSet = _itemSet.value();
+            ItemSet toAdd = {};
 
-            toAdd.ignoreGender = (bool)itemSetType["IgnoreGender"];
+            toAdd.ignoreRarity = (bool)itemSet["IgnoreRarity"];
+            toAdd.ignoreGender = (bool)itemSet["IgnoreGender"];
+            toAdd.defaultItemWeight = (int)itemSet["DefaultItemWeight"];
 
-            nlohmann::json itemReferenceIds = itemSetType["ItemReferenceIDs"];
+            nlohmann::json alterRarityMap = itemSet["AlterRarityMap"];
+            for (nlohmann::json::iterator _alterRarityMapEntry = alterRarityMap.begin(); _alterRarityMapEntry != alterRarityMap.end(); _alterRarityMapEntry++)
+                toAdd.alterRarityMap[std::atoi(_alterRarityMapEntry.key().c_str())] = (int)_alterRarityMapEntry.value();
+
+            nlohmann::json alterGenderMap = itemSet["AlterGenderMap"];
+            for (nlohmann::json::iterator _alterGenderMapEntry = alterGenderMap.begin(); _alterGenderMapEntry != alterGenderMap.end(); _alterGenderMapEntry++)
+                toAdd.alterGenderMap[std::atoi(_alterGenderMapEntry.key().c_str())] = (int)_alterGenderMapEntry.value();
+
+            nlohmann::json alterItemWeightMap = itemSet["AlterItemWeightMap"];
+            for (nlohmann::json::iterator _alterItemWeightMapEntry = alterItemWeightMap.begin(); _alterItemWeightMapEntry != alterItemWeightMap.end(); _alterItemWeightMapEntry++)
+                toAdd.alterItemWeightMap[std::atoi(_alterItemWeightMapEntry.key().c_str())] = (int)_alterItemWeightMapEntry.value();
+
+            nlohmann::json itemReferenceIds = itemSet["ItemReferenceIDs"];
             for (nlohmann::json::iterator itemReferenceId = itemReferenceIds.begin(); itemReferenceId != itemReferenceIds.end(); itemReferenceId++)
                 toAdd.itemReferenceIds.push_back((int)itemReferenceId.value());
 
-            Items::ItemSetTypes[(int)itemSetType["ItemSetTypeID"]] = toAdd;
-        }
-
-        // ItemSetChances
-        nlohmann::json itemSetChances = dropData["ItemSetChances"];
-        for (nlohmann::json::iterator _itemSetChanceObject = itemSetChances.begin(); _itemSetChanceObject != itemSetChances.end(); _itemSetChanceObject++) {
-            auto itemSetChanceObject = _itemSetChanceObject.value();
-            ItemSetChance toAdd = {};
-
-            toAdd.defaultItemWeight = (int)itemSetChanceObject["DefaultItemWeight"];
-
-            nlohmann::json indexWeightMap = itemSetChanceObject["IndexWeightMap"];
-            for (nlohmann::json::iterator _indexWeightMapEntry = indexWeightMap.begin(); _indexWeightMapEntry != indexWeightMap.end(); _indexWeightMapEntry++)
-                toAdd.indexWeightMap[std::atoi(_indexWeightMapEntry.key().c_str())] = (int)_indexWeightMapEntry.value();
-
-            Items::ItemSetChances[(int)itemSetChanceObject["ItemSetChanceID"]] = toAdd;
+            Items::ItemSets[(int)itemSet["ItemSetID"]] = toAdd;
         }
 
         // Crates
@@ -323,8 +322,7 @@ static void loadDrops() {
             auto crate = _crate.value();
 
             Items::Crates[(int)crate["CrateID"]] = {
-                (int)crate["ItemSetChanceID"],
-                (int)crate["ItemSetTypeID"],
+                (int)crate["ItemSetID"],
                 (int)crate["RarityWeightID"]
             };
         }

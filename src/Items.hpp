@@ -10,8 +10,7 @@ struct CrocPotEntry {
 };
 
 struct Crate {
-    int itemSetChanceId;
-    int itemSetTypeId;
+    int itemSetId;
     int rarityWeightId;
 };
 
@@ -41,14 +40,23 @@ struct MobDrop {
     int miscDropTypeId;
 };
 
-struct ItemSetType {
+struct ItemSet {
+    // itemset-wise offswitch to rarity filtering, every crate drops every rarity (still based on rarity weights)
+    bool ignoreRarity;
+    // itemset-wise offswitch for gender filtering, every crate can now drop neutral/boys/girls items
     bool ignoreGender;
-    std::vector<int> itemReferenceIds;
-};
-
-struct ItemSetChance {
+    // default weight of all items in the itemset
     int defaultItemWeight;
-    std::map<int, int> indexWeightMap;
+    // change the rarity class of items in the itemset here
+    // rarity 0 bypasses the rarity filter for an individual item
+    std::map<int, int> alterRarityMap;
+    // change the gender class of items in the itemset here
+    // gender 0 bypasses the gender filter for an individual item
+    std::map<int, int> alterGenderMap;
+    // change the item weghts items in the itemset here
+    // only taken into account for chosen rarity, and if the item isn't filtered away due to gender
+    std::map<int, int> alterItemWeightMap;
+    std::vector<int> itemReferenceIds;
 };
 
 struct ItemReference {
@@ -86,8 +94,7 @@ namespace Items {
     extern std::map<int32_t, MiscDropChance> MiscDropChances;
     extern std::map<int32_t, MiscDropType> MiscDropTypes;
     extern std::map<int32_t, MobDrop> MobDrops;
-    extern std::map<int32_t, ItemSetType> ItemSetTypes;
-    extern std::map<int32_t, ItemSetChance> ItemSetChances;
+    extern std::map<int32_t, ItemSet> ItemSets;
 
     void init();
 
