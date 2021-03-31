@@ -363,18 +363,15 @@ void CNServer::start() {
         }
 
         for (int i = 0; i < fds.size() && n > 0; i++) {
-            // about the same as fds[i], O(1)
-            std::vector<PollFD>::iterator iter = fds.begin() + i;
-
-            if ((*iter).revents == 0)
+            if (fds[i].revents == 0)
                 continue; // nothing in this one; don't decrement n
 
             n--;
 
             // is it the listener?
-            if ((*iter).fd == sock) {
+            if (fds[i].fd == sock) {
                 // any sort of error on the listener
-                if ((*iter).revents & ~POLLIN) {
+                if (fds[i].revents & ~POLLIN) {
                     std::cout << "[FATAL] Error on listener socket" << std::endl;
                     terminate(0);
                 }
@@ -404,25 +401,25 @@ void CNServer::start() {
                 std::lock_guard<std::mutex> lock(activeCrit); // protect operations on connections
 
                 // player sockets
-                if (connections.find((*iter).fd) == connections.end()) {
+                if (connections.find(fds[i].fd) == connections.end()) {
                     std::cout << "[WARN] Event on non-existant socket?" << std::endl;
                     continue; // just to be safe
                 }
 
-                CNSocket* cSock = connections[(*iter).fd];
+                CNSocket* cSock = connections[fds[i].fd];
 
                 // kill the socket on hangup/error
-                if ((*iter).revents & ~POLLIN)
+                if (fds[i].revents & ~POLLIN)
                     cSock->kill();
 
                 if (cSock->isAlive()) {
                     cSock->step();
                 } else {
                     killConnection(cSock);
-                    connections.erase((*iter).fd);
+                    connections.erase(fds[i].fd);
                     delete cSock;
 
-                    fds.erase(iter);
+                    removePollFD(i);
 
                     // a new entry was moved to this position, so we check it again
                     i--;
