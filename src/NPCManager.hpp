@@ -34,7 +34,7 @@ struct WarpLocation {
 };
 
 namespace NPCManager {
-    extern std::map<int32_t, BaseNPC*> NPCs;
+    extern std::unordered_map<int32_t, BaseNPC*> NPCs;
     extern std::map<int32_t, WarpLocation> Warps;
     extern std::vector<WarpLocation> RespawnPoints;
     extern std::vector<NPCEvent> NPCEvents;
@@ -42,6 +42,7 @@ namespace NPCManager {
     extern int32_t nextId;
     void init();
 
+    void queueNPCRemoval(int32_t);
     void destroyNPC(int32_t);
     void updateNPCPosition(int32_t, int X, int Y, int Z, uint64_t I, int angle);
 

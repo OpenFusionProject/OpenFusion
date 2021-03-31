@@ -6,7 +6,6 @@
 #include "Buddies.hpp"
 #include "CustomCommands.hpp"
 #include "Combat.hpp"
-#include "MobAI.hpp"
 #include "Items.hpp"
 #include "Missions.hpp"
 #include "Nanos.hpp"
@@ -107,7 +106,6 @@ int main() {
     CustomCommands::init();
     Combat::init();
     Chat::init();
-    MobAI::init();
     Items::init();
     Eggs::init();
     Missions::init();

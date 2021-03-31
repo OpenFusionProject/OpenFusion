@@ -1,7 +1,6 @@
 #pragma once
 #include <map>
 
-#include "JSON.hpp"
 #include "NPCManager.hpp"
 
 namespace TableData {

@@ -23,10 +23,12 @@
 
 using namespace NPCManager;
 
-std::map<int32_t, BaseNPC*> NPCManager::NPCs;
+std::unordered_map<int32_t, BaseNPC*> NPCManager::NPCs;
 std::map<int32_t, WarpLocation> NPCManager::Warps;
 std::vector<WarpLocation> NPCManager::RespawnPoints;
 nlohmann::json NPCManager::NPCData;
+
+static std::queue<int32_t> RemovalQueue;
 
 /*
  * Initialized at the end of TableData::init().
@@ -349,10 +351,32 @@ std::vector<NPCEvent> NPCManager::NPCEvents = {
 
 #pragma endregion NPCEvents
 
+void NPCManager::queueNPCRemoval(int32_t id) {
+    RemovalQueue.push(id);
+}
+
+static void step(CNServer *serv, time_t currTime) {
+    for (auto& pair : NPCs) {
+        if (pair.second->type != EntityType::COMBAT_NPC && pair.second->type != EntityType::MOB)
+            continue;
+        auto npc = (CombatNPC*)pair.second;
+
+        npc->stepAI(currTime);
+    }
+
+    // deallocate all NPCs queued for removal
+    while (RemovalQueue.size() > 0) {
+        NPCManager::destroyNPC(RemovalQueue.front());
+        RemovalQueue.pop();
+    }
+}
+
 void NPCManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_WARP_USE_NPC, npcWarpHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TIME_TO_GO_WARP, npcWarpTimeMachine);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NPC_SUMMON, npcSummonHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_NPC_UNSUMMON, npcUnsummonHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_BARKER, npcBarkHandler);
+
+    REGISTER_SHARD_TIMER(step, 200);
 }

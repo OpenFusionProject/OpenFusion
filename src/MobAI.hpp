@@ -11,6 +11,11 @@ enum class MobState {
     DEAD
 };
 
+namespace MobAI {
+    // needs to be declared before Mob's constructor
+    void step(CombatNPC*, time_t);
+};
+
 struct Mob : public CombatNPC {
     // general
     MobState state = MobState::INACTIVE;
@@ -76,6 +81,7 @@ struct Mob : public CombatNPC {
         appearanceData.iHP = maxHealth;
 
         type = EntityType::MOB;
+        _stepAI = MobAI::step;
     }
 
     // constructor for /summon
@@ -97,8 +103,6 @@ struct Mob : public CombatNPC {
 namespace MobAI {
     extern bool simulateMobs;
     extern std::map<int32_t, Mob*> Mobs;
-
-    void init();
 
     // TODO: make this internal later
     void incNextMovement(Mob *mob, time_t currTime=0);

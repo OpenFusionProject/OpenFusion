@@ -12,9 +12,8 @@
 using namespace MobAI;
 
 std::map<int32_t, Mob*> MobAI::Mobs;
-static std::queue<int32_t> RemovalQueue;
 
-bool MobAI::simulateMobs;
+bool MobAI::simulateMobs = settings::SIMULATEMOBS;
 
 static void roamingStep(Mob *mob, time_t currTime);
 
@@ -451,7 +450,7 @@ static void deadStep(Mob *mob, time_t currTime) {
         // if it was summoned, mark it for removal
         if (mob->summoned) {
             std::cout << "[INFO] Queueing killed summoned mob for removal" << std::endl;
-            RemovalQueue.push(mob->appearanceData.iNPC_ID);
+            NPCManager::queueNPCRemoval(mob->appearanceData.iNPC_ID);
             return;
         }
 
@@ -774,44 +773,33 @@ static void retreatStep(Mob *mob, time_t currTime) {
     }
 }
 
-static void step(CNServer *serv, time_t currTime) {
-    for (auto& pair : Mobs) {
-        if (pair.second->playersInView < 0)
-            std::cout << "[WARN] Weird playerview value " << pair.second->playersInView << std::endl;
+void MobAI::step(CombatNPC *npc, time_t currTime) {
+    assert(npc->type == EntityType::MOB);
+    auto mob = (Mob*)npc;
 
-        // skip mob movement and combat if disabled or not in view
-        if ((!simulateMobs || pair.second->playersInView == 0) && pair.second->state != MobState::DEAD
-        && pair.second->state != MobState::RETREAT)
-            continue;
+    if (mob->playersInView < 0)
+        std::cout << "[WARN] Weird playerview value " << mob->playersInView << std::endl;
 
-        switch (pair.second->state) {
-        case MobState::INACTIVE:
-            // no-op
-            break;
-        case MobState::ROAMING:
-            roamingStep(pair.second, currTime);
-            break;
-        case MobState::COMBAT:
-            combatStep(pair.second, currTime);
-            break;
-        case MobState::RETREAT:
-            retreatStep(pair.second, currTime);
-            break;
-        case MobState::DEAD:
-            deadStep(pair.second, currTime);
-            break;
-        }
+    // skip mob movement and combat if disabled or not in view
+    if ((!simulateMobs || mob->playersInView == 0) && mob->state != MobState::DEAD
+    && mob->state != MobState::RETREAT)
+        return;
+
+    switch (mob->state) {
+    case MobState::INACTIVE:
+        // no-op
+        break;
+    case MobState::ROAMING:
+        roamingStep(mob, currTime);
+        break;
+    case MobState::COMBAT:
+        combatStep(mob, currTime);
+        break;
+    case MobState::RETREAT:
+        retreatStep(mob, currTime);
+        break;
+    case MobState::DEAD:
+        deadStep(mob, currTime);
+        break;
     }
-
-    // deallocate all NPCs queued for removal
-    while (RemovalQueue.size() > 0) {
-        NPCManager::destroyNPC(RemovalQueue.front());
-        RemovalQueue.pop();
-    }
-}
-
-void MobAI::init() {
-    REGISTER_SHARD_TIMER(step, 200);
-
-    simulateMobs = settings::SIMULATEMOBS;
 }

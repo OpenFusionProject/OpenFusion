@@ -30,12 +30,8 @@ struct Entity {
     virtual bool isAlive() { return true; }
 
     // stubs
-    virtual void enterIntoViewOf(CNSocket *sock) {}
-    virtual void disappearFromViewOf(CNSocket *sock) {}
-
-    // we don't want objects of this base class to exist
-protected:
-    Entity() {}
+    virtual void enterIntoViewOf(CNSocket *sock) = 0;
+    virtual void disappearFromViewOf(CNSocket *sock) = 0;
 };
 
 struct EntityRef {
@@ -106,16 +102,16 @@ struct CombatNPC : public BaseNPC {
     int spawnZ = 0;
     int level = 0;
 
-    void (*_stepAI)() = nullptr;
+    void (*_stepAI)(CombatNPC*, time_t) = nullptr;
 
     // XXX
     CombatNPC(int x, int y, int z, int angle, uint64_t iID, int t, int id, int maxHP) :
         BaseNPC(x, y, z, angle, iID, t, id),
         maxHealth(maxHP) {}
 
-    virtual void stepAI() {
+    virtual void stepAI(time_t currTime) {
         if (_stepAI != nullptr)
-            _stepAI();
+            _stepAI(this, currTime);
     }
 
     virtual bool isAlive() override { return appearanceData.iHP > 0; }
