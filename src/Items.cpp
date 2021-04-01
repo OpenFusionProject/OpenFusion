@@ -566,25 +566,17 @@ static void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     int validCrateId = getValidCrateId(chest->iID);
     bool failing = (validCrateId == -1);
 
-    std::cout << "validCrateId " << validCrateId << std::endl;
-
     if (!failing)
         validItemSetId = getValidItemSetId(validCrateId);
     failing = (validItemSetId == -1);
-
-    std::cout << "validItemSetId " << validItemSetId << std::endl;
 
     if (!failing)
         rarity = getRarity(validCrateId, validItemSetId);
     failing = (rarity == -1);
 
-    std::cout << "rarity " << rarity << std::endl;
-
     if (!failing)
         ret = getCrateItem(&item->sItem, validItemSetId, rarity, plr->PCStyle.iGender);
     failing = (ret == -1);
-
-    std::cout << "ret " << ret << std::endl;
 
     // if we failed to open a crate, at least give the player a gumball (suggested by Jade)
     if (failing) {
