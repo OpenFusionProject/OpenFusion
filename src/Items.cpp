@@ -108,6 +108,7 @@ static int getRarity(int crateId, int itemSetId) {
     }
 
     std::vector<int>& rarityWeights = Items::RarityWeights[crate.rarityWeightId];
+    ItemSet& itemSet = Items::ItemSets[itemSetId];
 
     /*
      * First we have to check if specified item set contains items with all specified rarities,
@@ -117,11 +118,17 @@ static int getRarity(int crateId, int itemSetId) {
 
     // remember that rarities start from 1!
     std::set<int> rarityIndices;
-    for (int itemReferenceId : Items::ItemSets[itemSetId].itemReferenceIds) {
+
+    for (int itemReferenceId : itemSet.itemReferenceIds) {
         if (Items::ItemReferences.find(itemReferenceId) == Items::ItemReferences.end())
             continue;
 
-        rarityIndices.insert(Items::ItemReferences[itemReferenceId].rarity - 1);
+        // alter rarity
+        int itemRarity = (itemSet.alterRarityMap.find(itemReferenceId) == itemSet.alterRarityMap.end())
+            ? Items::ItemReferences[itemReferenceId].rarity
+            : itemSet.alterRarityMap[itemReferenceId];
+
+        rarityIndices.insert(itemRarity - 1);
 
         // shortcut
         if (rarityIndices.size() == rarityWeights.size())
@@ -133,14 +140,17 @@ static int getRarity(int crateId, int itemSetId) {
         return -1;
     }
 
+    // retain the weights of rarities that actually exist in the itemset
     std::vector<int> relevantWeights(rarityWeights.size(), 0);
     for (int index : rarityIndices) {
-        // sanity check
+        // check for out of bounds and rarity 0 items
         if (index >= 0 && index < rarityWeights.size())
             relevantWeights[index] = rarityWeights[index];
     }
 
     // now return a random rarity number (starting from 1)
+    // if relevantWeights is empty or all zeros, we default to giving a common (1) item
+    // rarity 0 items will appear in the drop pool regardless of this roll
     return Rand::randWeighted(relevantWeights) + 1;
 }
 
@@ -160,11 +170,9 @@ static int getCrateItem(sItemBase* result, int itemSetId, int rarity, int player
         ItemReference* item = &Items::ItemReferences[itemReferenceId];
 
         // alter rarity
-        int itemRarity;
-        if (itemSet.alterRarityMap.find(itemReferenceId) == itemSet.alterRarityMap.end())
-            itemRarity = item->rarity;
-        else
-            itemRarity = itemSet.alterRarityMap[itemReferenceId];
+        int itemRarity = (itemSet.alterRarityMap.find(itemReferenceId) == itemSet.alterRarityMap.end())
+            ? item->rarity
+            : itemSet.alterRarityMap[itemReferenceId];
 
         // if rarity doesn't match the selected one, exclude item
         // rarity 0 bypasses this step for an individual item
@@ -172,11 +180,9 @@ static int getCrateItem(sItemBase* result, int itemSetId, int rarity, int player
             continue;
 
         // alter rarity
-        int itemGender;
-        if (itemSet.alterGenderMap.find(itemReferenceId) == itemSet.alterGenderMap.end())
-            itemGender = item->gender;
-        else
-            itemGender = itemSet.alterGenderMap[itemReferenceId];
+        int itemGender = (itemSet.alterGenderMap.find(itemReferenceId) == itemSet.alterGenderMap.end())
+            ? item->gender
+            : itemSet.alterGenderMap[itemReferenceId];
 
         // if gender is incorrect, exclude item
         // gender 0 bypasses this step for an individual item
