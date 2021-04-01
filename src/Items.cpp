@@ -133,16 +133,15 @@ static int getRarity(int crateId, int itemSetId) {
         return -1;
     }
 
-    std::vector<int> relevantWeights;
-    for (int index : rarityIndices)
-        relevantWeights.push_back(rarityWeights[index]);
+    std::vector<int> relevantWeights(rarityWeights.size(), 0);
+    for (int index : rarityIndices) {
+        // sanity check
+        if (index >= 0 && index < rarityWeights.size())
+            relevantWeights[index] = rarityWeights[index];
+    }
 
     // now return a random rarity number (starting from 1)
-    int rarityChoice = Rand::randWeighted(relevantWeights);
-
-    auto it = rarityIndices.begin();
-    std::advance(it, rarityChoice);
-    return *it + 1;
+    return Rand::randWeighted(relevantWeights) + 1;
 }
 
 static int getCrateItem(sItemBase* result, int itemSetId, int rarity, int playerGender) {
