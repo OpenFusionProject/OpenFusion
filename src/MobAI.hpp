@@ -42,9 +42,6 @@ struct Mob : public CombatNPC {
     int skillStyle = -1; // -1 for nothing, 0-2 for corruption, -2 for eruption
     int hitX = 0, hitY = 0, hitZ = 0; // for use in ability targeting
 
-    // drop
-    int dropType = 0;
-
     // group
     int groupLeader = 0;
     int offsetX = 0, offsetY = 0;
@@ -65,7 +62,6 @@ struct Mob : public CombatNPC {
 
         regenTime = data["m_iRegenTime"];
         idleRange = (int)data["m_iIdleRange"];
-        dropType = data["m_iDropType"];
         level = data["m_iNpcLevel"];
 
         roamX = spawnX = x;
