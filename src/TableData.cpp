@@ -274,6 +274,14 @@ static void loadDrops() {
             };
         }
 
+        // Mobs
+        nlohmann::json mobs = dropData["Mobs"];
+        for (nlohmann::json::iterator _mob = mobs.begin(); _mob != mobs.end(); _mob++) {
+            auto mob = _mob.value();
+
+            Items::MobToDropMap[(int)mob["MobID"]] = (int)mob["MobDropID"];
+        }
+
         // RarityWeights
         nlohmann::json rarityWeights = dropData["RarityWeights"];
         for (nlohmann::json::iterator _rarityWeightsObject = rarityWeights.begin(); _rarityWeightsObject != rarityWeights.end(); _rarityWeightsObject++) {

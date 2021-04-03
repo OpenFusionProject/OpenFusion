@@ -94,6 +94,7 @@ namespace Items {
     extern std::map<int32_t, MiscDropChance> MiscDropChances;
     extern std::map<int32_t, MiscDropType> MiscDropTypes;
     extern std::map<int32_t, MobDrop> MobDrops;
+    extern std::map<int32_t, int32_t> MobToDropMap;
     extern std::map<int32_t, ItemSet> ItemSets;
 
     void init();
