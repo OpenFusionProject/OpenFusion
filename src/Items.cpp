@@ -26,6 +26,7 @@ std::map<int32_t, std::vector<int32_t>> Items::CrateDropTypes;
 std::map<int32_t, MiscDropChance> Items::MiscDropChances;
 std::map<int32_t, MiscDropType> Items::MiscDropTypes;
 std::map<int32_t, MobDrop> Items::MobDrops;
+std::map<int32_t, int32_t> Items::MobToDropMap;
 std::map<int32_t, ItemSet> Items::ItemSets;
 
 #ifdef ACADEMY
@@ -770,12 +771,20 @@ void Items::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int rolledPo
     memset(respbuf, 0, resplen);
 
     // sanity check
-    if (MobDrops.find(mob->dropType) == MobDrops.end()) {
-        std::cout << "[WARN] Drop Type " << mob->dropType << " was not found" << std::endl;
+    if (Items::MobToDropMap.find(mob->appearanceData.iNPCType) == Items::MobToDropMap.end()) {
+        std::cout << "[WARN] Mob ID " << mob->appearanceData.iNPCType << " has no drops assigned" << std::endl;
+        return;
+    }
+    // find mob drop id
+    int dropType = Items::MobToDropMap[mob->appearanceData.iNPCType];
+
+    // sanity check
+    if (Items::MobDrops.find(dropType) == Items::MobDrops.end()) {
+        std::cout << "[WARN] Drop Type " << dropType << " was not found" << std::endl;
         return;
     }
     // find correct mob drop
-    MobDrop& drop = MobDrops[mob->dropType];
+    MobDrop& drop = Items::MobDrops[dropType];
 
     // use the keys to fetch data from other maps
     // sanity check
