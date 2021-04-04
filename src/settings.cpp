@@ -60,7 +60,6 @@ int settings::MONITORINTERVAL = 5000;
 
 // event mode settings
 int settings::EVENTMODE = 0;
-int settings::EVENTCRATECHANCE = 10;
 
 void settings::init() {
     INIReader reader("config.ini");
@@ -99,7 +98,6 @@ void settings::init() {
     DBPATH = reader.Get("shard", "dbpath", DBPATH);
     ACCLEVEL = reader.GetInteger("shard", "accountlevel", ACCLEVEL);
     EVENTMODE = reader.GetInteger("shard", "eventmode", EVENTMODE);
-    EVENTCRATECHANCE = reader.GetInteger("shard", "eventcratechance", EVENTCRATECHANCE);
     DISABLEFIRSTUSEFLAG = reader.GetBoolean("shard", "disablefirstuseflag", DISABLEFIRSTUSEFLAG);
     MONITORENABLED = reader.GetBoolean("monitor", "enabled", MONITORENABLED);
     MONITORPORT = reader.GetInteger("monitor", "port", MONITORPORT);
