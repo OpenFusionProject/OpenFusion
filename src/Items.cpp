@@ -26,6 +26,7 @@ std::map<int32_t, std::vector<int32_t>> Items::CrateDropTypes;
 std::map<int32_t, MiscDropChance> Items::MiscDropChances;
 std::map<int32_t, MiscDropType> Items::MiscDropTypes;
 std::map<int32_t, MobDrop> Items::MobDrops;
+std::map<int32_t, int32_t> Items::EventToDropMap;
 std::map<int32_t, int32_t> Items::MobToDropMap;
 std::map<int32_t, ItemSet> Items::ItemSets;
 
@@ -700,63 +701,7 @@ static void getMobDrop(sItemBase* reward, const std::vector<int>& weights, const
     reward->iID = crateIds[chosenIndex];
 }
 
-static void giveEventDrop(CNSocket* sock, Player* player, int rolled) {
-    // random drop chance
-    if (Rand::rand(100) > settings::EVENTCRATECHANCE)
-        return;
-
-    // no slot = no reward
-    int slot = findFreeSlot(player);
-    if (slot == -1)
-        return;
-
-    const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
-    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
-
-    uint8_t respbuf[resplen];
-    sP_FE2CL_REP_REWARD_ITEM* reward = (sP_FE2CL_REP_REWARD_ITEM*)respbuf;
-    sItemReward* item = (sItemReward*)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
-
-    // don't forget to zero the buffer!
-    memset(respbuf, 0, resplen);
-
-    // leave everything here as it is
-    reward->m_iCandy = player->money;
-    reward->m_iFusionMatter = player->fusionmatter;
-    reward->m_iBatteryN = player->batteryN;
-    reward->m_iBatteryW = player->batteryW;
-    reward->iFatigue = 100; // prevents warning message
-    reward->iFatigue_Level = 1;
-    reward->iItemCnt = 1; // remember to update resplen if you change this
-
-    // which crate to drop
-    int crateId;
-    switch (settings::EVENTMODE) {
-    // knishmas
-    case 1: crateId = 1187; break;
-    // halloween
-    case 2: crateId = 1181; break;
-    // spring
-    case 3: crateId = 1126; break;
-    // what
-    default:
-        std::cout << "[WARN] Unknown event Id " << settings::EVENTMODE << std::endl;
-        return;
-    }
-
-    item->sItem.iType = 9;
-    item->sItem.iID = crateId;
-    item->sItem.iOpt = 1;
-    item->iSlotNum = slot;
-    item->eIL = 1; // Inventory Location. 1 means player inventory.
-
-    // update player
-    player->Inven[slot] = item->sItem;
-    sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
-}
-
-void Items::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int rolledPotions,
-                            int rolledCrate, int rolledCrateType, int rolledEvent) {
+static void giveSingleDrop(CNSocket *sock, Mob* mob, int mobDropId, const DropRoll& rolled) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
@@ -771,20 +716,12 @@ void Items::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int rolledPo
     memset(respbuf, 0, resplen);
 
     // sanity check
-    if (Items::MobToDropMap.find(mob->appearanceData.iNPCType) == Items::MobToDropMap.end()) {
-        std::cout << "[WARN] Mob ID " << mob->appearanceData.iNPCType << " has no drops assigned" << std::endl;
-        return;
-    }
-    // find mob drop id
-    int dropType = Items::MobToDropMap[mob->appearanceData.iNPCType];
-
-    // sanity check
-    if (Items::MobDrops.find(dropType) == Items::MobDrops.end()) {
-        std::cout << "[WARN] Drop Type " << dropType << " was not found" << std::endl;
+    if (Items::MobDrops.find(mobDropId) == Items::MobDrops.end()) {
+        std::cout << "[WARN] Drop Type " << mobDropId << " was not found" << std::endl;
         return;
     }
     // find correct mob drop
-    MobDrop& drop = Items::MobDrops[dropType];
+    MobDrop& drop = Items::MobDrops[mobDropId];
 
     // use the keys to fetch data from other maps
     // sanity check
@@ -815,33 +752,37 @@ void Items::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int rolledPo
     }
     MiscDropType& miscDropType = Items::MiscDropTypes[drop.miscDropTypeId];
 
-    plr->money += miscDropType.taroAmount;
-    // money nano boost
-    if (plr->iConditionBitFlag & CSB_BIT_REWARD_CASH) {
-        int boost = 0;
-        if (Nanos::getNanoBoost(plr)) // for gumballs
-            boost = 1;
-        plr->money += miscDropType.taroAmount * (5 + boost) / 25;
+    if (rolled.taros % miscDropChance.taroDropChanceTotal < miscDropChance.taroDropChance) {
+        plr->money += miscDropType.taroAmount;
+        // money nano boost
+        if (plr->iConditionBitFlag & CSB_BIT_REWARD_CASH) {
+            int boost = 0;
+            if (Nanos::getNanoBoost(plr)) // for gumballs
+                boost = 1;
+            plr->money += miscDropType.taroAmount * (5 + boost) / 25;
+        }
     }
-    // formula for scaling FM with player/mob level difference
-    // TODO: adjust this better
-    int levelDifference = plr->level - mob->level;
-    int fm = miscDropType.fmAmount;
-    if (levelDifference > 0)
-        fm = levelDifference < 10 ? fm - (levelDifference * fm / 10) : 0;
-    // scavenger nano boost
-    if (plr->iConditionBitFlag & CSB_BIT_REWARD_BLOB) {
-        int boost = 0;
-        if (Nanos::getNanoBoost(plr)) // for gumballs
-            boost = 1;
-        fm += fm * (5 + boost) / 25;
+    if (rolled.fm % miscDropChance.fmDropChanceTotal < miscDropChance.fmDropChance) {
+        // formula for scaling FM with player/mob level difference
+        // TODO: adjust this better
+        int levelDifference = plr->level - mob->level;
+        int fm = miscDropType.fmAmount;
+        if (levelDifference > 0)
+            fm = levelDifference < 10 ? fm - (levelDifference * fm / 10) : 0;
+        // scavenger nano boost
+        if (plr->iConditionBitFlag & CSB_BIT_REWARD_BLOB) {
+            int boost = 0;
+            if (Nanos::getNanoBoost(plr)) // for gumballs
+                boost = 1;
+            fm += fm * (5 + boost) / 25;
+        }
+
+        Missions::updateFusionMatter(sock, fm);
     }
 
-    Missions::updateFusionMatter(sock, fm);
-
-    if (rolledPotions % miscDropChance.potionDropChanceTotal < miscDropChance.potionDropChance)
+    if (rolled.potions % miscDropChance.potionDropChanceTotal < miscDropChance.potionDropChance)
         plr->batteryN += miscDropType.potionAmount;
-    if (rolledBoosts % miscDropChance.boostDropChanceTotal < miscDropChance.boostDropChance)
+    if (rolled.boosts % miscDropChance.boostDropChanceTotal < miscDropChance.boostDropChance)
         plr->batteryW += miscDropType.boostAmount;
 
     // caps
@@ -862,13 +803,13 @@ void Items::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int rolledPo
     int slot = findFreeSlot(plr);
 
     // no drop
-    if (slot == -1 || rolledCrate % crateDropChance.dropChanceTotal >= crateDropChance.dropChance) {
+    if (slot == -1 || rolled.crate % crateDropChance.dropChanceTotal >= crateDropChance.dropChance) {
         // no room for an item, but you still get FM and taros
         reward->iItemCnt = 0;
         sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, sizeof(sP_FE2CL_REP_REWARD_ITEM));
     } else {
         // item reward
-        getMobDrop(&item->sItem, crateDropChance.crateTypeDropWeights, crateDropType, rolledCrateType);
+        getMobDrop(&item->sItem, crateDropChance.crateTypeDropWeights, crateDropType, rolled.crateType);
         item->iSlotNum = slot;
         item->eIL = 1; // Inventory Location. 1 means player inventory.
 
@@ -877,10 +818,30 @@ void Items::giveMobDrop(CNSocket *sock, Mob* mob, int rolledBoosts, int rolledPo
 
         sock->sendPacket((void*)respbuf, P_FE2CL_REP_REWARD_ITEM, resplen);
     }
+}
 
-    // event crates
-    if (settings::EVENTMODE != 0)
-        giveEventDrop(sock, plr, rolledEvent);
+void Items::giveMobDrop(CNSocket *sock, Mob* mob, const DropRoll& rolled, const DropRoll& eventRolled) {
+    // sanity check
+    if (Items::MobToDropMap.find(mob->appearanceData.iNPCType) == Items::MobToDropMap.end()) {
+        std::cout << "[WARN] Mob ID " << mob->appearanceData.iNPCType << " has no drops assigned" << std::endl;
+        return;
+    }
+    // find mob drop id
+    int mobDropId = Items::MobToDropMap[mob->appearanceData.iNPCType];
+
+    giveSingleDrop(sock, mob, mobDropId, rolled);
+
+    if (settings::EVENTMODE != 0) {
+        // sanity check
+        if (Items::EventToDropMap.find(settings::EVENTMODE) == Items::EventToDropMap.end()) {
+            std::cout << "[WARN] Event " << settings::EVENTMODE << " has no mob drop assigned" << std::endl;
+            return;
+        }
+        // find mob drop id
+        int eventMobDropId = Items::EventToDropMap[settings::EVENTMODE];
+
+        giveSingleDrop(sock, mob, eventMobDropId, eventRolled);
+    }
 }
 
 void Items::init() {

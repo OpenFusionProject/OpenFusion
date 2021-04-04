@@ -274,6 +274,14 @@ static void loadDrops() {
             };
         }
 
+        // Events
+        nlohmann::json events = dropData["Events"];
+        for (nlohmann::json::iterator _event = events.begin(); _event != events.end(); _event++) {
+            auto event = _event.value();
+
+            Items::EventToDropMap[(int)event["EventID"]] = (int)event["MobDropID"];
+        }
+
         // Mobs
         nlohmann::json mobs = dropData["Mobs"];
         for (nlohmann::json::iterator _mob = mobs.begin(); _mob != mobs.end(); _mob++) {
