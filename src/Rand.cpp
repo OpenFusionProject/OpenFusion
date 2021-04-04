@@ -1,7 +1,5 @@
 #include "Rand.hpp"
 
-#include <chrono>
-
 std::unique_ptr<std::mt19937> Rand::generator;
 
 int32_t Rand::rand(int32_t startInclusive, int32_t endExclusive) {
@@ -28,17 +26,13 @@ float Rand::randFloat(float startInclusive, float endExclusive) {
 }
 
 float Rand::randFloat(float endExclusive) {
-    std::uniform_real_distribution<float> dist(0.0f, endExclusive);
-    return dist(*Rand::generator);
+    return Rand::randFloat(0.0f, endExclusive);
 }
 
 float Rand::randFloat() {
-    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-    return dist(*Rand::generator);
+    return Rand::randFloat(0.0f, 1.0f);
 }
 
-void Rand::init() {
-    // modern equivalent of srand(time(0))
-    uint64_t seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+void Rand::init(uint64_t seed) {
     Rand::generator = std::make_unique<std::mt19937>(std::mt19937(seed));
 }

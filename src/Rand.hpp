@@ -6,7 +6,7 @@
 namespace Rand {
     extern std::unique_ptr<std::mt19937> generator;
 
-    void init();
+    void init(uint64_t seed);
 
     int32_t rand(int32_t startInclusive, int32_t endExclusive);
     int32_t rand(int32_t endExclusive);
