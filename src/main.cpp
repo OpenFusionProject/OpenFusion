@@ -94,7 +94,7 @@ int main() {
 #else
     initsignals();
 #endif
-    Rand::init();
+    Rand::init(getTime());
     settings::init();
     std::cout << "[INFO] OpenFusion v" GIT_VERSION << std::endl;
     std::cout << "[INFO] Protocol version: " << PROTOCOL_VERSION << std::endl;
