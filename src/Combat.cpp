@@ -225,15 +225,12 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
     if (sock != nullptr) {
         Player* plr = PlayerManager::getPlayer(sock);
 
-        int rolledBoosts = Rand::rand();
-        int rolledPotions = Rand::rand();
-        int rolledCrate = Rand::rand();
-        int rolledCrateType = Rand::rand();
-        int rolledEvent = Rand::rand();
+        Items::DropRoll rolled;
+        Items::DropRoll eventRolled;
         int rolledQItem = Rand::rand();
 
         if (plr->groupCnt == 1 && plr->iIDGroup == plr->iID) {
-            Items::giveMobDrop(sock, mob, rolledBoosts, rolledPotions, rolledCrate, rolledCrateType, rolledEvent);
+            Items::giveMobDrop(sock, mob, rolled, eventRolled);
             Missions::mobKilled(sock, mob->appearanceData.iNPCType, rolledQItem);
         } else {
             Player* otherPlayer = PlayerManager::getPlayerFromID(plr->iIDGroup);
@@ -253,7 +250,7 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
                 if (dist > 5000)
                     continue;
 
-                Items::giveMobDrop(sockTo, mob, rolledBoosts, rolledPotions, rolledCrate, rolledCrateType, rolledEvent);
+                Items::giveMobDrop(sockTo, mob, rolled, eventRolled);
                 Missions::mobKilled(sockTo, mob->appearanceData.iNPCType, rolledQItem);
             }
         }

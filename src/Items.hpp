@@ -3,6 +3,7 @@
 #include "servers/CNShardServer.hpp"
 #include "Player.hpp"
 #include "MobAI.hpp"
+#include "Rand.hpp"
 
 struct CrocPotEntry {
     int multStats, multLooks;
@@ -80,6 +81,13 @@ namespace Items {
         int weaponType;
         // TODO: implement more as needed
     };
+    struct DropRoll {
+        int boosts, potions;
+        int taros, fm;
+        int crate, crateType;
+
+        DropRoll() : boosts(Rand::rand()), potions(Rand::rand()), taros(Rand::rand()), fm(Rand::rand()), crate(Rand::rand()), crateType(Rand::rand()) { }
+    };
     // hopefully this is fine since it's never modified after load
     extern std::map<std::pair<int32_t, int32_t>, Item> ItemData; // <id, type> -> data
     extern std::map<int32_t, CrocPotEntry> CrocPotTable; // level gap -> entry
@@ -94,13 +102,14 @@ namespace Items {
     extern std::map<int32_t, MiscDropChance> MiscDropChances;
     extern std::map<int32_t, MiscDropType> MiscDropTypes;
     extern std::map<int32_t, MobDrop> MobDrops;
+    extern std::map<int32_t, int32_t> EventToDropMap;
     extern std::map<int32_t, int32_t> MobToDropMap;
     extern std::map<int32_t, ItemSet> ItemSets;
 
     void init();
 
     // mob drops
-    void giveMobDrop(CNSocket *sock, Mob *mob, int rolledBoosts, int rolledPotions, int rolledCrate, int rolledCrateType, int rolledEvent);
+    void giveMobDrop(CNSocket *sock, Mob *mob, const DropRoll& rolled, const DropRoll& eventRolled);
 
     int findFreeSlot(Player *plr);
     Item* getItemData(int32_t id, int32_t type);
