@@ -270,18 +270,18 @@ static void unsummonWCommand(std::string full, std::vector<std::string>& args, C
         return;
     }
 
-    if (MobAI::Mobs.find(npc->appearanceData.iNPC_ID) != MobAI::Mobs.end()) {
+    if (NPCManager::NPCs.find(npc->appearanceData.iNPC_ID) != NPCManager::NPCs.end() && NPCManager::NPCs[npc->appearanceData.iNPC_ID]->type == EntityType::MOB) {
         int leadId = ((Mob*)npc)->groupLeader;
         if (leadId != 0) {
-            if (MobAI::Mobs.find(leadId) == MobAI::Mobs.end()) {
+            if (NPCManager::NPCs.find(leadId) == NPCManager::NPCs.end() || NPCManager::NPCs[leadId]->type != EntityType::MOB) {
                 std::cout << "[WARN] unsummonW: leader not found!" << std::endl;
             }
-            Mob* leadNpc = MobAI::Mobs[leadId];
+            Mob* leadNpc = (Mob*)NPCManager::NPCs[leadId];
             for (int i = 0; i < 4; i++) {
                 if (leadNpc->groupMember[i] == 0)
                     break;
 
-                if (MobAI::Mobs.find(leadNpc->groupMember[i]) == MobAI::Mobs.end()) {
+                if (NPCManager::NPCs.find(leadNpc->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[leadNpc->groupMember[i]]->type != EntityType::MOB) {
                     std::cout << "[WARN] unsommonW: leader can't find a group member!" << std::endl;
                     continue;
                 }
@@ -310,20 +310,24 @@ static void toggleAiCommand(std::string full, std::vector<std::string>& args, CN
         return;
 
     // return all mobs to their spawn points
-    for (auto& pair : MobAI::Mobs) {
-        pair.second->state = MobState::RETREAT;
-        pair.second->target = nullptr;
-        pair.second->nextMovement = getTime();
+    for (auto& pair : NPCManager::NPCs) {
+        if (pair.second->type != EntityType::MOB)
+            continue;
+
+        Mob* mob = (Mob*)pair.second;
+        mob->state = MobState::RETREAT;
+        mob->target = nullptr;
+        mob->nextMovement = getTime();
 
         // mobs with static paths can chill where they are
-        if (pair.second->staticPath) {
-            pair.second->roamX = pair.second->appearanceData.iX;
-            pair.second->roamY = pair.second->appearanceData.iY;
-            pair.second->roamZ = pair.second->appearanceData.iZ;
+        if (mob->staticPath) {
+            mob->roamX = mob->appearanceData.iX;
+            mob->roamY = mob->appearanceData.iY;
+            mob->roamZ = mob->appearanceData.iZ;
         } else {
-            pair.second->roamX = pair.second->spawnX;
-            pair.second->roamY = pair.second->spawnY;
-            pair.second->roamZ = pair.second->spawnZ;
+            mob->roamX = mob->spawnX;
+            mob->roamY = mob->spawnY;
+            mob->roamZ = mob->spawnZ;
         }
     }
 }
@@ -595,9 +599,9 @@ static void summonGroupCommand(std::string full, std::vector<std::string>& args,
         }
 
         BaseNPC *npc = NPCManager::summonNPC(x, y, z, plr->instanceID, type, wCommand);
-        if (team == 2 && i > 0) {
+        if (team == 2 && i > 0 && npc->type == EntityType::MOB) {
             leadNpc->groupMember[i-1] = npc->appearanceData.iNPC_ID;
-            Mob* mob = MobAI::Mobs[npc->appearanceData.iNPC_ID];
+            Mob* mob = (Mob*)NPCManager::NPCs[npc->appearanceData.iNPC_ID];
             mob->groupLeader = leadNpc->appearanceData.iNPC_ID;
             mob->offsetX = x - plr->x;
             mob->offsetY = y - plr->y;
@@ -610,9 +614,9 @@ static void summonGroupCommand(std::string full, std::vector<std::string>& args,
         if (PLAYERID(plr->instanceID) != 0) {
             npc = NPCManager::summonNPC(plr->x, plr->y, plr->z, plr->instanceID, type, wCommand, true);
 
-            if (team == 2 && i > 0) {
+            if (team == 2 && i > 0 && npc->type == EntityType::MOB) {
                 leadNpc->groupMember[i-1] = npc->appearanceData.iNPC_ID;
-                Mob* mob = MobAI::Mobs[npc->appearanceData.iNPC_ID];
+                Mob* mob = (Mob*)NPCManager::NPCs[npc->appearanceData.iNPC_ID];
                 mob->groupLeader = leadNpc->appearanceData.iNPC_ID;
                 mob->offsetX = x - plr->x;
                 mob->offsetY = y - plr->y;
@@ -625,9 +629,9 @@ static void summonGroupCommand(std::string full, std::vector<std::string>& args,
         Chat::sendServerMessage(sock, "/summonGroup(W): placed mob with type: " + std::to_string(type) +
             ", id: " + std::to_string(npc->appearanceData.iNPC_ID));
 
-        if (i == 0 && team == 2) {
+        if (i == 0 && team == 2 && npc->type == EntityType::MOB) {
             type = type2;
-            leadNpc = MobAI::Mobs[npc->appearanceData.iNPC_ID];
+            leadNpc = (Mob*)NPCManager::NPCs[npc->appearanceData.iNPC_ID];
             leadNpc->groupLeader = leadNpc->appearanceData.iNPC_ID;
         }
     }

@@ -102,7 +102,6 @@ struct Mob : public CombatNPC {
 
 namespace MobAI {
     extern bool simulateMobs;
-    extern std::map<int32_t, Mob*> Mobs;
 
     // TODO: make this internal later
     void incNextMovement(Mob *mob, time_t currTime=0);

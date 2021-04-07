@@ -92,12 +92,20 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     resp->iNPCCnt = pkt->iNPCCnt;
 
     for (int i = 0; i < data->trCnt; i++) {
-        if (MobAI::Mobs.find(targets[i]) == MobAI::Mobs.end()) {
+        if (NPCManager::NPCs.find(targets[i]) == NPCManager::NPCs.end()) {
             // not sure how to best handle this
-            std::cout << "[WARN] pcAttackNpcs: mob ID not found" << std::endl;
+            std::cout << "[WARN] pcAttackNpcs: NPC ID not found" << std::endl;
             return;
         }
-        Mob *mob = MobAI::Mobs[targets[i]];
+
+
+        BaseNPC* npc = NPCManager::NPCs[targets[i]];
+        if (npc->type != EntityType::MOB) {
+            std::cout << "[WARN] pcAttackNpcs: NPC is not a mob" << std::endl;
+            return;
+        }
+
+        Mob* mob = (Mob*)npc;
 
         std::pair<int,int> damage;
 
@@ -436,12 +444,19 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
             respdata[i].iHP = target->HP;
             respdata[i].iHitFlag = damage.second; // hitscan, not a rocket or a grenade
         } else { // eCT == 4; attack mob
-            if (MobAI::Mobs.find(pktdata[i*2]) == MobAI::Mobs.end()) {
+            if (NPCManager::NPCs.find(pktdata[i*2]) == NPCManager::NPCs.end()) {
                 // not sure how to best handle this
-                std::cout << "[WARN] pcAttackNpcs: mob ID not found" << std::endl;
+                std::cout << "[WARN] pcAttackChars: NPC ID not found" << std::endl;
                 return;
             }
-            Mob *mob = MobAI::Mobs[pktdata[i*2]];
+
+            BaseNPC* npc = NPCManager::NPCs[pktdata[i * 2]];
+            if (npc->type != EntityType::MOB) {
+                std::cout << "[WARN] pcAttackChars: NPC is not a mob" << std::endl;
+                return;
+            }
+
+            Mob* mob = (Mob*)npc;
 
             std::pair<int,int> damage;
 
@@ -636,13 +651,19 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
     Bullet* bullet = &Bullets[plr->iID][pkt->iBulletID];
 
     for (int i = 0; i < pkt->iTargetCnt; i++) {
-        if (MobAI::Mobs.find(pktdata[i]) == MobAI::Mobs.end()) {
+        if (NPCManager::NPCs.find(pktdata[i]) == NPCManager::NPCs.end()) {
             // not sure how to best handle this
-            std::cout << "[WARN] projectileHit: mob ID not found" << std::endl;
+            std::cout << "[WARN] projectileHit: NPC ID not found" << std::endl;
             return;
         }        
 
-        Mob* mob = MobAI::Mobs[pktdata[i]];
+        BaseNPC* npc = NPCManager::NPCs[pktdata[i]];
+        if (npc->type != EntityType::MOB) {
+            std::cout << "[WARN] projectileHit: NPC is not a mob" << std::endl;
+            return;
+        }
+
+        Mob* mob = (Mob*)npc;
         std::pair<int, int> damage;
 
         damage.first = pkt->iTargetCnt > 1 ? bullet->groupDamage : bullet->pointDamage;

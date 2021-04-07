@@ -150,7 +150,7 @@ static void loadPaths(int* nextId) {
             lastPoint = point;
         }
 
-        // npc paths
+        // npc paths (pending refactor)
         nlohmann::json pathDataNPC = pathData["npc"];
         /*
         for (nlohmann::json::iterator npcPath = pathDataNPC.begin(); npcPath != pathDataNPC.end(); npcPath++) {
@@ -161,19 +161,23 @@ static void loadPaths(int* nextId) {
         // mob paths
         pathDataNPC = pathData["mob"];
         for (nlohmann::json::iterator npcPath = pathDataNPC.begin(); npcPath != pathDataNPC.end(); npcPath++) {
-            for (auto& pair : MobAI::Mobs) {
-                if (pair.second->appearanceData.iNPCType == npcPath.value()["iNPCType"]) {
-                    std::cout << "[INFO] Using static path for mob " << pair.second->appearanceData.iNPCType << " with ID " << pair.first << std::endl;
+            for (auto& pair : NPCManager::NPCs) {
+                if (pair.second->type != EntityType::MOB)
+                    continue;
+
+                Mob* mob = (Mob*)pair.second;
+                if (mob->appearanceData.iNPCType == npcPath.value()["iNPCType"]) {
+                    std::cout << "[INFO] Using static path for mob " << mob->appearanceData.iNPCType << " with ID " << pair.first << std::endl;
 
                     auto firstPoint = npcPath.value()["points"][0];
-                    if (firstPoint["iX"] != pair.second->spawnX || firstPoint["iY"] != pair.second->spawnY) {
+                    if (firstPoint["iX"] != mob->spawnX || firstPoint["iY"] != mob->spawnY) {
                         std::cout << "[FATAL] The first point of the route for mob " << pair.first <<
-                            " (type " << pair.second->appearanceData.iNPCType << ") does not correspond with its spawn point." << std::endl;
+                            " (type " << mob->appearanceData.iNPCType << ") does not correspond with its spawn point." << std::endl;
                         exit(1);
                     }
 
                     constructPathNPC(npcPath, pair.first);
-                    pair.second->staticPath = true;
+                    mob->staticPath = true;
                     break; // only one NPC per path
                 }
             }
@@ -472,8 +476,6 @@ static void loadGruntwork(int32_t *nextId) {
 
                 // re-enable respawning
                 ((Mob*)npc)->summoned = false;
-
-                MobAI::Mobs[npc->appearanceData.iNPC_ID] = (Mob*)npc;
             } else {
                 npc = new BaseNPC(mob["iX"], mob["iY"], mob["iZ"], mob["iAngle"], instanceID, mob["iNPCType"], id);
             }
@@ -496,7 +498,6 @@ static void loadGruntwork(int32_t *nextId) {
             ((Mob*)tmp)->summoned = false;
 
             NPCManager::NPCs[*nextId] = tmp;
-            MobAI::Mobs[*nextId] = (Mob*)NPCManager::NPCs[*nextId];
             NPCManager::updateNPCPosition(*nextId, leader["iX"], leader["iY"], leader["iZ"], instanceID, leader["iAngle"]);
 
             tmp->groupLeader = *nextId;
@@ -515,7 +516,6 @@ static void loadGruntwork(int32_t *nextId) {
                     ((Mob*)tmp)->summoned = false;
 
                     NPCManager::NPCs[*nextId] = tmpFol;
-                    MobAI::Mobs[*nextId] = (Mob*)NPCManager::NPCs[*nextId];
                     NPCManager::updateNPCPosition(*nextId, (int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], instanceID, leader["iAngle"]);
 
                     tmpFol->offsetX = follower.find("iOffsetX") == follower.end() ? 0 : (int)follower["iOffsetX"];
@@ -806,7 +806,6 @@ void TableData::init() {
             Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], td, nextId);
 
             NPCManager::NPCs[nextId] = tmp;
-            MobAI::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
             NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
 
             nextId++;
@@ -832,7 +831,6 @@ void TableData::init() {
             Mob* tmp = new Mob(leader["iX"], leader["iY"], leader["iZ"], leader["iAngle"], instanceID, leader["iNPCType"], td, nextId);
 
             NPCManager::NPCs[nextId] = tmp;
-            MobAI::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
             NPCManager::updateNPCPosition(nextId, leader["iX"], leader["iY"], leader["iZ"], instanceID, leader["iAngle"]);
 
             tmp->groupLeader = nextId;
@@ -847,7 +845,6 @@ void TableData::init() {
                     Mob* tmpFol = new Mob((int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], leader["iAngle"], instanceID, follower["iNPCType"], tdFol, nextId);
 
                     NPCManager::NPCs[nextId] = tmpFol;
-                    MobAI::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
                     NPCManager::updateNPCPosition(nextId, (int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], instanceID, leader["iAngle"]);
 
                     tmpFol->offsetX = follower.find("iOffsetX") == follower.end() ? 0 : (int)follower["iOffsetX"];
@@ -884,10 +881,9 @@ void TableData::init() {
 
             int team = NPCManager::NPCData[(int)npc["iNPCType"]]["m_iTeam"];
 
-            if (team == 2) {
+            if (team == 2)
                 NPCManager::NPCs[nextId] = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], NPCManager::NPCData[(int)npc["iNPCType"]], nextId);
-                MobAI::Mobs[nextId] = (Mob*)NPCManager::NPCs[nextId];
-            } else
+            else
                 NPCManager::NPCs[nextId] = new BaseNPC(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], nextId);
 
             NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
@@ -1010,11 +1006,11 @@ void TableData::flush() {
 
             // add follower data to vector; go until OOB or until follower ID is 0
             for (int i = 0; i < 4 && m->groupMember[i] > 0; i++) {
-                if (MobAI::Mobs.find(m->groupMember[i]) == MobAI::Mobs.end()) {
+                if (NPCManager::NPCs.find(m->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[m->groupMember[i]]->type != EntityType::MOB) {
                     std::cout << "[WARN] Follower with ID " << m->groupMember[i] << " not found; skipping\n";
                     continue;
                 }
-                followers.push_back(MobAI::Mobs[m->groupMember[i]]);
+                followers.push_back((Mob*)NPCManager::NPCs[m->groupMember[i]]);
             }
         }
         else {

@@ -264,7 +264,6 @@ void Chunking::createInstance(uint64_t instanceID) {
                 Mob* newMob = new Mob(baseNPC->appearanceData.iX, baseNPC->appearanceData.iY, baseNPC->appearanceData.iZ, baseNPC->appearanceData.iAngle,
                     instanceID, baseNPC->appearanceData.iNPCType, NPCManager::NPCData[baseNPC->appearanceData.iNPCType], NPCManager::nextId++);
                 NPCManager::NPCs[newMob->appearanceData.iNPC_ID] = newMob;
-                MobAI::Mobs[newMob->appearanceData.iNPC_ID] = newMob;
 
                 // if in a group, copy over group members as well
                 if (((Mob*)baseNPC)->groupLeader != 0) {
@@ -279,7 +278,6 @@ void Chunking::createInstance(uint64_t instanceID) {
                                 instanceID, baseFollower->appearanceData.iNPCType, NPCManager::NPCData[baseFollower->appearanceData.iNPCType], followerID);
                             // add follower to NPC maps
                             NPCManager::NPCs[followerID] = newMobFollower;
-                            MobAI::Mobs[followerID] = newMobFollower;
                             // set follower-specific properties
                             newMobFollower->groupLeader = newMob->appearanceData.iNPC_ID;
                             newMobFollower->offsetX = ((Mob*)baseFollower)->offsetX;

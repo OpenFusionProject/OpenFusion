@@ -59,10 +59,6 @@ void NPCManager::destroyNPC(int32_t id) {
     // remove from viewable chunks
     Chunking::removeEntityFromChunks(Chunking::getViewableChunks(entity->chunkPos), ref);
 
-    // remove from mob manager
-    if (MobAI::Mobs.find(id) != MobAI::Mobs.end())
-        MobAI::Mobs.erase(id);
-
     // finally, remove it from the map and free it
     NPCs.erase(id);
     delete entity;
@@ -134,7 +130,6 @@ BaseNPC *NPCManager::summonNPC(int x, int y, int z, uint64_t instance, int type,
 
     if (team == 2) {
         npc = new Mob(x, y, z + EXTRA_HEIGHT, inst, type, NPCData[type], id);
-        MobAI::Mobs[id] = (Mob*)npc;
 
         // re-enable respawning, if desired
         ((Mob*)npc)->summoned = !respawn;

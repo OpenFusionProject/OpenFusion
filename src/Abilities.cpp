@@ -137,12 +137,18 @@ int Nanos::applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t gr
 namespace Nanos {
 
 bool doDebuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
-    if (MobAI::Mobs.find(targetID) == MobAI::Mobs.end()) {
-        std::cout << "[WARN] doDebuff: mob ID not found" << std::endl;
+    if (NPCManager::NPCs.find(targetID) == NPCManager::NPCs.end()) {
+        std::cout << "[WARN] doDebuff: NPC ID not found" << std::endl;
         return false;
     }
 
-    Mob* mob = MobAI::Mobs[targetID];
+    BaseNPC* npc = NPCManager::NPCs[targetID];
+    if (npc->type != EntityType::MOB) {
+        std::cout << "[WARN] doDebuff: NPC is not a mob" << std::endl;
+        return false;
+    }
+
+    Mob* mob = (Mob*)npc;
     Combat::hitMob(sock, mob, 0);
 
     respdata[i].eCT = 4;
@@ -201,13 +207,19 @@ bool doBuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t targetID
 }
 
 bool doDamageNDebuff(CNSocket *sock, sSkillResult_Damage_N_Debuff *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
-    if (MobAI::Mobs.find(targetID) == MobAI::Mobs.end()) {
+    if (NPCManager::NPCs.find(targetID) == NPCManager::NPCs.end()) {
         // not sure how to best handle this
-        std::cout << "[WARN] doDamageNDebuff: mob ID not found" << std::endl;
+        std::cout << "[WARN] doDamageNDebuff: NPC ID not found" << std::endl;
         return false;
     }
 
-    Mob* mob = MobAI::Mobs[targetID];
+    BaseNPC* npc = NPCManager::NPCs[targetID];
+    if (npc->type != EntityType::MOB) {
+        std::cout << "[WARN] doDamageNDebuff: NPC is not a mob" << std::endl;
+        return false;
+    }
+
+    Mob* mob = (Mob*)npc;
 
     Combat::hitMob(sock, mob, 0); // just to gain aggro
 
@@ -263,13 +275,19 @@ bool doHeal(CNSocket *sock, sSkillResult_Heal_HP *respdata, int i, int32_t targe
 }
 
 bool doDamage(CNSocket *sock, sSkillResult_Damage *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
-    if (MobAI::Mobs.find(targetID) == MobAI::Mobs.end()) {
+    if (NPCManager::NPCs.find(targetID) == NPCManager::NPCs.end()) {
         // not sure how to best handle this
-        std::cout << "[WARN] doDamage: mob ID not found" << std::endl;
+        std::cout << "[WARN] doDamage: NPC ID not found" << std::endl;
         return false;
     }
-    Mob* mob = MobAI::Mobs[targetID];
 
+    BaseNPC* npc = NPCManager::NPCs[targetID];
+    if (npc->type != EntityType::MOB) {
+        std::cout << "[WARN] doDamage: NPC is not a mob" << std::endl;
+        return false;
+    }
+
+    Mob* mob = (Mob*)npc;
     Player *plr = PlayerManager::getPlayer(sock);
 
     int damage = Combat::hitMob(sock, mob, std::max(PC_MAXHEALTH(plr->level) * amount / 1000, mob->maxHealth * amount / 1000));
@@ -313,12 +331,19 @@ bool doLeech(CNSocket *sock, sSkillResult_Heal_HP *healdata, int i, int32_t targ
     healdata->iHP = plr->HP;
     healdata->iHealHP = healedAmount;
 
-    if (MobAI::Mobs.find(targetID) == MobAI::Mobs.end()) {
+    if (NPCManager::NPCs.find(targetID) == NPCManager::NPCs.end()) {
         // not sure how to best handle this
-        std::cout << "[WARN] doLeech: mob ID not found" << std::endl;
+        std::cout << "[WARN] doLeech: NPC ID not found" << std::endl;
         return false;
     }
-    Mob* mob = MobAI::Mobs[targetID];
+    
+    BaseNPC* npc = NPCManager::NPCs[targetID];
+    if (npc->type != EntityType::MOB) {
+        std::cout << "[WARN] doLeech: NPC is not a mob" << std::endl;
+        return false;
+    }
+
+    Mob* mob = (Mob*)npc;
 
     int damage = Combat::hitMob(sock, mob, amount * 2);
 
@@ -540,12 +565,18 @@ bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, in
 }
 
 bool doHeal(Mob *mob, sSkillResult_Heal_HP *respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
-    if (MobAI::Mobs.find(targetID) == MobAI::Mobs.end()) {
-        std::cout << "[WARN] doDebuff: mob ID not found" << std::endl;
+    if (NPCManager::NPCs.find(targetID) == NPCManager::NPCs.end()) {
+        std::cout << "[WARN] doHeal: NPC ID not found" << std::endl;
         return false;
     }
 
-    Mob* targetMob = MobAI::Mobs[targetID];
+    BaseNPC* npc = NPCManager::NPCs[targetID];
+    if (npc->type != EntityType::MOB) {
+        std::cout << "[WARN] doHeal: NPC is not a mob" << std::endl;
+        return false;
+    }
+
+    Mob* targetMob = (Mob*)npc;
 
     int healedAmount = amount * targetMob->maxHealth / 1000;
     targetMob->appearanceData.iHP += healedAmount;

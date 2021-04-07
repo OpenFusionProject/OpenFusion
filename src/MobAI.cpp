@@ -11,8 +11,6 @@
 
 using namespace MobAI;
 
-std::map<int32_t, Mob*> MobAI::Mobs;
-
 bool MobAI::simulateMobs = settings::SIMULATEMOBS;
 
 static void roamingStep(Mob *mob, time_t currTime);
@@ -59,17 +57,17 @@ void MobAI::clearDebuff(Mob *mob) {
 }
 
 void MobAI::followToCombat(Mob *mob) {
-    if (Mobs.find(mob->groupLeader) != Mobs.end()) {
-        Mob* leadMob = Mobs[mob->groupLeader];
+    if (NPCManager::NPCs.find(mob->groupLeader) != NPCManager::NPCs.end() && NPCManager::NPCs[mob->groupLeader]->type == EntityType::MOB) {
+        Mob* leadMob = (Mob*)NPCManager::NPCs[mob->groupLeader];
         for (int i = 0; i < 4; i++) {
             if (leadMob->groupMember[i] == 0)
                 break;
 
-            if (Mobs.find(leadMob->groupMember[i]) == Mobs.end()) {
+            if (NPCManager::NPCs.find(leadMob->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[leadMob->groupMember[i]]->type != EntityType::MOB) {
                 std::cout << "[WARN] roamingStep: leader can't find a group member!" << std::endl;
                 continue;
             }
-            Mob* followerMob = Mobs[leadMob->groupMember[i]];
+            Mob* followerMob = (Mob*)NPCManager::NPCs[leadMob->groupMember[i]];
 
             if (followerMob->state != MobState::ROAMING) // only roaming mobs should transition to combat
                 continue;
@@ -85,19 +83,19 @@ void MobAI::followToCombat(Mob *mob) {
 }
 
 void MobAI::groupRetreat(Mob *mob) {
-    if (Mobs.find(mob->groupLeader) == Mobs.end())
+    if (NPCManager::NPCs.find(mob->groupLeader) == NPCManager::NPCs.end() || NPCManager::NPCs[mob->groupLeader]->type != EntityType::MOB)
         return;
 
-    Mob* leadMob = Mobs[mob->groupLeader];
+    Mob* leadMob = (Mob*)NPCManager::NPCs[mob->groupLeader];
     for (int i = 0; i < 4; i++) {
         if (leadMob->groupMember[i] == 0)
             break;
 
-        if (Mobs.find(leadMob->groupMember[i]) == Mobs.end()) {
+        if (NPCManager::NPCs.find(leadMob->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[leadMob->groupMember[i]]->type != EntityType::MOB) {
             std::cout << "[WARN] roamingStep: leader can't find a group member!" << std::endl;
             continue;
         }
-        Mob* followerMob = Mobs[leadMob->groupMember[i]];
+        Mob* followerMob = (Mob*)NPCManager::NPCs[leadMob->groupMember[i]];
 
         followerMob->target = nullptr;
         followerMob->state = MobState::RETREAT;
@@ -474,8 +472,8 @@ static void deadStep(Mob *mob, time_t currTime) {
 
     // if mob is a group leader/follower, spawn where the group is.
     if (mob->groupLeader != 0) {
-        if (Mobs.find(mob->groupLeader) != Mobs.end()) {
-            Mob* leaderMob = Mobs[mob->groupLeader];
+        if (NPCManager::NPCs.find(mob->groupLeader) != NPCManager::NPCs.end() && NPCManager::NPCs[mob->groupLeader]->type == EntityType::MOB) {
+            Mob* leaderMob = (Mob*)NPCManager::NPCs[mob->groupLeader];
             mob->appearanceData.iX = leaderMob->appearanceData.iX + mob->offsetX;
             mob->appearanceData.iY = leaderMob->appearanceData.iY + mob->offsetY;
             mob->appearanceData.iZ = leaderMob->appearanceData.iZ;
@@ -713,13 +711,13 @@ static void roamingStep(Mob *mob, time_t currTime) {
             if (mob->groupMember[i] == 0)
                 break;
 
-            if (Mobs.find(mob->groupMember[i]) == Mobs.end()) {
+            if (NPCManager::NPCs.find(mob->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[mob->groupMember[i]]->type != EntityType::MOB) {
                 std::cout << "[WARN] roamingStep: leader can't find a group member!" << std::endl;
                 continue;
             }
 
             std::queue<WarpLocation> queue2;
-            Mob* followerMob = Mobs[mob->groupMember[i]];
+            Mob* followerMob = (Mob*)NPCManager::NPCs[mob->groupMember[i]];
             from = { followerMob->appearanceData.iX, followerMob->appearanceData.iY, followerMob->appearanceData.iZ };
             to = { farX + followerMob->offsetX, farY + followerMob->offsetY, followerMob->appearanceData.iZ };
             Transport::lerp(&queue2, from, to, speed);
