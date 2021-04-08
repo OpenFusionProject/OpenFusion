@@ -95,9 +95,6 @@ struct Mob : public CombatNPC {
     auto operator[](std::string s) {
         return data[s];
     }
-
-    virtual void enterIntoViewOf(CNSocket *sock) override;
-    virtual void disappearFromViewOf(CNSocket *sock) override;
 };
 
 namespace MobAI {

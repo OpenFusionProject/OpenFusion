@@ -92,6 +92,12 @@ void Chunking::addEntityToChunks(std::set<Chunk*> chnks, const EntityRef& ref) {
             if (ref.type == EntityType::PLAYER && other->isAlive()) {
                 other->enterIntoViewOf(ref.sock);
             }
+
+            // for mobs, increment playersInView
+            if (ref.type == EntityType::MOB && otherRef.type == EntityType::PLAYER)
+                ((Mob*)ent)->playersInView++;
+            if (otherRef.type == EntityType::MOB && ref.type == EntityType::PLAYER)
+                ((Mob*)other)->playersInView++;
         }
     }
 }
@@ -118,6 +124,12 @@ void Chunking::removeEntityFromChunks(std::set<Chunk*> chnks, const EntityRef& r
             if (ref.type == EntityType::PLAYER && other->isAlive()) {
                 other->disappearFromViewOf(ref.sock);
             }
+
+            // for mobs, decrement playersInView
+            if (ref.type == EntityType::MOB && otherRef.type == EntityType::PLAYER)
+                ((Mob*)ent)->playersInView--;
+            if (otherRef.type == EntityType::MOB && ref.type == EntityType::PLAYER)
+                ((Mob*)other)->playersInView--;
         }
     }
 }
