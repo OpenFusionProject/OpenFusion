@@ -44,6 +44,7 @@ add_executable(openfusion ${SOURCES})
 set_target_properties(openfusion PROPERTIES OUTPUT_NAME ${BIN_NAME})
 
 target_link_libraries(openfusion sqlite3)
+target_link_libraries(openfusion lua51)
 
 # Makes it so config, tdata, etc. get picked up when starting via the debugger in VS
 set_property(TARGET openfusion PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

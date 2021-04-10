@@ -35,6 +35,7 @@ int settings::SPAWN_ANGLE = 130;
 std::string settings::DBPATH = "database.db";
 std::string settings::TDATADIR = "tdata/";
 std::string settings::PATCHDIR = "tdata/patch/";
+std::string settings::SCRIPTSDIR = "scripts";
 
 std::string settings::NPCJSON = "NPCs.json";
 std::string settings::MOBJSON = "mobs.json";

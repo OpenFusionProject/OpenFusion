@@ -1,5 +1,6 @@
 #include "servers/CNLoginServer.hpp"
 #include "servers/CNShardServer.hpp"
+#include "lua/LuaManager.hpp"
 #include "PlayerManager.hpp"
 #include "PlayerMovement.hpp"
 #include "BuiltinCommands.hpp"
@@ -120,6 +121,7 @@ int main() {
     Racing::init();
     Database::open();
     Trading::init();
+    LuaManager::init();
 
     switch (settings::EVENTMODE) {
     case 0: break; // no event

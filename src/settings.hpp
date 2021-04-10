@@ -27,6 +27,7 @@ namespace settings {
     extern std::string PATCHDIR;
     extern std::string ENABLEDPATCHES;
     extern std::string TDATADIR;
+    extern std::string SCRIPTSDIR;
     extern int EVENTMODE;
     extern bool MONITORENABLED;
     extern int MONITORPORT;

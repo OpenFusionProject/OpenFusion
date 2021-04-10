@@ -18,6 +18,8 @@ for:
   matrix:
     only:
       - image: GCP-Linux-Ubuntu2004
+  install:
+    - sh: sudo apt install libluajit-5.1-dev -y
   build_script:
     - ps: |
         $versions = "104", "728", "1013"
@@ -48,6 +50,7 @@ for:
       - image: GCP-Windows-VS2019
   install:
     - cmd: vcpkg install sqlite3:x64-windows
+    - cmd: vcpkg install luajit:x64-windows
     - cmd: vcpkg integrate install
   build_script:
     - ps: |
