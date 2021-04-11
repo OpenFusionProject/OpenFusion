@@ -44,6 +44,7 @@ CXXSRC=\
 	src/servers/CNShardServer.cpp\
 	src/servers/Monitor.cpp\
 	src/lua/LuaManager.cpp\
+	src/lua/EventWrapper.cpp\
 	src/db/init.cpp\
 	src/db/login.cpp\
 	src/db/shard.cpp\
@@ -88,6 +89,8 @@ CXXHDR=\
 	src/servers/CNShardServer.hpp\
 	src/servers/Monitor.hpp\
 	src/lua/LuaManager.hpp\
+	src/lua/LuaWrapper.hpp\
+	src/lua/EventWrapper.hpp\
 	src/db/Database.hpp\
 	src/db/internal.hpp\
 	vendor/bcrypt/BCrypt.hpp\

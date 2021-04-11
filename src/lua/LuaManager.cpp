@@ -1,4 +1,6 @@
 #include "lua/LuaManager.hpp"
+#include "lua/LuaWrapper.hpp"
+#include "lua/EventWrapper.hpp"
 
 #include "servers/CNShardServer.hpp"
 #include "settings.hpp"
@@ -85,10 +87,7 @@ void luaScheduler(CNServer *serv, time_t currtime) {
             
             // resume the state, (wait() returns the delta time since call)
             lua_pushnumber(thread, ((double)currtime - event)/10);
-
-            int err = lua_resume(thread, 1);
-            if (err != 0 && err != LUA_YIELD) // if it returned LUA_YIELD, wait() was just called again, not an error!
-                LuaManager::printError(lua_tostring(thread, -1));
+            yieldCall(thread, 1);
         } else // go to the next iteration
             ++iter;
     }
@@ -111,6 +110,9 @@ void LuaManager::init() {
 
     // add wait()
     lua_register(global, "wait", OF_wait);
+
+    // register our libraries
+    Event::init(global);
 
     activeScripts = std::map<lua_State*, Script*>();
 
