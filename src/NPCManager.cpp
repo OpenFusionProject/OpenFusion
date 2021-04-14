@@ -69,9 +69,9 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z, uint64_t I, 
     npc->appearanceData.iAngle = angle;
     ChunkPos oldChunk = npc->chunkPos;
     ChunkPos newChunk = Chunking::chunkPosAt(X, Y, I);
-    npc->appearanceData.iX = X;
-    npc->appearanceData.iY = Y;
-    npc->appearanceData.iZ = Z;
+    npc->x = X;
+    npc->y = Y;
+    npc->z = Z;
     npc->instanceID = I;
     if (oldChunk == newChunk)
         return; // didn't change chunks
@@ -280,8 +280,8 @@ BaseNPC* NPCManager::getNearestNPC(std::set<Chunk*>* chunks, int X, int Y, int Z
                 continue;
 
             BaseNPC* npcTemp = (BaseNPC*)ent->getEntity();
-            int distXY = std::hypot(X - npcTemp->appearanceData.iX, Y - npcTemp->appearanceData.iY);
-            int dist = std::hypot(distXY, Z - npcTemp->appearanceData.iZ);
+            int distXY = std::hypot(X - npcTemp->x, Y - npcTemp->y);
+            int dist = std::hypot(distXY, Z - npcTemp->z);
             if (dist < lastDist) {
                 npc = npcTemp;
                 lastDist = dist;

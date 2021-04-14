@@ -174,7 +174,7 @@ static void eggPickup(CNSocket* sock, CNPacketData* data) {
     }
 
     /* this has some issues with position desync, leaving it out for now
-    if (abs(egg->appearanceData.iX - plr->x)>500 || abs(egg->appearanceData.iY - plr->y) > 500) {
+    if (abs(egg->x - plr->x)>500 || abs(egg->y - plr->y) > 500) {
         std::cout << "[WARN] Player tried to open an egg isn't nearby?!" << std::endl;
         return;
     }

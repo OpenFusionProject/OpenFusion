@@ -68,9 +68,9 @@ struct Mob : public CombatNPC {
         dropType = data["m_iDropType"];
         level = data["m_iNpcLevel"];
 
-        roamX = spawnX = appearanceData.iX;
-        roamY = spawnY = appearanceData.iY;
-        roamZ = spawnZ = appearanceData.iZ;
+        roamX = spawnX = x;
+        roamY = spawnY = y;
+        roamZ = spawnZ = z;
 
         offsetX = 0;
         offsetY = 0;

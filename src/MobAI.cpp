@@ -147,8 +147,8 @@ bool MobAI::aggroCheck(Mob *mob, time_t currTime) {
                 mobRange = -1;
 
             // height is relevant for aggro distance because of platforming
-            int xyDistance = hypot(mob->appearanceData.iX - plr->x, mob->appearanceData.iY - plr->y);
-            int distance = hypot(xyDistance, (mob->appearanceData.iZ - plr->z) * 2); // difference in Z counts twice
+            int xyDistance = hypot(mob->x - plr->x, mob->y - plr->y);
+            int distance = hypot(xyDistance, (mob->z - plr->z) * 2); // difference in Z counts twice
 
             if (distance > mobRange || distance > closestDistance)
                 continue;
@@ -394,9 +394,9 @@ void MobAI::enterCombat(CNSocket *sock, Mob *mob) {
     mob->nextMovement = getTime();
     mob->nextAttack = 0;
 
-    mob->roamX = mob->appearanceData.iX;
-    mob->roamY = mob->appearanceData.iY;
-    mob->roamZ = mob->appearanceData.iZ;
+    mob->roamX = mob->x;
+    mob->roamY = mob->y;
+    mob->roamZ = mob->z;
 
     int skillID = (int)mob->data["m_iPassiveBuff"]; // cast passive
     std::vector<int> targetData = {1, mob->appearanceData.iNPC_ID, 0, 0, 0};
@@ -453,9 +453,9 @@ static void deadStep(Mob *mob, time_t currTime) {
         }
 
         // pre-set spawn coordinates if not marked for removal
-        mob->appearanceData.iX = mob->spawnX;
-        mob->appearanceData.iY = mob->spawnY;
-        mob->appearanceData.iZ = mob->spawnZ;
+        mob->x = mob->spawnX;
+        mob->y = mob->spawnY;
+        mob->z = mob->spawnZ;
     }
 
     // to guide their groupmates, group leaders still need to move despite being dead
@@ -474,9 +474,9 @@ static void deadStep(Mob *mob, time_t currTime) {
     if (mob->groupLeader != 0) {
         if (NPCManager::NPCs.find(mob->groupLeader) != NPCManager::NPCs.end() && NPCManager::NPCs[mob->groupLeader]->type == EntityType::MOB) {
             Mob* leaderMob = (Mob*)NPCManager::NPCs[mob->groupLeader];
-            mob->appearanceData.iX = leaderMob->appearanceData.iX + mob->offsetX;
-            mob->appearanceData.iY = leaderMob->appearanceData.iY + mob->offsetY;
-            mob->appearanceData.iZ = leaderMob->appearanceData.iZ;
+            mob->x = leaderMob->x + mob->offsetX;
+            mob->y = leaderMob->y + mob->offsetY;
+            mob->z = leaderMob->z;
         } else {
             std::cout << "[WARN] deadStep: mob cannot find it's leader!" << std::endl;
         }
@@ -485,6 +485,9 @@ static void deadStep(Mob *mob, time_t currTime) {
     INITSTRUCT(sP_FE2CL_NPC_NEW, pkt);
 
     pkt.NPCAppearanceData = mob->appearanceData;
+    pkt.NPCAppearanceData.iX = mob->x;
+    pkt.NPCAppearanceData.iY = mob->y;
+    pkt.NPCAppearanceData.iZ = mob->z;
 
     // notify all nearby players
     NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_NEW, sizeof(sP_FE2CL_NPC_NEW));
@@ -556,7 +559,7 @@ static void combatStep(Mob *mob, time_t currTime) {
         return;
     }
 
-    int distance = hypot(plr->x - mob->appearanceData.iX, plr->y - mob->appearanceData.iY);
+    int distance = hypot(plr->x - mob->x, plr->y - mob->y);
     int mobRange = (int)mob->data["m_iAtkRange"] + (int)mob->data["m_iRadius"];
 
     if (currTime >= mob->nextAttack) {
@@ -588,18 +591,18 @@ static void combatStep(Mob *mob, time_t currTime) {
         }
 
         distanceToTravel = std::min(distance-mobRange+1, speed*2/5);
-        auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, targetX, targetY, distanceToTravel);
+        auto targ = lerp(mob->x, mob->y, targetX, targetY, distanceToTravel);
         if (distanceToTravel < speed*2/5 && currTime >= mob->nextAttack)
             mob->nextAttack = 0;
 
-        NPCManager::updateNPCPosition(mob->appearanceData.iNPC_ID, targ.first, targ.second, mob->appearanceData.iZ, mob->instanceID, mob->appearanceData.iAngle);
+        NPCManager::updateNPCPosition(mob->appearanceData.iNPC_ID, targ.first, targ.second, mob->z, mob->instanceID, mob->appearanceData.iAngle);
 
         INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
 
         pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
         pkt.iSpeed = speed;
-        pkt.iToX = mob->appearanceData.iX = targ.first;
-        pkt.iToY = mob->appearanceData.iY = targ.second;
+        pkt.iToX = mob->x = targ.first;
+        pkt.iToY = mob->y = targ.second;
         pkt.iToZ = plr->z;
         pkt.iMoveStyle = 1;
 
@@ -681,13 +684,13 @@ static void roamingStep(Mob *mob, time_t currTime) {
     farX = xStart + rand() % mob->idleRange;
     farY = yStart + rand() % mob->idleRange;
 
-    distance = std::abs(std::max(farX - mob->appearanceData.iX, farY - mob->appearanceData.iY));
+    distance = std::abs(std::max(farX - mob->x, farY - mob->y));
     if (distance == 0)
         distance += 1; // hack to avoid FPE
 
     // if it's too short a walk, go further in that direction
-    farX = mob->appearanceData.iX + (farX - mob->appearanceData.iX) * minDistance / distance;
-    farY = mob->appearanceData.iY + (farY - mob->appearanceData.iY) * minDistance / distance;
+    farX = mob->x + (farX - mob->x) * minDistance / distance;
+    farY = mob->y + (farY - mob->y) * minDistance / distance;
 
     // but don't got out of bounds
     farX = std::clamp(farX, xStart, xStart + mob->idleRange);
@@ -698,8 +701,8 @@ static void roamingStep(Mob *mob, time_t currTime) {
         speed /= 2;
 
     std::queue<WarpLocation> queue;
-    WarpLocation from = { mob->appearanceData.iX, mob->appearanceData.iY, mob->appearanceData.iZ };
-    WarpLocation to = { farX, farY, mob->appearanceData.iZ };
+    WarpLocation from = { mob->x, mob->y, mob->z };
+    WarpLocation to = { farX, farY, mob->z };
 
     // add a route to the queue; to be processed in Transport::stepNPCPathing()
     Transport::lerp(&queue, from, to, speed);
@@ -718,8 +721,8 @@ static void roamingStep(Mob *mob, time_t currTime) {
 
             std::queue<WarpLocation> queue2;
             Mob* followerMob = (Mob*)NPCManager::NPCs[mob->groupMember[i]];
-            from = { followerMob->appearanceData.iX, followerMob->appearanceData.iY, followerMob->appearanceData.iZ };
-            to = { farX + followerMob->offsetX, farY + followerMob->offsetY, followerMob->appearanceData.iZ };
+            from = { followerMob->x, followerMob->y, followerMob->z };
+            to = { farX + followerMob->offsetX, farY + followerMob->offsetY, followerMob->z };
             Transport::lerp(&queue2, from, to, speed);
             Transport::NPCQueues[followerMob->appearanceData.iNPC_ID] = queue2;
         }
@@ -733,19 +736,19 @@ static void retreatStep(Mob *mob, time_t currTime) {
     mob->nextMovement = currTime + 400;
 
     // distance between spawn point and current location
-    int distance = hypot(mob->appearanceData.iX - mob->roamX, mob->appearanceData.iY - mob->roamY);
+    int distance = hypot(mob->x - mob->roamX, mob->y - mob->roamY);
 
     //if (distance > mob->data["m_iIdleRange"]) {
     if (distance > 10) {
         INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
 
-        auto targ = lerp(mob->appearanceData.iX, mob->appearanceData.iY, mob->roamX, mob->roamY, (int)mob->data["m_iRunSpeed"]*4/5);
+        auto targ = lerp(mob->x, mob->y, mob->roamX, mob->roamY, (int)mob->data["m_iRunSpeed"]*4/5);
 
         pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
         pkt.iSpeed = (int)mob->data["m_iRunSpeed"] * 2;
-        pkt.iToX = mob->appearanceData.iX = targ.first;
-        pkt.iToY = mob->appearanceData.iY = targ.second;
-        pkt.iToZ = mob->appearanceData.iZ = mob->spawnZ;
+        pkt.iToX = mob->x = targ.first;
+        pkt.iToY = mob->y = targ.second;
+        pkt.iToZ = mob->z = mob->spawnZ;
         pkt.iMoveStyle = 1;
 
         // notify all nearby players

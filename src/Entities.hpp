@@ -77,10 +77,10 @@ class BaseNPC : public Entity {
 public:
     sNPCAppearanceData appearanceData = {};
 
-    BaseNPC(int x, int y, int z, int angle, uint64_t iID, int t, int id) { // XXX
-        appearanceData.iX = x;
-        appearanceData.iY = y;
-        appearanceData.iZ = z;
+    BaseNPC(int _X, int _Y, int _Z, int angle, uint64_t iID, int t, int id) { // XXX
+        x = _X;
+        y = _Y;
+        z = _Z;
         appearanceData.iNPCType = t;
         appearanceData.iHP = 400;
         appearanceData.iAngle = angle;

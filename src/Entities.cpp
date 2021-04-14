@@ -45,6 +45,9 @@ Entity *EntityRef::getEntity() const {
 void BaseNPC::enterIntoViewOf(CNSocket *sock) {
     INITSTRUCT(sP_FE2CL_NPC_ENTER, pkt);
     pkt.NPCAppearanceData = appearanceData;
+    pkt.NPCAppearanceData.iX = x;
+    pkt.NPCAppearanceData.iY = y;
+    pkt.NPCAppearanceData.iZ = z;
     sock->sendPacket(pkt, P_FE2CL_NPC_ENTER);
 }
 
@@ -54,7 +57,7 @@ void Bus::enterIntoViewOf(CNSocket *sock) {
     // TODO: Potentially decouple this from BaseNPC?
     pkt.AppearanceData = {
         3, appearanceData.iNPC_ID, appearanceData.iNPCType,
-        appearanceData.iX, appearanceData.iY, appearanceData.iZ
+        x, y, z
     };
 
     sock->sendPacket(pkt, P_FE2CL_TRANSPORTATION_ENTER);

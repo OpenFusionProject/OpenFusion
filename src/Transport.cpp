@@ -271,8 +271,8 @@ static void stepNPCPathing() {
         queue->pop(); // remove point from front of queue
 
         // calculate displacement
-        int dXY = hypot(point.x - npc->appearanceData.iX, point.y - npc->appearanceData.iY); // XY plane distance
-        int distanceBetween = hypot(dXY, point.z - npc->appearanceData.iZ); // total distance
+        int dXY = hypot(point.x - npc->x, point.y - npc->y); // XY plane distance
+        int distanceBetween = hypot(dXY, point.z - npc->z); // total distance
 
         // update NPC location to update viewables
         NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, point.x, point.y, point.z, npc->instanceID, npc->appearanceData.iAngle);

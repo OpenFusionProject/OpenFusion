@@ -333,9 +333,9 @@ static void nanoRecallRegisterHandler(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_REP_REGIST_RXCOM, response);
     response.iMapNum = plr->recallInstance = (int32_t)npc->instanceID; // Never going to recall into a Fusion Lair
-    response.iX = plr->recallX = npc->appearanceData.iX;
-    response.iY = plr->recallY = npc->appearanceData.iY;
-    response.iZ = plr->recallZ = npc->appearanceData.iZ;
+    response.iX = plr->recallX = npc->x;
+    response.iY = plr->recallY = npc->y;
+    response.iZ = plr->recallZ = npc->z;
     sock->sendPacket(response, P_FE2CL_REP_REGIST_RXCOM);
 }
 

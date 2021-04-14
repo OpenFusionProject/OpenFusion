@@ -321,9 +321,9 @@ static void toggleAiCommand(std::string full, std::vector<std::string>& args, CN
 
         // mobs with static paths can chill where they are
         if (mob->staticPath) {
-            mob->roamX = mob->appearanceData.iX;
-            mob->roamY = mob->appearanceData.iY;
-            mob->roamZ = mob->appearanceData.iZ;
+            mob->roamX = mob->x;
+            mob->roamY = mob->y;
+            mob->roamZ = mob->z;
         } else {
             mob->roamX = mob->spawnX;
             mob->roamY = mob->spawnY;
@@ -343,11 +343,11 @@ static void npcRotateCommand(std::string full, std::vector<std::string>& args, C
     }
 
     int angle = (plr->angle + 180) % 360;
-    NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ, npc->instanceID, angle);
+    NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->x, npc->y, npc->z, npc->instanceID, angle);
 
     // if it's a gruntwork NPC, rotate in-place
     if (TableData::RunningMobs.find(npc->appearanceData.iNPC_ID) != TableData::RunningMobs.end()) {
-        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ, npc->instanceID, angle);
+        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->x, npc->y, npc->z, npc->instanceID, angle);
 
         Chat::sendServerMessage(sock, "[NPCR] Successfully set angle to " + std::to_string(angle) + " for gruntwork NPC "
             + std::to_string(npc->appearanceData.iNPC_ID));
@@ -435,7 +435,7 @@ static void npcInstanceCommand(std::string full, std::vector<std::string>& args,
 
     Chat::sendServerMessage(sock, "[NPCI] Moving NPC with ID " + std::to_string(npc->appearanceData.iNPC_ID) + " to instance " + std::to_string(instance));
     TableData::RunningNPCMapNumbers[npc->appearanceData.iNPC_ID] = instance;
-    NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->appearanceData.iX, npc->appearanceData.iY, npc->appearanceData.iZ, instance, npc->appearanceData.iAngle);
+    NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->x, npc->y, npc->z, instance, npc->appearanceData.iAngle);
 }
 
 static void minfoCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
@@ -666,9 +666,9 @@ static void whoisCommand(std::string full, std::vector<std::string>& args, CNSoc
     Chat::sendServerMessage(sock, "[WHOIS] HP: " + std::to_string(npc->appearanceData.iHP));
     Chat::sendServerMessage(sock, "[WHOIS] CBF: " + std::to_string(npc->appearanceData.iConditionBitFlag));
     Chat::sendServerMessage(sock, "[WHOIS] EntityType: " + std::to_string((int)npc->type));
-    Chat::sendServerMessage(sock, "[WHOIS] X: " + std::to_string(npc->appearanceData.iX));
-    Chat::sendServerMessage(sock, "[WHOIS] Y: " + std::to_string(npc->appearanceData.iY));
-    Chat::sendServerMessage(sock, "[WHOIS] Z: " + std::to_string(npc->appearanceData.iZ));
+    Chat::sendServerMessage(sock, "[WHOIS] X: " + std::to_string(npc->x));
+    Chat::sendServerMessage(sock, "[WHOIS] Y: " + std::to_string(npc->y));
+    Chat::sendServerMessage(sock, "[WHOIS] Z: " + std::to_string(npc->z));
     Chat::sendServerMessage(sock, "[WHOIS] Angle: " + std::to_string(npc->appearanceData.iAngle));
     std::string chunkPosition = std::to_string(std::get<0>(npc->chunkPos)) + ", " + std::to_string(std::get<1>(npc->chunkPos)) + ", " + std::to_string(std::get<2>(npc->chunkPos));
     Chat::sendServerMessage(sock, "[WHOIS] Chunk: {" + chunkPosition + "}");

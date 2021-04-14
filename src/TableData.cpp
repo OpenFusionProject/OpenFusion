@@ -141,7 +141,7 @@ static void loadPaths(int* nextId) {
                 // spawn a slider
                 Bus* slider = new Bus(point.x, point.y, point.z, 0, INSTANCE_OVERWORLD, 1, (*nextId)++);
                 NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
-                NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->appearanceData.iX, slider->appearanceData.iY, slider->appearanceData.iZ, INSTANCE_OVERWORLD, 0);
+                NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->x, slider->y, slider->z, INSTANCE_OVERWORLD, 0);
                 Transport::NPCQueues[slider->appearanceData.iNPC_ID] = route;
             }
             // rotate
@@ -456,8 +456,8 @@ static void loadGruntwork(int32_t *nextId) {
             if (NPCManager::NPCs.find(npcID) == NPCManager::NPCs.end())
                 continue; // NPC not found
             BaseNPC* npc = NPCManager::NPCs[npcID];
-            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->appearanceData.iX, npc->appearanceData.iY,
-                npc->appearanceData.iZ, instanceID, npc->appearanceData.iAngle);
+            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->x, npc->y,
+                npc->z, instanceID, npc->appearanceData.iAngle);
 
             RunningNPCMapNumbers[npcID] = instanceID;
         }
@@ -967,9 +967,9 @@ void TableData::flush() {
             y = m->spawnY;
             z = m->spawnZ;
         } else {
-            x = npc->appearanceData.iX;
-            y = npc->appearanceData.iY;
-            z = npc->appearanceData.iZ;
+            x = npc->x;
+            y = npc->y;
+            z = npc->z;
         }
 
         // NOTE: this format deviates slightly from the one in mobs.json
@@ -1014,9 +1014,9 @@ void TableData::flush() {
             }
         }
         else {
-            x = npc->appearanceData.iX;
-            y = npc->appearanceData.iY;
-            z = npc->appearanceData.iZ;
+            x = npc->x;
+            y = npc->y;
+            z = npc->z;
         }
 
         // NOTE: this format deviates slightly from the one in mobs.json
@@ -1054,9 +1054,9 @@ void TableData::flush() {
             continue;
         // we can trust that if it exists, it probably is indeed an egg
 
-        egg["iX"] = npc->appearanceData.iX;
-        egg["iY"] = npc->appearanceData.iY;
-        egg["iZ"] = npc->appearanceData.iZ;
+        egg["iX"] = npc->x;
+        egg["iY"] = npc->y;
+        egg["iZ"] = npc->z;
         int mapnum = MAPNUM(npc->instanceID);
         if (mapnum != 0)
             egg["iMapNum"] = mapnum;
