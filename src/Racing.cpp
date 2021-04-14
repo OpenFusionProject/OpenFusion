@@ -23,7 +23,7 @@ static void racingStart(CNSocket* sock, CNPacketData* data) {
         return; // IZ not found
 
     // make ongoing race entry
-    EPRace race = { 0, req->iEPRaceMode, req->iEPTicketItemSlotNum, getTime() / 1000 };
+    EPRace race = { {}, req->iEPRaceMode, req->iEPTicketItemSlotNum, getTime() / 1000 };
     EPRaces[sock] = race;
 
     INITSTRUCT(sP_FE2CL_REP_EP_RACE_START_SUCC, resp);
@@ -39,13 +39,17 @@ static void racingGetPod(CNSocket* sock, CNPacketData* data) {
 
     auto req = (sP_CL2FE_REQ_EP_GET_RING*)data->buf;
 
+    if (EPRaces[sock].collectedRings.count(req->iRingLID))
+        return; // can't collect the same ring twice
+
     // without an anticheat system, we really don't have a choice but to honor the request
-    EPRaces[sock].ringCount++;
+    // TODO: proximity check so players can't cheat the race by replaying packets
+    EPRaces[sock].collectedRings.insert(req->iRingLID);
 
     INITSTRUCT(sP_FE2CL_REP_EP_GET_RING_SUCC, resp);
 
-    resp.iRingLID = req->iRingLID; // could be used to check for proximity in the future
-    resp.iRingCount_Get = EPRaces[sock].ringCount;
+    resp.iRingLID = req->iRingLID;
+    resp.iRingCount_Get = EPRaces[sock].collectedRings.size();
 
     sock->sendPacket(resp, P_FE2CL_REP_EP_GET_RING_SUCC);
 }
@@ -77,7 +81,7 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
     uint64_t now = getTime() / 1000;
 
     int timeDiff = now - EPRaces[sock].startTime;
-    int score = 500 * EPRaces[sock].ringCount - 10 * timeDiff;
+    int score = 500 * EPRaces[sock].collectedRings.size() - 10 * timeDiff;
     if (score < 0) score = 0; // lol
     int fm = score * plr->level * (1.0f / 36) * 0.3f;
 
@@ -85,7 +89,7 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
     Database::RaceRanking postRanking = {};
     postRanking.EPID = EPData[mapNum].EPID;
     postRanking.PlayerID = plr->iID;
-    postRanking.RingCount = EPRaces[sock].ringCount;
+    postRanking.RingCount = EPRaces[sock].collectedRings.size();
     postRanking.Score = score;
     postRanking.Time = timeDiff;
     postRanking.Timestamp = getTimestamp();

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <set>
+
 #include "servers/CNShardServer.hpp"
 
 struct EPInfo {
@@ -7,7 +9,8 @@ struct EPInfo {
 };
 
 struct EPRace {
-    int ringCount, mode, ticketSlot;
+	std::set<int> collectedRings;
+    int mode, ticketSlot;
     time_t startTime;
 };
 
