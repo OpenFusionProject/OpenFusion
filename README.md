@@ -1,9 +1,11 @@
-![OpenFusion Logo](res/radiorave_logo.png)
+<p align="center"><img width="640" src="res/openfusion-hero.png" alt=""></p>
 
-[![Current Release](https://img.shields.io/github/v/release/OpenFusionProject/OpenFusion)](https://github.com/OpenFusionProject/OpenFusion/releases/latest)
-[![AppVeyor](https://ci.appveyor.com/api/projects/status/github/OpenFusionProject/OpenFusion?svg=true)](https://ci.appveyor.com/project/OpenFusionProject/openfusion)
-[![Discord](https://img.shields.io/badge/chat-on%20discord-7289da.svg?logo=discord)](https://discord.gg/DYavckB)
-[![License](https://img.shields.io/github/license/OpenFusionProject/OpenFusion)](https://github.com/OpenFusionProject/OpenFusion/blob/master/LICENSE.md)
+<p align="center">
+    <a href="https://github.com/OpenFusionProject/OpenFusion/releases/latest"><img src="https://img.shields.io/github/v/release/OpenFusionProject/OpenFusion" alt="Current Release"></a>
+    <a href="https://ci.appveyor.com/project/OpenFusionProject/openfusion"><img src="https://ci.appveyor.com/api/projects/status/github/OpenFusionProject/OpenFusion?svg=true" alt="AppVeyor"></a>
+    <a href="https://discord.gg/DYavckB"><img src="https://img.shields.io/badge/chat-on%20discord-7289da.svg?logo=discord" alt="Discord"></a>
+    <a href="https://github.com/OpenFusionProject/OpenFusion/blob/master/LICENSE.md"><img src="https://img.shields.io/github/license/OpenFusionProject/OpenFusion" alt="License"></a>
+</p>
 
 OpenFusion is a reverse-engineered server for FusionFall. It primarily targets versions `beta-20100104` and `beta-20111013` of the original game, with [limited support](https://github.com/OpenFusionProject/OpenFusion/wiki/FusionFall-Version-Support) for others.
 
