@@ -143,10 +143,10 @@ static void eggStep(CNServer* serv, time_t currTime) {
 
 }
 
-void Eggs::npcDataToEggData(sNPCAppearanceData* npc, sShinyAppearanceData* egg) {
-    egg->iX = npc->iX;
-    egg->iY = npc->iY;
-    egg->iZ = npc->iZ;
+void Eggs::npcDataToEggData(int x, int y, int z, sNPCAppearanceData* npc, sShinyAppearanceData* egg) {
+    egg->iX = x;
+    egg->iY = y;
+    egg->iZ = z;
     // client doesn't care about egg->iMapNum
     egg->iShinyType = npc->iNPCType;
     egg->iShiny_ID = npc->iNPC_ID;

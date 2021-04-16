@@ -66,7 +66,7 @@ void Bus::enterIntoViewOf(CNSocket *sock) {
 void Egg::enterIntoViewOf(CNSocket *sock) {
     INITSTRUCT(sP_FE2CL_SHINY_ENTER, pkt);
 
-    Eggs::npcDataToEggData(&appearanceData, &pkt.ShinyAppearanceData);
+    Eggs::npcDataToEggData(x, y, z, &appearanceData, &pkt.ShinyAppearanceData);
 
     sock->sendPacket(pkt, P_FE2CL_SHINY_ENTER);
 }
