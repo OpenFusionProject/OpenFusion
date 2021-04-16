@@ -1,8 +1,8 @@
-#include "Vendor.hpp"
+#include "Vendors.hpp"
 
-using namespace Vendor;
+using namespace Vendors;
 
-std::map<int32_t, std::vector<VendorListing>> Vendor::VendorTables;
+std::map<int32_t, std::vector<VendorListing>> Vendors::VendorTables;
 
 static void vendorBuy(CNSocket* sock, CNPacketData* data) {
     auto req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY*)data->buf;
@@ -198,10 +198,10 @@ static void vendorBuyback(CNSocket* sock, CNPacketData* data) {
 static void vendorTable(CNSocket* sock, CNPacketData* data) {
     auto req = (sP_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE*)data->buf;
 
-    if (req->iVendorID != req->iNPC_ID || Vendor::VendorTables.find(req->iVendorID) == Vendor::VendorTables.end())
+    if (req->iVendorID != req->iNPC_ID || Vendors::VendorTables.find(req->iVendorID) == Vendors::VendorTables.end())
         return;
 
-    std::vector<VendorListing> listings = Vendor::VendorTables[req->iVendorID];
+    std::vector<VendorListing> listings = Vendors::VendorTables[req->iVendorID];
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, resp);
 
@@ -360,7 +360,7 @@ static void vendorCombineItems(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket(resp, P_FE2CL_REP_PC_ITEM_COMBINATION_SUCC);
 }
 
-void Vendor::init() {
+void Vendors::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_START, vendorStart);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_TABLE_UPDATE, vendorTable);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VENDOR_ITEM_BUY, vendorBuy);

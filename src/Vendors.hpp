@@ -10,7 +10,7 @@ struct VendorListing {
     int sort, type, iID;
 };
 
-namespace Vendor {
+namespace Vendors {
     extern std::map<int32_t, std::vector<VendorListing>> VendorTables;
 
     void init();

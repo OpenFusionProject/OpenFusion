@@ -8,7 +8,7 @@
 #include "TableData.hpp"
 #include "Groups.hpp"
 #include "Racing.hpp"
-#include "Vendor.hpp"
+#include "Vendors.hpp"
 #include "Abilities.hpp"
 
 #include <cmath>

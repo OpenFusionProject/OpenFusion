@@ -19,7 +19,7 @@
 #include "Racing.hpp"
 #include "Trading.hpp"
 #include "Email.hpp"
-#include "Vendor.hpp"
+#include "Vendors.hpp"
 #include "Chat.hpp"
 #include "Eggs.hpp"
 
@@ -111,7 +111,7 @@ int main() {
     Missions::init();
     Nanos::init();
     NPCManager::init();
-    Vendor::init();
+    Vendors::init();
     Transport::init();
     Buddies::init();
     Email::init();
