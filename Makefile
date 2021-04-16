@@ -45,6 +45,9 @@ CXXSRC=\
 	src/servers/Monitor.cpp\
 	src/lua/LuaManager.cpp\
 	src/lua/EventWrapper.cpp\
+	src/lua/WorldWrapper.cpp\
+	src/lua/EntityWrapper.cpp\
+	src/lua/PlayerWrapper.cpp\
 	src/db/init.cpp\
 	src/db/login.cpp\
 	src/db/shard.cpp\
@@ -91,6 +94,9 @@ CXXHDR=\
 	src/lua/LuaManager.hpp\
 	src/lua/LuaWrapper.hpp\
 	src/lua/EventWrapper.hpp\
+	src/lua/WorldWrapper.hpp\
+	src/lua/EntityWrapper.hpp\
+	src/lua/PlayerWrapper.hpp\
 	src/db/Database.hpp\
 	src/db/internal.hpp\
 	vendor/bcrypt/BCrypt.hpp\

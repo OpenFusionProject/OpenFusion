@@ -18,6 +18,8 @@
 
 #include "settings.hpp"
 
+#include "lua/LuaManager.hpp"
+
 #include <assert.h>
 
 #include <algorithm>
@@ -40,11 +42,17 @@ static void addPlayer(CNSocket* key, Player plr) {
 
     std::cout << getPlayerName(p) << " has joined!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
+
+    // call events
+    LuaManager::playerAdded(key);
 }
 
 void PlayerManager::removePlayer(CNSocket* key) {
     Player* plr = getPlayer(key);
     uint64_t fromInstance = plr->instanceID;
+
+    // call events
+    LuaManager::playerRemoved(key);
 
     Groups::groupKickPlayer(plr);
 

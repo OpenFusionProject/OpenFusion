@@ -1,6 +1,8 @@
 #include "lua/LuaManager.hpp"
 #include "lua/LuaWrapper.hpp"
 #include "lua/EventWrapper.hpp"
+#include "lua/WorldWrapper.hpp"
+#include "lua/PlayerWrapper.hpp"
 
 #include "servers/CNShardServer.hpp"
 #include "settings.hpp"
@@ -113,6 +115,9 @@ void LuaManager::init() {
 
     // register our libraries
     Event::init(global);
+    World::init(global);
+    Entity::init(global);
+    Player::init(global);
 
     activeScripts = std::map<lua_State*, Script*>();
 
@@ -155,4 +160,12 @@ void LuaManager::loadScripts() {
 
 void LuaManager::clearState(lua_State *state) {
     // TODO
+}
+
+void LuaManager::playerAdded(CNSocket *sock) {
+    World::playerAdded(sock);
+}
+
+void LuaManager::playerRemoved(CNSocket *sock) {
+    World::playerRemoved(sock);
 }

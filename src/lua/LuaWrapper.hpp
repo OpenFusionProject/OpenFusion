@@ -10,6 +10,7 @@
 #include <cassert>
 
 #include "lua/LuaManager.hpp"
+#include "lua/PlayerWrapper.hpp"
 
 #define yieldCall(state, nargs) \
     int _retCode = lua_resume(state, nargs); \
@@ -29,6 +30,7 @@ inline static int lua_autoPush(lua_State* state, int nargs) {
         char* or const char* : LUA_TSTRING
         bool : LUA_TBOOLEAN
         lRegistry : grabs the object from the lua registry and pushes it onto the stack
+        CNSocket* : Pushes the Player Entity
 */
 template<typename T, class... Rest>
 inline static int lua_autoPush(lua_State* state, int nargs, T arg, Rest... rest) {
@@ -40,6 +42,8 @@ inline static int lua_autoPush(lua_State* state, int nargs, T arg, Rest... rest)
     } else if constexpr(std::is_same<T, lRegistry>::value) {
         // grab the value from the registry
         lua_rawgeti(state, LUA_REGISTRYINDEX, (int)arg);
+    } else if constexpr(std::is_same<T, CNSocket*>::value) { // pushes a Player Entity
+        LuaManager::Player::push(state, arg);
     } else if constexpr(std::is_same<T, bool>::value) {
         lua_pushboolean(state, arg);
     }

@@ -7,8 +7,8 @@
 
 #include <unordered_set>
 
-#define LIBNAME "event"
-#define LISTNR "listener"
+#define LIBNAME "Event"
+#define LISTNR "Listener"
 
 typedef lEvent* eventData;
 

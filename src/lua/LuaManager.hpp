@@ -23,4 +23,6 @@ namespace LuaManager {
 
     // unregisters the events tied to this state with all wrappers
     void clearState(lua_State *state);
+    void playerAdded(CNSocket *sock);
+    void playerRemoved(CNSocket *sock);
 }
