@@ -1,4 +1,5 @@
 #include "lua/EntityWrapper.hpp"
+#include "lua/EventWrapper.hpp"
 #include "lua/PlayerWrapper.hpp"
 
 #include "core/CNProtocol.hpp"
@@ -11,7 +12,7 @@
 #define SETTERTBL "__plrSETTERS"
 #define METHODTBL "__plrMETHODS"
 
-static Player* grabPlayer(lua_State *state, int indx) {
+static EntityRef* grabEntityRef(lua_State *state, int indx) {
     // first, make sure its a userdata
     luaL_checktype(state, indx, LUA_TUSERDATA);
 
@@ -27,26 +28,24 @@ static Player* grabPlayer(lua_State *state, int indx) {
         luaL_argerror(state, indx, PLRGONESTR);
         return NULL;
     }
+
+    return ref;
+}
+
+static Player* grabPlayer(lua_State *state, int indx) {
+    EntityRef *ref = grabEntityRef(state, indx);
+
+    if (ref == NULL)
+        return NULL;
 
     return (Player*)ref->getEntity();
 }
 
 static CNSocket* grabSock(lua_State *state, int indx) {
-    // first, make sure its a userdata
-    luaL_checktype(state, indx, LUA_TUSERDATA);
+    EntityRef *ref = grabEntityRef(state, indx);
 
-    // now, check and make sure its our library's metatable attached to this userdata
-    EntityRef *ref = (EntityRef*)luaL_checkudata(state, indx, LIBNAME);
-    if (ref == NULL) {
-        luaL_typerror(state, indx, LIBNAME);
+    if (ref == NULL)
         return NULL;
-    }
-
-    // check if the player exists still & return NULL if it doesn't
-    if (!ref->isValid()) {
-        luaL_argerror(state, indx, PLRGONESTR);
-        return NULL;
-    }
     
     return ref->sock;
 }
@@ -63,8 +62,24 @@ static int plr_getName(lua_State *state) {
     return 1;
 }
 
+static int plr_getChatted(lua_State *state) {
+    Player *plr = grabPlayer(state, 1);
+
+    if (plr == NULL)
+        return 0;
+    
+    // the Player* entity doesn't actually have an lEvent setup until a lua script asks for it, so
+    // if Player->onChat is nullptr, create the lEvent and then push it :D
+    if (plr->onChat == nullptr)
+        plr->onChat = new lEvent();
+    
+    LuaManager::Event::push(state, plr->onChat);
+    return 1;
+}
+
 static const luaL_Reg plr_getters[] = {
     {"name", plr_getName},
+    {"onChat", plr_getChatted},
     {0, 0}
 };
 
@@ -76,7 +91,35 @@ static const luaL_Reg plr_setters[] = {
 
 // =============================================== [[ METHODS ]] ===============================================
 
+static int plr_kick(lua_State *state) {
+    EntityRef *ref = grabEntityRef(state, 1);
+    Player *plr;
+    CNSocket *sock;
+
+    // sanity check
+    if (ref == NULL)
+        return 0;
+
+    plr = (Player*)ref->getEntity();
+    sock = ref->sock;
+
+    // construct packet
+    INITSTRUCT(sP_FE2CL_REP_PC_EXIT_SUCC, response);
+
+    response.iID = plr->iID;
+    response.iExitCode = 3; // "a GM has terminated your connection"
+
+    // send to target player
+    sock->sendPacket(response, P_FE2CL_REP_PC_EXIT_SUCC);
+
+    // ensure that the connection has terminated
+    sock->kill();
+
+    return 0;
+}
+
 static const luaL_Reg plr_methods[] = {
+    {"kick", plr_kick},
     {0, 0}
 };
 

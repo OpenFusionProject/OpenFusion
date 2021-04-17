@@ -7,6 +7,8 @@
 #include "Chunking.hpp"
 #include "Entities.hpp"
 
+#include "lua/LuaWrapper.hpp"
+
 #define ACTIVE_MISSION_COUNT 6
 
 #define PC_MAXHEALTH(level) (925 + 75 * (level))
@@ -87,7 +89,15 @@ struct Player : public Entity {
     time_t lastShot = 0;
     std::vector<sItemBase> buyback = {};
 
+    // lua events
+    lEvent *onChat = nullptr;
+
     Player() { type = EntityType::PLAYER; }
+    ~Player() {
+        // if an event was registered, free it
+        if (onChat != nullptr)
+            delete onChat;
+    }
 
     virtual void enterIntoViewOf(CNSocket *sock) override;
     virtual void disappearFromViewOf(CNSocket *sock) override;

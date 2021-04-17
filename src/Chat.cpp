@@ -19,6 +19,10 @@ static void chatHandler(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
+    // if the player has an onChat Lua event registered, call it
+    if (plr->onChat != nullptr)
+        plr->onChat->call(fullChat.c_str());
+
     if (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__MUTE_FREECHAT)
         return;
 
