@@ -10,6 +10,8 @@
 #include "Transport.hpp"
 #include "Missions.hpp"
 
+#include "lua/LuaManager.hpp"
+
 #include <sstream>
 #include <iterator>
 #include <math.h>
@@ -1190,6 +1192,12 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
     Chat::sendServerMessage(sock, "[PATH] Unknown argument '" + args[1] + "'");
 }
 
+static void reloadScriptsCommand(std::string full, std::vector<std::string>& args, CNSocket *sock) {
+    // reloads all scripts
+    LuaManager::stopScripts();
+    LuaManager::loadScripts();
+}
+
 static void registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {
     commands[cmd] = ChatCommand(requiredLevel, handlr, help);
 }
@@ -1229,4 +1237,5 @@ void CustomCommands::init() {
     registerCommand("unregisterall", 50, unregisterallCommand, "clear all SCAMPER and MSS destinations");
     registerCommand("redeem", 100, redeemCommand, "redeem a code item");
     registerCommand("path", 30, pathCommand, "edit NPC paths");
+    registerCommand("rscripts", 30, reloadScriptsCommand, "stops all script states and reloads all scripts");
 }

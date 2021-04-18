@@ -4,6 +4,7 @@
 #include "lua/WorldWrapper.hpp"
 #include "lua/PlayerWrapper.hpp"
 
+#include "PlayerManager.hpp"
 #include "servers/CNShardServer.hpp"
 #include "settings.hpp"
 
@@ -61,7 +62,9 @@ struct scheduledThread {
 };
 std::map<lua_State*, scheduledThread> scheduleQueue;
 
-// pauses the script for x seconds
+// pauses the script for x seconds, not very accurate but should be
+// called within ~60ms or less of when it was schedueled
+// will also return the time the thread was paused
 int OF_wait(lua_State *state) {
     double seconds = luaL_checknumber(state, 1);
 
@@ -121,7 +124,8 @@ void LuaManager::init() {
 
     activeScripts = std::map<lua_State*, Script*>();
 
-    REGISTER_SHARD_TIMER(luaScheduler, 200);
+    // we want to be called after every poll(), so our timer delta is set to 0
+    REGISTER_SHARD_TIMER(luaScheduler, 0);
 
     // load our scripts
     loadScripts();
@@ -142,6 +146,14 @@ void LuaManager::stopScripts() {
 
     // finally clear the map
     activeScripts.clear();
+
+    // walk through each player and unregister each event
+    for (auto pair: PlayerManager::players) {
+        if (pair.second->onChat != nullptr) {
+            delete pair.second->onChat;
+            pair.second->onChat = nullptr;
+        }
+    }
 }
 
 void LuaManager::loadScripts() {
