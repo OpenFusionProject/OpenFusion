@@ -62,6 +62,16 @@ static int plr_getName(lua_State *state) {
     return 1;
 }
 
+static int plr_getInstance(lua_State *state) {
+    Player *plr = grabPlayer(state, 1);
+
+    if (plr == NULL)
+        return 0;
+    
+    lua_pushnumber(state, plr->instanceID);
+    return 1;
+}
+
 static int plr_getChatted(lua_State *state) {
     Player *plr = grabPlayer(state, 1);
 
@@ -79,13 +89,32 @@ static int plr_getChatted(lua_State *state) {
 
 static const luaL_Reg plr_getters[] = {
     {"name", plr_getName},
+    {"instance", plr_getInstance},
     {"onChat", plr_getChatted},
     {0, 0}
 };
 
 // =============================================== [[ SETTERS ]] ===============================================
 
+static int plr_setInstance(lua_State *state) {
+    EntityRef *ref = grabEntityRef(state, 1);
+    int newInst = luaL_checkint(state, 2);
+    Player *plr;
+    CNSocket *sock;
+
+    // sanity check
+    if (ref == NULL)
+        return 0;
+
+    plr = (Player*)ref->getEntity();
+    sock = ref->sock;
+
+    PlayerManager::sendPlayerTo(sock, plr->x, plr->y, plr->z, newInst);
+    return 0;
+}
+
 static const luaL_Reg plr_setters[] = {
+    {"instance", plr_setInstance},
     {0, 0}
 };
 
@@ -118,8 +147,30 @@ static int plr_kick(lua_State *state) {
     return 0;
 }
 
+static int plr_teleport(lua_State *state) {
+    EntityRef *ref = grabEntityRef(state, 1);
+    Player *plr;
+    CNSocket *sock;
+
+    // sanity check
+    if (ref == NULL)
+        return 0;
+    
+    plr = (Player*)ref->getEntity();
+    sock = ref->sock;
+
+    int X = luaL_checkint(state, 2);
+    int Y = luaL_checkint(state, 3);
+    int Z = luaL_checkint(state, 4);
+    int inst = luaL_optint(state, 5, plr->instanceID);
+
+    PlayerManager::sendPlayerTo(sock, X, Y, Z, inst);
+    return 0;
+}
+
 static const luaL_Reg plr_methods[] = {
     {"kick", plr_kick},
+    {"teleport", plr_teleport},
     {0, 0}
 };
 
