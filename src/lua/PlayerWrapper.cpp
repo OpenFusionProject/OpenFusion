@@ -5,6 +5,7 @@
 #include "core/CNProtocol.hpp"
 #include "Player.hpp"
 #include "PlayerManager.hpp"
+#include "Chat.hpp"
 
 #define LIBNAME "Player"
 #define PLRGONESTR "Player doesn't exist anymore, they left!"
@@ -168,9 +169,21 @@ static int plr_teleport(lua_State *state) {
     return 0;
 }
 
+static int plr_msg(lua_State *state) {
+    CNSocket *sock = grabSock(state, 1);
+    const char *msg = luaL_checkstring(state, 2);
+
+    // sanity check
+    if (sock != NULL)
+        Chat::sendServerMessage(sock, std::string(msg));
+
+    return 0;
+}
+
 static const luaL_Reg plr_methods[] = {
     {"kick", plr_kick},
     {"teleport", plr_teleport},
+    {"message", plr_msg},
     {0, 0}
 };
 
