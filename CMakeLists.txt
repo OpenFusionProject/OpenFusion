@@ -45,6 +45,9 @@ set_target_properties(openfusion PROPERTIES OUTPUT_NAME ${BIN_NAME})
 
 target_link_libraries(openfusion sqlite3)
 
+# Makes it so config, tdata, etc. get picked up when starting via the debugger in VS
+set_property(TARGET openfusion PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+
 # Use pthreads if not generating a VS solution or MinGW makefile (because MinGW will prefer Win32 threads)
 # Checking if the compiler ID is MSVC will allow us to open the project as a CMake project in VS.
 # It's not something you should do, but it's there if you need it...
