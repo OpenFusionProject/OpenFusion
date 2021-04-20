@@ -25,6 +25,12 @@ static void saveMission(Player* player, int missionId) {
     player->aQuestFlag[row] |= (1ULL << column);
 }
 
+static bool isMissionCompleted(Player* player, int missionId) {
+   int row = missionId / 64;
+   int column = missionId % 64;
+   return player->aQuestFlag[row] & (1ULL << column);
+}
+
 static int findQSlot(Player *plr, int id) {
     int i;
 
@@ -214,14 +220,22 @@ static bool endTask(CNSocket *sock, int32_t taskNum, int choice=0) {
 
     // update player
     int i;
+    bool found = false;
     for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
         if (plr->tasks[i] == taskNum) {
+            found = true;
             plr->tasks[i] = 0;
             for (int j = 0; j < 3; j++) {
                 plr->RemainingNPCCount[i][j] = 0;
             }
         }
     }
+
+    if (!found) {
+       std::cout << "[WARN] Player tried to end task that isn't in journal?" << std::endl;
+       return false;
+    }
+
     if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != 0) {
         std::cout << "[WARN] Player completed non-active mission!?" << std::endl;
         return false;
@@ -275,6 +289,16 @@ bool Missions::startTask(Player* plr, int TaskID) {
 
     TaskData& task = *Missions::Tasks[TaskID];
 
+    if (task["m_iCTRReqLvMin"] > plr->level) {
+       std::cout << "[WARN] Player tried to start a task below their level" << std::endl;
+       return false;
+    }
+
+    if (isMissionCompleted(plr, (int)(task["m_iHMissionID"]) - 1)) {
+       std::cout << "[WARN] Player tried to start an already completed mission" << std::endl;
+       return false;
+    }
+
     // client freaks out if nano mission isn't sent first after relogging, so it's easiest to set it here
     if (task["m_iSTNanoID"] != 0 && plr->tasks[0] != 0) {
             // lets move task0 to different spot
@@ -316,9 +340,10 @@ static void taskStart(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     if (!startTask(plr, missionData->iTaskNum)) {
-        // TODO: TASK_FAIL?
-        response.iTaskNum = missionData->iTaskNum;
-        sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
+        INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_FAIL, failresp);
+        failresp.iTaskNum = missionData->iTaskNum;
+        failresp.iErrorCode = 1; // unused in the client
+        sock->sendPacket(failresp, P_FE2CL_REP_PC_TASK_START_FAIL);
         return;
     }
 
