@@ -567,22 +567,22 @@ void TableData::init() {
         npcData = npcData["NPCs"];
         for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
-            int instanceID = npc.find("mapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["mapNum"];
+            int instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
 #ifdef ACADEMY
             // do not spawn NPCs in the future
-            if (npc["x"] > 512000 && npc["y"] < 256000) {
+            if (npc["iX"] > 512000 && npc["iY"] < 256000) {
                 nextId++;
                 continue;
             }
 #endif
-            BaseNPC *tmp = new BaseNPC(npc["x"], npc["y"], npc["z"], npc["angle"], instanceID, npc["id"], nextId);
+            BaseNPC *tmp = new BaseNPC(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], nextId);
 
             NPCManager::NPCs[nextId] = tmp;
-            NPCManager::updateNPCPosition(nextId, npc["x"], npc["y"], npc["z"], instanceID, npc["angle"]);
+            NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
             nextId++;
 
-            if (npc["id"] == 641 || npc["id"] == 642)
-                NPCManager::RespawnPoints.push_back({ npc["x"], npc["y"], ((int)npc["z"]) + RESURRECT_HEIGHT, instanceID });
+            if (npc["iNPCType"] == 641 || npc["iNPCType"] == 642)
+                NPCManager::RespawnPoints.push_back({ npc["iX"], npc["iY"], ((int)npc["iZ"]) + RESURRECT_HEIGHT, instanceID });
         }
     }
     catch (const std::exception& err) {
