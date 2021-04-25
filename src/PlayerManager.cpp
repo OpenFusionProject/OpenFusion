@@ -371,21 +371,6 @@ static void exitGame(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket(response, P_FE2CL_REP_PC_EXIT_SUCC);
 }
 
-static WarpLocation* getRespawnPoint(Player *plr) {
-    WarpLocation* best = nullptr;
-    uint32_t curDist, bestDist = UINT32_MAX;
-
-    for (auto& targ : NPCManager::RespawnPoints) {
-        curDist = sqrt(pow(plr->x - targ.x, 2) + pow(plr->y - targ.y, 2));
-        if (curDist < bestDist && targ.instanceID == MAPNUM(plr->instanceID)) { // only mapNum needs to match
-            best = &targ;
-            bestDist = curDist;
-        }
-    }
-
-    return best;
-}
-
 static void revivePlayer(CNSocket* sock, CNPacketData* data) {
     Player *plr = getPlayer(sock);
     WarpLocation* target = getRespawnPoint(plr);
@@ -671,6 +656,21 @@ CNSocket *PlayerManager::getSockFromAny(int by, int id, int uid, std::string fir
 
     // not found
     return nullptr;
+}
+
+WarpLocation *PlayerManager::getRespawnPoint(Player *plr) {
+    WarpLocation* best = nullptr;
+    uint32_t curDist, bestDist = UINT32_MAX;
+
+    for (auto& targ : NPCManager::RespawnPoints) {
+        curDist = sqrt(pow(plr->x - targ.x, 2) + pow(plr->y - targ.y, 2));
+        if (curDist < bestDist && targ.instanceID == MAPNUM(plr->instanceID)) { // only mapNum needs to match
+            best = &targ;
+            bestDist = curDist;
+        }
+    }
+
+    return best;
 }
 
 #pragma endregion

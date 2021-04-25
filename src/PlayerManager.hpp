@@ -31,6 +31,7 @@ namespace PlayerManager {
     CNSocket *getSockFromID(int32_t iID);
     CNSocket *getSockFromName(std::string firstname, std::string lastname);
     CNSocket *getSockFromAny(int by, int id, int uid, std::string firstname, std::string lastname);
+    WarpLocation *getRespawnPoint(Player *plr);
 
     void sendToViewable(CNSocket *sock, void* buf, uint32_t type, size_t size);
 

@@ -58,10 +58,15 @@ static void racingCancel(CNSocket* sock, CNPacketData* data) {
     if (EPRaces.find(sock) == EPRaces.end())
         return; // race not found
 
+    Player* plr = PlayerManager::getPlayer(sock);
     EPRaces.erase(sock);
 
     INITSTRUCT(sP_FE2CL_REP_EP_RACE_CANCEL_SUCC, resp);
     sock->sendPacket(resp, P_FE2CL_REP_EP_RACE_CANCEL_SUCC);
+
+    // we have to teleport the player back after this, otherwise they are unable to move
+    WarpLocation* respawnLoc = PlayerManager::getRespawnPoint(plr);
+    PlayerManager::sendPlayerTo(sock, respawnLoc->x, respawnLoc->y, respawnLoc->z, respawnLoc->instanceID);
 }
 
 static void racingEnd(CNSocket* sock, CNPacketData* data) {
