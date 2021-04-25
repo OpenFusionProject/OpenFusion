@@ -301,8 +301,18 @@ static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         }
 
         // unequip vehicle if equip slot 8 is 0
-        if (plr->Equip[8].iID == 0)
-            plr->iPCState = 0;
+        if (plr->Equip[8].iID == 0 && plr->iPCState & 8) {
+            INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
+            sock->sendPacket(response, P_FE2CL_PC_VEHICLE_OFF_SUCC);
+
+            // send to other players
+            plr->iPCState &= ~8;
+            INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
+            response2.iPC_ID = plr->iID;
+            response2.iState = plr->iPCState;
+
+            PlayerManager::sendToViewable(sock, response2, P_FE2CL_PC_STATE_CHANGE);
+        }
 
         // send equip event to other players
         PlayerManager::sendToViewable(sock, equipChange, P_FE2CL_PC_EQUIP_CHANGE);
