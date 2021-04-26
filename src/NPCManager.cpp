@@ -124,8 +124,8 @@ BaseNPC *NPCManager::summonNPC(int x, int y, int z, uint64_t instance, int type,
     uint64_t inst = baseInstance ? MAPNUM(instance) : instance;
 #define EXTRA_HEIGHT 0
 
-    assert(nextId < INT32_MAX);
-    int id = nextId++;
+    //assert(nextId < INT32_MAX);
+    int id = nextId--;
     int team = NPCData[type]["m_iTeam"];
     BaseNPC *npc = nullptr;
 

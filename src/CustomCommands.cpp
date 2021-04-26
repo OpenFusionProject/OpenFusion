@@ -512,8 +512,8 @@ static void eggCommand(std::string full, std::vector<std::string>& args, CNSocke
         return;
     }
 
-    assert(NPCManager::nextId < INT32_MAX);
-    int id = NPCManager::nextId++;
+    //assert(NPCManager::nextId < INT32_MAX);
+    int id = NPCManager::nextId--;
 
     Player* plr = PlayerManager::getPlayer(sock);
 

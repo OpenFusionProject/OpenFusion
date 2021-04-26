@@ -139,7 +139,7 @@ static void loadPaths(int* nextId) {
             if (passedDistance >= SLIDER_GAP_SIZE) { // space them out uniformaly
                 passedDistance -= SLIDER_GAP_SIZE; // step down
                 // spawn a slider
-                Bus* slider = new Bus(point.x, point.y, point.z, 0, INSTANCE_OVERWORLD, 1, (*nextId)++);
+                Bus* slider = new Bus(point.x, point.y, point.z, 0, INSTANCE_OVERWORLD, 1, (*nextId)--);
                 NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
                 NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->x, slider->y, slider->z, INSTANCE_OVERWORLD, 0);
                 Transport::NPCQueues[slider->appearanceData.iNPC_ID] = route;
@@ -484,7 +484,7 @@ static void loadEggs(int32_t* nextId) {
         int eggCount = 0;
         for (auto _egg = eggs.begin(); _egg != eggs.end(); _egg++) {
             auto egg = _egg.value();
-            int id = (*nextId)++;
+            int id = (*nextId)--;
             uint64_t instanceID = egg.find("iMapNum") == egg.end() ? INSTANCE_OVERWORLD : (int)egg["iMapNum"];
 
             Egg* addEgg = new Egg((int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, (int)egg["iType"], id, false);
@@ -560,7 +560,7 @@ static void loadGruntwork(int32_t *nextId) {
         for (auto _mob = mobs.begin(); _mob != mobs.end(); _mob++) {
             auto mob = _mob.value();
             BaseNPC *npc;
-            int id = (*nextId)++;
+            int id = (*nextId)--;
             uint64_t instanceID = mob.find("iMapNum") == mob.end() ? INSTANCE_OVERWORLD : (int)mob["iMapNum"];
 
             if (NPCManager::NPCData[(int)mob["iNPCType"]]["m_iTeam"] == 2) {
@@ -595,7 +595,7 @@ static void loadGruntwork(int32_t *nextId) {
 
             tmp->groupLeader = *nextId;
 
-            (*nextId)++;
+            (*nextId)--;
 
             auto followers = leader["aFollowers"];
             if (followers.size() < 5) {
@@ -616,7 +616,7 @@ static void loadGruntwork(int32_t *nextId) {
                     tmpFol->groupLeader = tmp->appearanceData.iNPC_ID;
                     tmp->groupMember[followerCount++] = *nextId;
 
-                    (*nextId)++;
+                    (*nextId)--;
                 }
             }
             else {
@@ -629,7 +629,7 @@ static void loadGruntwork(int32_t *nextId) {
         auto eggs = gruntwork["eggs"];
         for (auto _egg = eggs.begin(); _egg != eggs.end(); _egg++) {
             auto egg = _egg.value();
-            int id = (*nextId)++;
+            int id = (*nextId)--;
             uint64_t instanceID = egg.find("iMapNum") == egg.end() ? INSTANCE_OVERWORLD : (int)egg["iMapNum"];
 
             Egg* addEgg = new Egg((int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, (int)egg["iType"], id, false);
@@ -648,7 +648,7 @@ static void loadGruntwork(int32_t *nextId) {
 }
 
 void TableData::init() {
-    int32_t nextId = 0;
+    int32_t nextId = INT32_MAX; // next dynamic ID to hand out
 
     // load NPCs from NPC.json
     try {
@@ -664,7 +664,7 @@ void TableData::init() {
 #ifdef ACADEMY
             // do not spawn NPCs in the future
             if (npc["iX"] > 512000 && npc["iY"] < 256000) {
-                nextId++;
+                nextId--;
                 continue;
             }
 #endif
@@ -672,7 +672,7 @@ void TableData::init() {
 
             NPCManager::NPCs[nextId] = tmp;
             NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
-            nextId++;
+            nextId--;
 
             if (npc["iNPCType"] == 641 || npc["iNPCType"] == 642)
                 NPCManager::RespawnPoints.push_back({ npc["iX"], npc["iY"], ((int)npc["iZ"]) + RESURRECT_HEIGHT, instanceID });
@@ -891,7 +891,7 @@ void TableData::init() {
 #ifdef ACADEMY
             // do not spawn NPCs in the future
             if (npc["iX"] > 512000 && npc["iY"] < 256000) {
-                nextId++;
+                nextId--;
                 continue;
             }
 #endif
@@ -901,7 +901,7 @@ void TableData::init() {
             NPCManager::NPCs[nextId] = tmp;
             NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
 
-            nextId++;
+            nextId--;
         }
 
         // mob groups
@@ -915,8 +915,8 @@ void TableData::init() {
 #ifdef ACADEMY
             // do not spawn NPCs in the future
             if (leader["iX"] > 512000 && leader["iY"] < 256000) {
-                nextId++;
-                nextId += followers.size();
+                nextId--;
+                nextId -= followers.size();
                 continue;
             }
 #endif
@@ -928,7 +928,7 @@ void TableData::init() {
 
             tmp->groupLeader = nextId;
 
-            nextId++;
+            nextId--;
 
             if (followers.size() < 5) {
                 int followerCount = 0;
@@ -945,7 +945,7 @@ void TableData::init() {
                     tmpFol->groupLeader = tmp->appearanceData.iNPC_ID;
                     tmp->groupMember[followerCount++] = nextId;
 
-                    nextId++;
+                    nextId--;
                 }
             } else {
                 std::cout << "[WARN] Mob group leader with ID " << nextId << " has too many followers (" << followers.size() << ")\n";
@@ -980,7 +980,7 @@ void TableData::init() {
                 NPCManager::NPCs[nextId] = new BaseNPC(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], nextId);
 
             NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
-            nextId++;
+            nextId--;
 
             if (npc["iNPCType"] == 641 || npc["iNPCType"] == 642)
                 NPCManager::RespawnPoints.push_back({ npc["iX"], npc["iY"], ((int)npc["iZ"]) + RESURRECT_HEIGHT, instanceID });
