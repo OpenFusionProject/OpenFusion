@@ -275,7 +275,7 @@ void Chunking::createInstance(uint64_t instanceID) {
                     continue; // follower; don't copy individually
 
                 Mob* newMob = new Mob(baseNPC->x, baseNPC->y, baseNPC->z, baseNPC->appearanceData.iAngle,
-                    instanceID, baseNPC->appearanceData.iNPCType, NPCManager::NPCData[baseNPC->appearanceData.iNPCType], NPCManager::nextId++);
+                    instanceID, baseNPC->appearanceData.iNPCType, NPCManager::NPCData[baseNPC->appearanceData.iNPCType], NPCManager::nextId--);
                 NPCManager::NPCs[newMob->appearanceData.iNPC_ID] = newMob;
 
                 // if in a group, copy over group members as well
@@ -284,7 +284,7 @@ void Chunking::createInstance(uint64_t instanceID) {
                     Mob* mobData = (Mob*)baseNPC;
                     for (int i = 0; i < 4; i++) {
                         if (mobData->groupMember[i] != 0) {
-                            int followerID = NPCManager::nextId++; // id for follower
+                            int followerID = NPCManager::nextId--; // id for follower
                             BaseNPC* baseFollower = NPCManager::NPCs[mobData->groupMember[i]]; // follower from template
                             // new follower instance
                             Mob* newMobFollower = new Mob(baseFollower->x, baseFollower->y, baseFollower->z, baseFollower->appearanceData.iAngle,
@@ -306,7 +306,7 @@ void Chunking::createInstance(uint64_t instanceID) {
                     instanceID, baseNPC->appearanceData.iAngle);
             } else {
                 BaseNPC* newNPC = new BaseNPC(baseNPC->x, baseNPC->y, baseNPC->z, baseNPC->appearanceData.iAngle,
-                    instanceID, baseNPC->appearanceData.iNPCType, NPCManager::nextId++);
+                    instanceID, baseNPC->appearanceData.iNPCType, NPCManager::nextId--);
                 NPCManager::NPCs[newNPC->appearanceData.iNPC_ID] = newNPC;
                 NPCManager::updateNPCPosition(newNPC->appearanceData.iNPC_ID, baseNPC->x, baseNPC->y, baseNPC->z,
                     instanceID, baseNPC->appearanceData.iAngle);
