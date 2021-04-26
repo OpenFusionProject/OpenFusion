@@ -1,9 +1,9 @@
 leak:TableData::init
-leak:ChunkManager::newChunk
+leak:Chunking::newChunk
 leak:NPCManager::updateNPCPosition
 leak:NPCManager::summonNPC
-leak:NanoManager::doBuff
-leak:NanoManager::doDebuff
-leak:NanoManager::doDamageNDebuff
+leak:Abilities::doBuff
+leak:Abilities::doDebuff
+leak:Abilities::doDamageNDebuff
 leak:TableData::loadGruntwork
 leak:nlohmann::basic_json
