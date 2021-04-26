@@ -15,8 +15,8 @@ indent_size = 4
 [Makefile]
 indent_style = tab
 
-# Don't enforce anything in contrib
-[/src/contrib/**]
+# Don't enforce anything in vendored code
+[/vendor/**]
 end_of_line = unset
 insert_final_newline = unset
 indent_style = unset
