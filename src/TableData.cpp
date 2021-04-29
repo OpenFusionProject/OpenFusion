@@ -985,7 +985,7 @@ void TableData::init() {
     fMobs.close();
     fGruntwork.close();
 
-    // TODO patching system
+    // patching
 
     // fetch data from patched tables and load them appropriately
     // note: the order of these is important

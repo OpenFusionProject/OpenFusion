@@ -19,12 +19,12 @@ namespace settings {
     extern std::string NPCJSON;
     extern std::string XDTJSON;
     extern std::string MOBJSON;
-    extern std::string ACADEMYJSON;
     extern std::string PATHJSON;
     extern std::string DROPSJSON;
     extern std::string EGGSJSON;
     extern std::string GRUNTWORKJSON;
     extern std::string DBPATH;
+    extern std::string PATCHPATH;
     extern int EVENTMODE;
     extern bool MONITORENABLED;
     extern int MONITORPORT;

@@ -38,17 +38,10 @@ std::string settings::EGGSJSON = "tdata/eggs.json";
 std::string settings::GRUNTWORKJSON = "tdata/gruntwork.json";
 std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
 std::string settings::DBPATH = "database.db";
-std::string settings::ACADEMYJSON = "tdata/1013/academy.json";
-
-#if PROTOCOL_VERSION == 1013
-std::string settings::XDTJSON = "tdata/1013/xdt.json";
-std::string settings::DROPSJSON = "tdata/1013/drops.json";
-std::string settings::PATHJSON = "tdata/1013/paths.json";
-#else
+std::string settings::PATCHPATH = "tdata/patch";
 std::string settings::DROPSJSON = "tdata/drops.json";
 std::string settings::XDTJSON = "tdata/xdt.json";
 std::string settings::PATHJSON = "tdata/paths.json";
-#endif
 
 int settings::ACCLEVEL = 1;
 bool settings::DISABLEFIRSTUSEFLAG = true;
@@ -89,13 +82,13 @@ void settings::init() {
     NPCJSON = reader.Get("shard", "npcdata", NPCJSON);
     XDTJSON = reader.Get("shard", "xdtdata", XDTJSON);
     MOBJSON = reader.Get("shard", "mobdata", MOBJSON);
-    ACADEMYJSON = reader.Get("shard", "academydata", ACADEMYJSON);
     DROPSJSON = reader.Get("shard", "dropdata", DROPSJSON);
     EGGSJSON = reader.Get("shard", "eggdata", EGGSJSON);
     PATHJSON = reader.Get("shard", "pathdata", PATHJSON);
     GRUNTWORKJSON = reader.Get("shard", "gruntwork", GRUNTWORKJSON);
     MOTDSTRING = reader.Get("shard", "motd", MOTDSTRING);
     DBPATH = reader.Get("shard", "dbpath", DBPATH);
+    PATCHPATH = reader.Get("shard", "patchpath", PATCHPATH);
     ACCLEVEL = reader.GetInteger("shard", "accountlevel", ACCLEVEL);
     EVENTMODE = reader.GetInteger("shard", "eventmode", EVENTMODE);
     DISABLEFIRSTUSEFLAG = reader.GetBoolean("shard", "disablefirstuseflag", DISABLEFIRSTUSEFLAG);
