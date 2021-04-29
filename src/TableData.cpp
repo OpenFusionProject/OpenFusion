@@ -37,12 +37,12 @@ public:
 /*
  * Create a full and properly-paced path by interpolating between keyframes.
  */
-static void constructPathSkyway(nlohmann::json::iterator _pathData) {
+static void constructPathSkyway(json::iterator _pathData) {
     auto pathData = _pathData.value();
     // Interpolate
-    nlohmann::json pathPoints = pathData["points"];
+    json pathPoints = pathData["points"];
     std::queue<WarpLocation> points;
-    nlohmann::json::iterator _point = pathPoints.begin();
+    json::iterator _point = pathPoints.begin();
     auto point = _point.value();
     WarpLocation last = { point["iX"] , point["iY"] , point["iZ"] }; // start pos
     // use some for loop trickery; start position should not be a point
@@ -56,12 +56,12 @@ static void constructPathSkyway(nlohmann::json::iterator _pathData) {
     Transport::SkywayPaths[pathData["iRouteID"]] = points;
 }
 
-static void constructPathNPC(nlohmann::json::iterator _pathData, int32_t id=0) {
+static void constructPathNPC(json::iterator _pathData, int32_t id=0) {
     auto pathData = _pathData.value();
     // Interpolate
-    nlohmann::json pathPoints = pathData["points"];
+    json pathPoints = pathData["points"];
     std::queue<WarpLocation> points;
-    nlohmann::json::iterator _point = pathPoints.begin();
+    json::iterator _point = pathPoints.begin();
     auto point = _point.value();
     WarpLocation from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
     int stopTime = point["stop"];
@@ -87,24 +87,24 @@ static void constructPathNPC(nlohmann::json::iterator _pathData, int32_t id=0) {
 static void loadPaths(int* nextId) {
     try {
         std::ifstream inFile(settings::PATHJSON);
-        nlohmann::json pathData;
+        json pathData;
 
         // read file into json
         inFile >> pathData;
 
         // skyway paths
-        nlohmann::json pathDataSkyway = pathData["skyway"];
-        for (nlohmann::json::iterator skywayPath = pathDataSkyway.begin(); skywayPath != pathDataSkyway.end(); skywayPath++) {
+        json pathDataSkyway = pathData["skyway"];
+        for (json::iterator skywayPath = pathDataSkyway.begin(); skywayPath != pathDataSkyway.end(); skywayPath++) {
             constructPathSkyway(skywayPath);
         }
         std::cout << "[INFO] Loaded " << Transport::SkywayPaths.size() << " skyway paths" << std::endl;
 
         // slider circuit
-        nlohmann::json pathDataSlider = pathData["slider"];
+        json pathDataSlider = pathData["slider"];
         // lerp between keyframes
         std::queue<WarpLocation> route;
         // initial point
-        nlohmann::json::iterator _point = pathDataSlider.begin(); // iterator
+        json::iterator _point = pathDataSlider.begin(); // iterator
         auto point = _point.value();
         WarpLocation from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
         int stopTime = point["stop"] ? SLIDER_STOP_TICKS : 0; // arbitrary stop length
@@ -151,16 +151,16 @@ static void loadPaths(int* nextId) {
         }
 
         // npc paths (pending refactor)
-        nlohmann::json pathDataNPC = pathData["npc"];
+        json pathDataNPC = pathData["npc"];
         /*
-        for (nlohmann::json::iterator npcPath = pathDataNPC.begin(); npcPath != pathDataNPC.end(); npcPath++) {
+        for (json::iterator npcPath = pathDataNPC.begin(); npcPath != pathDataNPC.end(); npcPath++) {
             constructPathNPC(npcPath);
         }
         */
 
         // mob paths
         pathDataNPC = pathData["mob"];
-        for (nlohmann::json::iterator npcPath = pathDataNPC.begin(); npcPath != pathDataNPC.end(); npcPath++) {
+        for (json::iterator npcPath = pathDataNPC.begin(); npcPath != pathDataNPC.end(); npcPath++) {
             for (auto& pair : NPCManager::NPCs) {
                 if (pair.second->type != EntityType::MOB)
                     continue;
@@ -197,43 +197,43 @@ static void loadPaths(int* nextId) {
 static void loadDrops() {
     try {
         std::ifstream inFile(settings::DROPSJSON);
-        nlohmann::json dropData;
+        json dropData;
 
         // read file into json
         inFile >> dropData;
 
         // CrateDropChances
-        nlohmann::json crateDropChances = dropData["CrateDropChances"];
-        for (nlohmann::json::iterator _crateDropChance = crateDropChances.begin(); _crateDropChance != crateDropChances.end(); _crateDropChance++) {
+        json crateDropChances = dropData["CrateDropChances"];
+        for (json::iterator _crateDropChance = crateDropChances.begin(); _crateDropChance != crateDropChances.end(); _crateDropChance++) {
             auto crateDropChance = _crateDropChance.value();
             CrateDropChance toAdd = {};
 
             toAdd.dropChance = (int)crateDropChance["DropChance"];
             toAdd.dropChanceTotal = (int)crateDropChance["DropChanceTotal"];
 
-            nlohmann::json crateWeights = crateDropChance["CrateTypeDropWeights"];
-            for (nlohmann::json::iterator _crateWeight = crateWeights.begin(); _crateWeight != crateWeights.end(); _crateWeight++)
+            json crateWeights = crateDropChance["CrateTypeDropWeights"];
+            for (json::iterator _crateWeight = crateWeights.begin(); _crateWeight != crateWeights.end(); _crateWeight++)
                 toAdd.crateTypeDropWeights.push_back((int)_crateWeight.value());
 
             Items::CrateDropChances[(int)crateDropChance["CrateDropChanceID"]] = toAdd;
         }
 
         // CrateDropTypes
-        nlohmann::json crateDropTypes = dropData["CrateDropTypes"];
-        for (nlohmann::json::iterator _crateDropType = crateDropTypes.begin(); _crateDropType != crateDropTypes.end(); _crateDropType++) {
+        json crateDropTypes = dropData["CrateDropTypes"];
+        for (json::iterator _crateDropType = crateDropTypes.begin(); _crateDropType != crateDropTypes.end(); _crateDropType++) {
             auto crateDropType = _crateDropType.value();
             std::vector<int> toAdd;
 
-            nlohmann::json crateIds = crateDropType["CrateIDs"];
-            for (nlohmann::json::iterator _crateId = crateIds.begin(); _crateId != crateIds.end(); _crateId++)
+            json crateIds = crateDropType["CrateIDs"];
+            for (json::iterator _crateId = crateIds.begin(); _crateId != crateIds.end(); _crateId++)
                 toAdd.push_back((int)_crateId.value());
 
             Items::CrateDropTypes[(int)crateDropType["CrateDropTypeID"]] = toAdd;
         }
 
         // MiscDropChances
-        nlohmann::json miscDropChances = dropData["MiscDropChances"];
-        for (nlohmann::json::iterator _miscDropChance = miscDropChances.begin(); _miscDropChance != miscDropChances.end(); _miscDropChance++) {
+        json miscDropChances = dropData["MiscDropChances"];
+        for (json::iterator _miscDropChance = miscDropChances.begin(); _miscDropChance != miscDropChances.end(); _miscDropChance++) {
             auto miscDropChance = _miscDropChance.value();
 
             Items::MiscDropChances[(int)miscDropChance["MiscDropChanceID"]] = {
@@ -249,8 +249,8 @@ static void loadDrops() {
         }
 
         // MiscDropTypes
-        nlohmann::json miscDropTypes = dropData["MiscDropTypes"];
-        for (nlohmann::json::iterator _miscDropType = miscDropTypes.begin(); _miscDropType != miscDropTypes.end(); _miscDropType++) {
+        json miscDropTypes = dropData["MiscDropTypes"];
+        for (json::iterator _miscDropType = miscDropTypes.begin(); _miscDropType != miscDropTypes.end(); _miscDropType++) {
             auto miscDropType = _miscDropType.value();
 
             Items::MiscDropTypes[(int)miscDropType["MiscDropTypeID"]] = {
@@ -262,8 +262,8 @@ static void loadDrops() {
         }
 
         // MobDrops
-        nlohmann::json mobDrops = dropData["MobDrops"];
-        for (nlohmann::json::iterator _mobDrop = mobDrops.begin(); _mobDrop != mobDrops.end(); _mobDrop++) {
+        json mobDrops = dropData["MobDrops"];
+        for (json::iterator _mobDrop = mobDrops.begin(); _mobDrop != mobDrops.end(); _mobDrop++) {
             auto mobDrop = _mobDrop.value();
 
             Items::MobDrops[(int)mobDrop["MobDropID"]] = {
@@ -275,37 +275,37 @@ static void loadDrops() {
         }
 
         // Events
-        nlohmann::json events = dropData["Events"];
-        for (nlohmann::json::iterator _event = events.begin(); _event != events.end(); _event++) {
+        json events = dropData["Events"];
+        for (json::iterator _event = events.begin(); _event != events.end(); _event++) {
             auto event = _event.value();
 
             Items::EventToDropMap[(int)event["EventID"]] = (int)event["MobDropID"];
         }
 
         // Mobs
-        nlohmann::json mobs = dropData["Mobs"];
-        for (nlohmann::json::iterator _mob = mobs.begin(); _mob != mobs.end(); _mob++) {
+        json mobs = dropData["Mobs"];
+        for (json::iterator _mob = mobs.begin(); _mob != mobs.end(); _mob++) {
             auto mob = _mob.value();
 
             Items::MobToDropMap[(int)mob["MobID"]] = (int)mob["MobDropID"];
         }
 
         // RarityWeights
-        nlohmann::json rarityWeights = dropData["RarityWeights"];
-        for (nlohmann::json::iterator _rarityWeightsObject = rarityWeights.begin(); _rarityWeightsObject != rarityWeights.end(); _rarityWeightsObject++) {
+        json rarityWeights = dropData["RarityWeights"];
+        for (json::iterator _rarityWeightsObject = rarityWeights.begin(); _rarityWeightsObject != rarityWeights.end(); _rarityWeightsObject++) {
             auto rarityWeightsObject = _rarityWeightsObject.value();
             std::vector<int> toAdd;
 
-            nlohmann::json weights = rarityWeightsObject["Weights"];
-            for (nlohmann::json::iterator _weight = weights.begin(); _weight != weights.end(); _weight++)
+            json weights = rarityWeightsObject["Weights"];
+            for (json::iterator _weight = weights.begin(); _weight != weights.end(); _weight++)
                 toAdd.push_back((int)_weight.value());
 
             Items::RarityWeights[(int)rarityWeightsObject["RarityWeightID"]] = toAdd;
         }
 
         // ItemSets
-        nlohmann::json itemSets = dropData["ItemSets"];
-        for (nlohmann::json::iterator _itemSet = itemSets.begin(); _itemSet != itemSets.end(); _itemSet++) {
+        json itemSets = dropData["ItemSets"];
+        for (json::iterator _itemSet = itemSets.begin(); _itemSet != itemSets.end(); _itemSet++) {
             auto itemSet = _itemSet.value();
             ItemSet toAdd = {};
 
@@ -313,28 +313,28 @@ static void loadDrops() {
             toAdd.ignoreGender = (bool)itemSet["IgnoreGender"];
             toAdd.defaultItemWeight = (int)itemSet["DefaultItemWeight"];
 
-            nlohmann::json alterRarityMap = itemSet["AlterRarityMap"];
-            for (nlohmann::json::iterator _alterRarityMapEntry = alterRarityMap.begin(); _alterRarityMapEntry != alterRarityMap.end(); _alterRarityMapEntry++)
+            json alterRarityMap = itemSet["AlterRarityMap"];
+            for (json::iterator _alterRarityMapEntry = alterRarityMap.begin(); _alterRarityMapEntry != alterRarityMap.end(); _alterRarityMapEntry++)
                 toAdd.alterRarityMap[std::atoi(_alterRarityMapEntry.key().c_str())] = (int)_alterRarityMapEntry.value();
 
-            nlohmann::json alterGenderMap = itemSet["AlterGenderMap"];
-            for (nlohmann::json::iterator _alterGenderMapEntry = alterGenderMap.begin(); _alterGenderMapEntry != alterGenderMap.end(); _alterGenderMapEntry++)
+            json alterGenderMap = itemSet["AlterGenderMap"];
+            for (json::iterator _alterGenderMapEntry = alterGenderMap.begin(); _alterGenderMapEntry != alterGenderMap.end(); _alterGenderMapEntry++)
                 toAdd.alterGenderMap[std::atoi(_alterGenderMapEntry.key().c_str())] = (int)_alterGenderMapEntry.value();
 
-            nlohmann::json alterItemWeightMap = itemSet["AlterItemWeightMap"];
-            for (nlohmann::json::iterator _alterItemWeightMapEntry = alterItemWeightMap.begin(); _alterItemWeightMapEntry != alterItemWeightMap.end(); _alterItemWeightMapEntry++)
+            json alterItemWeightMap = itemSet["AlterItemWeightMap"];
+            for (json::iterator _alterItemWeightMapEntry = alterItemWeightMap.begin(); _alterItemWeightMapEntry != alterItemWeightMap.end(); _alterItemWeightMapEntry++)
                 toAdd.alterItemWeightMap[std::atoi(_alterItemWeightMapEntry.key().c_str())] = (int)_alterItemWeightMapEntry.value();
 
-            nlohmann::json itemReferenceIds = itemSet["ItemReferenceIDs"];
-            for (nlohmann::json::iterator itemReferenceId = itemReferenceIds.begin(); itemReferenceId != itemReferenceIds.end(); itemReferenceId++)
+            json itemReferenceIds = itemSet["ItemReferenceIDs"];
+            for (json::iterator itemReferenceId = itemReferenceIds.begin(); itemReferenceId != itemReferenceIds.end(); itemReferenceId++)
                 toAdd.itemReferenceIds.push_back((int)itemReferenceId.value());
 
             Items::ItemSets[(int)itemSet["ItemSetID"]] = toAdd;
         }
 
         // Crates
-        nlohmann::json crates = dropData["Crates"];
-        for (nlohmann::json::iterator _crate = crates.begin(); _crate != crates.end(); _crate++) {
+        json crates = dropData["Crates"];
+        for (json::iterator _crate = crates.begin(); _crate != crates.end(); _crate++) {
             auto crate = _crate.value();
 
             Items::Crates[(int)crate["CrateID"]] = {
@@ -344,8 +344,8 @@ static void loadDrops() {
         }
 
         // ItemReferences
-        nlohmann::json itemReferences = dropData["ItemReferences"];
-        for (nlohmann::json::iterator _itemReference = itemReferences.begin(); _itemReference != itemReferences.end(); _itemReference++) {
+        json itemReferences = dropData["ItemReferences"];
+        for (json::iterator _itemReference = itemReferences.begin(); _itemReference != itemReferences.end(); _itemReference++) {
             auto itemReference = _itemReference.value();
 
             int itemReferenceId = (int)itemReference["ItemReferenceID"];
@@ -371,16 +371,16 @@ static void loadDrops() {
 
 #ifdef ACADEMY
         // NanoCapsules
-        nlohmann::json capsules = dropData["NanoCapsules"];
-        for (nlohmann::json::iterator _capsule = capsules.begin(); _capsule != capsules.end(); _capsule++) {
+        json capsules = dropData["NanoCapsules"];
+        for (json::iterator _capsule = capsules.begin(); _capsule != capsules.end(); _capsule++) {
             auto capsule = _capsule.value();
             Items::NanoCapsules[(int)capsule["CrateID"]] = (int)capsule["Nano"];
         }
 #endif
 
         // Racing rewards
-        nlohmann::json racing = dropData["Racing"];
-        for (nlohmann::json::iterator _race = racing.begin(); _race != racing.end(); _race++) {
+        json racing = dropData["Racing"];
+        for (json::iterator _race = racing.begin(); _race != racing.end(); _race++) {
             auto race = _race.value();
             int raceEPID = race["EPID"];
 
@@ -402,13 +402,13 @@ static void loadDrops() {
 
             // score cutoffs
             std::vector<int> rankScores;
-            for (nlohmann::json::iterator _rankScore = race["RankScores"].begin(); _rankScore != race["RankScores"].end(); _rankScore++) {
+            for (json::iterator _rankScore = race["RankScores"].begin(); _rankScore != race["RankScores"].end(); _rankScore++) {
                 rankScores.push_back((int)_rankScore.value());
             }
 
             // reward IDs for each rank
             std::vector<int> rankRewards;
-            for (nlohmann::json::iterator _rankReward = race["Rewards"].begin(); _rankReward != race["Rewards"].end(); _rankReward++) {
+            for (json::iterator _rankReward = race["Rewards"].begin(); _rankReward != race["Rewards"].end(); _rankReward++) {
                 rankRewards.push_back((int)_rankReward.value());
             }
 
@@ -424,14 +424,14 @@ static void loadDrops() {
         std::cout << "[INFO] Loaded rewards for " << Racing::EPRewards.size() << " IZ races" << std::endl;
 
         // CodeItems
-        nlohmann::json codes = dropData["CodeItems"];
-        for (nlohmann::json::iterator _code = codes.begin(); _code != codes.end(); _code++) {
+        json codes = dropData["CodeItems"];
+        for (json::iterator _code = codes.begin(); _code != codes.end(); _code++) {
             auto code = _code.value();
             std::string codeStr = code["Code"];
             std::vector<std::pair<int32_t, int32_t>> itemVector;
 
-            nlohmann::json itemReferenceIds = code["ItemReferenceIDs"];
-            for (nlohmann::json::iterator _itemReferenceId = itemReferenceIds.begin(); _itemReferenceId != itemReferenceIds.end(); _itemReferenceId++) {
+            json itemReferenceIds = code["ItemReferenceIDs"];
+            for (json::iterator _itemReferenceId = itemReferenceIds.begin(); _itemReferenceId != itemReferenceIds.end(); _itemReferenceId++) {
                 int itemReferenceId = (int)_itemReferenceId.value();
 
                 // validate and convert here
@@ -462,14 +462,14 @@ static void loadDrops() {
 static void loadEggs(int32_t* nextId) {
     try {
         std::ifstream inFile(settings::EGGSJSON);
-        nlohmann::json eggData;
+        json eggData;
 
         // read file into json
         inFile >> eggData;
 
         // EggTypes
-        nlohmann::json eggTypes = eggData["EggTypes"];
-        for (nlohmann::json::iterator _eggType = eggTypes.begin(); _eggType != eggTypes.end(); _eggType++) {
+        json eggTypes = eggData["EggTypes"];
+        for (json::iterator _eggType = eggTypes.begin(); _eggType != eggTypes.end(); _eggType++) {
             auto eggType = _eggType.value();
             EggType toAdd = {};
             toAdd.dropCrateId = (int)eggType["DropCrateId"];
@@ -506,7 +506,7 @@ static void loadEggs(int32_t* nextId) {
 static void loadGruntwork(int32_t *nextId) {
     try {
         std::ifstream inFile(settings::GRUNTWORKJSON);
-        nlohmann::json gruntwork;
+        json gruntwork;
 
         // skip if there's no gruntwork to load
         if (inFile.fail())
@@ -600,7 +600,7 @@ static void loadGruntwork(int32_t *nextId) {
             auto followers = leader["aFollowers"];
             if (followers.size() < 5) {
                 int followerCount = 0;
-                for (nlohmann::json::iterator _fol = followers.begin(); _fol != followers.end(); _fol++) {
+                for (json::iterator _fol = followers.begin(); _fol != followers.end(); _fol++) {
                     auto follower = _fol.value();
                     auto tdFol = NPCManager::NPCData[(int)follower["iNPCType"]];
                     Mob* tmpFol = new Mob((int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], leader["iAngle"], instanceID, follower["iNPCType"], tdFol, *nextId);
@@ -653,12 +653,12 @@ void TableData::init() {
     // load NPCs from NPC.json
     try {
         std::ifstream inFile(settings::NPCJSON);
-        nlohmann::json npcData;
+        json npcData;
 
         // read file into json
         inFile >> npcData;
         npcData = npcData["NPCs"];
-        for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
+        for (json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
             int instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
 #ifdef ACADEMY
@@ -686,7 +686,7 @@ void TableData::init() {
     // load everything else from xdttable
     std::cout << "[INFO] Parsing xdt.json..." << std::endl;
     std::ifstream infile(settings::XDTJSON);
-    nlohmann::json xdtData;
+    json xdtData;
 
     // read file into json
     infile >> xdtData;
@@ -696,9 +696,9 @@ void TableData::init() {
 
     try {
         // load warps
-        nlohmann::json warpData = xdtData["m_pInstanceTable"]["m_pWarpData"];
+        json warpData = xdtData["m_pInstanceTable"]["m_pWarpData"];
 
-        for (nlohmann::json::iterator _warp = warpData.begin(); _warp != warpData.end(); _warp++) {
+        for (json::iterator _warp = warpData.begin(); _warp != warpData.end(); _warp++) {
             auto warp = _warp.value();
             WarpLocation warpLoc = { warp["m_iToX"], warp["m_iToY"], warp["m_iToZ"], warp["m_iToMapNum"], warp["m_iIsInstance"], warp["m_iLimit_TaskID"], warp["m_iNpcNumber"] };
             int warpID = warp["m_iWarpNumber"];
@@ -708,17 +708,17 @@ void TableData::init() {
         std::cout << "[INFO] Populated " << NPCManager::Warps.size() << " Warps" << std::endl;
 
         // load transport routes and locations
-        nlohmann::json transRouteData = xdtData["m_pTransportationTable"]["m_pTransportationData"];
-        nlohmann::json transLocData = xdtData["m_pTransportationTable"]["m_pTransportationWarpLocation"];
+        json transRouteData = xdtData["m_pTransportationTable"]["m_pTransportationData"];
+        json transLocData = xdtData["m_pTransportationTable"]["m_pTransportationWarpLocation"];
 
-        for (nlohmann::json::iterator _tLoc = transLocData.begin(); _tLoc != transLocData.end(); _tLoc++) {
+        for (json::iterator _tLoc = transLocData.begin(); _tLoc != transLocData.end(); _tLoc++) {
             auto tLoc = _tLoc.value();
             TransportLocation transLoc = { tLoc["m_iNPCID"], tLoc["m_iXpos"], tLoc["m_iYpos"], tLoc["m_iZpos"] };
             Transport::Locations[tLoc["m_iLocationID"]] = transLoc;
         }
         std::cout << "[INFO] Loaded " << Transport::Locations.size() << " S.C.A.M.P.E.R. locations" << std::endl;
 
-        for (nlohmann::json::iterator _tRoute = transRouteData.begin(); _tRoute != transRouteData.end(); _tRoute++) {
+        for (json::iterator _tRoute = transRouteData.begin(); _tRoute != transRouteData.end(); _tRoute++) {
             auto tRoute = _tRoute.value();
             TransportRoute transRoute = { tRoute["m_iMoveType"], tRoute["m_iStartLocation"], tRoute["m_iEndLocation"],
                 tRoute["m_iCost"] , tRoute["m_iSpeed"], tRoute["m_iRouteNum"] };
@@ -727,7 +727,7 @@ void TableData::init() {
         std::cout << "[INFO] Loaded " << Transport::Routes.size() << " transportation routes" << std::endl;
 
         // load mission-related data
-        nlohmann::json tasks = xdtData["m_pMissionTable"]["m_pMissionData"];
+        json tasks = xdtData["m_pMissionTable"]["m_pMissionData"];
 
         for (auto _task = tasks.begin(); _task != tasks.end(); _task++) {
             auto task = _task.value();
@@ -754,13 +754,13 @@ void TableData::init() {
         const char* setNames[11] = { "m_pWeaponItemTable", "m_pShirtsItemTable", "m_pPantsItemTable", "m_pShoesItemTable",
         "m_pHatItemTable", "m_pGlassItemTable", "m_pBackItemTable", "m_pGeneralItemTable", "",
         "m_pChestItemTable", "m_pVehicleItemTable" };
-        nlohmann::json itemSet;
+        json itemSet;
         for (int i = 0; i < 11; i++) {
             if (i == 8)
                 continue; // there is no type 8, of course
 
             itemSet = xdtData[setNames[i]]["m_pItemData"];
-            for (nlohmann::json::iterator _item = itemSet.begin(); _item != itemSet.end(); _item++) {
+            for (json::iterator _item = itemSet.begin(); _item != itemSet.end(); _item++) {
                 auto item = _item.value();
                 int itemID = item["m_iItemNumber"];
                 INITSTRUCT(Items::Item, itemData);
@@ -789,16 +789,16 @@ void TableData::init() {
 
         // load player limits from m_pAvatarTable.m_pAvatarGrowData
 
-        nlohmann::json growth = xdtData["m_pAvatarTable"]["m_pAvatarGrowData"];
+        json growth = xdtData["m_pAvatarTable"]["m_pAvatarGrowData"];
 
         for (int i = 0; i < 37; i++) {
             Missions::AvatarGrowth[i] = growth[i];
         }
 
         // load vendor listings
-        nlohmann::json listings = xdtData["m_pVendorTable"]["m_pItemData"];
+        json listings = xdtData["m_pVendorTable"]["m_pItemData"];
 
-        for (nlohmann::json::iterator _lst = listings.begin(); _lst != listings.end(); _lst++) {
+        for (json::iterator _lst = listings.begin(); _lst != listings.end(); _lst++) {
             auto lst = _lst.value();
             VendorListing vListing = { lst["m_iSortNumber"], lst["m_iItemType"], lst["m_iitemID"] };
             Vendors::VendorTables[lst["m_iNpcNumber"]].push_back(vListing);
@@ -807,9 +807,9 @@ void TableData::init() {
         std::cout << "[INFO] Loaded " << Vendors::VendorTables.size() << " vendor tables" << std::endl;
 
         // load crocpot entries
-        nlohmann::json crocs = xdtData["m_pCombiningTable"]["m_pCombiningData"];
+        json crocs = xdtData["m_pCombiningTable"]["m_pCombiningData"];
 
-        for (nlohmann::json::iterator croc = crocs.begin(); croc != crocs.end(); croc++) {
+        for (json::iterator croc = crocs.begin(); croc != crocs.end(); croc++) {
             CrocPotEntry crocEntry = { croc.value()["m_iStatConstant"], croc.value()["m_iLookConstant"], croc.value()["m_fLevelGapStandard"],
                 croc.value()["m_fSameGrade"], croc.value()["m_fOneGrade"], croc.value()["m_fTwoGrade"], croc.value()["m_fThreeGrade"] };
             Items::CrocPotTable[croc.value()["m_iLevelGap"]] = crocEntry;
@@ -818,8 +818,8 @@ void TableData::init() {
         std::cout << "[INFO] Loaded " << Items::CrocPotTable.size() << " croc pot value sets" << std::endl;
 
         // load nano info
-        nlohmann::json nanoInfo = xdtData["m_pNanoTable"]["m_pNanoData"];
-        for (nlohmann::json::iterator _nano = nanoInfo.begin(); _nano != nanoInfo.end(); _nano++) {
+        json nanoInfo = xdtData["m_pNanoTable"]["m_pNanoData"];
+        for (json::iterator _nano = nanoInfo.begin(); _nano != nanoInfo.end(); _nano++) {
             auto nano = _nano.value();
             NanoData nanoData;
             nanoData.style = nano["m_iStyle"];
@@ -828,8 +828,8 @@ void TableData::init() {
 
         std::cout << "[INFO] Loaded " << Nanos::NanoTable.size() << " nanos" << std::endl;
 
-        nlohmann::json nanoTuneInfo = xdtData["m_pNanoTable"]["m_pNanoTuneData"];
-        for (nlohmann::json::iterator _nano = nanoTuneInfo.begin(); _nano != nanoTuneInfo.end(); _nano++) {
+        json nanoTuneInfo = xdtData["m_pNanoTable"]["m_pNanoTuneData"];
+        for (json::iterator _nano = nanoTuneInfo.begin(); _nano != nanoTuneInfo.end(); _nano++) {
             auto nano = _nano.value();
             NanoTuning nanoData;
             nanoData.reqItems = nano["m_iReqItemID"];
@@ -840,9 +840,9 @@ void TableData::init() {
         std::cout << "[INFO] Loaded " << Nanos::NanoTable.size() << " nano tunings" << std::endl;
 
         // load nano powers
-        nlohmann::json skills = xdtData["m_pSkillTable"]["m_pSkillData"];
+        json skills = xdtData["m_pSkillTable"]["m_pSkillData"];
 
-        for (nlohmann::json::iterator _skills = skills.begin(); _skills != skills.end(); _skills++) {
+        for (json::iterator _skills = skills.begin(); _skills != skills.end(); _skills++) {
             auto skills = _skills.value();
             SkillData skillData = {skills["m_iSkillType"], skills["m_iTargetType"], skills["m_iBatteryDrainType"], skills["m_iEffectArea"]};
             for (int i = 0; i < 4; i++) {
@@ -856,9 +856,9 @@ void TableData::init() {
         std::cout << "[INFO] Loaded " << Nanos::SkillTable.size() << " nano skills" << std::endl;
 
         // load EP data
-        nlohmann::json instances = xdtData["m_pInstanceTable"]["m_pInstanceData"];
+        json instances = xdtData["m_pInstanceTable"]["m_pInstanceData"];
 
-        for (nlohmann::json::iterator _instance = instances.begin(); _instance != instances.end(); _instance++) {
+        for (json::iterator _instance = instances.begin(); _instance != instances.end(); _instance++) {
             auto instance = _instance.value();
             EPInfo epInfo = {instance["m_iZoneX"], instance["m_iZoneY"], instance["m_iIsEP"], (int)instance["m_ScoreMax"]};
             Racing::EPData[instance["m_iInstanceNameID"]] = epInfo;
@@ -875,7 +875,7 @@ void TableData::init() {
     // load mobs
     try {
         std::ifstream inFile(settings::MOBJSON);
-        nlohmann::json npcData, groupData;
+        json npcData, groupData;
 
         // read file into json
         inFile >> npcData;
@@ -883,7 +883,7 @@ void TableData::init() {
         npcData = npcData["mobs"];
 
         // single mobs
-        for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
+        for (json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
             auto td = NPCManager::NPCData[(int)npc["iNPCType"]];
             uint64_t instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
@@ -906,7 +906,7 @@ void TableData::init() {
 
         // mob groups
         // single mobs
-        for (nlohmann::json::iterator _group = groupData.begin(); _group != groupData.end(); _group++) {
+        for (json::iterator _group = groupData.begin(); _group != groupData.end(); _group++) {
             auto leader = _group.value();
             auto td = NPCManager::NPCData[(int)leader["iNPCType"]];
             uint64_t instanceID = leader.find("iMapNum") == leader.end() ? INSTANCE_OVERWORLD : (int)leader["iMapNum"];
@@ -932,7 +932,7 @@ void TableData::init() {
 
             if (followers.size() < 5) {
                 int followerCount = 0;
-                for (nlohmann::json::iterator _fol = followers.begin(); _fol != followers.end(); _fol++) {
+                for (json::iterator _fol = followers.begin(); _fol != followers.end(); _fol++) {
                     auto follower = _fol.value();
                     auto tdFol = NPCManager::NPCData[(int)follower["iNPCType"]];
                     Mob* tmpFol = new Mob((int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], leader["iAngle"], instanceID, follower["iNPCType"], tdFol, nextId);
@@ -963,12 +963,12 @@ void TableData::init() {
     // load Academy NPCs from academy.json
     try {
         std::ifstream inFile(settings::ACADEMYJSON);
-        nlohmann::json npcData;
+        json npcData;
 
         // read file into json
         inFile >> npcData;
         npcData = npcData["NPCs"];
-        for (nlohmann::json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
+        for (json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
             int instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
 
@@ -1006,17 +1006,17 @@ void TableData::init() {
 // write gruntwork output to file
 void TableData::flush() {
     std::ofstream file(settings::GRUNTWORKJSON);
-    nlohmann::json gruntwork;
+    json gruntwork;
 
     for (auto& pair : RunningSkywayRoutes) {
-        nlohmann::json route;
+        json route;
 
         route["iRouteID"] = (int)pair.first;
         route["iMonkeySpeed"] = 1500;
 
         std::cout << "serializing mss route " << (int)pair.first << std::endl;
         for (WarpLocation& point : pair.second) {
-            nlohmann::json tmp;
+            json tmp;
 
             tmp["x"] = point.x;
             tmp["y"] = point.y;
@@ -1029,7 +1029,7 @@ void TableData::flush() {
     }
 
     for (auto& pair : RunningNPCRotations) {
-        nlohmann::json rotation;
+        json rotation;
 
         rotation["iNPCID"] = (int)pair.first;
         rotation["iAngle"] = pair.second;
@@ -1038,7 +1038,7 @@ void TableData::flush() {
     }
 
     for (auto& pair : RunningNPCMapNumbers) {
-        nlohmann::json mapNumber;
+        json mapNumber;
 
         mapNumber["iNPCID"] = (int)pair.first;
         mapNumber["iMapNum"] = pair.second;
@@ -1047,7 +1047,7 @@ void TableData::flush() {
     }
 
     for (auto& pair : RunningMobs) {
-        nlohmann::json mob;
+        json mob;
         BaseNPC *npc = pair.second;
 
         if (NPCManager::NPCs.find(pair.first) == NPCManager::NPCs.end())
@@ -1079,7 +1079,7 @@ void TableData::flush() {
     }
 
     for (auto& pair : RunningGroups) {
-        nlohmann::json mob;
+        json mob;
         BaseNPC* npc = pair.second;
 
         if (NPCManager::NPCs.find(pair.first) == NPCManager::NPCs.end())
@@ -1127,7 +1127,7 @@ void TableData::flush() {
             followers.pop_back(); // remove from vector
 
             // populate JSON entry
-            nlohmann::json fol;
+            json fol;
             fol["iNPCType"] = follower->appearanceData.iNPCType;
             fol["iOffsetX"] = follower->offsetX;
             fol["iOffsetY"] = follower->offsetY;
@@ -1140,7 +1140,7 @@ void TableData::flush() {
     }
 
     for (auto& pair : RunningEggs) {
-        nlohmann::json egg;
+        json egg;
         BaseNPC* npc = pair.second;
 
         if (NPCManager::NPCs.find(pair.first) == NPCManager::NPCs.end())
