@@ -82,16 +82,198 @@ static void constructPathNPC(json::iterator _pathData, int32_t id=0) {
 }
 
 /*
- * Load paths from paths JSON.
+ * Load all relevant data from the XDT into memory
+ * This should be called first, before any of the other load functions
  */
-static void loadPaths(int* nextId) {
+static void loadXDT(json& xdtData) {
+    // data we'll need for summoned mobs
+    NPCManager::NPCData = xdtData["m_pNpcTable"]["m_pNpcData"];
+
     try {
-        std::ifstream inFile(settings::PATHJSON);
-        json pathData;
+        // load warps
+        json warpData = xdtData["m_pInstanceTable"]["m_pWarpData"];
 
-        // read file into json
-        inFile >> pathData;
+        for (json::iterator _warp = warpData.begin(); _warp != warpData.end(); _warp++) {
+            auto warp = _warp.value();
+            WarpLocation warpLoc = { warp["m_iToX"], warp["m_iToY"], warp["m_iToZ"], warp["m_iToMapNum"], warp["m_iIsInstance"], warp["m_iLimit_TaskID"], warp["m_iNpcNumber"] };
+            int warpID = warp["m_iWarpNumber"];
+            NPCManager::Warps[warpID] = warpLoc;
+        }
 
+        std::cout << "[INFO] Loaded " << NPCManager::Warps.size() << " Warps" << std::endl;
+
+        // load transport routes and locations
+        json transRouteData = xdtData["m_pTransportationTable"]["m_pTransportationData"];
+        json transLocData = xdtData["m_pTransportationTable"]["m_pTransportationWarpLocation"];
+
+        for (json::iterator _tLoc = transLocData.begin(); _tLoc != transLocData.end(); _tLoc++) {
+            auto tLoc = _tLoc.value();
+            TransportLocation transLoc = { tLoc["m_iNPCID"], tLoc["m_iXpos"], tLoc["m_iYpos"], tLoc["m_iZpos"] };
+            Transport::Locations[tLoc["m_iLocationID"]] = transLoc;
+        }
+        std::cout << "[INFO] Loaded " << Transport::Locations.size() << " S.C.A.M.P.E.R. locations" << std::endl;
+
+        for (json::iterator _tRoute = transRouteData.begin(); _tRoute != transRouteData.end(); _tRoute++) {
+            auto tRoute = _tRoute.value();
+            TransportRoute transRoute = { tRoute["m_iMoveType"], tRoute["m_iStartLocation"], tRoute["m_iEndLocation"],
+                tRoute["m_iCost"] , tRoute["m_iSpeed"], tRoute["m_iRouteNum"] };
+            Transport::Routes[tRoute["m_iVehicleID"]] = transRoute;
+        }
+        std::cout << "[INFO] Loaded " << Transport::Routes.size() << " transportation routes" << std::endl;
+
+        // load mission-related data
+        json tasks = xdtData["m_pMissionTable"]["m_pMissionData"];
+
+        for (auto _task = tasks.begin(); _task != tasks.end(); _task++) {
+            auto task = _task.value();
+
+            // rewards
+            if (task["m_iSUReward"] != 0) {
+                auto _rew = xdtData["m_pMissionTable"]["m_pRewardData"][(int)task["m_iSUReward"]];
+                Reward* rew = new Reward(_rew["m_iMissionRewardID"], _rew["m_iMissionRewarItemType"],
+                    _rew["m_iMissionRewardItemID"], _rew["m_iCash"], _rew["m_iFusionMatter"]);
+
+                Missions::Rewards[task["m_iHTaskID"]] = rew;
+            }
+
+            // everything else lol. see TaskData comment.
+            Missions::Tasks[task["m_iHTaskID"]] = new TaskData(task);
+        }
+
+        std::cout << "[INFO] Loaded mission-related data" << std::endl;
+
+        /*
+        * load all equipment data. i'm sorry. it has to be done
+        * NOTE: please don't change the ordering. it determines the types, since type and equipLoc are used inconsistently
+        */
+        const char* setNames[11] = { "m_pWeaponItemTable", "m_pShirtsItemTable", "m_pPantsItemTable", "m_pShoesItemTable",
+        "m_pHatItemTable", "m_pGlassItemTable", "m_pBackItemTable", "m_pGeneralItemTable", "",
+        "m_pChestItemTable", "m_pVehicleItemTable" };
+        json itemSet;
+        for (int i = 0; i < 11; i++) {
+            if (i == 8)
+                continue; // there is no type 8, of course
+
+            itemSet = xdtData[setNames[i]]["m_pItemData"];
+            for (json::iterator _item = itemSet.begin(); _item != itemSet.end(); _item++) {
+                auto item = _item.value();
+                int itemID = item["m_iItemNumber"];
+                INITSTRUCT(Items::Item, itemData);
+                itemData.tradeable = item["m_iTradeAble"] == 1;
+                itemData.sellable = item["m_iSellAble"] == 1;
+                itemData.buyPrice = item["m_iItemPrice"];
+                itemData.sellPrice = item["m_iItemSellPrice"];
+                itemData.stackSize = item["m_iStackNumber"];
+                if (i != 7 && i != 9) {
+                    itemData.rarity = item["m_iRarity"];
+                    itemData.level = item["m_iMinReqLev"];
+                    itemData.pointDamage = item["m_iPointRat"];
+                    itemData.groupDamage = item["m_iGroupRat"];
+                    itemData.fireRate = item["m_iDelayTime"];
+                    itemData.defense = item["m_iDefenseRat"];
+                    itemData.gender = item["m_iReqSex"];
+                    itemData.weaponType = item["m_iEquipType"];
+                }
+                else {
+                    itemData.rarity = 1;
+                }
+                Items::ItemData[std::make_pair(itemID, i)] = itemData;
+            }
+        }
+
+        std::cout << "[INFO] Loaded " << Items::ItemData.size() << " items" << std::endl;
+
+        // load player limits from m_pAvatarTable.m_pAvatarGrowData
+
+        json growth = xdtData["m_pAvatarTable"]["m_pAvatarGrowData"];
+
+        for (int i = 0; i < 37; i++) {
+            Missions::AvatarGrowth[i] = growth[i];
+        }
+
+        // load vendor listings
+        json listings = xdtData["m_pVendorTable"]["m_pItemData"];
+
+        for (json::iterator _lst = listings.begin(); _lst != listings.end(); _lst++) {
+            auto lst = _lst.value();
+            VendorListing vListing = { lst["m_iSortNumber"], lst["m_iItemType"], lst["m_iitemID"] };
+            Vendors::VendorTables[lst["m_iNpcNumber"]].push_back(vListing);
+        }
+
+        std::cout << "[INFO] Loaded " << Vendors::VendorTables.size() << " vendor tables" << std::endl;
+
+        // load crocpot entries
+        json crocs = xdtData["m_pCombiningTable"]["m_pCombiningData"];
+
+        for (json::iterator croc = crocs.begin(); croc != crocs.end(); croc++) {
+            CrocPotEntry crocEntry = { croc.value()["m_iStatConstant"], croc.value()["m_iLookConstant"], croc.value()["m_fLevelGapStandard"],
+                croc.value()["m_fSameGrade"], croc.value()["m_fOneGrade"], croc.value()["m_fTwoGrade"], croc.value()["m_fThreeGrade"] };
+            Items::CrocPotTable[croc.value()["m_iLevelGap"]] = crocEntry;
+        }
+
+        std::cout << "[INFO] Loaded " << Items::CrocPotTable.size() << " croc pot value sets" << std::endl;
+
+        // load nano info
+        json nanoInfo = xdtData["m_pNanoTable"]["m_pNanoData"];
+        for (json::iterator _nano = nanoInfo.begin(); _nano != nanoInfo.end(); _nano++) {
+            auto nano = _nano.value();
+            NanoData nanoData;
+            nanoData.style = nano["m_iStyle"];
+            Nanos::NanoTable[Nanos::NanoTable.size()] = nanoData;
+        }
+
+        std::cout << "[INFO] Loaded " << Nanos::NanoTable.size() << " nanos" << std::endl;
+
+        json nanoTuneInfo = xdtData["m_pNanoTable"]["m_pNanoTuneData"];
+        for (json::iterator _nano = nanoTuneInfo.begin(); _nano != nanoTuneInfo.end(); _nano++) {
+            auto nano = _nano.value();
+            NanoTuning nanoData;
+            nanoData.reqItems = nano["m_iReqItemID"];
+            nanoData.reqItemCount = nano["m_iReqItemCount"];
+            Nanos::NanoTunings[nano["m_iSkillID"]] = nanoData;
+        }
+
+        std::cout << "[INFO] Loaded " << Nanos::NanoTable.size() << " nano tunings" << std::endl;
+
+        // load nano powers
+        json skills = xdtData["m_pSkillTable"]["m_pSkillData"];
+
+        for (json::iterator _skills = skills.begin(); _skills != skills.end(); _skills++) {
+            auto skills = _skills.value();
+            SkillData skillData = { skills["m_iSkillType"], skills["m_iTargetType"], skills["m_iBatteryDrainType"], skills["m_iEffectArea"] };
+            for (int i = 0; i < 4; i++) {
+                skillData.batteryUse[i] = skills["m_iBatteryDrainUse"][i];
+                skillData.durationTime[i] = skills["m_iDurationTime"][i];
+                skillData.powerIntensity[i] = skills["m_iValueA"][i];
+            }
+            Nanos::SkillTable[skills["m_iSkillNumber"]] = skillData;
+        }
+
+        std::cout << "[INFO] Loaded " << Nanos::SkillTable.size() << " nano skills" << std::endl;
+
+        // load EP data
+        json instances = xdtData["m_pInstanceTable"]["m_pInstanceData"];
+
+        for (json::iterator _instance = instances.begin(); _instance != instances.end(); _instance++) {
+            auto instance = _instance.value();
+            EPInfo epInfo = { instance["m_iZoneX"], instance["m_iZoneY"], instance["m_iIsEP"], (int)instance["m_ScoreMax"] };
+            Racing::EPData[instance["m_iInstanceNameID"]] = epInfo;
+        }
+
+        std::cout << "[INFO] Loaded " << Racing::EPData.size() << " instances" << std::endl;
+
+    }
+    catch (const std::exception& err) {
+        std::cerr << "[FATAL] Malformed xdt.json file! Reason:" << err.what() << std::endl;
+        exit(1);
+    }
+}
+
+/*
+ * Load paths from JSON
+ */
+static void loadPaths(json& pathData, int32_t* nextId) {
+    try {
         // skyway paths
         json pathDataSkyway = pathData["skyway"];
         for (json::iterator skywayPath = pathDataSkyway.begin(); skywayPath != pathDataSkyway.end(); skywayPath++) {
@@ -191,17 +373,11 @@ static void loadPaths(int* nextId) {
 }
 
 /*
- * Load drops data from JSON.
+ * Load drops data from JSON
  * This has to be called after reading xdt because it reffers to ItemData!!!
  */
-static void loadDrops() {
+static void loadDrops(json& dropData) {
     try {
-        std::ifstream inFile(settings::DROPSJSON);
-        json dropData;
-
-        // read file into json
-        inFile >> dropData;
-
         // CrateDropChances
         json crateDropChances = dropData["CrateDropChances"];
         for (json::iterator _crateDropChance = crateDropChances.begin(); _crateDropChance != crateDropChances.end(); _crateDropChance++) {
@@ -459,14 +635,11 @@ static void loadDrops() {
     }
 }
 
-static void loadEggs(int32_t* nextId) {
+/*
+ * Load eggs from JSON
+ */
+static void loadEggs(json& eggData, int32_t* nextId) {
     try {
-        std::ifstream inFile(settings::EGGSJSON);
-        json eggData;
-
-        // read file into json
-        inFile >> eggData;
-
         // EggTypes
         json eggTypes = eggData["EggTypes"];
         for (json::iterator _eggType = eggTypes.begin(); _eggType != eggTypes.end(); _eggType++) {
@@ -502,18 +675,14 @@ static void loadEggs(int32_t* nextId) {
     }
 }
 
-// load gruntwork output; if it exists
-static void loadGruntwork(int32_t *nextId) {
+/* 
+ * Load gruntwork output; if it exists
+ */
+static void loadGruntwork(json& gruntwork, int32_t* nextId) {
+
+    if (gruntwork.is_null()) return;
+
     try {
-        std::ifstream inFile(settings::GRUNTWORKJSON);
-        json gruntwork;
-
-        // skip if there's no gruntwork to load
-        if (inFile.fail())
-            return;
-
-        inFile >> gruntwork;
-
         // skyway paths
         auto skyway = gruntwork["skyway"];
         for (auto _route = skyway.begin(); _route != skyway.end(); _route++) {
@@ -647,16 +816,11 @@ static void loadGruntwork(int32_t *nextId) {
     }
 }
 
-void TableData::init() {
-    int32_t nextId = INT32_MAX; // next dynamic ID to hand out
-
-    // load NPCs from NPC.json
+/*
+ * Load NPCs from JSON
+ */
+static void loadNPCs(json& npcData, int32_t* nextId) {
     try {
-        std::ifstream inFile(settings::NPCJSON);
-        json npcData;
-
-        // read file into json
-        inFile >> npcData;
         npcData = npcData["NPCs"];
         for (json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
@@ -664,15 +828,15 @@ void TableData::init() {
 #ifdef ACADEMY
             // do not spawn NPCs in the future
             if (npc["iX"] > 512000 && npc["iY"] < 256000) {
-                nextId--;
+                (*nextId)--;
                 continue;
             }
 #endif
-            BaseNPC *tmp = new BaseNPC(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], nextId);
+            BaseNPC* tmp = new BaseNPC(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], *nextId);
 
-            NPCManager::NPCs[nextId] = tmp;
-            NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
-            nextId--;
+            NPCManager::NPCs[*nextId] = tmp;
+            NPCManager::updateNPCPosition(*nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
+            (*nextId)--;
 
             if (npc["iNPCType"] == 641 || npc["iNPCType"] == 642)
                 NPCManager::RespawnPoints.push_back({ npc["iX"], npc["iY"], ((int)npc["iZ"]) + RESURRECT_HEIGHT, instanceID });
@@ -682,204 +846,14 @@ void TableData::init() {
         std::cerr << "[FATAL] Malformed NPCs.json file! Reason:" << err.what() << std::endl;
         exit(1);
     }
+}
 
-    // load everything else from xdttable
-    std::cout << "[INFO] Parsing xdt.json..." << std::endl;
-    std::ifstream infile(settings::XDTJSON);
-    json xdtData;
-
-    // read file into json
-    infile >> xdtData;
-
-    // data we'll need for summoned mobs
-    NPCManager::NPCData = xdtData["m_pNpcTable"]["m_pNpcData"];
-
+/*
+ * Load mobs from JSON
+ */
+static void loadMobs(json& npcData, int32_t* nextId) {
     try {
-        // load warps
-        json warpData = xdtData["m_pInstanceTable"]["m_pWarpData"];
-
-        for (json::iterator _warp = warpData.begin(); _warp != warpData.end(); _warp++) {
-            auto warp = _warp.value();
-            WarpLocation warpLoc = { warp["m_iToX"], warp["m_iToY"], warp["m_iToZ"], warp["m_iToMapNum"], warp["m_iIsInstance"], warp["m_iLimit_TaskID"], warp["m_iNpcNumber"] };
-            int warpID = warp["m_iWarpNumber"];
-            NPCManager::Warps[warpID] = warpLoc;
-        }
-
-        std::cout << "[INFO] Populated " << NPCManager::Warps.size() << " Warps" << std::endl;
-
-        // load transport routes and locations
-        json transRouteData = xdtData["m_pTransportationTable"]["m_pTransportationData"];
-        json transLocData = xdtData["m_pTransportationTable"]["m_pTransportationWarpLocation"];
-
-        for (json::iterator _tLoc = transLocData.begin(); _tLoc != transLocData.end(); _tLoc++) {
-            auto tLoc = _tLoc.value();
-            TransportLocation transLoc = { tLoc["m_iNPCID"], tLoc["m_iXpos"], tLoc["m_iYpos"], tLoc["m_iZpos"] };
-            Transport::Locations[tLoc["m_iLocationID"]] = transLoc;
-        }
-        std::cout << "[INFO] Loaded " << Transport::Locations.size() << " S.C.A.M.P.E.R. locations" << std::endl;
-
-        for (json::iterator _tRoute = transRouteData.begin(); _tRoute != transRouteData.end(); _tRoute++) {
-            auto tRoute = _tRoute.value();
-            TransportRoute transRoute = { tRoute["m_iMoveType"], tRoute["m_iStartLocation"], tRoute["m_iEndLocation"],
-                tRoute["m_iCost"] , tRoute["m_iSpeed"], tRoute["m_iRouteNum"] };
-            Transport::Routes[tRoute["m_iVehicleID"]] = transRoute;
-        }
-        std::cout << "[INFO] Loaded " << Transport::Routes.size() << " transportation routes" << std::endl;
-
-        // load mission-related data
-        json tasks = xdtData["m_pMissionTable"]["m_pMissionData"];
-
-        for (auto _task = tasks.begin(); _task != tasks.end(); _task++) {
-            auto task = _task.value();
-
-            // rewards
-            if (task["m_iSUReward"] != 0) {
-                auto _rew = xdtData["m_pMissionTable"]["m_pRewardData"][(int)task["m_iSUReward"]];
-                Reward *rew = new Reward(_rew["m_iMissionRewardID"], _rew["m_iMissionRewarItemType"],
-                        _rew["m_iMissionRewardItemID"], _rew["m_iCash"], _rew["m_iFusionMatter"]);
-
-                Missions::Rewards[task["m_iHTaskID"]] = rew;
-            }
-
-            // everything else lol. see TaskData comment.
-            Missions::Tasks[task["m_iHTaskID"]] = new TaskData(task);
-        }
-
-        std::cout << "[INFO] Loaded mission-related data" << std::endl;
-
-        /*
-        * load all equipment data. i'm sorry. it has to be done
-        * NOTE: please don't change the ordering. it determines the types, since type and equipLoc are used inconsistently
-        */
-        const char* setNames[11] = { "m_pWeaponItemTable", "m_pShirtsItemTable", "m_pPantsItemTable", "m_pShoesItemTable",
-        "m_pHatItemTable", "m_pGlassItemTable", "m_pBackItemTable", "m_pGeneralItemTable", "",
-        "m_pChestItemTable", "m_pVehicleItemTable" };
-        json itemSet;
-        for (int i = 0; i < 11; i++) {
-            if (i == 8)
-                continue; // there is no type 8, of course
-
-            itemSet = xdtData[setNames[i]]["m_pItemData"];
-            for (json::iterator _item = itemSet.begin(); _item != itemSet.end(); _item++) {
-                auto item = _item.value();
-                int itemID = item["m_iItemNumber"];
-                INITSTRUCT(Items::Item, itemData);
-                itemData.tradeable = item["m_iTradeAble"] == 1;
-                itemData.sellable = item["m_iSellAble"] == 1;
-                itemData.buyPrice = item["m_iItemPrice"];
-                itemData.sellPrice = item["m_iItemSellPrice"];
-                itemData.stackSize = item["m_iStackNumber"];
-                if (i != 7 && i != 9) {
-                    itemData.rarity = item["m_iRarity"];
-                    itemData.level = item["m_iMinReqLev"];
-                    itemData.pointDamage = item["m_iPointRat"];
-                    itemData.groupDamage = item["m_iGroupRat"];
-                    itemData.fireRate = item["m_iDelayTime"];
-                    itemData.defense = item["m_iDefenseRat"];
-                    itemData.gender = item["m_iReqSex"];
-                    itemData.weaponType = item["m_iEquipType"];
-                } else {
-                    itemData.rarity = 1;
-                }
-                Items::ItemData[std::make_pair(itemID, i)] = itemData;
-            }
-        }
-
-        std::cout << "[INFO] Loaded " << Items::ItemData.size() << " items" << std::endl;
-
-        // load player limits from m_pAvatarTable.m_pAvatarGrowData
-
-        json growth = xdtData["m_pAvatarTable"]["m_pAvatarGrowData"];
-
-        for (int i = 0; i < 37; i++) {
-            Missions::AvatarGrowth[i] = growth[i];
-        }
-
-        // load vendor listings
-        json listings = xdtData["m_pVendorTable"]["m_pItemData"];
-
-        for (json::iterator _lst = listings.begin(); _lst != listings.end(); _lst++) {
-            auto lst = _lst.value();
-            VendorListing vListing = { lst["m_iSortNumber"], lst["m_iItemType"], lst["m_iitemID"] };
-            Vendors::VendorTables[lst["m_iNpcNumber"]].push_back(vListing);
-        }
-
-        std::cout << "[INFO] Loaded " << Vendors::VendorTables.size() << " vendor tables" << std::endl;
-
-        // load crocpot entries
-        json crocs = xdtData["m_pCombiningTable"]["m_pCombiningData"];
-
-        for (json::iterator croc = crocs.begin(); croc != crocs.end(); croc++) {
-            CrocPotEntry crocEntry = { croc.value()["m_iStatConstant"], croc.value()["m_iLookConstant"], croc.value()["m_fLevelGapStandard"],
-                croc.value()["m_fSameGrade"], croc.value()["m_fOneGrade"], croc.value()["m_fTwoGrade"], croc.value()["m_fThreeGrade"] };
-            Items::CrocPotTable[croc.value()["m_iLevelGap"]] = crocEntry;
-        }
-
-        std::cout << "[INFO] Loaded " << Items::CrocPotTable.size() << " croc pot value sets" << std::endl;
-
-        // load nano info
-        json nanoInfo = xdtData["m_pNanoTable"]["m_pNanoData"];
-        for (json::iterator _nano = nanoInfo.begin(); _nano != nanoInfo.end(); _nano++) {
-            auto nano = _nano.value();
-            NanoData nanoData;
-            nanoData.style = nano["m_iStyle"];
-            Nanos::NanoTable[Nanos::NanoTable.size()] = nanoData;
-        }
-
-        std::cout << "[INFO] Loaded " << Nanos::NanoTable.size() << " nanos" << std::endl;
-
-        json nanoTuneInfo = xdtData["m_pNanoTable"]["m_pNanoTuneData"];
-        for (json::iterator _nano = nanoTuneInfo.begin(); _nano != nanoTuneInfo.end(); _nano++) {
-            auto nano = _nano.value();
-            NanoTuning nanoData;
-            nanoData.reqItems = nano["m_iReqItemID"];
-            nanoData.reqItemCount = nano["m_iReqItemCount"];
-            Nanos::NanoTunings[nano["m_iSkillID"]] = nanoData;
-        }
-
-        std::cout << "[INFO] Loaded " << Nanos::NanoTable.size() << " nano tunings" << std::endl;
-
-        // load nano powers
-        json skills = xdtData["m_pSkillTable"]["m_pSkillData"];
-
-        for (json::iterator _skills = skills.begin(); _skills != skills.end(); _skills++) {
-            auto skills = _skills.value();
-            SkillData skillData = {skills["m_iSkillType"], skills["m_iTargetType"], skills["m_iBatteryDrainType"], skills["m_iEffectArea"]};
-            for (int i = 0; i < 4; i++) {
-                skillData.batteryUse[i] = skills["m_iBatteryDrainUse"][i];
-                skillData.durationTime[i] = skills["m_iDurationTime"][i];
-                skillData.powerIntensity[i] = skills["m_iValueA"][i];
-            }
-            Nanos::SkillTable[skills["m_iSkillNumber"]] = skillData;
-        }
-
-        std::cout << "[INFO] Loaded " << Nanos::SkillTable.size() << " nano skills" << std::endl;
-
-        // load EP data
-        json instances = xdtData["m_pInstanceTable"]["m_pInstanceData"];
-
-        for (json::iterator _instance = instances.begin(); _instance != instances.end(); _instance++) {
-            auto instance = _instance.value();
-            EPInfo epInfo = {instance["m_iZoneX"], instance["m_iZoneY"], instance["m_iIsEP"], (int)instance["m_ScoreMax"]};
-            Racing::EPData[instance["m_iInstanceNameID"]] = epInfo;
-        }
-
-        std::cout << "[INFO] Loaded " << Racing::EPData.size() << " instances" << std::endl;
-
-    }
-    catch (const std::exception& err) {
-        std::cerr << "[FATAL] Malformed xdt.json file! Reason:" << err.what() << std::endl;
-        exit(1);
-    }
-
-    // load mobs
-    try {
-        std::ifstream inFile(settings::MOBJSON);
-        json npcData, groupData;
-
-        // read file into json
-        inFile >> npcData;
-        groupData = npcData["groups"];
+        json groupData = npcData["groups"];
         npcData = npcData["mobs"];
 
         // single mobs
@@ -891,17 +865,17 @@ void TableData::init() {
 #ifdef ACADEMY
             // do not spawn NPCs in the future
             if (npc["iX"] > 512000 && npc["iY"] < 256000) {
-                nextId--;
+                (*nextId)--;
                 continue;
             }
 #endif
 
-            Mob *tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], td, nextId);
+            Mob* tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], td, *nextId);
 
-            NPCManager::NPCs[nextId] = tmp;
-            NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
+            NPCManager::NPCs[*nextId] = tmp;
+            NPCManager::updateNPCPosition(*nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
 
-            nextId--;
+            (*nextId)--;
         }
 
         // mob groups
@@ -915,95 +889,121 @@ void TableData::init() {
 #ifdef ACADEMY
             // do not spawn NPCs in the future
             if (leader["iX"] > 512000 && leader["iY"] < 256000) {
-                nextId--;
-                nextId -= followers.size();
+                (*nextId)--;
+                (*nextId) -= followers.size();
                 continue;
             }
 #endif
 
-            Mob* tmp = new Mob(leader["iX"], leader["iY"], leader["iZ"], leader["iAngle"], instanceID, leader["iNPCType"], td, nextId);
+            Mob* tmp = new Mob(leader["iX"], leader["iY"], leader["iZ"], leader["iAngle"], instanceID, leader["iNPCType"], td, *nextId);
 
-            NPCManager::NPCs[nextId] = tmp;
-            NPCManager::updateNPCPosition(nextId, leader["iX"], leader["iY"], leader["iZ"], instanceID, leader["iAngle"]);
+            NPCManager::NPCs[*nextId] = tmp;
+            NPCManager::updateNPCPosition(*nextId, leader["iX"], leader["iY"], leader["iZ"], instanceID, leader["iAngle"]);
 
-            tmp->groupLeader = nextId;
+            tmp->groupLeader = *nextId;
 
-            nextId--;
+            (*nextId)--;
 
             if (followers.size() < 5) {
                 int followerCount = 0;
                 for (json::iterator _fol = followers.begin(); _fol != followers.end(); _fol++) {
                     auto follower = _fol.value();
                     auto tdFol = NPCManager::NPCData[(int)follower["iNPCType"]];
-                    Mob* tmpFol = new Mob((int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], leader["iAngle"], instanceID, follower["iNPCType"], tdFol, nextId);
+                    Mob* tmpFol = new Mob((int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], leader["iAngle"], instanceID, follower["iNPCType"], tdFol, *nextId);
 
-                    NPCManager::NPCs[nextId] = tmpFol;
-                    NPCManager::updateNPCPosition(nextId, (int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], instanceID, leader["iAngle"]);
+                    NPCManager::NPCs[*nextId] = tmpFol;
+                    NPCManager::updateNPCPosition(*nextId, (int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], instanceID, leader["iAngle"]);
 
                     tmpFol->offsetX = follower.find("iOffsetX") == follower.end() ? 0 : (int)follower["iOffsetX"];
                     tmpFol->offsetY = follower.find("iOffsetY") == follower.end() ? 0 : (int)follower["iOffsetY"];
                     tmpFol->groupLeader = tmp->appearanceData.iNPC_ID;
-                    tmp->groupMember[followerCount++] = nextId;
+                    tmp->groupMember[followerCount++] = *nextId;
 
-                    nextId--;
+                    (*nextId)--;
                 }
-            } else {
-                std::cout << "[WARN] Mob group leader with ID " << nextId << " has too many followers (" << followers.size() << ")\n";
+            }
+            else {
+                std::cout << "[WARN] Mob group leader with ID " << *nextId << " has too many followers (" << followers.size() << ")\n";
             }
         }
 
-        std::cout << "[INFO] Populated " << NPCManager::NPCs.size() << " NPCs" << std::endl;
+        std::cout << "[INFO] Loaded " << NPCManager::NPCs.size() << " NPCs" << std::endl;
     }
     catch (const std::exception& err) {
         std::cerr << "[FATAL] Malformed mobs.json file! Reason:" << err.what() << std::endl;
         exit(1);
     }
+}
 
-#ifdef ACADEMY
-    // load Academy NPCs from academy.json
-    try {
-        std::ifstream inFile(settings::ACADEMYJSON);
-        json npcData;
+static void loadingError(const char* which) {
+    std::cerr << "[FATAL] Critical tdata file missing: " << which << std::endl;
+    exit(1);
+}
 
-        // read file into json
-        inFile >> npcData;
-        npcData = npcData["NPCs"];
-        for (json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
-            auto npc = _npc.value();
-            int instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
+void TableData::init() {
+    int32_t nextId = INT32_MAX; // next dynamic ID to hand out
 
-            int team = NPCManager::NPCData[(int)npc["iNPCType"]]["m_iTeam"];
+    // base JSON tables
+    json xdt;
+    json paths;
+    json drops;
+    json eggs;
+    json npcs;
+    json mobs;
+    json gruntwork;
 
-            if (team == 2)
-                NPCManager::NPCs[nextId] = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], NPCManager::NPCData[(int)npc["iNPCType"]], nextId);
-            else
-                NPCManager::NPCs[nextId] = new BaseNPC(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], nextId);
+    // open file streams
+    std::ifstream fXDT(settings::XDTJSON);
+    std::ifstream fPaths(settings::PATHJSON);
+    std::ifstream fDrops(settings::DROPSJSON);
+    std::ifstream fEggs(settings::EGGSJSON);
+    std::ifstream fNPCs(settings::NPCJSON);
+    std::ifstream fMobs(settings::MOBJSON);
+    std::ifstream fGruntwork(settings::GRUNTWORKJSON);
 
-            NPCManager::updateNPCPosition(nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
-            nextId--;
+    if (fXDT.fail()) loadingError("XDT.json");
+    if (fPaths.fail()) loadingError("paths.json");
+    if (fDrops.fail()) loadingError("drops.json");
+    if (fEggs.fail()) loadingError("eggs.json");
+    if (fNPCs.fail()) loadingError("NPCs.json");
+    if (fMobs.fail()) loadingError("mobs.json");
+        
+    // read contents into json tables
+    fXDT >> xdt;
+    fPaths >> paths;
+    fDrops >> drops;
+    fEggs >> eggs;
+    fNPCs >> npcs;
+    fMobs >> mobs;
+    if (!fGruntwork.fail()) fGruntwork >> gruntwork;
 
-            if (npc["iNPCType"] == 641 || npc["iNPCType"] == 642)
-                NPCManager::RespawnPoints.push_back({ npc["iX"], npc["iY"], ((int)npc["iZ"]) + RESURRECT_HEIGHT, instanceID });
-        }
-    }
-    catch (const std::exception& err) {
-        std::cerr << "[FATAL] Malformed academy.json file! Reason:" << err.what() << std::endl;
-        exit(1);
-    }
-#endif
+    // close file streams
+    fXDT.close();
+    fPaths.close();
+    fDrops.close();
+    fEggs.close();
+    fNPCs.close();
+    fMobs.close();
+    fGruntwork.close();
 
-    loadDrops();
+    // TODO patching system
 
-    loadEggs(&nextId);
-
-    loadPaths(&nextId); // load paths
-
-    loadGruntwork(&nextId);
+    // fetch data from patched tables and load them appropriately
+    // note: the order of these is important
+    loadXDT(xdt);
+    loadNPCs(npcs, &nextId);
+    loadMobs(mobs, &nextId);
+    loadDrops(drops);
+    loadEggs(eggs, &nextId);
+    loadPaths(paths, &nextId);
+    loadGruntwork(gruntwork, &nextId);
 
     NPCManager::nextId = nextId;
 }
 
-// write gruntwork output to file
+/*
+ * Write gruntwork output to file
+ */
 void TableData::flush() {
     std::ofstream file(settings::GRUNTWORKJSON);
     json gruntwork;
