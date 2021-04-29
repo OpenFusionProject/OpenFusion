@@ -819,24 +819,23 @@ static void loadGruntwork(json& gruntwork, int32_t* nextId) {
 /*
  * Load NPCs from JSON
  */
-static void loadNPCs(json& npcData, int32_t* nextId) {
+static void loadNPCs(json& npcData) {
     try {
         npcData = npcData["NPCs"];
         for (json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
+            int npcID = std::strtol(_npc.key().c_str(), nullptr, 10); // parse ID string to integer
+            npcID += NPC_ID_OFFSET;
             int instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
 #ifdef ACADEMY
             // do not spawn NPCs in the future
-            if (npc["iX"] > 512000 && npc["iY"] < 256000) {
-                (*nextId)--;
+            if (npc["iX"] > 512000 && npc["iY"] < 256000)
                 continue;
-            }
 #endif
-            BaseNPC* tmp = new BaseNPC(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], *nextId);
+            BaseNPC* tmp = new BaseNPC(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], npcID);
 
-            NPCManager::NPCs[*nextId] = tmp;
-            NPCManager::updateNPCPosition(*nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
-            (*nextId)--;
+            NPCManager::NPCs[npcID] = tmp;
+            NPCManager::updateNPCPosition(npcID, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
 
             if (npc["iNPCType"] == 641 || npc["iNPCType"] == 642)
                 NPCManager::RespawnPoints.push_back({ npc["iX"], npc["iY"], ((int)npc["iZ"]) + RESURRECT_HEIGHT, instanceID });
@@ -859,51 +858,47 @@ static void loadMobs(json& npcData, int32_t* nextId) {
         // single mobs
         for (json::iterator _npc = npcData.begin(); _npc != npcData.end(); _npc++) {
             auto npc = _npc.value();
+            int npcID = std::strtol(_npc.key().c_str(), nullptr, 10); // parse ID string to integer
+            npcID += MOB_ID_OFFSET;
             auto td = NPCManager::NPCData[(int)npc["iNPCType"]];
             uint64_t instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
 
 #ifdef ACADEMY
             // do not spawn NPCs in the future
-            if (npc["iX"] > 512000 && npc["iY"] < 256000) {
-                (*nextId)--;
+            if (npc["iX"] > 512000 && npc["iY"] < 256000)
                 continue;
-            }
 #endif
 
-            Mob* tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], td, *nextId);
+            Mob* tmp = new Mob(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], td, npcID);
 
-            NPCManager::NPCs[*nextId] = tmp;
-            NPCManager::updateNPCPosition(*nextId, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
-
-            (*nextId)--;
+            NPCManager::NPCs[npcID] = tmp;
+            NPCManager::updateNPCPosition(npcID, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
         }
 
         // mob groups
-        // single mobs
+        // single mobs (have static IDs)
         for (json::iterator _group = groupData.begin(); _group != groupData.end(); _group++) {
             auto leader = _group.value();
+            int leadID = std::strtol(_group.key().c_str(), nullptr, 10); // parse ID string to integer
+            leadID += MOB_GROUP_ID_OFFSET;
             auto td = NPCManager::NPCData[(int)leader["iNPCType"]];
             uint64_t instanceID = leader.find("iMapNum") == leader.end() ? INSTANCE_OVERWORLD : (int)leader["iMapNum"];
             auto followers = leader["aFollowers"];
 
 #ifdef ACADEMY
             // do not spawn NPCs in the future
-            if (leader["iX"] > 512000 && leader["iY"] < 256000) {
-                (*nextId)--;
-                (*nextId) -= followers.size();
+            if (leader["iX"] > 512000 && leader["iY"] < 256000)
                 continue;
-            }
 #endif
 
-            Mob* tmp = new Mob(leader["iX"], leader["iY"], leader["iZ"], leader["iAngle"], instanceID, leader["iNPCType"], td, *nextId);
+            Mob* tmp = new Mob(leader["iX"], leader["iY"], leader["iZ"], leader["iAngle"], instanceID, leader["iNPCType"], td, leadID);
 
-            NPCManager::NPCs[*nextId] = tmp;
-            NPCManager::updateNPCPosition(*nextId, leader["iX"], leader["iY"], leader["iZ"], instanceID, leader["iAngle"]);
+            NPCManager::NPCs[leadID] = tmp;
+            NPCManager::updateNPCPosition(leadID, leader["iX"], leader["iY"], leader["iZ"], instanceID, leader["iAngle"]);
 
-            tmp->groupLeader = *nextId;
+            tmp->groupLeader = leadID;
 
-            (*nextId)--;
-
+            // followers (have dynamic IDs)
             if (followers.size() < 5) {
                 int followerCount = 0;
                 for (json::iterator _fol = followers.begin(); _fol != followers.end(); _fol++) {
@@ -923,7 +918,7 @@ static void loadMobs(json& npcData, int32_t* nextId) {
                 }
             }
             else {
-                std::cout << "[WARN] Mob group leader with ID " << *nextId << " has too many followers (" << followers.size() << ")\n";
+                std::cout << "[WARN] Mob group leader with ID " << leadID << " has too many followers (" << followers.size() << ")\n";
             }
         }
 
@@ -938,6 +933,10 @@ static void loadMobs(json& npcData, int32_t* nextId) {
 static void loadingError(const char* which) {
     std::cerr << "[FATAL] Critical tdata file missing: " << which << std::endl;
     exit(1);
+}
+
+static void patch(json& base, json patch) {
+
 }
 
 void TableData::init() {
@@ -991,7 +990,7 @@ void TableData::init() {
     // fetch data from patched tables and load them appropriately
     // note: the order of these is important
     loadXDT(xdt);
-    loadNPCs(npcs, &nextId);
+    loadNPCs(npcs);
     loadMobs(mobs, &nextId);
     loadDrops(drops);
     loadEggs(eggs, &nextId);
