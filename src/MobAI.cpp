@@ -571,7 +571,7 @@ static void combatStep(Mob *mob, time_t currTime) {
     }
 
     int distanceToTravel = INT_MAX;
-    int speed = mob->data["m_iRunSpeed"];
+    int speed = mob->speed;
     // movement logic: move when out of range but don't move while casting a skill
     if (distance > mobRange && mob->skillStyle == -1) {
         if (mob->nextMovement != 0 && currTime < mob->nextMovement)
@@ -672,7 +672,7 @@ static void roamingStep(Mob *mob, time_t currTime) {
 
     int xStart = mob->spawnX - mob->idleRange/2;
     int yStart = mob->spawnY - mob->idleRange/2;
-    int speed = mob->data["m_iWalkSpeed"];
+    int speed = mob->speed;
 
     // some mobs don't move (and we mustn't divide/modulus by zero)
     if (mob->idleRange == 0 || speed == 0)
@@ -743,10 +743,10 @@ static void retreatStep(Mob *mob, time_t currTime) {
     if (distance > 10) {
         INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
 
-        auto targ = lerp(mob->x, mob->y, mob->roamX, mob->roamY, (int)mob->data["m_iRunSpeed"]*4/5);
+        auto targ = lerp(mob->x, mob->y, mob->roamX, mob->roamY, (int)mob->speed*4/5);
 
         pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
-        pkt.iSpeed = (int)mob->data["m_iRunSpeed"] * 2;
+        pkt.iSpeed = (int)mob->speed * 2;
         pkt.iToX = mob->x = targ.first;
         pkt.iToY = mob->y = targ.second;
         pkt.iToZ = mob->z = mob->spawnZ;

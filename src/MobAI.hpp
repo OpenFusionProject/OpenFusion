@@ -60,6 +60,7 @@ struct Mob : public CombatNPC {
 
         data = d;
 
+        speed = data["m_iRunSpeed"];
         regenTime = data["m_iRegenTime"];
         idleRange = (int)data["m_iIdleRange"];
         level = data["m_iNpcLevel"];

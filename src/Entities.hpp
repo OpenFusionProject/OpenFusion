@@ -101,6 +101,7 @@ struct CombatNPC : public BaseNPC {
     int spawnY = 0;
     int spawnZ = 0;
     int level = 0;
+    int speed = 300;
 
     void (*_stepAI)(CombatNPC*, time_t) = nullptr;
 
