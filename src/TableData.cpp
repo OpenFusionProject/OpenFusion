@@ -929,10 +929,52 @@ static void loadMobs(json& npcData, int32_t* nextId) {
 }
 
 /*
- * Iterate through the fields of every TLO in `patch` and modify `base` accordingly.
+ * Transform `base` based on the value of `patch`.
+ * Parameters must be of the same type and must not be null.
+ * Array <- Array: All elements in patch array get added to base array.
+ * Object <- Object: Combine properties recursively and save to base.
+ * All other types <- Same type: Base value gets overwritten by patch value.
  */
-static void patch(json& base, json &patch) {
+static void patchJSON(json* base, json* patch) {
+    if (patch->is_null() || base->is_null())
+        return; // no nulls allowed!!
 
+    if ((json::value_t)*base != (json::value_t)*patch)
+        return; // no type mismatch allowed!!
+
+    // case 1: type is array
+    if (patch->is_array()) {
+        // loop through all array elements
+        for (json::iterator _element = patch->begin(); _element != patch->end(); _element++)
+            base->push_back(*_element); // add element to base
+    }
+    // case 2: type is object
+    else if (patch->is_object()) {
+        // loop through all object properties
+        for (json::iterator _prop = patch->begin(); _prop != patch->end(); _prop++) {
+            std::string key = _prop.key(); // static identifier
+            json* valLoc = &(*_prop); // pointer to json data
+
+            // search for matching property in base object
+            json::iterator _match = base->find(key);
+            if (_match != base->end()) {
+                // match found
+                if (valLoc->is_null()) // prop value is null; erase match
+                    base->erase(key);
+                else { // combine objects
+                    json* match = &(*_match);
+                    patchJSON(match, valLoc);
+                }
+            } else {
+                // no match found; add the property to the base object
+                (*base)[key] = *valLoc;
+            }
+        }
+    }
+    // case 3: all other types
+    else {
+        *base = *patch; // complete overwrite
+    }
 }
 
 void TableData::init() {
@@ -964,9 +1006,9 @@ void TableData::init() {
             }
         }
         fstream.close();
-    }
 
-    // patching
+        // patching
+    }
 
     // fetch data from patched tables and load them appropriately
     // note: the order of these is important
