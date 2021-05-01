@@ -928,12 +928,10 @@ static void loadMobs(json& npcData, int32_t* nextId) {
     }
 }
 
-static void loadingError(const char* which) {
-    std::cerr << "[FATAL] Critical tdata file missing: " << which << std::endl;
-    exit(1);
-}
-
-static void patch(json& base, json patch) {
+/*
+ * Iterate through the fields of every TLO in `patch` and modify `base` accordingly.
+ */
+static void patch(json& base, json &patch) {
 
 }
 
@@ -942,40 +940,31 @@ void TableData::init() {
 
     // base JSON tables
     json xdt, paths, drops, eggs, npcs, mobs, gruntwork;
+    std::pair<json*, std::string> tables[7] = {
+        std::make_pair(&xdt, settings::XDTJSON), // 0
+        std::make_pair(&paths, settings::PATHJSON), // 1
+        std::make_pair(&drops, settings::DROPSJSON), // 2
+        std::make_pair(&eggs, settings::EGGSJSON), // 3
+        std::make_pair(&npcs, settings::NPCJSON), // 4
+        std::make_pair(&mobs, settings::MOBJSON), // 5
+        std::make_pair(&gruntwork, settings::GRUNTWORKJSON) // 6
+    };
 
-    // open file streams
-    std::ifstream fXDT(settings::XDTJSON);
-    std::ifstream fPaths(settings::PATHJSON);
-    std::ifstream fDrops(settings::DROPSJSON);
-    std::ifstream fEggs(settings::EGGSJSON);
-    std::ifstream fNPCs(settings::NPCJSON);
-    std::ifstream fMobs(settings::MOBJSON);
-    std::ifstream fGruntwork(settings::GRUNTWORKJSON);
-
-    if (fXDT.fail()) loadingError("XDT.json");
-    if (fPaths.fail()) loadingError("paths.json");
-    if (fDrops.fail()) loadingError("drops.json");
-    if (fEggs.fail()) loadingError("eggs.json");
-    if (fNPCs.fail()) loadingError("NPCs.json");
-    if (fMobs.fail()) loadingError("mobs.json");
-        
-    // read contents into json tables
-    fXDT >> xdt;
-    fPaths >> paths;
-    fDrops >> drops;
-    fEggs >> eggs;
-    fNPCs >> npcs;
-    fMobs >> mobs;
-    if (!fGruntwork.fail()) fGruntwork >> gruntwork;
-
-    // close file streams
-    fXDT.close();
-    fPaths.close();
-    fDrops.close();
-    fEggs.close();
-    fNPCs.close();
-    fMobs.close();
-    fGruntwork.close();
+    // load JSON data into tables
+    std::ifstream fstream;
+    for (int i = 0; i < 7; i++) {
+        std::pair<json*, std::string>& table = tables[i];
+        fstream.open(table.second); // open file
+        if (!fstream.fail()) {
+            fstream >> *table.first; // load file contents into table
+        } else {
+            if (i != 6) { // gruntwork isn't critical
+                std::cerr << "[FATAL] Critical tdata file missing: " << table.second << std::endl;
+                exit(1);
+            }
+        }
+        fstream.close();
+    }
 
     // patching
 
