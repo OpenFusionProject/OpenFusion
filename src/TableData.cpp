@@ -37,8 +37,7 @@ public:
 /*
  * Create a full and properly-paced path by interpolating between keyframes.
  */
-static void constructPathSkyway(json::iterator _pathData) {
-    auto pathData = _pathData.value();
+static void constructPathSkyway(json& pathData) {
     // Interpolate
     json pathPoints = pathData["points"];
     std::queue<WarpLocation> points;
@@ -56,8 +55,7 @@ static void constructPathSkyway(json::iterator _pathData) {
     Transport::SkywayPaths[pathData["iRouteID"]] = points;
 }
 
-static void constructPathNPC(json::iterator _pathData, int32_t id=0) {
-    auto pathData = _pathData.value();
+static void constructPathNPC(json& pathData, int32_t id=0) {
     // Interpolate
     json pathPoints = pathData["points"];
     std::queue<WarpLocation> points;
@@ -277,7 +275,7 @@ static void loadPaths(json& pathData, int32_t* nextId) {
         // skyway paths
         json pathDataSkyway = pathData["skyway"];
         for (json::iterator skywayPath = pathDataSkyway.begin(); skywayPath != pathDataSkyway.end(); skywayPath++) {
-            constructPathSkyway(skywayPath);
+            constructPathSkyway(*skywayPath);
         }
         std::cout << "[INFO] Loaded " << Transport::SkywayPaths.size() << " skyway paths" << std::endl;
 
@@ -358,7 +356,7 @@ static void loadPaths(json& pathData, int32_t* nextId) {
                         exit(1);
                     }
 
-                    constructPathNPC(npcPath, pair.first);
+                    constructPathNPC(*npcPath, pair.first);
                     mob->staticPath = true;
                     break; // only one NPC per path
                 }
@@ -943,13 +941,7 @@ void TableData::init() {
     int32_t nextId = INT32_MAX; // next dynamic ID to hand out
 
     // base JSON tables
-    json xdt;
-    json paths;
-    json drops;
-    json eggs;
-    json npcs;
-    json mobs;
-    json gruntwork;
+    json xdt, paths, drops, eggs, npcs, mobs, gruntwork;
 
     // open file streams
     std::ifstream fXDT(settings::XDTJSON);
