@@ -13,9 +13,9 @@ using namespace Transport;
 
 std::map<int32_t, TransportRoute> Transport::Routes;
 std::map<int32_t, TransportLocation> Transport::Locations;
-std::map<int32_t, std::queue<WarpLocation>> Transport::SkywayPaths;
-std::unordered_map<CNSocket*, std::queue<WarpLocation>> Transport::SkywayQueues;
-std::unordered_map<int32_t, std::queue<WarpLocation>> Transport::NPCQueues;
+std::map<int32_t, std::queue<Vec3>> Transport::SkywayPaths;
+std::unordered_map<CNSocket*, std::queue<Vec3>> Transport::SkywayQueues;
+std::unordered_map<int32_t, std::queue<Vec3>> Transport::NPCQueues;
 
 static void transportRegisterLocationHandler(CNSocket* sock, CNPacketData* data) {
     auto transport = (sP_CL2FE_REQ_REGIST_TRANSPORTATION_LOCATION*)data->buf;
@@ -131,7 +131,7 @@ static void transportWarpHandler(CNSocket* sock, CNPacketData* data) {
             plr->onMonkey = true;
             break;
         } else if (TableData::RunningSkywayRoutes.find(route.mssRouteNum) != TableData::RunningSkywayRoutes.end()) {
-            std::vector<WarpLocation>* _route = &TableData::RunningSkywayRoutes[route.mssRouteNum];
+            std::vector<Vec3>* _route = &TableData::RunningSkywayRoutes[route.mssRouteNum];
             Nanos::summonNano(sock, -1);
             testMssRoute(sock, _route);
             plr->onMonkey = true;
@@ -169,13 +169,13 @@ static void transportWarpHandler(CNSocket* sock, CNPacketData* data) {
     PlayerManager::updatePlayerPosition(sock, target->x, target->y, target->z, INSTANCE_OVERWORLD, plr->angle);
 }
 
-void Transport::testMssRoute(CNSocket *sock, std::vector<WarpLocation>* route) {
+void Transport::testMssRoute(CNSocket *sock, std::vector<Vec3>* route) {
     int speed = 1500; // TODO: make this adjustable
-    std::queue<WarpLocation> path;
-    WarpLocation last = route->front(); // start pos
+    std::queue<Vec3> path;
+    Vec3 last = route->front(); // start pos
 
     for (int i = 1; i < route->size(); i++) {
-        WarpLocation coords = route->at(i);
+        Vec3 coords = route->at(i);
         Transport::lerp(&path, last, coords, speed);
         path.push(coords); // add keyframe to the queue
         last = coords; // update start pos
@@ -191,10 +191,10 @@ void Transport::testMssRoute(CNSocket *sock, std::vector<WarpLocation>* route) {
 static void stepSkywaySystem() {
 
     // using an unordered map so we can remove finished players in one iteration
-    std::unordered_map<CNSocket*, std::queue<WarpLocation>>::iterator it = SkywayQueues.begin();
+    std::unordered_map<CNSocket*, std::queue<Vec3>>::iterator it = SkywayQueues.begin();
     while (it != SkywayQueues.end()) {
 
-        std::queue<WarpLocation>* queue = &it->second;
+        std::queue<Vec3>* queue = &it->second;
 
         if (PlayerManager::players.find(it->first) == PlayerManager::players.end()) {
             // pluck out dead socket + update iterator
@@ -218,7 +218,7 @@ static void stepSkywaySystem() {
             it = SkywayQueues.erase(it); // remove player from tracking map + update iterator
             plr->onMonkey = false;
         } else {
-            WarpLocation point = queue->front(); // get point
+            Vec3 point = queue->front(); // get point
             queue->pop(); // remove point from front of queue
 
             INITSTRUCT(sP_FE2CL_PC_BROOMSTICK_MOVE, bmstk);
@@ -240,10 +240,10 @@ static void stepSkywaySystem() {
 static void stepNPCPathing() {
 
     // all NPC pathing queues
-    std::unordered_map<int32_t, std::queue<WarpLocation>>::iterator it = NPCQueues.begin();
+    std::unordered_map<int32_t, std::queue<Vec3>>::iterator it = NPCQueues.begin();
     while (it != NPCQueues.end()) {
 
-        std::queue<WarpLocation>* queue = &it->second;
+        std::queue<Vec3>* queue = &it->second;
 
         BaseNPC* npc = nullptr;
         if (NPCManager::NPCs.find(it->first) != NPCManager::NPCs.end())
@@ -267,7 +267,7 @@ static void stepNPCPathing() {
             continue;
         }
 
-        WarpLocation point = queue->front(); // get point
+        Vec3 point = queue->front(); // get point
         queue->pop(); // remove point from front of queue
 
         // calculate displacement
@@ -327,12 +327,12 @@ static void tickTransportationSystem(CNServer* serv, time_t currTime) {
 /*
  * Linearly interpolate between two points and insert the results into a queue.
  */
-void Transport::lerp(std::queue<WarpLocation>* queue, WarpLocation start, WarpLocation end, int gapSize, float curve) {
+void Transport::lerp(std::queue<Vec3>* queue, Vec3 start, Vec3 end, int gapSize, float curve) {
     int dXY = hypot(end.x - start.x, end.y - start.y); // XY plane distance
     int distanceBetween = hypot(dXY, end.z - start.z); // total distance
     int lerps = distanceBetween / gapSize; // number of intermediate points to add
     for (int i = 1; i <= lerps; i++) {
-        WarpLocation lerp;
+        Vec3 lerp;
         // lerp math
         //float frac = i / (lerps + 1);
         float frac = powf(i, curve) / powf(lerps + 1, curve);
@@ -342,7 +342,7 @@ void Transport::lerp(std::queue<WarpLocation>* queue, WarpLocation start, WarpLo
         queue->push(lerp); // add lerp'd point
     }
 }
-void Transport::lerp(std::queue<WarpLocation>* queue, WarpLocation start, WarpLocation end, int gapSize) {
+void Transport::lerp(std::queue<Vec3>* queue, Vec3 start, Vec3 end, int gapSize) {
     lerp(queue, start, end, gapSize, 1);
 }
 

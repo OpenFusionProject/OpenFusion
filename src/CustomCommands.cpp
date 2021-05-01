@@ -127,7 +127,7 @@ static void mssCommand(std::string full, std::vector<std::string>& args, CNSocke
     }
 
     // get the route (if it doesn't exist yet, this will also make it)
-    std::vector<WarpLocation>* route = &TableData::RunningSkywayRoutes[routeNum];
+    std::vector<Vec3>* route = &TableData::RunningSkywayRoutes[routeNum];
 
     // mss <route> add <height>
     if (args[2] == "add") {
@@ -158,7 +158,7 @@ static void mssCommand(std::string full, std::vector<std::string>& args, CNSocke
             return;
         }
 
-        WarpLocation pulled = route->back();
+        Vec3 pulled = route->back();
         route->pop_back(); // remove point at top of stack
         Chat::sendServerMessage(sock, "[MSS] Removed point (" + std::to_string(pulled.x) + ", " + std::to_string(pulled.y) + ", " + std::to_string(pulled.z) + ") from route " + std::to_string(routeNum));
         return;
@@ -171,7 +171,7 @@ static void mssCommand(std::string full, std::vector<std::string>& args, CNSocke
             return;
         }
 
-        WarpLocation pulled = route->back();
+        Vec3 pulled = route->back();
         PlayerManager::sendPlayerTo(sock, pulled.x, pulled.y, pulled.z);
         return;
     }
@@ -190,7 +190,7 @@ static void mssCommand(std::string full, std::vector<std::string>& args, CNSocke
             return;
         }
 
-        WarpLocation pulled = route->front();
+        Vec3 pulled = route->front();
         PlayerManager::sendPlayerTo(sock, pulled.x, pulled.y, pulled.z);
         Transport::testMssRoute(sock, route);
         return;

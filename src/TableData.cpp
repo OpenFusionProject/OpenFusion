@@ -18,7 +18,7 @@
 
 using namespace TableData;
 
-std::map<int32_t, std::vector<WarpLocation>> TableData::RunningSkywayRoutes;
+std::map<int32_t, std::vector<Vec3>> TableData::RunningSkywayRoutes;
 std::map<int32_t, int> TableData::RunningNPCRotations;
 std::map<int32_t, int> TableData::RunningNPCMapNumbers;
 std::map<int32_t, BaseNPC*> TableData::RunningMobs;
@@ -40,14 +40,14 @@ public:
 static void constructPathSkyway(json& pathData) {
     // Interpolate
     json pathPoints = pathData["points"];
-    std::queue<WarpLocation> points;
+    std::queue<Vec3> points;
     json::iterator _point = pathPoints.begin();
     auto point = _point.value();
-    WarpLocation last = { point["iX"] , point["iY"] , point["iZ"] }; // start pos
+    Vec3 last = { point["iX"] , point["iY"] , point["iZ"] }; // start pos
     // use some for loop trickery; start position should not be a point
     for (_point++; _point != pathPoints.end(); _point++) {
         point = _point.value();
-        WarpLocation coords = { point["iX"] , point["iY"] , point["iZ"] };
+        Vec3 coords = { point["iX"] , point["iY"] , point["iZ"] };
         Transport::lerp(&points, last, coords, pathData["iMonkeySpeed"]);
         points.push(coords); // add keyframe to the queue
         last = coords; // update start pos
@@ -58,16 +58,16 @@ static void constructPathSkyway(json& pathData) {
 static void constructPathNPC(json& pathData, int32_t id=0) {
     // Interpolate
     json pathPoints = pathData["points"];
-    std::queue<WarpLocation> points;
+    std::queue<Vec3> points;
     json::iterator _point = pathPoints.begin();
     auto point = _point.value();
-    WarpLocation from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
+    Vec3 from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
     int stopTime = point["stop"];
     for (_point++; _point != pathPoints.end(); _point++) { // loop through all point Bs
         point = _point.value();
         for(int i = 0; i < stopTime + 1; i++) // repeat point if it's a stop
             points.push(from); // add point A to the queue
-        WarpLocation to = { point["iX"] , point["iY"] , point["iZ"] }; // point B coords
+        Vec3 to = { point["iX"] , point["iY"] , point["iZ"] }; // point B coords
         Transport::lerp(&points, from, to, pathData["iBaseSpeed"]); // lerp from A to B
         from = to; // update point A
         stopTime = point["stop"];
@@ -282,11 +282,11 @@ static void loadPaths(json& pathData, int32_t* nextId) {
         // slider circuit
         json pathDataSlider = pathData["slider"];
         // lerp between keyframes
-        std::queue<WarpLocation> route;
+        std::queue<Vec3> route;
         // initial point
         json::iterator _point = pathDataSlider.begin(); // iterator
         auto point = _point.value();
-        WarpLocation from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
+        Vec3 from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
         int stopTime = point["stop"] ? SLIDER_STOP_TICKS : 0; // arbitrary stop length
         // remaining points
         for (_point++; _point != pathDataSlider.end(); _point++) { // loop through all point Bs
@@ -294,7 +294,7 @@ static void loadPaths(json& pathData, int32_t* nextId) {
             for (int i = 0; i < stopTime + 1; i++) { // repeat point if it's a stop
                 route.push(from); // add point A to the queue
             }
-            WarpLocation to = { point["iX"] , point["iY"] , point["iZ"] }; // point B coords
+            Vec3 to = { point["iX"] , point["iY"] , point["iZ"] }; // point B coords
             // we may need to change this later; right now, the speed is cut before and after stops (no accel)
             float curve = 1;
             if (stopTime > 0) { // point A is a stop
@@ -310,11 +310,11 @@ static void loadPaths(json& pathData, int32_t* nextId) {
         int passedDistance = 0;
         // initial point
         int pos = 0;
-        WarpLocation lastPoint = route.front();
+        Vec3 lastPoint = route.front();
         route.pop();
         route.push(lastPoint);
         for (pos = 1; pos < route.size(); pos++) {
-            WarpLocation point = route.front();
+            Vec3 point = route.front();
             passedDistance += hypot(point.x - lastPoint.x, point.y - lastPoint.y);
             if (passedDistance >= SLIDER_GAP_SIZE) { // space them out uniformaly
                 passedDistance -= SLIDER_GAP_SIZE; // step down
@@ -685,11 +685,11 @@ static void loadGruntwork(json& gruntwork, int32_t* nextId) {
         auto skyway = gruntwork["skyway"];
         for (auto _route = skyway.begin(); _route != skyway.end(); _route++) {
             auto route = _route.value();
-            std::vector<WarpLocation> points;
+            std::vector<Vec3> points;
 
             for (auto _point = route["points"].begin(); _point != route["points"].end(); _point++) {
                 auto point = _point.value();
-                points.push_back(WarpLocation{point["x"], point["y"], point["z"]});
+                points.push_back(Vec3{point["x"], point["y"], point["z"]});
             }
 
             RunningSkywayRoutes[(int)route["iRouteID"]] = points;
@@ -1006,7 +1006,7 @@ void TableData::flush() {
         route["iMonkeySpeed"] = 1500;
 
         std::cout << "serializing mss route " << (int)pair.first << std::endl;
-        for (WarpLocation& point : pair.second) {
+        for (Vec3& point : pair.second) {
             json tmp;
 
             tmp["x"] = point.x;

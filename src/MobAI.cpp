@@ -701,9 +701,9 @@ static void roamingStep(Mob *mob, time_t currTime) {
     if (mob->appearanceData.iConditionBitFlag & CSB_BIT_DN_MOVE_SPEED)
         speed /= 2;
 
-    std::queue<WarpLocation> queue;
-    WarpLocation from = { mob->x, mob->y, mob->z };
-    WarpLocation to = { farX, farY, mob->z };
+    std::queue<Vec3> queue;
+    Vec3 from = { mob->x, mob->y, mob->z };
+    Vec3 to = { farX, farY, mob->z };
 
     // add a route to the queue; to be processed in Transport::stepNPCPathing()
     Transport::lerp(&queue, from, to, speed);
@@ -720,7 +720,7 @@ static void roamingStep(Mob *mob, time_t currTime) {
                 continue;
             }
 
-            std::queue<WarpLocation> queue2;
+            std::queue<Vec3> queue2;
             Mob* followerMob = (Mob*)NPCManager::NPCs[mob->groupMember[i]];
             from = { followerMob->x, followerMob->y, followerMob->z };
             to = { farX + followerMob->offsetX, farY + followerMob->offsetY, followerMob->z };

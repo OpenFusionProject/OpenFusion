@@ -12,7 +12,7 @@ const int MOB_GROUP_ID_OFFSET = 20000;
 typedef nlohmann::json json;
 
 namespace TableData {
-    extern std::map<int32_t, std::vector<WarpLocation>> RunningSkywayRoutes;
+    extern std::map<int32_t, std::vector<Vec3>> RunningSkywayRoutes;
     extern std::map<int32_t, int> RunningNPCRotations;
     extern std::map<int32_t, int> RunningNPCMapNumbers;
     extern std::map<int32_t, BaseNPC*> RunningMobs;
