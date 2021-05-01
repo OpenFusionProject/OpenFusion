@@ -3,6 +3,7 @@
 #include "core/Core.hpp"
 #include "PlayerManager.hpp"
 #include "NPC.hpp"
+#include "Transport.hpp"
 
 #include "JSON.hpp"
 
@@ -28,10 +29,7 @@ struct NPCEvent {
         : npcType(t), trigger(tr), handler(hndlr) {}
 };
 
-// this should really be called vec3 or something...
-struct WarpLocation {
-    int x, y, z, instanceID, isInstance, limitTaskID, npcID;
-};
+struct WarpLocation;
 
 namespace NPCManager {
     extern std::unordered_map<int32_t, BaseNPC*> NPCs;
