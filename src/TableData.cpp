@@ -961,6 +961,15 @@ static void patchJSON(json* base, json* patch) {
             std::string key = _prop.key(); // static identifier
             json* valLoc = &(*_prop); // pointer to json data
 
+            // special casing for forced replacement.
+            // the ! is stripped, then the property is forcibly replaced without a recursive call
+            // that means no type checking, so use at your own risk
+            if (key.c_str()[0] == '!') {
+                key = key.substr(1, key.length() - 1);
+                (*base)[key] = *valLoc;
+                continue;
+            }
+
             // search for matching property in base object
             json::iterator _match = base->find(key);
             if (_match != base->end()) {
