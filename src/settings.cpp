@@ -30,18 +30,24 @@ int settings::SPAWN_X = 19835;
 int settings::SPAWN_Y = 108682;
 int settings::SPAWN_Z = 8450;
 #endif
-
 int settings::SPAWN_ANGLE = 130;
-std::string settings::NPCJSON = "tdata/NPCs.json";
-std::string settings::MOBJSON = "tdata/mobs.json";
-std::string settings::EGGSJSON = "tdata/eggs.json";
-std::string settings::GRUNTWORKJSON = "tdata/gruntwork.json";
-std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
+
 std::string settings::DBPATH = "database.db";
-std::string settings::PATCHPATH = "tdata/patch";
-std::string settings::DROPSJSON = "tdata/drops.json";
-std::string settings::XDTJSON = "tdata/xdt.json";
-std::string settings::PATHJSON = "tdata/paths.json";
+std::string settings::TDATADIR = "tdata/";
+std::string settings::PATCHDIR = "tdata/patch/";
+
+std::string settings::NPCJSON = "NPCs.json";
+std::string settings::MOBJSON = "mobs.json";
+std::string settings::EGGSJSON = "eggs.json";
+std::string settings::GRUNTWORKJSON = "gruntwork.json";
+std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
+std::string settings::DROPSJSON = "drops.json";
+std::string settings::PATHJSON = "paths.json";
+#ifdef ACADEMY
+std::string settings::XDTJSON = "xdt1013.json";
+#else
+std::string settings::XDTJSON = "xdt.json";
+#endif // ACADEMY
 
 int settings::ACCLEVEL = 1;
 bool settings::DISABLEFIRSTUSEFLAG = true;
@@ -88,7 +94,8 @@ void settings::init() {
     GRUNTWORKJSON = reader.Get("shard", "gruntwork", GRUNTWORKJSON);
     MOTDSTRING = reader.Get("shard", "motd", MOTDSTRING);
     DBPATH = reader.Get("shard", "dbpath", DBPATH);
-    PATCHPATH = reader.Get("shard", "patchpath", PATCHPATH);
+    TDATADIR = reader.Get("shard", "tdatadir", TDATADIR);
+    PATCHDIR = reader.Get("shard", "patchdir", PATCHDIR);
     ACCLEVEL = reader.GetInteger("shard", "accountlevel", ACCLEVEL);
     EVENTMODE = reader.GetInteger("shard", "eventmode", EVENTMODE);
     DISABLEFIRSTUSEFLAG = reader.GetBoolean("shard", "disablefirstuseflag", DISABLEFIRSTUSEFLAG);
