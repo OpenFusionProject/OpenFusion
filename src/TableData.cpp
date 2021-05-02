@@ -941,8 +941,12 @@ static void patchJSON(json* base, json* patch) {
     if (patch->is_null() || base->is_null())
         return; // no nulls allowed!!
 
-    if ((json::value_t)*base != (json::value_t)*patch)
-        return; // no type mismatch allowed!!
+    if ((json::value_t)(*base) != (json::value_t)(*patch)) {
+        // verify type mismatch. unsigned <-> integer is ok.
+        if (!((base->is_number_integer() && patch->is_number_unsigned())
+            || (base->is_number_unsigned() && patch->is_number_integer())))
+            return;
+    }
 
     // case 1: type is array
     if (patch->is_array()) {
