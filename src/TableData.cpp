@@ -1013,7 +1013,20 @@ void TableData::init() {
         }
         fstream.close();
 
-        // patching
+        // patching: loop through every directory within the patch directory, looking for a matching file
+        json patch;
+        for (const auto& patchModule : std::filesystem::directory_iterator(settings::PATCHDIR)) {
+            // this is the theoretical path of a corresponding patch for this file
+            std::string patchFile = patchModule.path().generic_u8string() + "/" + table.second;
+            if (std::filesystem::exists(patchFile)) {
+                // file exists
+                std::cout << "[INFO] Patching " << patchFile << std::endl;
+                fstream.open(patchFile);
+                fstream >> patch; // load into temporary json object
+                patchJSON(table.first, &patch); // patch
+                fstream.close();
+            }
+        }
     }
 
     // fetch data from patched tables and load them appropriately

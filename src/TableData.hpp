@@ -1,5 +1,6 @@
 #pragma once
 #include <map>
+#include <filesystem>
 
 #include "NPCManager.hpp"
 
