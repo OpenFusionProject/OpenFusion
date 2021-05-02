@@ -161,12 +161,13 @@ static void emptyChunk(ChunkPos chunkPos) {
 void Chunking::updateEntityChunk(const EntityRef& ref, ChunkPos from, ChunkPos to) {
     Entity* ent = ref.getEntity();
 
+    // move to other chunk's player set
+    untrackEntity(from, ref); // this will delete the chunk if it's empty
+
     // if the new chunk doesn't exist, make it first
     if (!chunkExists(to))
         newChunk(to);
 
-    // move to other chunk's player set
-    untrackEntity(from, ref); // this will delete the chunk if it's empty
     trackEntity(to, ref);
 
     // calculate viewable chunks from both points
