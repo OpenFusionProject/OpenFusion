@@ -989,13 +989,13 @@ void TableData::init() {
     // base JSON tables
     json xdt, paths, drops, eggs, npcs, mobs, gruntwork;
     std::pair<json*, std::string> tables[7] = {
-        std::make_pair(&xdt, settings::XDTJSON), // 0
-        std::make_pair(&paths, settings::PATHJSON), // 1
-        std::make_pair(&drops, settings::DROPSJSON), // 2
-        std::make_pair(&eggs, settings::EGGSJSON), // 3
-        std::make_pair(&npcs, settings::NPCJSON), // 4
-        std::make_pair(&mobs, settings::MOBJSON), // 5
-        std::make_pair(&gruntwork, settings::GRUNTWORKJSON) // 6
+        std::make_pair(&xdt, settings::XDTJSON),
+        std::make_pair(&paths, settings::PATHJSON),
+        std::make_pair(&drops, settings::DROPSJSON),
+        std::make_pair(&eggs, settings::EGGSJSON),
+        std::make_pair(&npcs, settings::NPCJSON),
+        std::make_pair(&mobs, settings::MOBJSON),
+        std::make_pair(&gruntwork, settings::GRUNTWORKJSON)
     };
 
     // load JSON data into tables
@@ -1006,7 +1006,7 @@ void TableData::init() {
         if (!fstream.fail()) {
             fstream >> *table.first; // load file contents into table
         } else {
-            if (i != 6) { // gruntwork isn't critical
+            if (table.first != &gruntwork) { // gruntwork isn't critical
                 std::cerr << "[FATAL] Critical tdata file missing: " << settings::TDATADIR << table.second << std::endl;
                 exit(1);
             }
@@ -1031,6 +1031,7 @@ void TableData::init() {
 
     // fetch data from patched tables and load them appropriately
     // note: the order of these is important
+    std::cout << "[INFO] Loading tabledata..." << std::endl;
     loadXDT(xdt);
     loadNPCs(npcs);
     loadMobs(mobs, &nextId);
