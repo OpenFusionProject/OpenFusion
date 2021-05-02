@@ -24,7 +24,8 @@ namespace settings {
     extern std::string EGGSJSON;
     extern std::string GRUNTWORKJSON;
     extern std::string DBPATH;
-    extern std::string PATCHPATH;
+    extern std::string PATCHDIR;
+    extern std::string TDATADIR;
     extern int EVENTMODE;
     extern bool MONITORENABLED;
     extern int MONITORPORT;
