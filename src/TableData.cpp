@@ -350,11 +350,13 @@ static void loadPaths(json& pathData, int32_t* nextId) {
                     std::cout << "[INFO] Using static path for mob " << mob->appearanceData.iNPCType << " with ID " << pair.first << std::endl;
 
                     auto firstPoint = npcPath.value()["points"][0];
+                    /*
                     if (firstPoint["iX"] != mob->spawnX || firstPoint["iY"] != mob->spawnY) {
                         std::cout << "[FATAL] The first point of the route for mob " << pair.first <<
                             " (type " << mob->appearanceData.iNPCType << ") does not correspond with its spawn point." << std::endl;
                         exit(1);
                     }
+                    */
 
                     constructPathNPC(*npcPath, pair.first);
                     mob->staticPath = true;
