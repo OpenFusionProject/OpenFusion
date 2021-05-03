@@ -13,6 +13,7 @@ using namespace Transport;
 
 std::map<int32_t, TransportRoute> Transport::Routes;
 std::map<int32_t, TransportLocation> Transport::Locations;
+std::vector<NPCPath> Transport::NPCPaths;
 std::map<int32_t, std::queue<Vec3>> Transport::SkywayPaths;
 std::unordered_map<CNSocket*, std::queue<Vec3>> Transport::SkywayQueues;
 std::unordered_map<int32_t, std::queue<Vec3>> Transport::NPCQueues;
