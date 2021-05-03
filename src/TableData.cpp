@@ -35,6 +35,31 @@ public:
 };
 
 /*
+ * Find and return the first path that targets either the type or the ID.
+ * If no matches are found, return nullptr
+ */
+static NPCPath* findApplicablePath(int32_t id, int32_t type) {
+    NPCPath* match = nullptr;
+    for (auto _path = Transport::NPCPaths.begin(); _path != Transport::NPCPaths.end(); _path++) {
+        // search target IDs
+        for (int32_t pID : _path->targetIDs) {
+            if (id == pID) match = &(*_path);
+            break;
+        }
+
+        // search target types
+        for (int32_t pType : _path->targetTypes) {
+            if (type == pType) match = &(*_path);
+            break;
+        }
+
+        if (match != nullptr)
+            break;
+    }
+    return match;
+}
+
+/*
  * Create a full and properly-paced path by interpolating between keyframes.
  */
 static void constructPathSkyway(json& pathData) {
@@ -55,26 +80,35 @@ static void constructPathSkyway(json& pathData) {
     Transport::SkywayPaths[pathData["iRouteID"]] = points;
 }
 
-static void constructPathNPC(json& pathData, int32_t id=0) {
-    // Interpolate
-    json pathPoints = pathData["aPoints"];
-    std::queue<Vec3> points;
-    json::iterator _point = pathPoints.begin();
-    auto point = _point.value();
-    Vec3 from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
-    int stopTime = point["iStopTicks"];
-    for (_point++; _point != pathPoints.end(); _point++) { // loop through all point Bs
-        point = _point.value();
-        for(int i = 0; i < stopTime + 1; i++) // repeat point if it's a stop
-            points.push(from); // add point A to the queue
-        Vec3 to = { point["iX"] , point["iY"] , point["iZ"] }; // point B coords
-        Transport::lerp(&points, from, to, pathData["iBaseSpeed"]); // lerp from A to B
-        from = to; // update point A
-        stopTime = point["iStopTicks"];
-    }
+static void constructPathNPC(int32_t id, NPCPath* path) {
+    BaseNPC* npc = NPCManager::NPCs[id];
+    if(npc->type == EntityType::MOB)
+        ((Mob*)(npc))->staticPath = true;
 
-    if (id == 0)
-        id = pathData["iNPCID"];
+    // Interpolate
+    std::vector<Vec3> pathPoints = path->points;
+    std::queue<Vec3> points;
+
+    auto _point = pathPoints.begin();
+    Vec3 from = *_point; // point A coords
+    for (_point++; _point != pathPoints.end(); _point++) { // loop through all point Bs
+        Vec3 to = *_point; // point B coords
+        // add point A to the queue
+        if (path->isRelative) {
+            // relative; the NPCs current position is assumed to be its spawn point
+            Vec3 fromReal = { from.x + npc->x, from.y + npc->y, from.z + npc->z };
+            Vec3 toReal = { to.x + npc->x, to.y + npc->y, to.z + npc->z };
+            points.push(fromReal);
+            Transport::lerp(&points, fromReal, toReal, path->speed); // lerp from A to B
+        }
+        else {
+            // absolute
+            points.push(from);
+            Transport::lerp(&points, from, to, path->speed); // lerp from A to B
+        }
+        
+        from = to; // update point A
+    }
 
     Transport::NPCQueues[id] = points;
 }
@@ -366,31 +400,6 @@ static void loadPaths(json& pathData, int32_t* nextId) {
             Transport::NPCPaths.push_back(pathTemplate);
         }
         std::cout << "[INFO] Loaded " << Transport::NPCPaths.size() << " NPC paths" << std::endl;
-
-        // mob paths
-        pathDataNPC = pathData["mob"];
-        for (json::iterator npcPath = pathDataNPC.begin(); npcPath != pathDataNPC.end(); npcPath++) {
-            for (auto& pair : NPCManager::NPCs) {
-                if (pair.second->type != EntityType::MOB)
-                    continue;
-
-                Mob* mob = (Mob*)pair.second;
-                if (mob->appearanceData.iNPCType == npcPath.value()["iNPCType"]) {
-                    std::cout << "[INFO] Using static path for mob " << mob->appearanceData.iNPCType << " with ID " << pair.first << std::endl;
-
-                    auto firstPoint = npcPath.value()["points"][0];
-                    if (firstPoint["iX"] != mob->spawnX || firstPoint["iY"] != mob->spawnY) {
-                        std::cout << "[FATAL] The first point of the route for mob " << pair.first <<
-                            " (type " << mob->appearanceData.iNPCType << ") does not correspond with its spawn point." << std::endl;
-                        exit(1);
-                    }
-
-                    constructPathNPC(*npcPath, pair.first);
-                    mob->staticPath = true;
-                    break; // only one NPC per path
-                }
-            }
-        }
         
     }
     catch (const std::exception& err) {
@@ -866,6 +875,13 @@ static void loadNPCs(json& npcData) {
 
             if (npc["iNPCType"] == 641 || npc["iNPCType"] == 642)
                 NPCManager::RespawnPoints.push_back({ npc["iX"], npc["iY"], ((int)npc["iZ"]) + RESURRECT_HEIGHT, instanceID });
+
+            // see if any paths target this NPC
+            NPCPath* npcPath = findApplicablePath(npcID, npc["iNPCType"]);
+            if (npcPath != nullptr) {
+                //std::cout << "[INFO] Found path for NPC " << npcID << std::endl;
+                constructPathNPC(npcID, npcPath);
+            }
         }
     }
     catch (const std::exception& err) {
@@ -900,6 +916,13 @@ static void loadMobs(json& npcData, int32_t* nextId) {
 
             NPCManager::NPCs[npcID] = tmp;
             NPCManager::updateNPCPosition(npcID, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
+
+            // see if any paths target this mob
+            NPCPath* npcPath = findApplicablePath(npcID, npc["iNPCType"]);
+            if (npcPath != nullptr) {
+                //std::cout << "[INFO] Found path for mob " << npcID << std::endl;
+                constructPathNPC(npcID, npcPath);
+            }
         }
 
         // mob groups
@@ -922,6 +945,13 @@ static void loadMobs(json& npcData, int32_t* nextId) {
 
             NPCManager::NPCs[leadID] = tmp;
             NPCManager::updateNPCPosition(leadID, leader["iX"], leader["iY"], leader["iZ"], instanceID, leader["iAngle"]);
+
+            // see if any paths target this group leader
+            NPCPath* npcPath = findApplicablePath(leadID, leader["iNPCType"]);
+            if (npcPath != nullptr) {
+                //std::cout << "[INFO] Found path for mob " << leadID << std::endl;
+                constructPathNPC(leadID, npcPath);
+            }
 
             tmp->groupLeader = leadID;
 
@@ -955,31 +985,6 @@ static void loadMobs(json& npcData, int32_t* nextId) {
         std::cerr << "[FATAL] Malformed mobs.json file! Reason:" << err.what() << std::endl;
         exit(1);
     }
-}
-
-/*
- * Find and return the first path that targets either the type or the ID.
- * If no matches are found, return nullptr
- */
-static NPCPath* findApplicablePath(int32_t id, int32_t type) {
-    NPCPath* match = nullptr;
-    for (auto _path = Transport::NPCPaths.begin(); _path != Transport::NPCPaths.end(); _path++) {
-        // search target IDs
-        for (int32_t pID : _path->targetIDs) {
-            if (id == pID) match = &(*_path);
-            break;
-        }
-            
-        // search target types
-        for (int32_t pType : _path->targetTypes) {
-            if (type == pType) match = &(*_path);
-            break;
-        }
-
-        if (match != nullptr)
-            break;
-    }
-    return match;
 }
 
 /*
