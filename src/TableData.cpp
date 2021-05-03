@@ -1108,7 +1108,7 @@ void TableData::init() {
  * Write gruntwork output to file
  */
 void TableData::flush() {
-    std::ofstream file(settings::GRUNTWORKJSON);
+    std::ofstream file(settings::TDATADIR + settings::GRUNTWORKJSON);
     json gruntwork;
 
     for (auto& pair : RunningSkywayRoutes) {
