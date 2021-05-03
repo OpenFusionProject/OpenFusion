@@ -39,7 +39,7 @@ public:
  */
 static void constructPathSkyway(json& pathData) {
     // Interpolate
-    json pathPoints = pathData["points"];
+    json pathPoints = pathData["aPoints"];
     std::queue<Vec3> points;
     json::iterator _point = pathPoints.begin();
     auto point = _point.value();
@@ -57,12 +57,12 @@ static void constructPathSkyway(json& pathData) {
 
 static void constructPathNPC(json& pathData, int32_t id=0) {
     // Interpolate
-    json pathPoints = pathData["points"];
+    json pathPoints = pathData["aPoints"];
     std::queue<Vec3> points;
     json::iterator _point = pathPoints.begin();
     auto point = _point.value();
     Vec3 from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
-    int stopTime = point["stop"];
+    int stopTime = point["iStopTicks"];
     for (_point++; _point != pathPoints.end(); _point++) { // loop through all point Bs
         point = _point.value();
         for(int i = 0; i < stopTime + 1; i++) // repeat point if it's a stop
@@ -70,7 +70,7 @@ static void constructPathNPC(json& pathData, int32_t id=0) {
         Vec3 to = { point["iX"] , point["iY"] , point["iZ"] }; // point B coords
         Transport::lerp(&points, from, to, pathData["iBaseSpeed"]); // lerp from A to B
         from = to; // update point A
-        stopTime = point["stop"];
+        stopTime = point["iStopTicks"];
     }
 
     if (id == 0)
@@ -287,7 +287,7 @@ static void loadPaths(json& pathData, int32_t* nextId) {
         json::iterator _point = pathDataSlider.begin(); // iterator
         auto point = _point.value();
         Vec3 from = { point["iX"] , point["iY"] , point["iZ"] }; // point A coords
-        int stopTime = point["stop"] ? SLIDER_STOP_TICKS : 0; // arbitrary stop length
+        int stopTime = point["bStop"] ? SLIDER_STOP_TICKS : 0; // arbitrary stop length
         // remaining points
         for (_point++; _point != pathDataSlider.end(); _point++) { // loop through all point Bs
             point = _point.value();
@@ -299,12 +299,12 @@ static void loadPaths(json& pathData, int32_t* nextId) {
             float curve = 1;
             if (stopTime > 0) { // point A is a stop
                 curve = 0.375f;//2.0f;
-            } else if (point["stop"]) { // point B is a stop
+            } else if (point["bStop"]) { // point B is a stop
                 curve = 0.375f;//0.35f;
             }
             Transport::lerp(&route, from, to, SLIDER_SPEED * curve, 1); // lerp from A to B (arbitrary speed)
             from = to; // update point A
-            stopTime = point["stop"] ? SLIDER_STOP_TICKS : 0; // set stop ticks for next point A
+            stopTime = point["bStop"] ? SLIDER_STOP_TICKS : 0; // set stop ticks for next point A
         }
         // Uniform distance calculation
         int passedDistance = 0;
@@ -330,13 +330,42 @@ static void loadPaths(json& pathData, int32_t* nextId) {
             lastPoint = point;
         }
 
-        // npc paths (pending refactor)
+        // preset npc paths
         json pathDataNPC = pathData["npc"];
-        /*
         for (json::iterator npcPath = pathDataNPC.begin(); npcPath != pathDataNPC.end(); npcPath++) {
-            constructPathNPC(npcPath);
+            json pathVal = npcPath.value();
+
+            std::vector<int32_t> targetIDs;
+            std::vector<int32_t> targetTypes;
+            std::vector<Vec3> pathPoints;
+            int speed = pathVal.find("iBaseSpeed") == pathVal.end() ? NPC_DEFAULT_SPEED : pathVal["iBaseSpeed"];
+            int taskID = pathVal.find("iTaskID") == pathVal.end() ? -1 : pathVal["iTaskID"];
+            bool relative = pathVal.find("bRelative") == pathVal.end() ? false : pathVal["bRelative"];
+
+            // target IDs
+            for (json::iterator _tID = pathVal["aNPCIDs"].begin(); _tID != pathVal["aNPCIDs"].end(); _tID++)
+                targetIDs.push_back(_tID.value());
+            // target types
+            for (json::iterator _tType = pathVal["aNPCTypes"].begin(); _tType != pathVal["aNPCTypes"].end(); _tType++)
+                targetTypes.push_back(_tType.value());
+            // points
+            for (json::iterator _point = pathVal["aPoints"].begin(); _point != pathVal["aPoints"].end(); _point++) {
+                json point = _point.value();
+                for (int stopTicks = 0; stopTicks < point["iStopTicks"] + 1; stopTicks++)
+                    pathPoints.push_back({point["iX"], point["iY"], point["iZ"]});
+            }
+
+            NPCPath pathTemplate;
+            pathTemplate.targetIDs = targetIDs;
+            pathTemplate.targetTypes = targetTypes;
+            pathTemplate.points = pathPoints;
+            pathTemplate.speed = speed;
+            pathTemplate.isRelative = relative;
+            pathTemplate.escortTaskID = taskID;
+
+            Transport::NPCPaths.push_back(pathTemplate);
         }
-        */
+        std::cout << "[INFO] Loaded " << Transport::NPCPaths.size() << " NPC paths" << std::endl;
 
         // mob paths
         pathDataNPC = pathData["mob"];
@@ -362,7 +391,7 @@ static void loadPaths(json& pathData, int32_t* nextId) {
                 }
             }
         }
-        std::cout << "[INFO] Loaded " << Transport::NPCQueues.size() << " NPC paths" << std::endl;
+        
     }
     catch (const std::exception& err) {
         std::cerr << "[FATAL] Malformed paths.json file! Reason:" << err.what() << std::endl;
@@ -929,6 +958,31 @@ static void loadMobs(json& npcData, int32_t* nextId) {
 }
 
 /*
+ * Find and return the first path that targets either the type or the ID.
+ * If no matches are found, return nullptr
+ */
+static NPCPath* findApplicablePath(int32_t id, int32_t type) {
+    NPCPath* match = nullptr;
+    for (auto _path = Transport::NPCPaths.begin(); _path != Transport::NPCPaths.end(); _path++) {
+        // search target IDs
+        for (int32_t pID : _path->targetIDs) {
+            if (id == pID) match = &(*_path);
+            break;
+        }
+            
+        // search target types
+        for (int32_t pType : _path->targetTypes) {
+            if (type == pType) match = &(*_path);
+            break;
+        }
+
+        if (match != nullptr)
+            break;
+    }
+    return match;
+}
+
+/*
  * Transform `base` based on the value of `patch`.
  * Parameters must be of the same type and must not be null.
  * Array <- Array: All elements in patch array get added to base array.
@@ -1040,11 +1094,11 @@ void TableData::init() {
     // note: the order of these is important
     std::cout << "[INFO] Loading tabledata..." << std::endl;
     loadXDT(xdt);
+    loadPaths(paths, &nextId);
     loadNPCs(npcs);
     loadMobs(mobs, &nextId);
     loadDrops(drops);
     loadEggs(eggs, &nextId);
-    loadPaths(paths, &nextId);
     loadGruntwork(gruntwork, &nextId);
 
     NPCManager::nextId = nextId;
