@@ -328,8 +328,8 @@ static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
               && !(fromItem->iType == 0 && itemmove->iToSlotNum == 7)
               && fromItem->iType != itemmove->iToSlotNum)
             return; // something other than a vehicle or a weapon in a non-matching slot
-        else if (itemmove->iToSlotNum >= AEQUIP_COUNT) // TODO: reject slots >= 9?
-            return; // invalid slot
+        else if (itemmove->iToSlotNum > 8)
+            return; // any slot higher than 8 is for a booster, and they can't be equipped via move packet
     }
 
     // save items to response
@@ -430,24 +430,13 @@ static void itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket(resp, P_FE2CL_REP_PC_ITEM_DELETE_SUCC);
 }
 
-static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
+static void useGumball(CNSocket* sock, CNPacketData* data) {
     auto request = (sP_CL2FE_REQ_ITEM_USE*)data->buf;
     Player* player = PlayerManager::getPlayer(sock);
-
-    if (request->iSlotNum < 0 || request->iSlotNum >= AINVEN_COUNT)
-        return; // sanity check
 
     // gumball can only be used from inventory, so we ignore eIL
     sItemBase gumball = player->Inven[request->iSlotNum];
     sNano nano = player->Nanos[player->equippedNanos[request->iNanoSlot]];
-
-    // sanity check, check if gumball exists
-    if (!(gumball.iOpt > 0 && gumball.iType == 7 && gumball.iID>=119 && gumball.iID<=121)) {
-        std::cout << "[WARN] Gumball not found" << std::endl;
-        INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_FAIL, response);
-        sock->sendPacket(response, P_FE2CL_REP_PC_ITEM_USE_FAIL);
-        return;
-    }
 
     // sanity check, check if gumball type matches nano style
     int nanoStyle = Nanos::nanoStyle(nano.iID);
@@ -472,11 +461,8 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    if (gumball.iOpt == 0)
-        gumball = {};
-
-    uint8_t respbuf[CN_PACKET_BODY_SIZE];
-    memset(respbuf, 0, CN_PACKET_BODY_SIZE);
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    memset(respbuf, 0, resplen);
 
     sP_FE2CL_REP_PC_ITEM_USE_SUCC *resp = (sP_FE2CL_REP_PC_ITEM_USE_SUCC*)respbuf;
     sSkillResult_Buff *respdata = (sSkillResult_Buff*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC));
@@ -513,6 +499,54 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&respbuf, P_FE2CL_REP_PC_ITEM_USE_SUCC, resplen);
     // update inventory serverside
     player->Inven[resp->iSlotNum] = resp->RemainItem;
+}
+
+static void useNanocomBooster(CNSocket* sock, CNPacketData* data) {
+
+}
+
+static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
+    auto request = (sP_CL2FE_REQ_ITEM_USE*)data->buf;
+    Player* player = PlayerManager::getPlayer(sock);
+
+    if (request->iSlotNum < 0 || request->iSlotNum >= AINVEN_COUNT)
+        return; // sanity check
+
+    sItemBase item = player->Inven[request->iSlotNum];
+
+    // sanity check, check the item exists and has correct iType
+    if (!(item.iOpt > 0 && item.iType == 7)) {
+        std::cout << "[WARN] General item not found" << std::endl;
+        INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_FAIL, response);
+        sock->sendPacket(response, P_FE2CL_REP_PC_ITEM_USE_FAIL);
+        return;
+    }
+
+    /*
+     * TODO: In the XDT, there are subtypes for general-use items
+     * (m_pGeneralItemTable -> m_pItemData-> m_iItemType) that
+     * determine their behavior. It would be better to load these
+     * and use them in this switch, rather than hardcoding by IDs.
+     */
+
+    switch(item.iID) {
+    case 119:
+    case 120:
+    case 121:
+        useGumball(sock, data);
+        break;
+    case 153:
+    case 154:
+    case 155:
+    case 156:
+        useNanocomBooster(sock, data);
+        break;
+    default:
+        std::cout << "[INFO] General item "<< item.iID << " is unimplemented." << std::endl;
+        INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_FAIL, response);
+        sock->sendPacket(response, P_FE2CL_REP_PC_ITEM_USE_FAIL);
+        break;
+    }
 }
 
 static void itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
@@ -633,14 +667,14 @@ Item* Items::getItemData(int32_t id, int32_t type) {
 }
 
 void Items::checkItemExpire(CNSocket* sock, Player* player) {
-    if (player->toRemoveVehicle.eIL == 0 && player->toRemoveVehicle.iSlotNum == 0)
+    if (player->expiringItem.eIL == 0 && player->expiringItem.iSlotNum == 0)
         return;
 
     /* prepare packet
     * yes, this is a varadic packet, however analyzing client behavior and code
     * it only checks takes the first item sent into account
     * yes, this is very stupid
-    * therefore, we delete all but 1 expired vehicle while loading player
+    * therefore, we delete all but 1 expired item while loading player
     * to delete the last one here so player gets a notification
     */
 
@@ -653,18 +687,18 @@ void Items::checkItemExpire(CNSocket* sock, Player* player) {
     memset(respbuf, 0, resplen);
 
     packet->iItemListCount = 1;
-    itemData->eIL = player->toRemoveVehicle.eIL;
-    itemData->iSlotNum = player->toRemoveVehicle.iSlotNum;
+    itemData->eIL = player->expiringItem.eIL;
+    itemData->iSlotNum = player->expiringItem.iSlotNum;
     sock->sendPacket((void*)&respbuf, P_FE2CL_PC_DELETE_TIME_LIMIT_ITEM, resplen);
 
     // delete serverside
-    if (player->toRemoveVehicle.eIL == 0)
-        memset(&player->Equip[8], 0, sizeof(sItemBase));
+    if (player->expiringItem.eIL == 0)
+        memset(&player->Equip[player->expiringItem.iSlotNum], 0, sizeof(sItemBase));
     else
-        memset(&player->Inven[player->toRemoveVehicle.iSlotNum], 0, sizeof(sItemBase));
+        memset(&player->Inven[player->expiringItem.iSlotNum], 0, sizeof(sItemBase));
 
-    player->toRemoveVehicle.eIL = 0;
-    player->toRemoveVehicle.iSlotNum = 0;
+    player->expiringItem.eIL = 0;
+    player->expiringItem.iSlotNum = 0;
 }
 
 void Items::setItemStats(Player* plr) {
@@ -857,7 +891,6 @@ void Items::giveMobDrop(CNSocket *sock, Mob* mob, const DropRoll& rolled, const 
 void Items::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_DELETE, itemDeleteHandler);
-    // this one is for gumballs
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_USE, itemUseHandler);
     // Bank
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_BANK_OPEN, itemBankOpenHandler);

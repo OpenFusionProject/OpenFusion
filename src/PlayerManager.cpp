@@ -536,8 +536,8 @@ static void enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
 
         // check if vehicle didn't expire
         if (expired) {
-            plr->toRemoveVehicle.eIL = 0;
-            plr->toRemoveVehicle.iSlotNum = 8;
+            plr->expiringItem.eIL = 0;
+            plr->expiringItem.iSlotNum = 8;
             Items::checkItemExpire(sock, plr);
         }
     }
