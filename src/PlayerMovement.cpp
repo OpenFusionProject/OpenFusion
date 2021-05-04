@@ -1,5 +1,6 @@
 #include "PlayerMovement.hpp"
 #include "PlayerManager.hpp"
+#include "TableData.hpp"
 #include "core/Core.hpp"
 
 static void movePlayer(CNSocket* sock, CNPacketData* data) {
@@ -28,6 +29,24 @@ static void movePlayer(CNSocket* sock, CNPacketData* data) {
     moveResponse.iSvrTime = tm;
 
     PlayerManager::sendToViewable(sock, moveResponse, P_FE2CL_PC_MOVE);
+
+    // [gruntwork] check if player has a follower and move it
+    if (TableData::RunningNPCPaths.find(plr->iID) != TableData::RunningNPCPaths.end()) {
+        BaseNPC* follower = TableData::RunningNPCPaths[plr->iID].first;
+        Transport::NPCQueues.erase(follower->appearanceData.iNPC_ID); // erase existing points
+        std::queue<Vec3> queue;
+        Vec3 from = { follower->x, follower->y, follower->z };
+        float drag = 0.95f; // this ensures that they don't bump into the player
+        Vec3 to = {
+            (int)(follower->x + (moveData->iX - follower->x) * drag),
+            (int)(follower->y + (moveData->iY - follower->y) * drag),
+            (int)(follower->z + (moveData->iZ - follower->z) * drag)
+        };
+
+        // add a route to the queue; to be processed in Transport::stepNPCPathing()
+        Transport::lerp(&queue, from, to, NPC_DEFAULT_SPEED * 1.5); // little faster than typical
+        Transport::NPCQueues[follower->appearanceData.iNPC_ID] = queue;
+    }
 }
 
 static void stopPlayer(CNSocket* sock, CNPacketData* data) {
