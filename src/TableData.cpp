@@ -372,9 +372,9 @@ static void loadPaths(json& pathData, int32_t* nextId) {
             std::vector<int32_t> targetIDs;
             std::vector<int32_t> targetTypes;
             std::vector<Vec3> pathPoints;
-            int speed = pathVal.find("iBaseSpeed") == pathVal.end() ? NPC_DEFAULT_SPEED : pathVal["iBaseSpeed"];
-            int taskID = pathVal.find("iTaskID") == pathVal.end() ? -1 : pathVal["iTaskID"];
-            bool relative = pathVal.find("bRelative") == pathVal.end() ? false : pathVal["bRelative"];
+            int speed = pathVal.find("iBaseSpeed") == pathVal.end() ? NPC_DEFAULT_SPEED : (int)pathVal["iBaseSpeed"];
+            int taskID = pathVal.find("iTaskID") == pathVal.end() ? -1 : (int)pathVal["iTaskID"];
+            bool relative = pathVal.find("bRelative") == pathVal.end() ? false : (bool)pathVal["bRelative"];
 
             // target IDs
             for (json::iterator _tID = pathVal["aNPCIDs"].begin(); _tID != pathVal["aNPCIDs"].end(); _tID++)
@@ -385,7 +385,7 @@ static void loadPaths(json& pathData, int32_t* nextId) {
             // points
             for (json::iterator _point = pathVal["aPoints"].begin(); _point != pathVal["aPoints"].end(); _point++) {
                 json point = _point.value();
-                for (int stopTicks = 0; stopTicks < point["iStopTicks"] + 1; stopTicks++)
+                for (int stopTicks = 0; stopTicks < (int)point["iStopTicks"] + 1; stopTicks++)
                     pathPoints.push_back({point["iX"], point["iY"], point["iZ"]});
             }
 
