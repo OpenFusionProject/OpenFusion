@@ -122,7 +122,7 @@ static luaL_Reg ent_getters[] = {
 static int ent_exists(lua_State *state) {
     EntityRef *data = (EntityRef*)grabBaseEntityRef(state, 1);
 
-    lua_pushboolean(state, data == NULL || !data->isValid());
+    lua_pushboolean(state, !(data == NULL || !data->isValid()));
     return 1;
 }
 

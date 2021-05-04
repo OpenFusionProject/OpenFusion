@@ -9,6 +9,11 @@ function onJoin(plr)
             plr:kick()
         elseif msg == "hi" then
             print("hello " .. plr.name)
+        elseif msg == "pet" then
+            local dog = NPC.new(plr.x, plr.y, plr.z, 3054)
+            while wait(2) and plr:exists() do
+                dog:moveTo(plr.x + math.random(-500, 500), plr.y + math.random(-500, 500), plr.z)
+            end
         end
     end)
 end

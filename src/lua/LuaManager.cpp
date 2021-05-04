@@ -3,6 +3,7 @@
 #include "lua/EventWrapper.hpp"
 #include "lua/WorldWrapper.hpp"
 #include "lua/PlayerWrapper.hpp"
+#include "lua/NPCWrapper.hpp"
 
 #include "PlayerManager.hpp"
 #include "servers/CNShardServer.hpp"
@@ -121,6 +122,7 @@ void LuaManager::init() {
     World::init(global);
     Entity::init(global);
     Player::init(global);
+    NPC::init(global);
 
     activeScripts = std::map<lua_State*, Script*>();
 

@@ -50,6 +50,7 @@ CXXSRC=\
 	src/lua/WorldWrapper.cpp\
 	src/lua/EntityWrapper.cpp\
 	src/lua/PlayerWrapper.cpp\
+	src/lua/NPCWrapper.cpp\
 	src/db/init.cpp\
 	src/db/login.cpp\
 	src/db/shard.cpp\
@@ -99,6 +100,7 @@ CXXHDR=\
 	src/lua/WorldWrapper.hpp\
 	src/lua/EntityWrapper.hpp\
 	src/lua/PlayerWrapper.hpp\
+	src/lua/NPCWrapper.hpp\
 	src/db/Database.hpp\
 	src/db/internal.hpp\
 	vendor/bcrypt/BCrypt.hpp\
