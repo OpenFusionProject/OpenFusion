@@ -21,6 +21,8 @@ using namespace TableData;
 std::map<int32_t, std::vector<Vec3>> TableData::RunningSkywayRoutes;
 std::map<int32_t, int> TableData::RunningNPCRotations;
 std::map<int32_t, int> TableData::RunningNPCMapNumbers;
+std::unordered_map<int32_t, std::pair<BaseNPC*, std::vector<BaseNPC*>>> TableData::RunningNPCPaths;
+std::vector<NPCPath> TableData::FinishedNPCPaths;
 std::map<int32_t, BaseNPC*> TableData::RunningMobs;
 std::map<int32_t, BaseNPC*> TableData::RunningGroups;
 std::map<int32_t, BaseNPC*> TableData::RunningEggs;

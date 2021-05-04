@@ -16,6 +16,8 @@ namespace TableData {
     extern std::map<int32_t, std::vector<Vec3>> RunningSkywayRoutes;
     extern std::map<int32_t, int> RunningNPCRotations;
     extern std::map<int32_t, int> RunningNPCMapNumbers;
+    extern std::unordered_map<int32_t, std::pair<BaseNPC*, std::vector<BaseNPC*>>> RunningNPCPaths; // player ID -> following NPC
+    extern std::vector<NPCPath> FinishedNPCPaths; // NPC ID -> path
     extern std::map<int32_t, BaseNPC*> RunningMobs;
     extern std::map<int32_t, BaseNPC*> RunningGroups;
     extern std::map<int32_t, BaseNPC*> RunningEggs;
