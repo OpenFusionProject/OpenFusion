@@ -1145,6 +1145,7 @@ void TableData::init() {
         fstream.close();
 
         // patching: loop through every directory within the patch directory, looking for a matching file
+        if (!std::filesystem::exists(settings::PATCHDIR)) continue; // patch dir doesn't exist
         json patch;
         for (const auto& patchModule : std::filesystem::directory_iterator(settings::PATCHDIR)) {
             // this is the theoretical path of a corresponding patch for this file
