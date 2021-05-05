@@ -727,6 +727,7 @@ static void loadGruntworkPre(json& gruntwork, int32_t* nextId) {
             auto path = _path.value();
 
             std::vector<int32_t> targetIDs;
+            std::vector<int32_t> targetTypes; // target types are not exportable from gw, but load them anyway
             std::vector<Vec3> pathPoints;
             int speed = (int)path["iBaseSpeed"];
             int taskID = (int)path["iTaskID"];
@@ -735,6 +736,9 @@ static void loadGruntworkPre(json& gruntwork, int32_t* nextId) {
             // target IDs
             for (json::iterator _tID = path["aNPCIDs"].begin(); _tID != path["aNPCIDs"].end(); _tID++)
                 targetIDs.push_back(_tID.value());
+            // target types
+            for (json::iterator _tType = path["aNPCTypes"].begin(); _tType != path["aNPCTypes"].end(); _tType++)
+                targetTypes.push_back(_tType.value());
             // points
             for (json::iterator _point = path["aPoints"].begin(); _point != path["aPoints"].end(); _point++) {
                 json point = _point.value();
@@ -744,12 +748,14 @@ static void loadGruntworkPre(json& gruntwork, int32_t* nextId) {
 
             NPCPath pathTemplate;
             pathTemplate.targetIDs = targetIDs;
+            pathTemplate.targetTypes = targetTypes;
             pathTemplate.points = pathPoints;
             pathTemplate.speed = speed;
             pathTemplate.isRelative = relative;
             pathTemplate.escortTaskID = taskID;
 
             Transport::NPCPaths.push_back(pathTemplate);
+            TableData::FinishedNPCPaths.push_back(pathTemplate); // keep in gruntwork
         }
 
         std::cout << "[INFO] Loaded gruntwork.json (pre)" << std::endl;
@@ -1325,7 +1331,8 @@ void TableData::flush() {
     for (auto& path : FinishedNPCPaths) {
         json pathObj;
         json points;
-        json targets;
+        json targetIDs;
+        json targetTypes;
 
         for (Vec3& coord : path.points) {
             json point;
@@ -1337,13 +1344,20 @@ void TableData::flush() {
         }
 
         for (int32_t tID : path.targetIDs)
-            targets.push_back(tID);
+            targetIDs.push_back(tID);
+        for (int32_t tType : path.targetTypes)
+            targetTypes.push_back(tType);
         
         pathObj["iBaseSpeed"] = path.speed;
         pathObj["iTaskID"] = path.escortTaskID;
         pathObj["bRelative"] = path.isRelative;
         pathObj["aPoints"] = points;
-        pathObj["aNPCIDs"] = targets;
+
+        // don't write 'null' if there aren't any targets
+        if(targetIDs.size() > 0)
+            pathObj["aNPCIDs"] = targetIDs;
+        if (targetTypes.size() > 0)
+            pathObj["aNPCTypes"] = targetTypes;
 
         gruntwork["paths"].push_back(pathObj);
     }
