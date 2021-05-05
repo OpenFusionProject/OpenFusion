@@ -905,21 +905,26 @@ static void loadNPCs(json& npcData) {
             int npcID = std::strtol(_npc.key().c_str(), nullptr, 10); // parse ID string to integer
             npcID += NPC_ID_OFFSET;
             int instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
+            int type = (int)npc["iNPCType"];
+            if (NPCManager::NPCData[type].is_null()) {
+                std::cout << "[WARN] NPC type " << type << " not found; skipping (json#" << _npc.key() << ")" << std::endl;
+                continue;
+            }
 #ifdef ACADEMY
             // do not spawn NPCs in the future
             if (npc["iX"] > 512000 && npc["iY"] < 256000)
                 continue;
 #endif
-            BaseNPC* tmp = new BaseNPC(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, npc["iNPCType"], npcID);
+            BaseNPC* tmp = new BaseNPC(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, type, npcID);
 
             NPCManager::NPCs[npcID] = tmp;
             NPCManager::updateNPCPosition(npcID, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
 
-            if (npc["iNPCType"] == 641 || npc["iNPCType"] == 642)
+            if (type == 641 || type == 642)
                 NPCManager::RespawnPoints.push_back({ npc["iX"], npc["iY"], ((int)npc["iZ"]) + RESURRECT_HEIGHT, instanceID });
 
             // see if any paths target this NPC
-            NPCPath* npcPath = findApplicablePath(npcID, npc["iNPCType"]);
+            NPCPath* npcPath = findApplicablePath(npcID, type);
             if (npcPath != nullptr) {
                 //std::cout << "[INFO] Found path for NPC " << npcID << std::endl;
                 constructPathNPC(npcID, npcPath);
@@ -945,7 +950,12 @@ static void loadMobs(json& npcData, int32_t* nextId) {
             auto npc = _npc.value();
             int npcID = std::strtol(_npc.key().c_str(), nullptr, 10); // parse ID string to integer
             npcID += MOB_ID_OFFSET;
-            auto td = NPCManager::NPCData[(int)npc["iNPCType"]];
+            int type = (int)npc["iNPCType"];
+            if (NPCManager::NPCData[type].is_null()) {
+                std::cout << "[WARN] NPC type " << type << " not found; skipping (json#" << _npc.key() << ")" << std::endl;
+                continue;
+            }
+            auto td = NPCManager::NPCData[type];
             uint64_t instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
 
 #ifdef ACADEMY
