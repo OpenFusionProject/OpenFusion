@@ -45,8 +45,10 @@ static NPCPath* findApplicablePath(int32_t id, int32_t type) {
     for (auto _path = Transport::NPCPaths.begin(); _path != Transport::NPCPaths.end(); _path++) {
         // search target IDs
         for (int32_t pID : _path->targetIDs) {
-            if (id == pID) match = &(*_path);
-            break;
+            if (id == pID) {
+                match = &(*_path);
+                break;
+            }
         }
 
         if (match != nullptr)
@@ -54,8 +56,10 @@ static NPCPath* findApplicablePath(int32_t id, int32_t type) {
 
         // search target types
         for (int32_t pType : _path->targetTypes) {
-            if (type == pType) match = &(*_path);
-            break;
+            if (type == pType) {
+                match = &(*_path);
+                break;
+            }
         }
 
         if (match != nullptr)
