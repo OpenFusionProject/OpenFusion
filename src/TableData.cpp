@@ -1268,5 +1268,31 @@ void TableData::flush() {
         gruntwork["eggs"].push_back(egg);
     }
 
+    for (auto& path : FinishedNPCPaths) {
+        json pathObj;
+        json points;
+        json targets;
+
+        for (Vec3& coord : path.points) {
+            json point;
+            point["iX"] = coord.x;
+            point["iY"] = coord.y;
+            point["iZ"] = coord.z;
+            point["iStopTicks"] = 0;
+            points.push_back(point);
+        }
+
+        for (int32_t tID : path.targetIDs)
+            targets.push_back(tID);
+        
+        pathObj["iBaseSpeed"] = path.speed;
+        pathObj["iTaskID"] = path.escortTaskID;
+        pathObj["bRelative"] = path.isRelative;
+        pathObj["aPoints"] = points;
+        pathObj["aNPCIDs"] = targets;
+
+        gruntwork["paths"].push_back(pathObj);
+    }
+
     file << gruntwork << std::endl;
 }
