@@ -1097,6 +1097,21 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
             npc->disappearFromViewOf(sock);
             npc->enterIntoViewOf(sock);
 
+            // do lerping magic
+            entry->second.push_back(home); // temporary end point for loop completion
+            std::queue<Vec3> keyframes;
+            auto _point = entry->second.begin();
+            Vec3 from = { (*_point)->x, (*_point)->y, (*_point)->z }; // point A coords
+            for (_point++; _point != entry->second.end(); _point++) { // loop through all point Bs
+                Vec3 to = { (*_point)->x, (*_point)->y, (*_point)->z }; // point B coords
+                // add point A to the queue
+                keyframes.push(from);
+                Transport::lerp(&keyframes, from, to, speed); // lerp from A to B
+                from = to; // update point A
+            }
+            Transport::NPCQueues[npc->appearanceData.iNPC_ID] = keyframes;
+            entry->second.pop_back(); // remove temp end point
+
             // save to gruntwork
             std::vector<Vec3> finalPoints;
             for (BaseNPC* marker : entry->second) {
