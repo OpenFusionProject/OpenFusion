@@ -714,9 +714,50 @@ static void loadEggs(json& eggData, int32_t* nextId) {
 }
 
 /* 
- * Load gruntwork output; if it exists
+ * Load gruntwork output, if it exists
  */
-static void loadGruntwork(json& gruntwork, int32_t* nextId) {
+static void loadGruntworkPre(json& gruntwork, int32_t* nextId) {
+
+    try {
+        auto paths = gruntwork["paths"];
+        for (auto _path = paths.begin(); _path != paths.end(); _path++) {
+            auto path = _path.value();
+
+            std::vector<int32_t> targetIDs;
+            std::vector<Vec3> pathPoints;
+            int speed = (int)path["iBaseSpeed"];
+            int taskID = (int)path["iTaskID"];
+            bool relative = (bool)path["bRelative"];
+
+            // target IDs
+            for (json::iterator _tID = path["aNPCIDs"].begin(); _tID != path["aNPCIDs"].end(); _tID++)
+                targetIDs.push_back(_tID.value());
+            // points
+            for (json::iterator _point = path["aPoints"].begin(); _point != path["aPoints"].end(); _point++) {
+                json point = _point.value();
+                for (int stopTicks = 0; stopTicks < (int)point["iStopTicks"] + 1; stopTicks++)
+                    pathPoints.push_back({ point["iX"], point["iY"], point["iZ"] });
+            }
+
+            NPCPath pathTemplate;
+            pathTemplate.targetIDs = targetIDs;
+            pathTemplate.points = pathPoints;
+            pathTemplate.speed = speed;
+            pathTemplate.isRelative = relative;
+            pathTemplate.escortTaskID = taskID;
+
+            Transport::NPCPaths.push_back(pathTemplate);
+        }
+
+        std::cout << "[INFO] Loaded gruntwork.json (pre)" << std::endl;
+    }
+    catch (const std::exception& err) {
+        std::cerr << "[FATAL] Malformed gruntwork.json file! Reason:" << err.what() << std::endl;
+        exit(1);
+    }
+}
+
+static void loadGruntworkPost(json& gruntwork, int32_t* nextId) {
 
     if (gruntwork.is_null()) return;
 
@@ -845,8 +886,7 @@ static void loadGruntwork(json& gruntwork, int32_t* nextId) {
             RunningEggs[id] = addEgg;
         }
 
-
-        std::cout << "[INFO] Loaded gruntwork.json" << std::endl;
+        std::cout << "[INFO] Loaded gruntwork.json (post)" << std::endl;
     }
     catch (const std::exception& err) {
         std::cerr << "[FATAL] Malformed gruntwork.json file! Reason:" << err.what() << std::endl;
@@ -1101,12 +1141,13 @@ void TableData::init() {
     // note: the order of these is important
     std::cout << "[INFO] Loading tabledata..." << std::endl;
     loadXDT(xdt);
+    loadGruntworkPre(gruntwork, &nextId);
     loadPaths(paths, &nextId);
     loadNPCs(npcs);
     loadMobs(mobs, &nextId);
     loadDrops(drops);
     loadEggs(eggs, &nextId);
-    loadGruntwork(gruntwork, &nextId);
+    loadGruntworkPost(gruntwork, &nextId);
 
     NPCManager::nextId = nextId;
 }
