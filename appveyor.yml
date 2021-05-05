@@ -1,6 +1,7 @@
 version: 'openfusion-{branch}-{build}'
 
 build_cloud: GCE us-east1-b n2-standard-8
+skip_branch_with_pr: true
 
 image:
   - GCP-Windows-VS2019
