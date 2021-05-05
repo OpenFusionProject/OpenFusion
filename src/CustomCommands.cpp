@@ -947,7 +947,7 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
 
     if (args.size() < 2) {
         Chat::sendServerMessage(sock, "[PATH] Too few arguments");
-        Chat::sendServerMessage(sock, "[PATH] Usage: /path <start/kf/undo/test/cancel/end>");
+        Chat::sendServerMessage(sock, "[PATH] Usage: /path <start/kf/undo/here/test/cancel/end>");
         goto update;
     }
 
@@ -956,7 +956,7 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
         // make sure the player doesn't have a follower
         if (TableData::RunningNPCPaths.find(plr->iID) != TableData::RunningNPCPaths.end()) {
             Chat::sendServerMessage(sock, "[PATH] An NPC is already following you");
-            Chat::sendServerMessage(sock, "[PATH] Run '/path end <endType>' first, if you're done");
+            Chat::sendServerMessage(sock, "[PATH] Run '/path end' first, if you're done");
             goto update;
         }
 
@@ -991,6 +991,17 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
             BaseNPC* marker = new BaseNPC(npc->x, npc->y, npc->z, 0, plr->instanceID, 1386, NPCManager::nextId--);
             entry->second.push_back(marker);
             Chat::sendServerMessage(sock, "[PATH] Added keyframe");
+            goto update;
+        }
+
+        // /path here
+        if (args[1] == "here") {
+            // bring the NPC to where the player is standing
+            Transport::NPCQueues.erase(npc->appearanceData.iNPC_ID); // delete transport queue
+            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z, npc->instanceID, 0);
+            npc->disappearFromViewOf(sock);
+            npc->enterIntoViewOf(sock);
+            Chat::sendServerMessage(sock, "[PATH] Come here");
             goto update;
         }
 
