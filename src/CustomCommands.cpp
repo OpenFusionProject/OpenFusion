@@ -1132,8 +1132,10 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
             // unmap
             TableData::RunningNPCPaths.erase(plr->iID);
 
-            Chat::sendServerMessage(sock, "[PATH] Path saved to gruntwork");
             Chat::sendServerMessage(sock, "[PATH] NPC " + std::to_string(npc->appearanceData.iNPC_ID) + " is no longer following you");
+
+            TableData::flush();
+            Chat::sendServerMessage(sock, "[PATH] Path saved to gruntwork");
             goto update;
         }
 
