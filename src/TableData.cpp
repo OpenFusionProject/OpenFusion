@@ -49,6 +49,9 @@ static NPCPath* findApplicablePath(int32_t id, int32_t type) {
             break;
         }
 
+        if (match != nullptr)
+            break; // early break for ID matches, since ID has higher priority than type
+
         // search target types
         for (int32_t pType : _path->targetTypes) {
             if (type == pType) match = &(*_path);
