@@ -347,6 +347,43 @@ void Transport::lerp(std::queue<Vec3>* queue, Vec3 start, Vec3 end, int gapSize)
     lerp(queue, start, end, gapSize, 1);
 }
 
+/*
+ * Find and return the first path that targets either the type or the ID.
+ * If no matches are found, return nullptr
+ */
+NPCPath* Transport::findApplicablePath(int32_t id, int32_t type, int taskID) {
+    NPCPath* match = nullptr;
+    for (auto _path = Transport::NPCPaths.begin(); _path != Transport::NPCPaths.end(); _path++) {
+
+        // task ID for the path must match so escorts don't start early
+        if (_path->escortTaskID != taskID)
+            continue;
+
+        // search target IDs
+        for (int32_t pID : _path->targetIDs) {
+            if (id == pID) {
+                match = &(*_path);
+                break;
+            }
+        }
+
+        if (match != nullptr)
+            break; // early break for ID matches, since ID has higher priority than type
+
+        // search target types
+        for (int32_t pType : _path->targetTypes) {
+            if (type == pType) {
+                match = &(*_path);
+                break;
+            }
+        }
+
+        if (match != nullptr)
+            break;
+    }
+    return match;
+}
+
 void Transport::init() {
     REGISTER_SHARD_TIMER(tickTransportationSystem, 1000);
 

@@ -37,38 +37,6 @@ public:
 };
 
 /*
- * Find and return the first path that targets either the type or the ID.
- * If no matches are found, return nullptr
- */
-static NPCPath* findApplicablePath(int32_t id, int32_t type) {
-    NPCPath* match = nullptr;
-    for (auto _path = Transport::NPCPaths.begin(); _path != Transport::NPCPaths.end(); _path++) {
-        // search target IDs
-        for (int32_t pID : _path->targetIDs) {
-            if (id == pID) {
-                match = &(*_path);
-                break;
-            }
-        }
-
-        if (match != nullptr)
-            break; // early break for ID matches, since ID has higher priority than type
-
-        // search target types
-        for (int32_t pType : _path->targetTypes) {
-            if (type == pType) {
-                match = &(*_path);
-                break;
-            }
-        }
-
-        if (match != nullptr)
-            break;
-    }
-    return match;
-}
-
-/*
  * Create a full and properly-paced path by interpolating between keyframes.
  */
 static void constructPathSkyway(json& pathData) {
@@ -937,7 +905,7 @@ static void loadNPCs(json& npcData) {
                 NPCManager::RespawnPoints.push_back({ npc["iX"], npc["iY"], ((int)npc["iZ"]) + RESURRECT_HEIGHT, instanceID });
 
             // see if any paths target this NPC
-            NPCPath* npcPath = findApplicablePath(npcID, type);
+            NPCPath* npcPath = Transport::findApplicablePath(npcID, type);
             if (npcPath != nullptr) {
                 //std::cout << "[INFO] Found path for NPC " << npcID << std::endl;
                 constructPathNPC(npcID, npcPath);
@@ -983,7 +951,7 @@ static void loadMobs(json& npcData, int32_t* nextId) {
             NPCManager::updateNPCPosition(npcID, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);
 
             // see if any paths target this mob
-            NPCPath* npcPath = findApplicablePath(npcID, npc["iNPCType"]);
+            NPCPath* npcPath = Transport::findApplicablePath(npcID, npc["iNPCType"]);
             if (npcPath != nullptr) {
                 //std::cout << "[INFO] Found path for mob " << npcID << std::endl;
                 constructPathNPC(npcID, npcPath);
@@ -1012,7 +980,7 @@ static void loadMobs(json& npcData, int32_t* nextId) {
             NPCManager::updateNPCPosition(leadID, leader["iX"], leader["iY"], leader["iZ"], instanceID, leader["iAngle"]);
 
             // see if any paths target this group leader
-            NPCPath* npcPath = findApplicablePath(leadID, leader["iNPCType"]);
+            NPCPath* npcPath = Transport::findApplicablePath(leadID, leader["iNPCType"]);
             if (npcPath != nullptr) {
                 //std::cout << "[INFO] Found path for mob " << leadID << std::endl;
                 constructPathNPC(leadID, npcPath);
