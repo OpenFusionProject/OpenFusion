@@ -384,6 +384,39 @@ NPCPath* Transport::findApplicablePath(int32_t id, int32_t type, int taskID) {
     return match;
 }
 
+void Transport::constructPathNPC(int32_t id, NPCPath* path) {
+    BaseNPC* npc = NPCManager::NPCs[id];
+    if (npc->type == EntityType::MOB)
+        ((Mob*)(npc))->staticPath = true;
+
+    // Interpolate
+    std::vector<Vec3> pathPoints = path->points;
+    std::queue<Vec3> points;
+
+    auto _point = pathPoints.begin();
+    Vec3 from = *_point; // point A coords
+    for (_point++; _point != pathPoints.end(); _point++) { // loop through all point Bs
+        Vec3 to = *_point; // point B coords
+        // add point A to the queue
+        if (path->isRelative) {
+            // relative; the NPCs current position is assumed to be its spawn point
+            Vec3 fromReal = { from.x + npc->x, from.y + npc->y, from.z + npc->z };
+            Vec3 toReal = { to.x + npc->x, to.y + npc->y, to.z + npc->z };
+            points.push(fromReal);
+            Transport::lerp(&points, fromReal, toReal, path->speed); // lerp from A to B
+        }
+        else {
+            // absolute
+            points.push(from);
+            Transport::lerp(&points, from, to, path->speed); // lerp from A to B
+        }
+
+        from = to; // update point A
+    }
+
+    Transport::NPCQueues[id] = points;
+}
+
 void Transport::init() {
     REGISTER_SHARD_TIMER(tickTransportationSystem, 1000);
 
