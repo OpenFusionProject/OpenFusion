@@ -37,6 +37,7 @@ namespace Chunking {
     bool chunkExists(ChunkPos chunk);
     ChunkPos chunkPosAt(int posX, int posY, uint64_t instanceID);
     std::set<Chunk*> getViewableChunks(ChunkPos chunkPos);
+    std::vector<ChunkPos> getChunksInMap(uint64_t mapNum);
 
     bool inPopulatedChunks(std::set<Chunk*>* chnks);
     void createInstance(uint64_t);

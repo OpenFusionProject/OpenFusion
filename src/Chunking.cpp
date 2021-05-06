@@ -227,7 +227,7 @@ std::set<Chunk*> Chunking::getViewableChunks(ChunkPos chunk) {
 /*
  * inefficient algorithm to get all chunks from a specific instance
  */
-static std::vector<ChunkPos> getChunksInMap(uint64_t mapNum) {
+std::vector<ChunkPos> Chunking::getChunksInMap(uint64_t mapNum) {
     std::vector<ChunkPos> chnks;
 
     for (auto it = chunks.begin(); it != chunks.end(); it++) {
