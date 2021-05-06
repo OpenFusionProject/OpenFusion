@@ -58,6 +58,18 @@ bool CustomCommands::runCmd(std::string full, CNSocket* sock) {
     return false;
 }
 
+//
+
+static void updatePathMarkers(CNSocket* sock) {
+    Player* plr = PlayerManager::getPlayer(sock);
+    if (TableData::RunningNPCPaths.find(plr->iID) != TableData::RunningNPCPaths.end()) {
+        for (BaseNPC* marker : TableData::RunningNPCPaths[plr->iID].second)
+            marker->enterIntoViewOf(sock);
+    }
+}
+
+//
+
 static void helpCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Chat::sendServerMessage(sock, "Commands available to you:");
     Player *plr = PlayerManager::getPlayer(sock);
@@ -948,7 +960,8 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
     if (args.size() < 2) {
         Chat::sendServerMessage(sock, "[PATH] Too few arguments");
         Chat::sendServerMessage(sock, "[PATH] Usage: /path <start/kf/undo/here/test/cancel/end>");
-        goto update;
+        updatePathMarkers(sock);
+        return;
     }
 
     // /path start
@@ -957,14 +970,15 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
         if (TableData::RunningNPCPaths.find(plr->iID) != TableData::RunningNPCPaths.end()) {
             Chat::sendServerMessage(sock, "[PATH] An NPC is already following you");
             Chat::sendServerMessage(sock, "[PATH] Run '/path end' first, if you're done");
-            goto update;
+            updatePathMarkers(sock);
+            return;
         }
 
         // find nearest NPC
         BaseNPC* npc = NPCManager::getNearestNPC(&plr->viewableChunks, plr->x, plr->y, plr->z);
         if (npc == nullptr) {
             Chat::sendServerMessage(sock, "[PATH] No NPCs found nearby");
-            goto update;
+            return;
         }
 
         // add first point at NPC's current location
@@ -974,206 +988,203 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
         // map from player
         TableData::RunningNPCPaths[plr->iID] = std::make_pair(npc, pathPoints);
         Chat::sendServerMessage(sock, "[PATH] NPC " + std::to_string(npc->appearanceData.iNPC_ID) + " is now following you");
-        goto update;
-    } else {
-        // make sure the player has a follower
-        if (TableData::RunningNPCPaths.find(plr->iID) == TableData::RunningNPCPaths.end()) {
-            Chat::sendServerMessage(sock, "[PATH] No NPC is currently following you");
-            Chat::sendServerMessage(sock, "[PATH] Run '/path start' near an NPC first");
-            goto update;
+        updatePathMarkers(sock);
+        return;
+    }
+
+    // make sure the player has a follower
+    if (TableData::RunningNPCPaths.find(plr->iID) == TableData::RunningNPCPaths.end()) {
+        Chat::sendServerMessage(sock, "[PATH] No NPC is currently following you");
+        Chat::sendServerMessage(sock, "[PATH] Run '/path start' near an NPC first");
+        return;
+    }
+
+    std::pair<BaseNPC*, std::vector<BaseNPC*>>* entry = &TableData::RunningNPCPaths[plr->iID];
+    BaseNPC* npc = entry->first;
+
+    // /path kf
+    if (args[1] == "kf") {
+        BaseNPC* marker = new BaseNPC(npc->x, npc->y, npc->z, 0, plr->instanceID, 1386, NPCManager::nextId--);
+        entry->second.push_back(marker);
+        Chat::sendServerMessage(sock, "[PATH] Added keyframe");
+        updatePathMarkers(sock);
+        return;
+    }
+
+    // /path here
+    if (args[1] == "here") {
+        // bring the NPC to where the player is standing
+        Transport::NPCQueues.erase(npc->appearanceData.iNPC_ID); // delete transport queue
+        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z, npc->instanceID, 0);
+        npc->disappearFromViewOf(sock);
+        npc->enterIntoViewOf(sock);
+        Chat::sendServerMessage(sock, "[PATH] Come here");
+        return;
+    }
+
+    // /path undo
+    if (args[1] == "undo") {
+        if (entry->second.size() == 1) {
+            Chat::sendServerMessage(sock, "[PATH] Nothing to undo");
+            return;
         }
 
-        std::pair<BaseNPC*, std::vector<BaseNPC*>>* entry = &TableData::RunningNPCPaths[plr->iID];
-        BaseNPC* npc = entry->first;
+        BaseNPC* marker = entry->second.back();
+        marker->disappearFromViewOf(sock); // vanish
+        delete marker; // destroy
 
-        // /path kf
-        if (args[1] == "kf") {
-            BaseNPC* marker = new BaseNPC(npc->x, npc->y, npc->z, 0, plr->instanceID, 1386, NPCManager::nextId--);
-            entry->second.push_back(marker);
-            Chat::sendServerMessage(sock, "[PATH] Added keyframe");
-            goto update;
-        }
+        entry->second.pop_back(); // remove from the vector
+        Chat::sendServerMessage(sock, "[PATH] Undid last keyframe");
+        updatePathMarkers(sock);
+        return;
+    }
 
-        // /path here
-        if (args[1] == "here") {
-            // bring the NPC to where the player is standing
-            Transport::NPCQueues.erase(npc->appearanceData.iNPC_ID); // delete transport queue
-            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z, npc->instanceID, 0);
-            npc->disappearFromViewOf(sock);
-            npc->enterIntoViewOf(sock);
-            Chat::sendServerMessage(sock, "[PATH] Come here");
-            goto update;
-        }
+    // /path test
+    if (args[1] == "test") {
 
-        // /path undo
-        if (args[1] == "undo") {
-            if (entry->second.size() == 1) {
-                Chat::sendServerMessage(sock, "[PATH] Nothing to undo");
-                goto update;
+        int speed = NPC_DEFAULT_SPEED;
+        if (args.size() > 2) { // speed specified
+            char* buf;
+            int speedArg = std::strtol(args[2].c_str(), &buf, 10);
+            if (*buf) {
+                Chat::sendServerMessage(sock, "[PATH] Invalid speed " + args[2]);
+                return;
             }
+            speed = speedArg;
+        }
+        // return NPC to home
+        Transport::NPCQueues.erase(npc->appearanceData.iNPC_ID); // delete transport queue
+        BaseNPC* home = entry->second[0];
+        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, home->x, home->y, home->z, npc->instanceID, 0);
+        npc->disappearFromViewOf(sock);
+        npc->enterIntoViewOf(sock);
 
-            BaseNPC* marker = entry->second.back();
-            marker->disappearFromViewOf(sock); // vanish
+        // do lerping magic
+        entry->second.push_back(home); // temporary end point for loop completion
+        std::queue<Vec3> keyframes;
+        auto _point = entry->second.begin();
+        Vec3 from = { (*_point)->x, (*_point)->y, (*_point)->z }; // point A coords
+        for (_point++; _point != entry->second.end(); _point++) { // loop through all point Bs
+            Vec3 to = { (*_point)->x, (*_point)->y, (*_point)->z }; // point B coords
+            // add point A to the queue
+            keyframes.push(from);
+            Transport::lerp(&keyframes, from, to, speed); // lerp from A to B
+            from = to; // update point A
+        }
+        Transport::NPCQueues[npc->appearanceData.iNPC_ID] = keyframes;
+        entry->second.pop_back(); // remove temp end point
+
+        Chat::sendServerMessage(sock, "[PATH] Testing NPC path");
+        return;
+    }
+
+    // /path cancel
+    if (args[1] == "cancel") {
+        // return NPC to home
+        Transport::NPCQueues.erase(npc->appearanceData.iNPC_ID); // delete transport queue
+        BaseNPC* home = entry->second[0];
+        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, home->x, home->y, home->z, npc->instanceID, 0);
+        npc->disappearFromViewOf(sock);
+        npc->enterIntoViewOf(sock);
+        // deallocate markers
+        for (BaseNPC* marker : entry->second) {
+            marker->disappearFromViewOf(sock); // poof
             delete marker; // destroy
-
-            entry->second.pop_back(); // remove from the vector
-            Chat::sendServerMessage(sock, "[PATH] Undid last keyframe");
-            goto update;
         }
-
-        // /path test
-        if (args[1] == "test") {
-
-            int speed = NPC_DEFAULT_SPEED;
-            if (args.size() > 2) { // speed specified
-                char* buf;
-                int speedArg = std::strtol(args[2].c_str(), &buf, 10);
-                if (*buf) {
-                    Chat::sendServerMessage(sock, "[PATH] Invalid speed " + args[2]);
-                    goto update;
-                }
-                speed = speedArg;
-            }
-            // return NPC to home
-            Transport::NPCQueues.erase(npc->appearanceData.iNPC_ID); // delete transport queue
-            BaseNPC* home = entry->second[0];
-            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, home->x, home->y, home->z, npc->instanceID, 0);
-            npc->disappearFromViewOf(sock);
-            npc->enterIntoViewOf(sock);
-
-            // do lerping magic
-            entry->second.push_back(home); // temporary end point for loop completion
-            std::queue<Vec3> keyframes;
-            auto _point = entry->second.begin();
-            Vec3 from = { (*_point)->x, (*_point)->y, (*_point)->z }; // point A coords
-            for (_point++; _point != entry->second.end(); _point++) { // loop through all point Bs
-                Vec3 to = { (*_point)->x, (*_point)->y, (*_point)->z }; // point B coords
-                // add point A to the queue
-                keyframes.push(from);
-                Transport::lerp(&keyframes, from, to, speed); // lerp from A to B
-                from = to; // update point A
-            }
-            Transport::NPCQueues[npc->appearanceData.iNPC_ID] = keyframes;
-            entry->second.pop_back(); // remove temp end point
-
-            Chat::sendServerMessage(sock, "[PATH] Testing NPC path");
-            goto update;
-        }
-
-        // /path cancel
-        if (args[1] == "cancel") {
-            // return NPC to home
-            Transport::NPCQueues.erase(npc->appearanceData.iNPC_ID); // delete transport queue
-            BaseNPC* home = entry->second[0];
-            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, home->x, home->y, home->z, npc->instanceID, 0);
-            npc->disappearFromViewOf(sock);
-            npc->enterIntoViewOf(sock);
-            // deallocate markers
-            for (BaseNPC* marker : entry->second) {
-                marker->disappearFromViewOf(sock); // poof
-                delete marker; // destroy
-            }
-            // unmap
-            TableData::RunningNPCPaths.erase(plr->iID);
-            Chat::sendServerMessage(sock, "[PATH] NPC " + std::to_string(npc->appearanceData.iNPC_ID) + " is no longer following you");
-            goto update;
-        }
-
-        // /path end
-        if (args[1] == "end") {
-            if (args.size() < 2) {
-                Chat::sendServerMessage(sock, "[PATH] Too few arguments");
-                Chat::sendServerMessage(sock, "[PATH] Usage: /path end [speed] [a/r]");
-                goto update;
-            }
-
-            int speed = NPC_DEFAULT_SPEED;
-            bool relative = false;
-            if (args.size() > 2) { // speed specified
-                char* buf;
-                int speedArg = std::strtol(args[2].c_str(), &buf, 10);
-                if (*buf) {
-                    Chat::sendServerMessage(sock, "[PATH] Invalid speed " + args[2]);
-                    goto update;
-                }
-                speed = speedArg;
-            }
-            if (args.size() > 3 && args[3] == "r") { // relativity specified
-                relative = true;
-            }
-            // return NPC to home
-            Transport::NPCQueues.erase(npc->appearanceData.iNPC_ID); // delete transport queue
-            BaseNPC* home = entry->second[0];
-            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, home->x, home->y, home->z, npc->instanceID, 0);
-            npc->disappearFromViewOf(sock);
-            npc->enterIntoViewOf(sock);
-
-            // do lerping magic
-            entry->second.push_back(home); // temporary end point for loop completion
-            std::queue<Vec3> keyframes;
-            auto _point = entry->second.begin();
-            Vec3 from = { (*_point)->x, (*_point)->y, (*_point)->z }; // point A coords
-            for (_point++; _point != entry->second.end(); _point++) { // loop through all point Bs
-                Vec3 to = { (*_point)->x, (*_point)->y, (*_point)->z }; // point B coords
-                // add point A to the queue
-                keyframes.push(from);
-                Transport::lerp(&keyframes, from, to, speed); // lerp from A to B
-                from = to; // update point A
-            }
-            Transport::NPCQueues[npc->appearanceData.iNPC_ID] = keyframes;
-            entry->second.pop_back(); // remove temp end point
-
-            // save to gruntwork
-            std::vector<Vec3> finalPoints;
-            for (BaseNPC* marker : entry->second) {
-                Vec3 coords = { marker->x, marker->y, marker->z };
-                if (relative) {
-                    coords.x -= home->x;
-                    coords.y -= home->y;
-                    coords.z -= home->z;
-                }
-                finalPoints.push_back(coords);
-            }
-
-            // end point to complete the circuit
-            if (relative)
-                finalPoints.push_back({ 0, 0, 0 });
-            else
-                finalPoints.push_back({ home->x, home->y, home->z });
-
-            NPCPath finishedPath;
-            finishedPath.escortTaskID = -1;
-            finishedPath.isRelative = relative;
-            finishedPath.speed = speed;
-            finishedPath.points = finalPoints;
-            finishedPath.targetIDs.push_back(npc->appearanceData.iNPC_ID);
-
-            TableData::FinishedNPCPaths.push_back(finishedPath);
-
-            // deallocate markers
-            for (BaseNPC* marker : entry->second) {
-                marker->disappearFromViewOf(sock); // poof
-                delete marker; // destroy
-            }
-            // unmap
-            TableData::RunningNPCPaths.erase(plr->iID);
-
-            Chat::sendServerMessage(sock, "[PATH] NPC " + std::to_string(npc->appearanceData.iNPC_ID) + " is no longer following you");
-
-            TableData::flush();
-            Chat::sendServerMessage(sock, "[PATH] Path saved to gruntwork");
-            goto update;
-        }
-
-        // /path ???
-        Chat::sendServerMessage(sock, "[PATH] Unknown argument '" + args[1] + "'");
+        // unmap
+        TableData::RunningNPCPaths.erase(plr->iID);
+        Chat::sendServerMessage(sock, "[PATH] NPC " + std::to_string(npc->appearanceData.iNPC_ID) + " is no longer following you");
+        return;
     }
 
-update:
-    if (TableData::RunningNPCPaths.find(plr->iID) != TableData::RunningNPCPaths.end()) {
-        for (BaseNPC* marker : TableData::RunningNPCPaths[plr->iID].second)
-            marker->enterIntoViewOf(sock);
+    // /path end
+    if (args[1] == "end") {
+        if (args.size() < 2) {
+            Chat::sendServerMessage(sock, "[PATH] Too few arguments");
+            Chat::sendServerMessage(sock, "[PATH] Usage: /path end [speed] [a/r]");
+            return;
+        }
+
+        int speed = NPC_DEFAULT_SPEED;
+        bool relative = false;
+        if (args.size() > 2) { // speed specified
+            char* buf;
+            int speedArg = std::strtol(args[2].c_str(), &buf, 10);
+            if (*buf) {
+                Chat::sendServerMessage(sock, "[PATH] Invalid speed " + args[2]);
+                return;
+            }
+            speed = speedArg;
+        }
+        if (args.size() > 3 && args[3] == "r") { // relativity specified
+            relative = true;
+        }
+        // return NPC to home
+        Transport::NPCQueues.erase(npc->appearanceData.iNPC_ID); // delete transport queue
+        BaseNPC* home = entry->second[0];
+        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, home->x, home->y, home->z, npc->instanceID, 0);
+        npc->disappearFromViewOf(sock);
+        npc->enterIntoViewOf(sock);
+
+        // do lerping magic
+        entry->second.push_back(home); // temporary end point for loop completion
+        std::queue<Vec3> keyframes;
+        auto _point = entry->second.begin();
+        Vec3 from = { (*_point)->x, (*_point)->y, (*_point)->z }; // point A coords
+        for (_point++; _point != entry->second.end(); _point++) { // loop through all point Bs
+            Vec3 to = { (*_point)->x, (*_point)->y, (*_point)->z }; // point B coords
+            // add point A to the queue
+            keyframes.push(from);
+            Transport::lerp(&keyframes, from, to, speed); // lerp from A to B
+            from = to; // update point A
+        }
+        Transport::NPCQueues[npc->appearanceData.iNPC_ID] = keyframes;
+        entry->second.pop_back(); // remove temp end point
+
+        // save to gruntwork
+        std::vector<Vec3> finalPoints;
+        for (BaseNPC* marker : entry->second) {
+            Vec3 coords = { marker->x, marker->y, marker->z };
+            if (relative) {
+                coords.x -= home->x;
+                coords.y -= home->y;
+                coords.z -= home->z;
+            }
+            finalPoints.push_back(coords);
+        }
+
+        // end point to complete the circuit
+        if (relative)
+            finalPoints.push_back({ 0, 0, 0 });
+        else
+            finalPoints.push_back({ home->x, home->y, home->z });
+
+        NPCPath finishedPath;
+        finishedPath.escortTaskID = -1;
+        finishedPath.isRelative = relative;
+        finishedPath.speed = speed;
+        finishedPath.points = finalPoints;
+        finishedPath.targetIDs.push_back(npc->appearanceData.iNPC_ID);
+
+        TableData::FinishedNPCPaths.push_back(finishedPath);
+
+        // deallocate markers
+        for (BaseNPC* marker : entry->second) {
+            marker->disappearFromViewOf(sock); // poof
+            delete marker; // destroy
+        }
+        // unmap
+        TableData::RunningNPCPaths.erase(plr->iID);
+
+        Chat::sendServerMessage(sock, "[PATH] NPC " + std::to_string(npc->appearanceData.iNPC_ID) + " is no longer following you");
+
+        TableData::flush();
+        Chat::sendServerMessage(sock, "[PATH] Path saved to gruntwork");
+        return;
     }
+
+    // /path ???
+    Chat::sendServerMessage(sock, "[PATH] Unknown argument '" + args[1] + "'");
 }
 
 static void registerCommand(std::string cmd, int requiredLevel, CommandHandler handlr, std::string help) {
