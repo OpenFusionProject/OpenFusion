@@ -49,4 +49,6 @@ namespace Transport {
 
     void lerp(std::queue<Vec3>*, Vec3, Vec3, int, float);
     void lerp(std::queue<Vec3>*, Vec3, Vec3, int);
+
+    NPCPath* findApplicablePath(int32_t, int32_t, int = -1);
 }
