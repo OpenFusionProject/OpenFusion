@@ -3,6 +3,7 @@
 #include "PlayerManager.hpp"
 #include "Nanos.hpp"
 #include "Items.hpp"
+#include "Transport.hpp"
 
 #include "string.h"
 
@@ -358,15 +359,19 @@ static void taskStart(CNSocket* sock, CNPacketData* data) {
     response.iRemainTime = task["m_iSTGrantTimer"];
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
 
-    // HACK: auto-succeed escort task
+    // if escort task, assign matching paths to all nearby NPCs
     if (task["m_iHTaskType"] == 6) {
-        std::cout << "Skipping escort mission" << std::endl;
-        INITSTRUCT(sP_FE2CL_REP_PC_TASK_END_SUCC, response);
-
-        endTask(sock, missionData->iTaskNum);
-        response.iTaskNum = missionData->iTaskNum;
-
-        sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_END_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_END_SUCC));
+        for(Chunk* chunk : plr->viewableChunks) // check all NPCs in view
+            for (EntityRef ref : chunk->entities) {
+                if (ref.type != EntityType::PLAYER) {
+                    BaseNPC* npc = (BaseNPC*)ref.getEntity();
+                    NPCPath* path = Transport::findApplicablePath(npc->appearanceData.iNPC_ID, npc->appearanceData.iNPCType, missionData->iTaskNum);
+                    if (path != nullptr) {
+                        Transport::constructPathNPC(npc->appearanceData.iNPC_ID, path);
+                        return;
+                    }
+                }
+            }
     }
 }
 
