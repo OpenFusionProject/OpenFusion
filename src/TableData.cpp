@@ -57,39 +57,6 @@ static void constructPathSkyway(json& pathData) {
     Transport::SkywayPaths[pathData["iRouteID"]] = points;
 }
 
-static void constructPathNPC(int32_t id, NPCPath* path) {
-    BaseNPC* npc = NPCManager::NPCs[id];
-    if(npc->type == EntityType::MOB)
-        ((Mob*)(npc))->staticPath = true;
-
-    // Interpolate
-    std::vector<Vec3> pathPoints = path->points;
-    std::queue<Vec3> points;
-
-    auto _point = pathPoints.begin();
-    Vec3 from = *_point; // point A coords
-    for (_point++; _point != pathPoints.end(); _point++) { // loop through all point Bs
-        Vec3 to = *_point; // point B coords
-        // add point A to the queue
-        if (path->isRelative) {
-            // relative; the NPCs current position is assumed to be its spawn point
-            Vec3 fromReal = { from.x + npc->x, from.y + npc->y, from.z + npc->z };
-            Vec3 toReal = { to.x + npc->x, to.y + npc->y, to.z + npc->z };
-            points.push(fromReal);
-            Transport::lerp(&points, fromReal, toReal, path->speed); // lerp from A to B
-        }
-        else {
-            // absolute
-            points.push(from);
-            Transport::lerp(&points, from, to, path->speed); // lerp from A to B
-        }
-        
-        from = to; // update point A
-    }
-
-    Transport::NPCQueues[id] = points;
-}
-
 /*
  * Load all relevant data from the XDT into memory
  * This should be called first, before any of the other load functions
@@ -908,7 +875,7 @@ static void loadNPCs(json& npcData) {
             NPCPath* npcPath = Transport::findApplicablePath(npcID, type);
             if (npcPath != nullptr) {
                 //std::cout << "[INFO] Found path for NPC " << npcID << std::endl;
-                constructPathNPC(npcID, npcPath);
+                Transport::constructPathNPC(npcID, npcPath);
             }
         }
     }
@@ -954,7 +921,7 @@ static void loadMobs(json& npcData, int32_t* nextId) {
             NPCPath* npcPath = Transport::findApplicablePath(npcID, npc["iNPCType"]);
             if (npcPath != nullptr) {
                 //std::cout << "[INFO] Found path for mob " << npcID << std::endl;
-                constructPathNPC(npcID, npcPath);
+                Transport::constructPathNPC(npcID, npcPath);
             }
         }
 
@@ -983,7 +950,7 @@ static void loadMobs(json& npcData, int32_t* nextId) {
             NPCPath* npcPath = Transport::findApplicablePath(leadID, leader["iNPCType"]);
             if (npcPath != nullptr) {
                 //std::cout << "[INFO] Found path for mob " << leadID << std::endl;
-                constructPathNPC(leadID, npcPath);
+                Transport::constructPathNPC(leadID, npcPath);
             }
 
             tmp->groupLeader = leadID;
