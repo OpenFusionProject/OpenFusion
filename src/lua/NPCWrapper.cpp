@@ -117,9 +117,9 @@ static int npc_moveto(lua_State *state) {
     if (npc == NULL)
         return 0;
 
-    std::queue<WarpLocation> queue;
-    WarpLocation from = { npc->x, npc->y, npc->z };
-    WarpLocation to = { X, Y, Z };
+    std::queue<Vec3> queue;
+    Vec3 from = { npc->x, npc->y, npc->z };
+    Vec3 to = { X, Y, Z };
 
     // add a route to the queue; to be processed in Transport::stepNPCPathing()
     Transport::lerp(&queue, from, to, npc->speed);
