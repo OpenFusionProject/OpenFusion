@@ -14,6 +14,7 @@
 #include "JSON.hpp"
 
 #include <fstream>
+#include <sstream>
 #include <cmath>
 
 using namespace TableData;
@@ -1079,19 +1080,26 @@ void TableData::init() {
         }
         fstream.close();
 
-        // patching: loop through every directory within the patch directory, looking for a matching file
-        if (!std::filesystem::exists(settings::PATCHDIR)) continue; // patch dir doesn't exist
+        // patching: load each patch directory specified in the config file
+
+        // split config field into individual patch entries
+        std::stringstream ss(settings::ENABLEDPATCHES);
+        std::istream_iterator<std::string> begin(ss);
+        std::istream_iterator<std::string> end;
+
         json patch;
-        for (const auto& patchModule : std::filesystem::directory_iterator(settings::PATCHDIR)) {
+        for (auto it = begin; it != end; it++) {
             // this is the theoretical path of a corresponding patch for this file
-            std::string patchFile = patchModule.path().generic_u8string() + "/" + table.second;
-            if (std::filesystem::exists(patchFile)) {
-                // file exists
-                std::cout << "[INFO] Patching " << patchFile << std::endl;
+            std::string patchModuleName = *it;
+            std::string patchFile = settings::PATCHDIR + patchModuleName + "/" + table.second;
+            try {
                 fstream.open(patchFile);
                 fstream >> patch; // load into temporary json object
+                std::cout << "[INFO] Patching " << patchFile << std::endl;
                 patchJSON(table.first, &patch); // patch
                 fstream.close();
+            } catch (const std::exception& err) {
+                // no-op
             }
         }
     }

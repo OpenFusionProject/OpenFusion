@@ -45,8 +45,10 @@ std::string settings::DROPSJSON = "drops.json";
 std::string settings::PATHJSON = "paths.json";
 #ifdef ACADEMY
 std::string settings::XDTJSON = "xdt1013.json";
+std::string settings::ENABLEDPATCHES = "1013";
 #else
 std::string settings::XDTJSON = "xdt.json";
+std::string settings::ENABLEDPATCHES = "";
 #endif // ACADEMY
 
 int settings::ACCLEVEL = 1;
@@ -96,6 +98,7 @@ void settings::init() {
     DBPATH = reader.Get("shard", "dbpath", DBPATH);
     TDATADIR = reader.Get("shard", "tdatadir", TDATADIR);
     PATCHDIR = reader.Get("shard", "patchdir", PATCHDIR);
+    ENABLEDPATCHES = reader.Get("shard", "enabledpatches", ENABLEDPATCHES);
     ACCLEVEL = reader.GetInteger("shard", "accountlevel", ACCLEVEL);
     EVENTMODE = reader.GetInteger("shard", "eventmode", EVENTMODE);
     DISABLEFIRSTUSEFLAG = reader.GetBoolean("shard", "disablefirstuseflag", DISABLEFIRSTUSEFLAG);
