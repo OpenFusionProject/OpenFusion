@@ -58,8 +58,20 @@ static int npc_getMaxHealth(lua_State *state) {
     return 1;
 }
 
+static int npc_getSpeed(lua_State *state) {
+    CombatNPC *npc = grabNPC(state, 1);
+
+    // sanity check
+    if (npc != NULL)
+        return 0;
+
+    lua_pushinteger(state, npc->speed);
+    return 0;
+}
+
 static const luaL_Reg npc_getters[] = {
     {"maxHealth", npc_getMaxHealth},
+    {"speed", npc_getSpeed},
     {0, 0}
 };
 
@@ -76,8 +88,20 @@ static int npc_setMaxHealth(lua_State *state) {
     return 0;
 }
 
+static int npc_setSpeed(lua_State *state) {
+    CombatNPC *npc = grabNPC(state, 1);
+    int newSpeed = luaL_checkint(state, 2);
+
+    // sanity check
+    if (npc != NULL)
+        npc->speed = newSpeed;
+
+    return 0;
+}
+
 static const luaL_Reg npc_setters[] = {
     {"maxHealth", npc_setMaxHealth},
+    {"speed", npc_setSpeed},
     {0, 0}
 };
 
@@ -104,8 +128,28 @@ static int npc_moveto(lua_State *state) {
     return 0;
 }
 
+static int npc_say(lua_State *state) {
+    CombatNPC *npc = grabNPC(state, 1);
+    std::string msg = std::string(luaL_checkstring(state, 2));
+
+    // sanity check
+    if (npc != NULL) {
+        INITSTRUCT(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, res);
+
+        U8toU16(msg, (char16_t*)&res.szFreeChat, sizeof(res.szFreeChat));
+        res.iPC_ID = npc->appearanceData.iNPC_ID;
+        res.iEmoteCode = 421;
+        
+        // send the packet
+        NPCManager::sendToViewable(npc, &res, P_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC));
+    }
+
+    return 0;
+}
+
 static const luaL_Reg npc_methods[] = {
     {"moveTo", npc_moveto},
+    {"say", npc_say},
     {0, 0}
 };
 
