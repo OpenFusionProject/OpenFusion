@@ -62,11 +62,11 @@ static int npc_getSpeed(lua_State *state) {
     CombatNPC *npc = grabNPC(state, 1);
 
     // sanity check
-    if (npc != NULL)
+    if (npc == NULL)
         return 0;
 
     lua_pushinteger(state, npc->speed);
-    return 0;
+    return 1;
 }
 
 static const luaL_Reg npc_getters[] = {
