@@ -361,7 +361,7 @@ static void taskStart(CNSocket* sock, CNPacketData* data) {
 
     // if escort task, assign matching paths to all nearby NPCs
     if (task["m_iHTaskType"] == 6) {
-        for (ChunkPos chunkPos : Chunking::getChunksInMap(plr->instanceID)) { // check all NPCs in the instance
+        for (ChunkPos& chunkPos : Chunking::getChunksInMap(plr->instanceID)) { // check all NPCs in the instance
             Chunk* chunk = Chunking::chunks[chunkPos];
             for (EntityRef ref : chunk->entities) {
                 if (ref.type != EntityType::PLAYER) {
