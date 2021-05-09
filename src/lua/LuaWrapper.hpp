@@ -189,6 +189,11 @@ public:
             switch (event->type) {
                 case EVENT_CALLBACK: {
                     // make thread for this callback
+                    if (!lua_checkstack(event->state, 1)) {
+                        std::cout << "[FATAL] Failed to create new lua thread! out of memory!" << std::endl;
+                        terminate(0);
+                    }
+
                     lua_State *nThread = lua_newthread(event->state);
 
                     // push the callable first, the push all the arguments
@@ -197,9 +202,6 @@ public:
 
                     // then call it :)
                     yieldCall(nThread, nargs);
-
-                    // we can safely pop the thread off the stack now
-                    lua_pop(event->state, 1);
                     break;
                 }
                 case EVENT_WAIT: {
