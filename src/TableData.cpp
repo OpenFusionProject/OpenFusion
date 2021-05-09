@@ -320,6 +320,7 @@ static void loadPaths(json& pathData, int32_t* nextId) {
             int speed = pathVal.find("iBaseSpeed") == pathVal.end() ? NPC_DEFAULT_SPEED : (int)pathVal["iBaseSpeed"];
             int taskID = pathVal.find("iTaskID") == pathVal.end() ? -1 : (int)pathVal["iTaskID"];
             bool relative = pathVal.find("bRelative") == pathVal.end() ? false : (bool)pathVal["bRelative"];
+            bool loop = pathVal.find("bLoop") == pathVal.end() ? true : (bool)pathVal["bLoop"]; // loop by default
 
             // target IDs
             for (json::iterator _tID = pathVal["aNPCIDs"].begin(); _tID != pathVal["aNPCIDs"].end(); _tID++)
@@ -340,6 +341,7 @@ static void loadPaths(json& pathData, int32_t* nextId) {
             pathTemplate.points = pathPoints;
             pathTemplate.speed = speed;
             pathTemplate.isRelative = relative;
+            pathTemplate.isLoop = loop;
             pathTemplate.escortTaskID = taskID;
 
             Transport::NPCPaths.push_back(pathTemplate);
@@ -672,6 +674,7 @@ static void loadGruntworkPre(json& gruntwork, int32_t* nextId) {
             int speed = (int)path["iBaseSpeed"];
             int taskID = (int)path["iTaskID"];
             bool relative = (bool)path["bRelative"];
+            bool loop = (bool)path["bLoop"];
 
             // target IDs
             for (json::iterator _tID = path["aNPCIDs"].begin(); _tID != path["aNPCIDs"].end(); _tID++)
@@ -693,6 +696,7 @@ static void loadGruntworkPre(json& gruntwork, int32_t* nextId) {
             pathTemplate.speed = speed;
             pathTemplate.isRelative = relative;
             pathTemplate.escortTaskID = taskID;
+            pathTemplate.isLoop = loop;
 
             Transport::NPCPaths.push_back(pathTemplate);
             TableData::FinishedNPCPaths.push_back(pathTemplate); // keep in gruntwork
@@ -1300,6 +1304,7 @@ void TableData::flush() {
         pathObj["iTaskID"] = path.escortTaskID;
         pathObj["bRelative"] = path.isRelative;
         pathObj["aPoints"] = points;
+        pathObj["bLoop"] = path.isLoop;
 
         // don't write 'null' if there aren't any targets
         if(targetIDs.size() > 0)

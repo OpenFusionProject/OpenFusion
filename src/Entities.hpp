@@ -76,6 +76,7 @@ struct EntityRef {
 class BaseNPC : public Entity {
 public:
     sNPCAppearanceData appearanceData = {};
+    bool loopingPath = false;
 
     BaseNPC(int _X, int _Y, int _Z, int angle, uint64_t iID, int t, int id) { // XXX
         x = _X;

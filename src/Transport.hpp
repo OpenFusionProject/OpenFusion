@@ -33,6 +33,7 @@ struct NPCPath {
     int speed;
     int escortTaskID;
     bool isRelative;
+    bool isLoop;
 };
 
 namespace Transport {

@@ -1119,12 +1119,14 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
         if (args.size() > 3 && args[3] == "r") { // relativity specified
             relative = true;
         }
-        // return NPC to home
+
+        // return NPC to home and set path to repeat
         Transport::NPCQueues.erase(npc->appearanceData.iNPC_ID); // delete transport queue
         BaseNPC* home = entry->second[0];
         NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, home->x, home->y, home->z, npc->instanceID, 0);
         npc->disappearFromViewOf(sock);
         npc->enterIntoViewOf(sock);
+        npc->loopingPath = true;
 
         // do lerping magic
         entry->second.push_back(home); // temporary end point for loop completion
@@ -1162,6 +1164,7 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
         NPCPath finishedPath;
         finishedPath.escortTaskID = -1;
         finishedPath.isRelative = relative;
+        finishedPath.isLoop = true;
         finishedPath.speed = speed;
         finishedPath.points = finalPoints;
         finishedPath.targetIDs.push_back(npc->appearanceData.iNPC_ID);

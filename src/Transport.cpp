@@ -310,10 +310,9 @@ static void stepNPCPathing() {
         }
 
         /*
-         * Move processed point to the back to maintain cycle, unless this is a
-         * dynamically calculated mob route.
+         * If this path should be repeated, move processed point to the back to maintain cycle.
          */
-        if (!(npc->type == EntityType::MOB && !((Mob*)npc)->staticPath))
+        if (npc->loopingPath)
             queue->push(point);
 
         it++; // go to next entry in map
@@ -388,6 +387,7 @@ void Transport::constructPathNPC(int32_t id, NPCPath* path) {
     BaseNPC* npc = NPCManager::NPCs[id];
     if (npc->type == EntityType::MOB)
         ((Mob*)(npc))->staticPath = true;
+    npc->loopingPath = path->isLoop;
 
     // Interpolate
     std::vector<Vec3> pathPoints = path->points;
