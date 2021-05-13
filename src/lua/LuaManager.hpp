@@ -3,7 +3,7 @@
 #include "core/CNProtocol.hpp"
 
 #include <string>
-#ifdef _WIN32
+#ifdef _MSC_VER
     #include <luajit/lua.hpp>
 #else
     #include <lua.hpp>
