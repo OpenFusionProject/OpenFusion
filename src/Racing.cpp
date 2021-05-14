@@ -64,9 +64,23 @@ static void racingCancel(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_EP_RACE_CANCEL_SUCC, resp);
     sock->sendPacket(resp, P_FE2CL_REP_EP_RACE_CANCEL_SUCC);
 
-    // we have to teleport the player back after this, otherwise they are unable to move
+    /* 
+     * This request packet is used for both cancelling the race via the
+     * NPC at the start, *and* failing the race by running out of time.
+     * If the latter is to happen, the client disables movement until it
+     * receives a packet from the server that re-enables it.
+     *
+     * So, in order to prevent a potential softlock we respawn the player.
+     */
+
     WarpLocation* respawnLoc = PlayerManager::getRespawnPoint(plr);
-    PlayerManager::sendPlayerTo(sock, respawnLoc->x, respawnLoc->y, respawnLoc->z, respawnLoc->instanceID);
+
+    if (respawnLoc != nullptr) {
+        PlayerManager::sendPlayerTo(sock, respawnLoc->x, respawnLoc->y, respawnLoc->z, respawnLoc->instanceID);
+    } else {
+        // fallback, just respawn the player in-place if no suitable point is found
+        PlayerManager::sendPlayerTo(sock, plr->x, plr->y, plr->z, plr->instanceID);
+    }
 }
 
 static void racingEnd(CNSocket* sock, CNPacketData* data) {
