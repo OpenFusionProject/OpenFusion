@@ -283,35 +283,56 @@ static void itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     if (plr->accountLevel > 50) {
-    	// TODO: send fail packet
+        // TODO: send fail packet
         return;
     }
 
-    if (itemreq->eIL == 2) {
-        // Quest item, not a real item, handle this later, stubbed for now
-    } else if (itemreq->eIL == 1 && itemreq->Item.iType >= 0 && itemreq->Item.iType <= 10) {
+    INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp);
 
-        if (Items::ItemData.find(std::pair<int32_t, int32_t>(itemreq->Item.iID, itemreq->Item.iType)) == Items::ItemData.end()) {
+    if (itemreq->eIL == 1) {
+
+        if (Items::ItemData.find(std::pair<int32_t, int32_t>(itemreq->Item.iID, itemreq->Item.iType)) == Items::ItemData.end()
+        || itemreq->Item.iType < 0 || itemreq->Item.iType > 10) {
             // invalid item
             std::cout << "[WARN] Item id " << itemreq->Item.iID << " with type " << itemreq->Item.iType << " is invalid (give item)" << std::endl;
             return;
         }
 
-        INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp);
-
-        resp.eIL = itemreq->eIL;
-        resp.iSlotNum = itemreq->iSlotNum;
         if (itemreq->Item.iType == 10) {
             // item is vehicle, set expiration date
             // set time limit: current time + 7days
             itemreq->Item.iTimeLimit = getTimestamp() + 604800;
         }
-        resp.Item = itemreq->Item;
 
         plr->Inven[itemreq->iSlotNum] = itemreq->Item;
+    } else if (itemreq->eIL == 2) {
+        int id = itemreq->Item.iID;
+        int slot = Missions::findQSlot(plr, id);
 
-        sock->sendPacket(resp, P_FE2CL_REP_PC_GIVE_ITEM_SUCC);
+        if (slot == -1) {
+            std::cout << "[WARN] Player has no room for quest items" << std::endl;
+            return;
+        }
+        if (id != 0)
+            std::cout << "new qitem in slot " << slot << std::endl;
+
+        // update player
+        if (id != 0) {
+            plr->QInven[slot].iType = 8;
+            plr->QInven[slot].iID = id;
+            plr->QInven[slot].iOpt += itemreq->Item.iOpt;
+
+            // destroy the item if its 0
+            if (plr->QInven[slot].iOpt == 0)
+                memset(&plr->QInven[slot], 0, sizeof(sItemBase));
+        }
+        std::cout << "Item id " << id << " is in slot " << slot << " of count " << plr->QInven[slot].iOpt << std::endl;
     }
+
+    resp.eIL = itemreq->eIL;
+    resp.iSlotNum = itemreq->iSlotNum;
+    resp.Item = itemreq->Item;
+    sock->sendPacket(resp, P_FE2CL_REP_PC_GIVE_ITEM_SUCC);
 }
 
 static void nanoGMGiveHandler(CNSocket* sock, CNPacketData* data) {

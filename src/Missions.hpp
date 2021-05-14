@@ -40,6 +40,7 @@ namespace Missions {
     extern std::map<int32_t, TaskData*> Tasks;
     extern nlohmann::json AvatarGrowth[37];
     void init();
+    int findQSlot(Player *plr, int id);
 
     bool startTask(Player* plr, int TaskID);
 

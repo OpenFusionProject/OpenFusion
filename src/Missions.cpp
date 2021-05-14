@@ -32,7 +32,7 @@ static bool isMissionCompleted(Player* player, int missionId) {
    return player->aQuestFlag[row] & (1ULL << column);
 }
 
-static int findQSlot(Player *plr, int id) {
+int Missions::findQSlot(Player *plr, int id) {
     int i;
 
     // two passes. we mustn't fail to find an existing stack.
@@ -52,7 +52,7 @@ static int findQSlot(Player *plr, int id) {
 static bool isQuestItemFull(CNSocket* sock, int itemId, int itemCount) {
     Player* plr = PlayerManager::getPlayer(sock);
 
-    int slot = findQSlot(plr, itemId);
+    int slot = Missions::findQSlot(plr, itemId);
     if (slot == -1) {
         // this should never happen
         std::cout << "[WARN] Player has no room for quest item!?" << std::endl;
@@ -78,7 +78,7 @@ static void dropQuestItem(CNSocket *sock, int task, int count, int id, int mobid
     memset(respbuf, 0, resplen);
 
     // find free quest item slot
-    int slot = findQSlot(plr, id);
+    int slot = Missions::findQSlot(plr, id);
     if (slot == -1) {
         // this should never happen
         std::cout << "[WARN] Player has no room for quest item!?" << std::endl;
@@ -486,6 +486,12 @@ void Missions::quitTask(CNSocket* sock, int32_t taskNum, bool manual) {
                     memset(&plr->QInven[j], 0, sizeof(sItemBase));
         }
     } else {
+        for (i = 0; i < 3; i++) {
+            if (task["m_iFItemID"][i] == 0)
+                continue;
+            dropQuestItem(sock, taskNum, task["m_iFItemNumNeeded"][i], task["m_iFItemID"][i], 0);
+        }
+
         INITSTRUCT(sP_FE2CL_REP_PC_TASK_END_FAIL, failResp);
         failResp.iErrorCode = 1;
         failResp.iTaskNum = taskNum;
