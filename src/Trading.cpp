@@ -205,6 +205,13 @@ static void tradeConfirm(CNSocket* sock, CNPacketData* data) {
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM_ABORT, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_ABORT));
         resp.iID_Request = plr->iID;
         otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM_ABORT, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_ABORT));
+
+        // both players are no longer trading
+        plr->isTrading = false;
+        plr2->isTrading = false;
+        plr->isTradeConfirm = false;
+        plr2->isTradeConfirm = false;
+
         return;
     }
 
@@ -247,12 +254,19 @@ static void tradeConfirm(CNSocket* sock, CNPacketData* data) {
         otherSock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_TRADE_CONFIRM_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_SUCC));
     } else {
         INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CONFIRM_ABORT, resp);
-        resp.iID_Request = plr2->iID;
+        resp.iID_Request = plr->iID;
         resp.iID_From = pacdat->iID_From;
         resp.iID_To = pacdat->iID_To;
         sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM_ABORT, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_ABORT));
-        resp.iID_Request = plr->iID;
+        resp.iID_Request = plr2->iID;
         otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CONFIRM_ABORT, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_ABORT));
+
+        INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
+        std::string text = "Trade Failed";
+        U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
+        msg.iDuringTime = 3;
+        sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
+        otherSock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
         return;
     }
 }
@@ -301,8 +315,10 @@ static void tradeRegisterItem(CNSocket* sock, CNPacketData* data) {
         return;
 
     Player* plr = PlayerManager::getPlayer(sock);
+    Player* plr2 = PlayerManager::getPlayer(otherSock);
     plr->Trade[pacdat->Item.iSlotNum] = pacdat->Item;
     plr->isTradeConfirm = false;
+    plr2->isTradeConfirm = false;
 
     // since you can spread items like gumballs over multiple slots, we need to count them all
     // to make sure the inventory shows the right value during trade.
@@ -343,7 +359,9 @@ static void tradeUnregisterItem(CNSocket* sock, CNPacketData* data) {
         return;
 
     Player* plr = PlayerManager::getPlayer(sock);
+    Player* plr2 = PlayerManager::getPlayer(otherSock);
     plr->isTradeConfirm = false;
+    plr2->isTradeConfirm = false;
 
     INITSTRUCT(sP_FE2CL_REP_PC_TRADE_ITEM_UNREGISTER_SUCC, resp);
     resp.iID_Request = pacdat->iID_Request;
@@ -384,6 +402,10 @@ static void tradeRegisterCash(CNSocket* sock, CNPacketData* data) {
 
     if (otherSock == nullptr)
         return;
+
+    Player* plr2 = PlayerManager::getPlayer(otherSock);
+    plr->isTradeConfirm = false;
+    plr2->isTradeConfirm = false;
 
     INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC, resp);
     resp.iID_Request = pacdat->iID_Request;
