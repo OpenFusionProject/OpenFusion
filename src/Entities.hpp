@@ -144,6 +144,7 @@ struct Bus : public BaseNPC {
     Bus(int x, int y, int z, int angle, uint64_t iID, int t, int id) :
         BaseNPC(x, y, z, angle, iID, t, id) {
         type = EntityType::BUS;
+        loopingPath = true;
     }
 
     virtual void enterIntoViewOf(CNSocket *sock) override;
