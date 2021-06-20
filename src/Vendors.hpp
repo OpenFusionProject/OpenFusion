@@ -7,7 +7,12 @@
 #include "PlayerManager.hpp"
 
 struct VendorListing {
-    int sort, type, iID;
+    int sort, type, id;
+
+    // when validating a listing, we don't really care about the sorting index
+    bool operator==(const VendorListing& other) const {
+        return type == other.type && id == other.id;
+    }
 };
 
 namespace Vendors {

@@ -13,8 +13,25 @@ static void vendorBuy(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, failResp);
     failResp.iErrorCode = 0;
 
-    Items::Item* itemDat = Items::getItemData(req->Item.iID, req->Item.iType);
+    if (req->iVendorID != req->iNPC_ID || Vendors::VendorTables.find(req->iVendorID) == Vendors::VendorTables.end()) {
+        std::cout << "[WARN] Vendor with ID " << req->iVendorID << " mismatched or not found (buy)" << std::endl;
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL);
+        return;
+    }
 
+    std::vector<VendorListing>* listings = &Vendors::VendorTables[req->iVendorID];
+    VendorListing reqItem;
+    reqItem.id = req->Item.iID;
+    reqItem.type = req->Item.iType;
+    reqItem.sort = 0; // just to be safe
+
+    if (std::find(listings->begin(), listings->end(), reqItem) == listings->end()) { // item not found in listing
+        std::cout << "[WARN] Player " << PlayerManager::getPlayerName(plr) << " tried to buy an item that wasn't on sale" << std::endl;
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL);
+        return;
+    }
+
+    Items::Item* itemDat = Items::getItemData(req->Item.iID, req->Item.iType);
     if (itemDat == nullptr) {
         std::cout << "[WARN] Item id " << req->Item.iID << " with type " << req->Item.iType << " not found (buy)" << std::endl;
         sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL);
@@ -202,13 +219,13 @@ static void vendorTable(CNSocket* sock, CNPacketData* data) {
     if (req->iVendorID != req->iNPC_ID || Vendors::VendorTables.find(req->iVendorID) == Vendors::VendorTables.end())
         return;
 
-    std::vector<VendorListing> listings = Vendors::VendorTables[req->iVendorID];
+    std::vector<VendorListing>& listings = Vendors::VendorTables[req->iVendorID];
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, resp);
 
     for (int i = 0; i < (int)listings.size() && i < 20; i++) { // 20 is the max
         sItemBase base;
-        base.iID = listings[i].iID;
+        base.iID = listings[i].id;
         base.iOpt = 0;
         base.iTimeLimit = 0;
         base.iType = listings[i].type;
