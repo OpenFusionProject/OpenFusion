@@ -3,7 +3,7 @@
 #include "core/Core.hpp"
 #include "Combat.hpp"
 
-typedef void (*PowerHandler)(CNSocket*, std::vector<int>, int16_t, int16_t, int16_t, int16_t, int16_t, int32_t, int16_t);
+typedef void (*PowerHandler)(EntityRef, std::vector<int>, int16_t, int16_t, int16_t, int16_t, int16_t, int32_t, int16_t);
 
 struct Power {
     int16_t skillType;
@@ -13,11 +13,16 @@ struct Power {
 
     Power(int16_t s, int32_t b, int16_t t, PowerHandler h) : skillType(s), bitFlag(b), timeBuffID(t), handler(h) {}
 
-    void handle(CNSocket *sock, std::vector<int> targetData, int16_t nanoID, int16_t skillID, int16_t duration, int16_t amount) {
+    void handle(EntityRef ref, std::vector<int> targetData, int16_t nanoID, int16_t skillID, int16_t duration, int16_t amount) {
         if (handler == nullptr)
             return;
 
-        handler(sock, targetData, nanoID, skillID, duration, amount, skillType, bitFlag, timeBuffID);
+        handler(ref, targetData, nanoID, skillID, duration, amount, skillType, bitFlag, timeBuffID);
+    }
+
+    /* overload for non-nano abilities */
+    void handle(EntityRef ref, std::vector<int> targetData, int16_t skillID, int16_t duration, int16_t amount) {
+        handle(ref, targetData, -1, skillID, duration, amount);
     }
 };
 
