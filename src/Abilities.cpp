@@ -151,15 +151,15 @@ bool doDebuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t target
     Combat::hitMob(sock, mob, 0);
 
     respdata[i].eCT = 4;
-    respdata[i].iID = mob->appearanceData.iNPC_ID;
+    respdata[i].iID = mob->id;
     respdata[i].bProtected = 1;
     if (mob->skillStyle < 0 && mob->state != MobState::RETREAT 
-    && !(mob->appearanceData.iConditionBitFlag & CSB_BIT_FREEDOM)) { // only debuff if the enemy is not retreating, casting corruption or in freedom
-        mob->appearanceData.iConditionBitFlag |= bitFlag;
+    && !(mob->cbf & CSB_BIT_FREEDOM)) { // only debuff if the enemy is not retreating, casting corruption or in freedom
+        mob->cbf |= bitFlag;
         mob->unbuffTimes[bitFlag] = getTime() + duration * 100;
         respdata[i].bProtected = 0;
     }
-    respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
+    respdata[i].iConditionBitFlag = mob->cbf;
 
     return true;
 }
@@ -224,16 +224,16 @@ bool doDamageNDebuff(CNSocket *sock, sSkillResult_Damage_N_Debuff *respdata, int
 
     respdata[i].eCT = 4;
     respdata[i].iDamage = duration / 10;
-    respdata[i].iID = mob->appearanceData.iNPC_ID;
-    respdata[i].iHP = mob->appearanceData.iHP;
+    respdata[i].iID = mob->id;
+    respdata[i].iHP = mob->hp;
     respdata[i].bProtected = 1;
     if (mob->skillStyle < 0 && mob->state != MobState::RETREAT 
-    && !(mob->appearanceData.iConditionBitFlag & CSB_BIT_FREEDOM)) { // only debuff if the enemy is not retreating, casting corruption or in freedom
-        mob->appearanceData.iConditionBitFlag |= bitFlag;
+    && !(mob->cbf & CSB_BIT_FREEDOM)) { // only debuff if the enemy is not retreating, casting corruption or in freedom
+        mob->cbf |= bitFlag;
         mob->unbuffTimes[bitFlag] = getTime() + duration * 100;
         respdata[i].bProtected = 0;
     }
-    respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
+    respdata[i].iConditionBitFlag = mob->cbf;
 
     return true;
 }
@@ -293,8 +293,8 @@ bool doDamage(CNSocket *sock, sSkillResult_Damage *respdata, int i, int32_t targ
 
     respdata[i].eCT = 4;
     respdata[i].iDamage = damage;
-    respdata[i].iID = mob->appearanceData.iNPC_ID;
-    respdata[i].iHP = mob->appearanceData.iHP;
+    respdata[i].iID = mob->id;
+    respdata[i].iHP = mob->hp;
 
     return true;
 }
@@ -348,8 +348,8 @@ bool doLeech(CNSocket *sock, sSkillResult_Heal_HP *healdata, int i, int32_t targ
 
     damagedata->eCT = 4;
     damagedata->iDamage = damage;
-    damagedata->iID = mob->appearanceData.iNPC_ID;
-    damagedata->iHP = mob->appearanceData.iHP;
+    damagedata->iID = mob->id;
+    damagedata->iHP = mob->hp;
 
     return true;
 }
@@ -476,13 +476,13 @@ bool doHeal(Mob* mob, sSkillResult_Heal_HP* respdata, int i, int32_t targetID, i
     Mob* targetMob = (Mob*)npc;
 
     int healedAmount = amount * targetMob->maxHealth / 1000;
-    targetMob->appearanceData.iHP += healedAmount;
-    if (targetMob->appearanceData.iHP > targetMob->maxHealth)
-        targetMob->appearanceData.iHP = targetMob->maxHealth;
+    targetMob->hp += healedAmount;
+    if (targetMob->hp > targetMob->maxHealth)
+        targetMob->hp = targetMob->maxHealth;
 
     respdata[i].eCT = 4;
-    respdata[i].iID = targetMob->appearanceData.iNPC_ID;
-    respdata[i].iHP = targetMob->appearanceData.iHP;
+    respdata[i].iID = targetMob->id;
+    respdata[i].iHP = targetMob->hp;
     respdata[i].iHealHP = healedAmount;
 
     return true;
@@ -490,13 +490,13 @@ bool doHeal(Mob* mob, sSkillResult_Heal_HP* respdata, int i, int32_t targetID, i
 
 bool doReturnHeal(Mob* mob, sSkillResult_Heal_HP* respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
     int healedAmount = amount * mob->maxHealth / 1000;
-    mob->appearanceData.iHP += healedAmount;
-    if (mob->appearanceData.iHP > mob->maxHealth)
-        mob->appearanceData.iHP = mob->maxHealth;
+    mob->hp += healedAmount;
+    if (mob->hp > mob->maxHealth)
+        mob->hp = mob->maxHealth;
 
     respdata[i].eCT = 4;
-    respdata[i].iID = mob->appearanceData.iNPC_ID;
-    respdata[i].iHP = mob->appearanceData.iHP;
+    respdata[i].iID = mob->id;
+    respdata[i].iHP = mob->hp;
     respdata[i].iHealHP = healedAmount;
 
     return true;
@@ -567,13 +567,13 @@ bool doLeech(Mob* mob, sSkillResult_Heal_HP* healdata, int i, int32_t targetID, 
 
     int healedAmount = amount * PC_MAXHEALTH(plr->level) / 1000;
 
-    mob->appearanceData.iHP += healedAmount;
-    if (mob->appearanceData.iHP > mob->maxHealth)
-        mob->appearanceData.iHP = mob->maxHealth;
+    mob->hp += healedAmount;
+    if (mob->hp > mob->maxHealth)
+        mob->hp = mob->maxHealth;
 
     healdata->eCT = 4;
-    healdata->iID = mob->appearanceData.iNPC_ID;
-    healdata->iHP = mob->appearanceData.iHP;
+    healdata->iID = mob->id;
+    healdata->iHP = mob->hp;
     healdata->iHealHP = healedAmount;
 
     int damage = healedAmount;
@@ -639,9 +639,9 @@ bool doBatteryDrain(Mob* mob, sSkillResult_BatteryDrain* respdata, int i, int32_
 
 bool doBuff(Mob* mob, sSkillResult_Buff* respdata, int i, int32_t targetID, int32_t bitFlag, int16_t timeBuffID, int16_t duration, int16_t amount) {
     respdata[i].eCT = 4;
-    respdata[i].iID = mob->appearanceData.iNPC_ID;
-    mob->appearanceData.iConditionBitFlag |= bitFlag;
-    respdata[i].iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
+    respdata[i].iID = mob->id;
+    mob->cbf |= bitFlag;
+    respdata[i].iConditionBitFlag = mob->cbf;
 
     return true;
 }
@@ -670,7 +670,7 @@ template<class sPAYLOAD,
     sP_FE2CL_NPC_SKILL_HIT* resp = (sP_FE2CL_NPC_SKILL_HIT*)respbuf;
     sPAYLOAD* respdata = (sPAYLOAD*)(respbuf + sizeof(sP_FE2CL_NPC_SKILL_HIT));
 
-    resp->iNPC_ID = mob->appearanceData.iNPC_ID;
+    resp->iNPC_ID = mob->id;
     resp->iSkillID = skillID;
     resp->iValue1 = mob->hitX;
     resp->iValue2 = mob->hitY;

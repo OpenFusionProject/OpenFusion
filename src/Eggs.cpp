@@ -135,7 +135,7 @@ static void eggStep(CNServer* serv, time_t currTime) {
             // respawn it
             egg->dead = false;
             egg->deadUntil = 0;
-            egg->appearanceData.iHP = 400;
+            egg->hp = 400;
             
             Chunking::addEntityToChunks(Chunking::getViewableChunks(egg->chunkPos), {npc.first});
         }
@@ -180,7 +180,7 @@ static void eggPickup(CNSocket* sock, CNPacketData* data) {
     }
     */
 
-    int typeId = egg->appearanceData.iNPCType;
+    int typeId = egg->type;
     if (EggTypes.find(typeId) == EggTypes.end()) {
         std::cout << "[WARN] Egg Type " << typeId << " not found!" << std::endl;
         return;
@@ -255,7 +255,7 @@ static void eggPickup(CNSocket* sock, CNPacketData* data) {
         Chunking::removeEntityFromChunks(Chunking::getViewableChunks(egg->chunkPos), eggRef);
         egg->dead = true;
         egg->deadUntil = getTime() + (time_t)type->regen * 1000;
-        egg->appearanceData.iHP = 0;
+        egg->hp = 0;
     }
 }
 

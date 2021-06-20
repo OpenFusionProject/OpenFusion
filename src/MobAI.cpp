@@ -47,13 +47,13 @@ static std::pair<int,int> lerp(int x1, int y1, int x2, int y2, int speed) {
 
 void MobAI::clearDebuff(Mob *mob) {
     mob->skillStyle = -1;
-    mob->appearanceData.iConditionBitFlag = 0;
+    mob->cbf = 0;
     mob->unbuffTimes.clear();
 
     INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
     pkt1.eCT = 2;
-    pkt1.iID = mob->appearanceData.iNPC_ID;
-    pkt1.iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
+    pkt1.iID = mob->id;
+    pkt1.iConditionBitFlag = mob->cbf;
     NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
 }
 
@@ -196,7 +196,7 @@ static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, i
     sP_FE2CL_NPC_SKILL_CORRUPTION_HIT *resp = (sP_FE2CL_NPC_SKILL_CORRUPTION_HIT*)respbuf;
     sCAttackResult *respdata = (sCAttackResult*)(respbuf+sizeof(sP_FE2CL_NPC_SKILL_CORRUPTION_HIT));
 
-    resp->iNPC_ID = mob->appearanceData.iNPC_ID;
+    resp->iNPC_ID = mob->id;
     resp->iSkillID = skillID;
     resp->iStyle = style;
     resp->iValue1 = plr->x;
@@ -247,7 +247,7 @@ static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, i
             if (plr->Nanos[plr->activeNano].iStamina > 150)
                 respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina = 150;
             // fire damage power disguised as a corruption attack back at the enemy
-            std::vector<int> targetData2 = {1, mob->appearanceData.iNPC_ID, 0, 0, 0};
+            std::vector<int> targetData2 = {1, mob->id, 0, 0, 0};
             for (auto& pwr : Abilities::Powers)
                 if (pwr.skillType == EST_DAMAGE)
                     pwr.handle(sock, targetData2, plr->activeNano, skillID, 0, 200);
@@ -362,7 +362,7 @@ static void useAbilities(Mob *mob, time_t currTime) {
     if (random < prob1 + prob2) { // corruption windup
         int skillID = (int)mob->data["m_iCorruptionType"];
         INITSTRUCT(sP_FE2CL_NPC_SKILL_CORRUPTION_READY, pkt);
-        pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
+        pkt.iNPC_ID = mob->id;
         pkt.iSkillID = skillID;
         pkt.iValue1 = plr->x;
         pkt.iValue2 = plr->y;
@@ -381,7 +381,7 @@ static void useAbilities(Mob *mob, time_t currTime) {
     if (random < prob1 + prob2 + prob3) { // eruption windup
         int skillID = (int)mob->data["m_iMegaType"];
         INITSTRUCT(sP_FE2CL_NPC_SKILL_READY, pkt);
-        pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
+        pkt.iNPC_ID = mob->id;
         pkt.iSkillID = skillID;
         pkt.iValue1 = mob->hitX = plr->x;
         pkt.iValue2 = mob->hitY = plr->y;
@@ -406,13 +406,13 @@ void MobAI::enterCombat(CNSocket *sock, Mob *mob) {
     mob->roamZ = mob->z;
 
     int skillID = (int)mob->data["m_iPassiveBuff"]; // cast passive
-    std::vector<int> targetData = {1, mob->appearanceData.iNPC_ID, 0, 0, 0};
+    std::vector<int> targetData = {1, mob->id, 0, 0, 0};
     for (auto& pwr : Abilities::Powers)
         if (pwr.skillType == Abilities::SkillTable[skillID].skillType)
             pwr.handle(mob, targetData, skillID, Abilities::SkillTable[skillID].durationTime[0], Abilities::SkillTable[skillID].powerIntensity[0]);
 
     for (NPCEvent& event : NPCManager::NPCEvents) // trigger an ON_COMBAT
-        if (event.trigger == ON_COMBAT && event.npcType == mob->appearanceData.iNPCType)
+        if (event.trigger == ON_COMBAT && event.npcType == mob->type)
             event.handler(sock, mob);
 }
 
@@ -426,18 +426,18 @@ static void drainMobHP(Mob *mob, int amount) {
     sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK *pkt = (sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK*)respbuf;
     sSkillResult_Damage *drain = (sSkillResult_Damage*)(respbuf + sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
 
-    pkt->iID = mob->appearanceData.iNPC_ID;
+    pkt->iID = mob->id;
     pkt->eCT = 4; // mob
     pkt->iTB_ID = ECSB_BOUNDINGBALL;
 
     drain->eCT = 4;
-    drain->iID = mob->appearanceData.iNPC_ID;
+    drain->iID = mob->id;
     drain->iDamage = amount;
-    drain->iHP = mob->appearanceData.iHP -= amount;
+    drain->iHP = mob->hp -= amount;
 
     NPCManager::sendToViewable(mob, (void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
 
-    if (mob->appearanceData.iHP <= 0)
+    if (mob->hp <= 0)
         Combat::killMob(mob->target, mob);
 }
 
@@ -448,14 +448,14 @@ static void deadStep(Mob *mob, time_t currTime) {
 
         INITSTRUCT(sP_FE2CL_NPC_EXIT, pkt);
 
-        pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
+        pkt.iNPC_ID = mob->id;
 
         NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
 
         // if it was summoned, mark it for removal
         if (mob->summoned) {
             std::cout << "[INFO] Queueing killed summoned mob for removal" << std::endl;
-            NPCManager::queueNPCRemoval(mob->appearanceData.iNPC_ID);
+            NPCManager::queueNPCRemoval(mob->id);
             return;
         }
 
@@ -466,15 +466,15 @@ static void deadStep(Mob *mob, time_t currTime) {
     }
 
     // to guide their groupmates, group leaders still need to move despite being dead
-    if (mob->groupLeader == mob->appearanceData.iNPC_ID)
+    if (mob->groupLeader == mob->id)
         roamingStep(mob, currTime);
 
     if (mob->killedTime != 0 && currTime - mob->killedTime < mob->regenTime * 100)
         return;
 
-    std::cout << "respawning mob " << mob->appearanceData.iNPC_ID << " with HP = " << mob->maxHealth << std::endl;
+    std::cout << "respawning mob " << mob->id << " with HP = " << mob->maxHealth << std::endl;
 
-    mob->appearanceData.iHP = mob->maxHealth;
+    mob->hp = mob->maxHealth;
     mob->state = MobState::ROAMING;
 
     // if mob is a group leader/follower, spawn where the group is.
@@ -491,10 +491,7 @@ static void deadStep(Mob *mob, time_t currTime) {
 
     INITSTRUCT(sP_FE2CL_NPC_NEW, pkt);
 
-    pkt.NPCAppearanceData = mob->appearanceData;
-    pkt.NPCAppearanceData.iX = mob->x;
-    pkt.NPCAppearanceData.iY = mob->y;
-    pkt.NPCAppearanceData.iZ = mob->z;
+    pkt.NPCAppearanceData = mob->getAppearanceData();
 
     // notify all nearby players
     NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_NEW, sizeof(sP_FE2CL_NPC_NEW));
@@ -532,13 +529,13 @@ static void combatStep(Mob *mob, time_t currTime) {
 
     // drain
     if (mob->skillStyle < 0 && (mob->lastDrainTime == 0 || currTime - mob->lastDrainTime >= 1000)
-        && mob->appearanceData.iConditionBitFlag & CSB_BIT_BOUNDINGBALL) {
+        && mob->cbf & CSB_BIT_BOUNDINGBALL) {
         drainMobHP(mob, mob->maxHealth / 20); // lose 5% every second
         mob->lastDrainTime = currTime;
     }
 
     // if drain killed the mob, return early
-    if (mob->appearanceData.iHP <= 0)
+    if (mob->hp <= 0)
         return;
 
     // unbuffing
@@ -546,12 +543,12 @@ static void combatStep(Mob *mob, time_t currTime) {
     while (it != mob->unbuffTimes.end()) {
 
         if (currTime >= it->second) {
-            mob->appearanceData.iConditionBitFlag &= ~it->first;
+            mob->cbf &= ~it->first;
 
             INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
             pkt1.eCT = 2;
-            pkt1.iID = mob->appearanceData.iNPC_ID;
-            pkt1.iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
+            pkt1.iID = mob->id;
+            pkt1.iConditionBitFlag = mob->cbf;
             NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
 
             it = mob->unbuffTimes.erase(it);
@@ -561,7 +558,7 @@ static void combatStep(Mob *mob, time_t currTime) {
     }
 
     // skip attack if stunned or asleep
-    if (mob->appearanceData.iConditionBitFlag & (CSB_BIT_STUN|CSB_BIT_MEZ)) {
+    if (mob->cbf & (CSB_BIT_STUN|CSB_BIT_MEZ)) {
         mob->skillStyle = -1; // in this case we also reset the any outlying abilities the mob might be winding up.
         return;
     }
@@ -587,7 +584,7 @@ static void combatStep(Mob *mob, time_t currTime) {
             mob->nextAttack = 0;
 
         // halve movement speed if snared
-        if (mob->appearanceData.iConditionBitFlag & CSB_BIT_DN_MOVE_SPEED)
+        if (mob->cbf & CSB_BIT_DN_MOVE_SPEED)
             speed /= 2;
 
         int targetX = plr->x;
@@ -602,11 +599,11 @@ static void combatStep(Mob *mob, time_t currTime) {
         if (distanceToTravel < speed*2/5 && currTime >= mob->nextAttack)
             mob->nextAttack = 0;
 
-        NPCManager::updateNPCPosition(mob->appearanceData.iNPC_ID, targ.first, targ.second, mob->z, mob->instanceID, mob->appearanceData.iAngle);
+        NPCManager::updateNPCPosition(mob->id, targ.first, targ.second, mob->z, mob->instanceID, mob->angle);
 
         INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
 
-        pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
+        pkt.iNPC_ID = mob->id;
         pkt.iSpeed = speed;
         pkt.iToX = mob->x = targ.first;
         pkt.iToY = mob->y = targ.second;
@@ -664,7 +661,7 @@ static void roamingStep(Mob *mob, time_t currTime) {
     if (mob->staticPath)
         return;
 
-    if (mob->groupLeader != 0 && mob->groupLeader != mob->appearanceData.iNPC_ID) // don't roam by yourself without group leader
+    if (mob->groupLeader != 0 && mob->groupLeader != mob->id) // don't roam by yourself without group leader
         return;
 
     /*
@@ -704,7 +701,7 @@ static void roamingStep(Mob *mob, time_t currTime) {
     farY = std::clamp(farY, yStart, yStart + mob->idleRange);
 
     // halve movement speed if snared
-    if (mob->appearanceData.iConditionBitFlag & CSB_BIT_DN_MOVE_SPEED)
+    if (mob->cbf & CSB_BIT_DN_MOVE_SPEED)
         speed /= 2;
 
     std::queue<Vec3> queue;
@@ -713,9 +710,9 @@ static void roamingStep(Mob *mob, time_t currTime) {
 
     // add a route to the queue; to be processed in Transport::stepNPCPathing()
     Transport::lerp(&queue, from, to, speed);
-    Transport::NPCQueues[mob->appearanceData.iNPC_ID] = queue;
+    Transport::NPCQueues[mob->id] = queue;
 
-    if (mob->groupLeader != 0 && mob->groupLeader == mob->appearanceData.iNPC_ID) {
+    if (mob->groupLeader != 0 && mob->groupLeader == mob->id) {
         // make followers follow this npc.
         for (int i = 0; i < 4; i++) {
             if (mob->groupMember[i] == 0)
@@ -731,7 +728,7 @@ static void roamingStep(Mob *mob, time_t currTime) {
             from = { followerMob->x, followerMob->y, followerMob->z };
             to = { farX + followerMob->offsetX, farY + followerMob->offsetY, followerMob->z };
             Transport::lerp(&queue2, from, to, speed);
-            Transport::NPCQueues[followerMob->appearanceData.iNPC_ID] = queue2;
+            Transport::NPCQueues[followerMob->id] = queue2;
         }
     }
 }
@@ -751,7 +748,7 @@ static void retreatStep(Mob *mob, time_t currTime) {
 
         auto targ = lerp(mob->x, mob->y, mob->roamX, mob->roamY, (int)mob->speed*4/5);
 
-        pkt.iNPC_ID = mob->appearanceData.iNPC_ID;
+        pkt.iNPC_ID = mob->id;
         pkt.iSpeed = (int)mob->speed * 2;
         pkt.iToX = mob->x = targ.first;
         pkt.iToY = mob->y = targ.second;
@@ -766,10 +763,10 @@ static void retreatStep(Mob *mob, time_t currTime) {
     //if (distance <= mob->data["m_iIdleRange"]) {
     if (distance <= 10) { // retreat back to the spawn point
         mob->state = MobState::ROAMING;
-        mob->appearanceData.iHP = mob->maxHealth;
+        mob->hp = mob->maxHealth;
         mob->killedTime = 0;
         mob->nextAttack = 0;
-        mob->appearanceData.iConditionBitFlag = 0;
+        mob->cbf = 0;
 
         // cast a return home heal spell, this is the right way(tm)
         std::vector<int> targetData = {1, 0, 0, 0, 0};
