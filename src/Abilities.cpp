@@ -651,6 +651,72 @@ template<class sPAYLOAD,
     void power(EntityRef ref, std::vector<int> targetData,
         int16_t nanoID, int16_t skillID, int16_t duration, int16_t amount,
         int16_t skillType, int32_t bitFlag, int16_t timeBuffID) {
+
+    /*** OLD NANO HANDLER ***
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    if (skillType == EST_RETROROCKET_SELF || skillType == EST_RECALL) // rocket and self recall does not need any trailing structs
+        targetData[0] = 0;
+
+    size_t resplen;
+    // special case since leech is atypically encoded
+    if (skillType == EST_BLOODSUCKING)
+        resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) + sizeof(sSkillResult_Heal_HP) + sizeof(sSkillResult_Damage);
+    else
+        resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) + targetData[0] * sizeof(sPAYLOAD);
+
+    // validate response packet
+    if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC), targetData[0], sizeof(sPAYLOAD))) {
+        std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE packet size" << std::endl;
+        return;
+    }
+
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    memset(respbuf, 0, resplen);
+
+    sP_FE2CL_NANO_SKILL_USE_SUCC *resp = (sP_FE2CL_NANO_SKILL_USE_SUCC*)respbuf;
+    sPAYLOAD *respdata = (sPAYLOAD*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC));
+
+    resp->iPC_ID = plr->iID;
+    resp->iSkillID = skillID;
+    resp->iNanoID = nanoID;
+    resp->iNanoStamina = plr->Nanos[plr->activeNano].iStamina;
+    resp->eST = skillType;
+    resp->iTargetCnt = targetData[0];
+
+    if (SkillTable[skillID].drainType == 2) {
+        if (SkillTable[skillID].targetType >= 2)
+            plr->iSelfConditionBitFlag |= bitFlag;
+        if (SkillTable[skillID].targetType == 3)
+            plr->iGroupConditionBitFlag |= bitFlag;
+    }
+
+    for (int i = 0; i < targetData[0]; i++)
+        if (!work(sock, respdata, i, targetData[i+1], bitFlag, timeBuffID, duration, amount))
+            return;
+
+    sock->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
+    assert(sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) == sizeof(sP_FE2CL_NANO_SKILL_USE));
+    if (skillType == EST_RECALL_GROUP) { // in the case of group recall, nobody but group members need the packet
+        for (int i = 0; i < targetData[0]; i++) {
+            CNSocket *sock2 = PlayerManager::getSockFromID(targetData[i+1]);
+            sock2->sendPacket((void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
+        }
+    } else
+        PlayerManager::sendToViewable(sock, (void*)&respbuf, P_FE2CL_NANO_SKILL_USE, resplen);
+
+    // Warping on recall
+    if (skillType == EST_RECALL || skillType == EST_RECALL_GROUP) {
+        if ((int32_t)plr->instanceID == plr->recallInstance)
+            PlayerManager::sendPlayerTo(sock, plr->recallX, plr->recallY, plr->recallZ, plr->recallInstance);
+        else {
+            INITSTRUCT(sP_FE2CL_REP_WARP_USE_RECALL_FAIL, response)
+            sock->sendPacket((void*)&response, P_FE2CL_REP_WARP_USE_RECALL_FAIL, sizeof(sP_FE2CL_REP_WARP_USE_RECALL_FAIL));
+        }
+    }
+    */
+
+    /*** OLD MOB ABILITY HANDLER ***
     size_t resplen;
     // special case since leech is atypically encoded
     if (skillType == EST_BLOODSUCKING)
@@ -683,6 +749,7 @@ template<class sPAYLOAD,
             return;
 
     NPCManager::sendToViewable(mob, (void*)&respbuf, P_FE2CL_NPC_SKILL_HIT, resplen);
+    */
 }
 
 // nano power dispatch table
