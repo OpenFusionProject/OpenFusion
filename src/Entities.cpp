@@ -20,7 +20,7 @@ EntityRef::EntityRef(int32_t i) {
     id = i;
 
     assert(NPCManager::NPCs.find(id) != NPCManager::NPCs.end());
-    type = NPCManager::NPCs[id]->type;
+    type = NPCManager::NPCs[id]->kind;
 }
 
 bool EntityRef::isValid() const {

@@ -17,7 +17,7 @@ enum class EntityType : uint8_t {
 };
 
 struct Entity {
-    EntityType type = EntityType::INVALID;
+    EntityType kind = EntityType::INVALID;
     int x = 0, y = 0, z = 0;
     uint64_t instanceID = 0;
     ChunkPos chunkPos = {};
@@ -129,7 +129,7 @@ struct Egg : public BaseNPC {
     Egg(int x, int y, int z, uint64_t iID, int t, int32_t id, bool summon)
         : BaseNPC(x, y, z, 0, iID, t, id) {
         summoned = summon;
-        type = EntityType::EGG;
+        kind = EntityType::EGG;
     }
 
     virtual bool isAlive() override { return !dead; }
@@ -142,7 +142,7 @@ struct Egg : public BaseNPC {
 struct Bus : public BaseNPC {
     Bus(int x, int y, int z, int angle, uint64_t iID, int t, int id) :
         BaseNPC(x, y, z, angle, iID, t, id) {
-        type = EntityType::BUS;
+        kind = EntityType::BUS;
         loopingPath = true;
     }
 

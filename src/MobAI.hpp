@@ -77,7 +77,7 @@ struct Mob : public CombatNPC {
         // NOTE: there appear to be discrepancies in the dump
         appearanceData.iHP = maxHealth;
 
-        type = EntityType::MOB;
+        kind = EntityType::MOB;
         _stepAI = MobAI::step;
     }
 

@@ -58,13 +58,13 @@ void MobAI::clearDebuff(Mob *mob) {
 }
 
 void MobAI::followToCombat(Mob *mob) {
-    if (NPCManager::NPCs.find(mob->groupLeader) != NPCManager::NPCs.end() && NPCManager::NPCs[mob->groupLeader]->type == EntityType::MOB) {
+    if (NPCManager::NPCs.find(mob->groupLeader) != NPCManager::NPCs.end() && NPCManager::NPCs[mob->groupLeader]->kind == EntityType::MOB) {
         Mob* leadMob = (Mob*)NPCManager::NPCs[mob->groupLeader];
         for (int i = 0; i < 4; i++) {
             if (leadMob->groupMember[i] == 0)
                 break;
 
-            if (NPCManager::NPCs.find(leadMob->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[leadMob->groupMember[i]]->type != EntityType::MOB) {
+            if (NPCManager::NPCs.find(leadMob->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[leadMob->groupMember[i]]->kind != EntityType::MOB) {
                 std::cout << "[WARN] roamingStep: leader can't find a group member!" << std::endl;
                 continue;
             }
@@ -84,7 +84,7 @@ void MobAI::followToCombat(Mob *mob) {
 }
 
 void MobAI::groupRetreat(Mob *mob) {
-    if (NPCManager::NPCs.find(mob->groupLeader) == NPCManager::NPCs.end() || NPCManager::NPCs[mob->groupLeader]->type != EntityType::MOB)
+    if (NPCManager::NPCs.find(mob->groupLeader) == NPCManager::NPCs.end() || NPCManager::NPCs[mob->groupLeader]->kind != EntityType::MOB)
         return;
 
     Mob* leadMob = (Mob*)NPCManager::NPCs[mob->groupLeader];
@@ -92,7 +92,7 @@ void MobAI::groupRetreat(Mob *mob) {
         if (leadMob->groupMember[i] == 0)
             break;
 
-        if (NPCManager::NPCs.find(leadMob->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[leadMob->groupMember[i]]->type != EntityType::MOB) {
+        if (NPCManager::NPCs.find(leadMob->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[leadMob->groupMember[i]]->kind != EntityType::MOB) {
             std::cout << "[WARN] roamingStep: leader can't find a group member!" << std::endl;
             continue;
         }
@@ -479,7 +479,7 @@ static void deadStep(Mob *mob, time_t currTime) {
 
     // if mob is a group leader/follower, spawn where the group is.
     if (mob->groupLeader != 0) {
-        if (NPCManager::NPCs.find(mob->groupLeader) != NPCManager::NPCs.end() && NPCManager::NPCs[mob->groupLeader]->type == EntityType::MOB) {
+        if (NPCManager::NPCs.find(mob->groupLeader) != NPCManager::NPCs.end() && NPCManager::NPCs[mob->groupLeader]->kind == EntityType::MOB) {
             Mob* leaderMob = (Mob*)NPCManager::NPCs[mob->groupLeader];
             mob->x = leaderMob->x + mob->offsetX;
             mob->y = leaderMob->y + mob->offsetY;
@@ -721,7 +721,7 @@ static void roamingStep(Mob *mob, time_t currTime) {
             if (mob->groupMember[i] == 0)
                 break;
 
-            if (NPCManager::NPCs.find(mob->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[mob->groupMember[i]]->type != EntityType::MOB) {
+            if (NPCManager::NPCs.find(mob->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[mob->groupMember[i]]->kind != EntityType::MOB) {
                 std::cout << "[WARN] roamingStep: leader can't find a group member!" << std::endl;
                 continue;
             }
@@ -782,7 +782,7 @@ static void retreatStep(Mob *mob, time_t currTime) {
 }
 
 void MobAI::step(CombatNPC *npc, time_t currTime) {
-    assert(npc->type == EntityType::MOB);
+    assert(npc->kind == EntityType::MOB);
     auto mob = (Mob*)npc;
 
     if (mob->playersInView < 0)
