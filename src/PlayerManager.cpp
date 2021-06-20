@@ -386,7 +386,7 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
         // nano revive
         plr->Nanos[plr->activeNano].iStamina = 0;
         plr->HP = PC_MAXHEALTH(plr->level);
-        Nanos::applyBuff(sock, plr->Nanos[plr->activeNano].iSkillID, 2, 1, 0);
+        Abilities::applyBuff(sock, plr->Nanos[plr->activeNano].iSkillID, 2, 1, 0);
     } else if (reviveData->iRegenType == 4) {
         plr->HP = PC_MAXHEALTH(plr->level);
     } else {

@@ -223,10 +223,10 @@ static void loadXDT(json& xdtData) {
                 skillData.durationTime[i] = skills["m_iDurationTime"][i];
                 skillData.powerIntensity[i] = skills["m_iValueA"][i];
             }
-            Nanos::SkillTable[skills["m_iSkillNumber"]] = skillData;
+            Abilities::SkillTable[skills["m_iSkillNumber"]] = skillData;
         }
 
-        std::cout << "[INFO] Loaded " << Nanos::SkillTable.size() << " nano skills" << std::endl;
+        std::cout << "[INFO] Loaded " << Abilities::SkillTable.size() << " nano skills" << std::endl;
 
         // load EP data
         json instances = xdtData["m_pInstanceTable"]["m_pInstanceData"];

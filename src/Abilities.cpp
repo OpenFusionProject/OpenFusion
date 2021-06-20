@@ -107,7 +107,7 @@ int Abilities::applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_
 
     int32_t bitFlag = 0;
 
-    for (auto& pwr : NanoPowers) {
+    for (auto& pwr : Powers) {
         if (pwr.skillType == SkillTable[skillID].skillType) {
             bitFlag = pwr.bitFlag;
             Player *plr = PlayerManager::getPlayer(sock);
@@ -686,7 +686,7 @@ template<class sPAYLOAD,
 }
 
 // nano power dispatch table
-std::vector<Power> Powers = {
+std::vector<Power> Powers = {};/*
     Power(EST_STUN,             CSB_BIT_STUN,              ECSB_STUN,              power<sSkillResult_Damage_N_Debuff, doDamageNDebuff>),
     Power(EST_HEAL_HP,          CSB_BIT_NONE,              ECSB_NONE,              power<sSkillResult_Heal_HP,                  doHeal>),
     Power(EST_BOUNDINGBALL,     CSB_BIT_BOUNDINGBALL,      ECSB_BOUNDINGBALL,      power<sSkillResult_Buff,                   doDebuff>),
@@ -722,6 +722,6 @@ std::vector<Power> Powers = {
     Power(EST_SLEEP,            CSB_BIT_MEZ,               ECSB_MEZ,               power<sSkillResult_Damage_N_Debuff, doDamageNDebuff>),
     Power(EST_BLOODSUCKING,     CSB_BIT_NONE,              ECSB_NONE,              power<sSkillResult_Heal_HP,                 doLeech>),
     Power(EST_FREEDOM,          CSB_BIT_FREEDOM,           ECSB_FREEDOM,           power<sSkillResult_Buff,                     doBuff>)
-};
+};*/
 
 }; // namespace

@@ -19,7 +19,7 @@ int Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
     int bitFlag = Groups::getGroupFlags(otherPlr);
-    int CBFlag = Nanos::applyBuff(sock, skillId, 1, 3, bitFlag);
+    int CBFlag = Abilities::applyBuff(sock, skillId, 1, 3, bitFlag);
 
     size_t resplen; 
 
@@ -41,7 +41,7 @@ int Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
         memset(respbuf, 0, resplen);
         skill->eCT = 1;
         skill->iID = plr->iID;
-        skill->iDamage = PC_MAXHEALTH(plr->level) * Nanos::SkillTable[skillId].powerIntensity[0] / 1000;
+        skill->iDamage = PC_MAXHEALTH(plr->level) * Abilities::SkillTable[skillId].powerIntensity[0] / 1000;
         plr->HP -= skill->iDamage;
         if (plr->HP < 0)
             plr->HP = 0;
@@ -51,7 +51,7 @@ int Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
         memset(respbuf, 0, resplen);
         skill->eCT = 1;
         skill->iID = plr->iID;
-        skill->iHealHP = PC_MAXHEALTH(plr->level) * Nanos::SkillTable[skillId].powerIntensity[0] / 1000;
+        skill->iHealHP = PC_MAXHEALTH(plr->level) * Abilities::SkillTable[skillId].powerIntensity[0] / 1000;
         plr->HP += skill->iHealHP;
         if (plr->HP > PC_MAXHEALTH(plr->level))
             plr->HP = PC_MAXHEALTH(plr->level);
@@ -66,7 +66,7 @@ int Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
 
     skillUse->iNPC_ID = eggId;
     skillUse->iSkillID = skillId;
-    skillUse->eST = Nanos::SkillTable[skillId].skillType;
+    skillUse->eST = Abilities::SkillTable[skillId].skillType;
     skillUse->iTargetCnt = 1;
 
     sock->sendPacket((void*)&respbuf, P_FE2CL_NPC_SKILL_HIT, resplen);
@@ -100,7 +100,7 @@ static void eggStep(CNServer* serv, time_t currTime) {
             Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
             int groupFlags = Groups::getGroupFlags(otherPlr);
-            for (auto& pwr : Nanos::NanoPowers) {
+            for (auto& pwr : Abilities::Powers) {
                 if (pwr.bitFlag == CBFlag) { // pick the power with the right flag and unbuff
                     INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, resp);
                     resp.eCSTB = pwr.timeBuffID;
