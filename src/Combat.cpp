@@ -130,9 +130,9 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
         damage.first = hitMob(sock, mob, damage.first);
 
-        respdata[i].iID = mob->appearanceData.iNPC_ID;
+        respdata[i].iID = mob->id;
         respdata[i].iDamage = damage.first;
-        respdata[i].iHP = mob->appearanceData.iHP;
+        respdata[i].iHP = mob->hp;
         respdata[i].iHitFlag = damage.second; // hitscan, not a rocket or a grenade
     }
 
@@ -159,7 +159,7 @@ void Combat::npcAttackPc(Mob *mob, time_t currTime) {
     if (!(plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE))
         plr->HP -= damage.first;
 
-    pkt->iNPC_ID = mob->appearanceData.iNPC_ID;
+    pkt->iNPC_ID = mob->id;
     pkt->iPCCnt = 1;
 
     atk->iID = plr->iID;
@@ -198,20 +198,20 @@ int Combat::hitMob(CNSocket *sock, Mob *mob, int damage) {
             MobAI::followToCombat(mob);
     }
 
-    mob->appearanceData.iHP -= damage;
+    mob->hp -= damage;
 
     // wake up sleeping monster
-    if (mob->appearanceData.iConditionBitFlag & CSB_BIT_MEZ) {
-        mob->appearanceData.iConditionBitFlag &= ~CSB_BIT_MEZ;
+    if (mob->cbf & CSB_BIT_MEZ) {
+        mob->cbf &= ~CSB_BIT_MEZ;
 
         INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
         pkt1.eCT = 2;
-        pkt1.iID = mob->appearanceData.iNPC_ID;
-        pkt1.iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
+        pkt1.iID = mob->id;
+        pkt1.iConditionBitFlag = mob->cbf;
         NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
     }
 
-    if (mob->appearanceData.iHP <= 0)
+    if (mob->hp <= 0)
         killMob(mob->target, mob);
 
     return damage;
@@ -220,7 +220,7 @@ int Combat::hitMob(CNSocket *sock, Mob *mob, int damage) {
 void Combat::killMob(CNSocket *sock, Mob *mob) {
     mob->state = MobState::DEAD;
     mob->target = nullptr;
-    mob->appearanceData.iConditionBitFlag = 0;
+    mob->cbf = 0;
     mob->skillStyle = -1;
     mob->unbuffTimes.clear();
     mob->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
@@ -235,7 +235,7 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
 
         if (plr->groupCnt == 1 && plr->iIDGroup == plr->iID) {
             Items::giveMobDrop(sock, mob, rolled, eventRolled);
-            Missions::mobKilled(sock, mob->appearanceData.iNPCType, rolledQItem);
+            Missions::mobKilled(sock, mob->type, rolledQItem);
         } else {
             Player* otherPlayer = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
@@ -255,7 +255,7 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
                     continue;
 
                 Items::giveMobDrop(sockTo, mob, rolled, eventRolled);
-                Missions::mobKilled(sockTo, mob->appearanceData.iNPCType, rolledQItem);
+                Missions::mobKilled(sockTo, mob->type, rolledQItem);
             }
         }
     }
@@ -265,10 +265,10 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
 
     // fire any triggered events
     for (NPCEvent& event : NPCManager::NPCEvents)
-        if (event.trigger == ON_KILLED && event.npcType == mob->appearanceData.iNPCType)
+        if (event.trigger == ON_KILLED && event.npcType == mob->type)
             event.handler(sock, mob);
 
-    auto it = Transport::NPCQueues.find(mob->appearanceData.iNPC_ID);
+    auto it = Transport::NPCQueues.find(mob->id);
     if (it == Transport::NPCQueues.end() || it->second.empty())
         return;
 
@@ -286,7 +286,7 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
             queue.push(point);
         }
     } else {
-        Transport::NPCQueues.erase(mob->appearanceData.iNPC_ID);
+        Transport::NPCQueues.erase(mob->id);
     }
 }
 
@@ -480,9 +480,9 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
             damage.first = hitMob(sock, mob, damage.first);
 
             respdata[i].eCT = pktdata[i*2+1];
-            respdata[i].iID = mob->appearanceData.iNPC_ID;
+            respdata[i].iID = mob->id;
             respdata[i].iDamage = damage.first;
-            respdata[i].iHP = mob->appearanceData.iHP;
+            respdata[i].iHP = mob->hp;
             respdata[i].iHitFlag = damage.second; // hitscan, not a rocket or a grenade
         }
     }
@@ -678,9 +678,9 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
 
         damage.first = hitMob(sock, mob, damage.first);
 
-        respdata[i].iID = mob->appearanceData.iNPC_ID;
+        respdata[i].iID = mob->id;
         respdata[i].iDamage = damage.first;
-        respdata[i].iHP = mob->appearanceData.iHP;
+        respdata[i].iHP = mob->hp;
         respdata[i].iHitFlag = damage.second;
     }
 

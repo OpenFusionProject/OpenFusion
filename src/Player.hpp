@@ -91,4 +91,6 @@ struct Player : public Entity {
 
     virtual void enterIntoViewOf(CNSocket *sock) override;
     virtual void disappearFromViewOf(CNSocket *sock) override;
+
+    sPCAppearanceData getAppearanceData();
 };

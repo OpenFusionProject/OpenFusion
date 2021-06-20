@@ -67,7 +67,7 @@ void NPCManager::destroyNPC(int32_t id) {
 
 void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z, uint64_t I, int angle) {
     BaseNPC* npc = NPCs[id];
-    npc->appearanceData.iAngle = angle;
+    npc->angle = angle;
     ChunkPos oldChunk = npc->chunkPos;
     ChunkPos newChunk = Chunking::chunkPosAt(X, Y, I);
     npc->x = X;
@@ -154,7 +154,7 @@ static void npcSummonHandler(CNSocket* sock, CNPacketData* data) {
 
     for (int i = 0; i < req->iNPCCnt; i++) {
         BaseNPC *npc = summonNPC(plr->x, plr->y, plr->z, plr->instanceID, req->iNPCType);
-        updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z, plr->instanceID, 0);
+        updateNPCPosition(npc->id, plr->x, plr->y, plr->z, plr->instanceID, 0);
     }
 }
 
@@ -306,16 +306,16 @@ static void lordFuseStageTwo(CNSocket *sock, BaseNPC *npc) {
     // Blastons, Heal
     Mob *newbody = (Mob*)NPCManager::summonNPC(oldbody->spawnX, oldbody->spawnY, oldbody->spawnZ, plr->instanceID, 2467);
 
-    newbody->appearanceData.iAngle = oldbody->appearanceData.iAngle;
-    NPCManager::updateNPCPosition(newbody->appearanceData.iNPC_ID, newbody->spawnX, newbody->spawnY, newbody->spawnZ,
-        plr->instanceID, oldbody->appearanceData.iAngle);
+    newbody->angle = oldbody->angle;
+    NPCManager::updateNPCPosition(newbody->id, newbody->spawnX, newbody->spawnY, newbody->spawnZ,
+        plr->instanceID, oldbody->angle);
 
     // right arm, Adaptium, Stun
     Mob *arm = (Mob*)NPCManager::summonNPC(oldbody->spawnX - 600, oldbody->spawnY, oldbody->spawnZ, plr->instanceID, 2469);
 
-    arm->appearanceData.iAngle = oldbody->appearanceData.iAngle;
-    NPCManager::updateNPCPosition(arm->appearanceData.iNPC_ID, arm->spawnX, arm->spawnY, arm->spawnZ,
-        plr->instanceID, oldbody->appearanceData.iAngle);
+    arm->angle = oldbody->angle;
+    NPCManager::updateNPCPosition(arm->id, arm->spawnX, arm->spawnY, arm->spawnZ,
+        plr->instanceID, oldbody->angle);
 }
 
 // summon left arm and stage 3 body
@@ -328,16 +328,16 @@ static void lordFuseStageThree(CNSocket *sock, BaseNPC *npc) {
     // Cosmix, Damage Point
     Mob *newbody = (Mob*)NPCManager::summonNPC(oldbody->spawnX, oldbody->spawnY, oldbody->spawnZ, plr->instanceID, 2468);
 
-    newbody->appearanceData.iAngle = oldbody->appearanceData.iAngle;
-    NPCManager::updateNPCPosition(newbody->appearanceData.iNPC_ID, newbody->spawnX, newbody->spawnY, newbody->spawnZ,
-        plr->instanceID, oldbody->appearanceData.iAngle);
+    newbody->angle = oldbody->angle;
+    NPCManager::updateNPCPosition(newbody->id, newbody->spawnX, newbody->spawnY, newbody->spawnZ,
+        plr->instanceID, oldbody->angle);
 
     // Blastons, Heal
     Mob *arm = (Mob*)NPCManager::summonNPC(oldbody->spawnX + 600, oldbody->spawnY, oldbody->spawnZ, plr->instanceID, 2470);
 
-    arm->appearanceData.iAngle = oldbody->appearanceData.iAngle;
-    NPCManager::updateNPCPosition(arm->appearanceData.iNPC_ID, arm->spawnX, arm->spawnY, arm->spawnZ,
-        plr->instanceID, oldbody->appearanceData.iAngle);
+    arm->angle = oldbody->angle;
+    NPCManager::updateNPCPosition(arm->id, arm->spawnX, arm->spawnY, arm->spawnZ,
+        plr->instanceID, oldbody->angle);
 }
 
 std::vector<NPCEvent> NPCManager::NPCEvents = {

@@ -75,25 +75,31 @@ struct EntityRef {
  */
 class BaseNPC : public Entity {
 public:
-    sNPCAppearanceData appearanceData = {};
+    int id;
+    int type;
+    int hp;
+    int angle;
+    int cbf;
+    int barkerType;
     bool loopingPath = false;
 
-    BaseNPC(int _X, int _Y, int _Z, int angle, uint64_t iID, int t, int id) { // XXX
+    BaseNPC(int _X, int _Y, int _Z, int _A, uint64_t iID, int t, int _id) { // XXX
         x = _X;
         y = _Y;
         z = _Z;
-        appearanceData.iNPCType = t;
-        appearanceData.iHP = 400;
-        appearanceData.iAngle = angle;
-        appearanceData.iConditionBitFlag = 0;
-        appearanceData.iBarkerType = 0;
-        appearanceData.iNPC_ID = id;
-
+        type = t;
+        hp = 400;
+        angle = _A;
+        cbf = 0;
+        barkerType = 0;
+        id = _id;
         instanceID = iID;
     };
 
     virtual void enterIntoViewOf(CNSocket *sock) override;
     virtual void disappearFromViewOf(CNSocket *sock) override;
+
+    sNPCAppearanceData getAppearanceData();
 };
 
 struct CombatNPC : public BaseNPC {
@@ -116,7 +122,7 @@ struct CombatNPC : public BaseNPC {
             _stepAI(this, currTime);
     }
 
-    virtual bool isAlive() override { return appearanceData.iHP > 0; }
+    virtual bool isAlive() override { return hp > 0; }
 };
 
 // Mob is in MobAI.hpp, Player is in Player.hpp

@@ -33,7 +33,7 @@ static void movePlayer(CNSocket* sock, CNPacketData* data) {
     // [gruntwork] check if player has a follower and move it
     if (TableData::RunningNPCPaths.find(plr->iID) != TableData::RunningNPCPaths.end()) {
         BaseNPC* follower = TableData::RunningNPCPaths[plr->iID].first;
-        Transport::NPCQueues.erase(follower->appearanceData.iNPC_ID); // erase existing points
+        Transport::NPCQueues.erase(follower->id); // erase existing points
         std::queue<Vec3> queue;
         Vec3 from = { follower->x, follower->y, follower->z };
         float drag = 0.95f; // this ensures that they don't bump into the player
@@ -45,7 +45,7 @@ static void movePlayer(CNSocket* sock, CNPacketData* data) {
 
         // add a route to the queue; to be processed in Transport::stepNPCPathing()
         Transport::lerp(&queue, from, to, NPC_DEFAULT_SPEED * 1.5); // little faster than typical
-        Transport::NPCQueues[follower->appearanceData.iNPC_ID] = queue;
+        Transport::NPCQueues[follower->id] = queue;
     }
 }
 

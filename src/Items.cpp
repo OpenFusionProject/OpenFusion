@@ -822,12 +822,12 @@ static void giveSingleDrop(CNSocket *sock, Mob* mob, int mobDropId, const DropRo
 
 void Items::giveMobDrop(CNSocket *sock, Mob* mob, const DropRoll& rolled, const DropRoll& eventRolled) {
     // sanity check
-    if (Items::MobToDropMap.find(mob->appearanceData.iNPCType) == Items::MobToDropMap.end()) {
-        std::cout << "[WARN] Mob ID " << mob->appearanceData.iNPCType << " has no drops assigned" << std::endl;
+    if (Items::MobToDropMap.find(mob->type) == Items::MobToDropMap.end()) {
+        std::cout << "[WARN] Mob ID " << mob->type << " has no drops assigned" << std::endl;
         return;
     }
     // find mob drop id
-    int mobDropId = Items::MobToDropMap[mob->appearanceData.iNPCType];
+    int mobDropId = Items::MobToDropMap[mob->type];
 
     giveSingleDrop(sock, mob, mobDropId, rolled);
 

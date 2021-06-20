@@ -299,9 +299,9 @@ static void loadPaths(json& pathData, int32_t* nextId) {
                 passedDistance -= SLIDER_GAP_SIZE; // step down
                 // spawn a slider
                 Bus* slider = new Bus(point.x, point.y, point.z, 0, INSTANCE_OVERWORLD, 1, (*nextId)--);
-                NPCManager::NPCs[slider->appearanceData.iNPC_ID] = slider;
-                NPCManager::updateNPCPosition(slider->appearanceData.iNPC_ID, slider->x, slider->y, slider->z, INSTANCE_OVERWORLD, 0);
-                Transport::NPCQueues[slider->appearanceData.iNPC_ID] = route;
+                NPCManager::NPCs[slider->id] = slider;
+                NPCManager::updateNPCPosition(slider->id, slider->x, slider->y, slider->z, INSTANCE_OVERWORLD, 0);
+                Transport::NPCQueues[slider->id] = route;
             }
             // rotate
             route.pop();
@@ -737,7 +737,7 @@ static void loadGruntworkPost(json& gruntwork, int32_t* nextId) {
             if (NPCManager::NPCs.find(npcID) == NPCManager::NPCs.end())
                 continue; // NPC not found
             BaseNPC* npc = NPCManager::NPCs[npcID];
-            npc->appearanceData.iAngle = angle;
+            npc->angle = angle;
 
             RunningNPCRotations[npcID] = angle;
         }
@@ -750,8 +750,8 @@ static void loadGruntworkPost(json& gruntwork, int32_t* nextId) {
             if (NPCManager::NPCs.find(npcID) == NPCManager::NPCs.end())
                 continue; // NPC not found
             BaseNPC* npc = NPCManager::NPCs[npcID];
-            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->x, npc->y,
-                npc->z, instanceID, npc->appearanceData.iAngle);
+            NPCManager::updateNPCPosition(npc->id, npc->x, npc->y,
+                npc->z, instanceID, npc->angle);
 
             RunningNPCMapNumbers[npcID] = instanceID;
         }
@@ -774,9 +774,9 @@ static void loadGruntworkPost(json& gruntwork, int32_t* nextId) {
                 npc = new BaseNPC(mob["iX"], mob["iY"], mob["iZ"], mob["iAngle"], instanceID, mob["iNPCType"], id);
             }
 
-            NPCManager::NPCs[npc->appearanceData.iNPC_ID] = npc;
-            RunningMobs[npc->appearanceData.iNPC_ID] = npc;
-            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, mob["iX"], mob["iY"], mob["iZ"], instanceID, mob["iAngle"]);
+            NPCManager::NPCs[npc->id] = npc;
+            RunningMobs[npc->id] = npc;
+            NPCManager::updateNPCPosition(npc->id, mob["iX"], mob["iY"], mob["iZ"], instanceID, mob["iAngle"]);
         }
 
         // mob groups
@@ -814,7 +814,7 @@ static void loadGruntworkPost(json& gruntwork, int32_t* nextId) {
 
                     tmpFol->offsetX = follower.find("iOffsetX") == follower.end() ? 0 : (int)follower["iOffsetX"];
                     tmpFol->offsetY = follower.find("iOffsetY") == follower.end() ? 0 : (int)follower["iOffsetY"];
-                    tmpFol->groupLeader = tmp->appearanceData.iNPC_ID;
+                    tmpFol->groupLeader = tmp->id;
                     tmp->groupMember[followerCount++] = *nextId;
 
                     (*nextId)--;
@@ -824,7 +824,7 @@ static void loadGruntworkPost(json& gruntwork, int32_t* nextId) {
                 std::cout << "[WARN] Mob group leader with ID " << *nextId << " has too many followers (" << followers.size() << ")\n";
             }
 
-            RunningGroups[tmp->appearanceData.iNPC_ID] = tmp; // store as running
+            RunningGroups[tmp->id] = tmp; // store as running
         }
 
         auto eggs = gruntwork["eggs"];
@@ -973,7 +973,7 @@ static void loadMobs(json& npcData, int32_t* nextId) {
 
                     tmpFol->offsetX = follower.find("iOffsetX") == follower.end() ? 0 : (int)follower["iOffsetX"];
                     tmpFol->offsetY = follower.find("iOffsetY") == follower.end() ? 0 : (int)follower["iOffsetY"];
-                    tmpFol->groupLeader = tmp->appearanceData.iNPC_ID;
+                    tmpFol->groupLeader = tmp->id;
                     tmp->groupMember[followerCount++] = *nextId;
 
                     (*nextId)--;
@@ -1188,13 +1188,13 @@ void TableData::flush() {
         }
 
         // NOTE: this format deviates slightly from the one in mobs.json
-        mob["iNPCType"] = (int)npc->appearanceData.iNPCType;
+        mob["iNPCType"] = (int)npc->type;
         mob["iX"] = x;
         mob["iY"] = y;
         mob["iZ"] = z;
         mob["iMapNum"] = MAPNUM(npc->instanceID);
         // this is a bit imperfect, since this is a live angle, not a spawn angle so it'll change often, but eh
-        mob["iAngle"] = npc->appearanceData.iAngle;
+        mob["iAngle"] = npc->angle;
 
         // it's called mobs, but really it's everything
         gruntwork["mobs"].push_back(mob);
@@ -1214,7 +1214,7 @@ void TableData::flush() {
             x = m->spawnX;
             y = m->spawnY;
             z = m->spawnZ;
-            if (m->groupLeader != m->appearanceData.iNPC_ID) { // make sure this is a leader
+            if (m->groupLeader != m->id) { // make sure this is a leader
                 std::cout << "[WARN] Non-leader mob found in running groups; ignoring\n";
                 continue;
             }
@@ -1235,13 +1235,13 @@ void TableData::flush() {
         }
 
         // NOTE: this format deviates slightly from the one in mobs.json
-        mob["iNPCType"] = (int)npc->appearanceData.iNPCType;
+        mob["iNPCType"] = (int)npc->type;
         mob["iX"] = x;
         mob["iY"] = y;
         mob["iZ"] = z;
         mob["iMapNum"] = MAPNUM(npc->instanceID);
         // this is a bit imperfect, since this is a live angle, not a spawn angle so it'll change often, but eh
-        mob["iAngle"] = npc->appearanceData.iAngle;
+        mob["iAngle"] = npc->angle;
 
         // followers
         while (followers.size() > 0) {
@@ -1250,7 +1250,7 @@ void TableData::flush() {
 
             // populate JSON entry
             json fol;
-            fol["iNPCType"] = follower->appearanceData.iNPCType;
+            fol["iNPCType"] = follower->type;
             fol["iOffsetX"] = follower->offsetX;
             fol["iOffsetY"] = follower->offsetY;
 
@@ -1275,7 +1275,7 @@ void TableData::flush() {
         int mapnum = MAPNUM(npc->instanceID);
         if (mapnum != 0)
             egg["iMapNum"] = mapnum;
-        egg["iType"] = npc->appearanceData.iNPCType;
+        egg["iType"] = npc->type;
 
         gruntwork["eggs"].push_back(egg);
     }
