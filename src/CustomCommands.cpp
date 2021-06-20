@@ -282,10 +282,10 @@ static void unsummonWCommand(std::string full, std::vector<std::string>& args, C
         return;
     }
 
-    if (NPCManager::NPCs.find(npc->appearanceData.iNPC_ID) != NPCManager::NPCs.end() && NPCManager::NPCs[npc->appearanceData.iNPC_ID]->type == EntityType::MOB) {
+    if (NPCManager::NPCs.find(npc->appearanceData.iNPC_ID) != NPCManager::NPCs.end() && NPCManager::NPCs[npc->appearanceData.iNPC_ID]->kind == EntityType::MOB) {
         int leadId = ((Mob*)npc)->groupLeader;
         if (leadId != 0) {
-            if (NPCManager::NPCs.find(leadId) == NPCManager::NPCs.end() || NPCManager::NPCs[leadId]->type != EntityType::MOB) {
+            if (NPCManager::NPCs.find(leadId) == NPCManager::NPCs.end() || NPCManager::NPCs[leadId]->kind != EntityType::MOB) {
                 std::cout << "[WARN] unsummonW: leader not found!" << std::endl;
             }
             Mob* leadNpc = (Mob*)NPCManager::NPCs[leadId];
@@ -293,7 +293,7 @@ static void unsummonWCommand(std::string full, std::vector<std::string>& args, C
                 if (leadNpc->groupMember[i] == 0)
                     break;
 
-                if (NPCManager::NPCs.find(leadNpc->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[leadNpc->groupMember[i]]->type != EntityType::MOB) {
+                if (NPCManager::NPCs.find(leadNpc->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[leadNpc->groupMember[i]]->kind != EntityType::MOB) {
                     std::cout << "[WARN] unsommonW: leader can't find a group member!" << std::endl;
                     continue;
                 }
@@ -323,7 +323,7 @@ static void toggleAiCommand(std::string full, std::vector<std::string>& args, CN
 
     // return all mobs to their spawn points
     for (auto& pair : NPCManager::NPCs) {
-        if (pair.second->type != EntityType::MOB)
+        if (pair.second->kind != EntityType::MOB)
             continue;
 
         Mob* mob = (Mob*)pair.second;
@@ -611,7 +611,7 @@ static void summonGroupCommand(std::string full, std::vector<std::string>& args,
         }
 
         BaseNPC *npc = NPCManager::summonNPC(x, y, z, plr->instanceID, type, wCommand);
-        if (team == 2 && i > 0 && npc->type == EntityType::MOB) {
+        if (team == 2 && i > 0 && npc->kind == EntityType::MOB) {
             leadNpc->groupMember[i-1] = npc->appearanceData.iNPC_ID;
             Mob* mob = (Mob*)NPCManager::NPCs[npc->appearanceData.iNPC_ID];
             mob->groupLeader = leadNpc->appearanceData.iNPC_ID;
@@ -626,7 +626,7 @@ static void summonGroupCommand(std::string full, std::vector<std::string>& args,
         if (PLAYERID(plr->instanceID) != 0) {
             npc = NPCManager::summonNPC(plr->x, plr->y, plr->z, plr->instanceID, type, wCommand, true);
 
-            if (team == 2 && i > 0 && npc->type == EntityType::MOB) {
+            if (team == 2 && i > 0 && npc->kind == EntityType::MOB) {
                 leadNpc->groupMember[i-1] = npc->appearanceData.iNPC_ID;
                 Mob* mob = (Mob*)NPCManager::NPCs[npc->appearanceData.iNPC_ID];
                 mob->groupLeader = leadNpc->appearanceData.iNPC_ID;
@@ -641,7 +641,7 @@ static void summonGroupCommand(std::string full, std::vector<std::string>& args,
         Chat::sendServerMessage(sock, "/summonGroup(W): placed mob with type: " + std::to_string(type) +
             ", id: " + std::to_string(npc->appearanceData.iNPC_ID));
 
-        if (i == 0 && team == 2 && npc->type == EntityType::MOB) {
+        if (i == 0 && team == 2 && npc->kind == EntityType::MOB) {
             type = type2;
             leadNpc = (Mob*)NPCManager::NPCs[npc->appearanceData.iNPC_ID];
             leadNpc->groupLeader = leadNpc->appearanceData.iNPC_ID;
@@ -677,7 +677,7 @@ static void whoisCommand(std::string full, std::vector<std::string>& args, CNSoc
     Chat::sendServerMessage(sock, "[WHOIS] Type: " + std::to_string(npc->appearanceData.iNPCType));
     Chat::sendServerMessage(sock, "[WHOIS] HP: " + std::to_string(npc->appearanceData.iHP));
     Chat::sendServerMessage(sock, "[WHOIS] CBF: " + std::to_string(npc->appearanceData.iConditionBitFlag));
-    Chat::sendServerMessage(sock, "[WHOIS] EntityType: " + std::to_string((int)npc->type));
+    Chat::sendServerMessage(sock, "[WHOIS] EntityType: " + std::to_string((int)npc->kind));
     Chat::sendServerMessage(sock, "[WHOIS] X: " + std::to_string(npc->x));
     Chat::sendServerMessage(sock, "[WHOIS] Y: " + std::to_string(npc->y));
     Chat::sendServerMessage(sock, "[WHOIS] Z: " + std::to_string(npc->z));

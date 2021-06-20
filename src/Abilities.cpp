@@ -142,7 +142,7 @@ bool doDebuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t target
     }
 
     BaseNPC* npc = NPCManager::NPCs[targetID];
-    if (npc->type != EntityType::MOB) {
+    if (npc->kind != EntityType::MOB) {
         std::cout << "[WARN] doDebuff: NPC is not a mob" << std::endl;
         return false;
     }
@@ -213,7 +213,7 @@ bool doDamageNDebuff(CNSocket *sock, sSkillResult_Damage_N_Debuff *respdata, int
     }
 
     BaseNPC* npc = NPCManager::NPCs[targetID];
-    if (npc->type != EntityType::MOB) {
+    if (npc->kind != EntityType::MOB) {
         std::cout << "[WARN] doDamageNDebuff: NPC is not a mob" << std::endl;
         return false;
     }
@@ -281,7 +281,7 @@ bool doDamage(CNSocket *sock, sSkillResult_Damage *respdata, int i, int32_t targ
     }
 
     BaseNPC* npc = NPCManager::NPCs[targetID];
-    if (npc->type != EntityType::MOB) {
+    if (npc->kind != EntityType::MOB) {
         std::cout << "[WARN] doDamage: NPC is not a mob" << std::endl;
         return false;
     }
@@ -337,7 +337,7 @@ bool doLeech(CNSocket *sock, sSkillResult_Heal_HP *healdata, int i, int32_t targ
     }
     
     BaseNPC* npc = NPCManager::NPCs[targetID];
-    if (npc->type != EntityType::MOB) {
+    if (npc->kind != EntityType::MOB) {
         std::cout << "[WARN] doLeech: NPC is not a mob" << std::endl;
         return false;
     }
@@ -468,7 +468,7 @@ bool doHeal(Mob* mob, sSkillResult_Heal_HP* respdata, int i, int32_t targetID, i
     }
 
     BaseNPC* npc = NPCManager::NPCs[targetID];
-    if (npc->type != EntityType::MOB) {
+    if (npc->kind != EntityType::MOB) {
         std::cout << "[WARN] doHeal: NPC is not a mob" << std::endl;
         return false;
     }

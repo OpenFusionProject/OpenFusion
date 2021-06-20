@@ -270,7 +270,7 @@ void Chunking::createInstance(uint64_t instanceID) {
             BaseNPC* baseNPC = (BaseNPC*)ref.getEntity();
 
             // make a copy of each NPC in the template chunks and put them in the new instance
-            if (baseNPC->type == EntityType::MOB) {
+            if (baseNPC->kind == EntityType::MOB) {
                 if (((Mob*)baseNPC)->groupLeader != 0 && ((Mob*)baseNPC)->groupLeader != npcID)
                     continue; // follower; don't copy individually
 
