@@ -257,13 +257,13 @@ static void stepNPCPathing() {
         }
 
         // skip if not simulating mobs
-        if (npc->type == EntityType::MOB && !MobAI::simulateMobs) {
+        if (npc->kind == EntityType::MOB && !MobAI::simulateMobs) {
             it++;
             continue;
         }
 
         // do not roam if not roaming
-        if (npc->type == EntityType::MOB && ((Mob*)npc)->state != MobState::ROAMING) {
+        if (npc->kind == EntityType::MOB && ((Mob*)npc)->state != MobState::ROAMING) {
             it++;
             continue;
         }
@@ -276,15 +276,15 @@ static void stepNPCPathing() {
         int distanceBetween = hypot(dXY, point.z - npc->z); // total distance
 
         // update NPC location to update viewables
-        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, point.x, point.y, point.z, npc->instanceID, npc->appearanceData.iAngle);
+        NPCManager::updateNPCPosition(npc->id, point.x, point.y, point.z, npc->instanceID, npc->angle);
 
         // TODO: move walking logic into Entity stack
-        switch (npc->type) {
+        switch (npc->kind) {
         case EntityType::BUS:
             INITSTRUCT(sP_FE2CL_TRANSPORTATION_MOVE, busMove);
 
             busMove.eTT = 3;
-            busMove.iT_ID = npc->appearanceData.iNPC_ID;
+            busMove.iT_ID = npc->id;
             busMove.iMoveStyle = 0; // ???
             busMove.iToX = point.x;
             busMove.iToY = point.y;
@@ -298,7 +298,7 @@ static void stepNPCPathing() {
             /* fallthrough */
         default:
             INITSTRUCT(sP_FE2CL_NPC_MOVE, move);
-            move.iNPC_ID = npc->appearanceData.iNPC_ID;
+            move.iNPC_ID = npc->id;
             move.iMoveStyle = 0; // ???
             move.iToX = point.x;
             move.iToY = point.y;
@@ -385,7 +385,7 @@ NPCPath* Transport::findApplicablePath(int32_t id, int32_t type, int taskID) {
 
 void Transport::constructPathNPC(int32_t id, NPCPath* path) {
     BaseNPC* npc = NPCManager::NPCs[id];
-    if (npc->type == EntityType::MOB)
+    if (npc->kind == EntityType::MOB)
         ((Mob*)(npc))->staticPath = true;
     npc->loopingPath = path->isLoop;
 

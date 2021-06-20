@@ -72,12 +72,12 @@ struct Mob : public CombatNPC {
         offsetX = 0;
         offsetY = 0;
 
-        appearanceData.iConditionBitFlag = 0;
+        cbf = 0;
 
         // NOTE: there appear to be discrepancies in the dump
-        appearanceData.iHP = maxHealth;
+        hp = maxHealth;
 
-        type = EntityType::MOB;
+        kind = EntityType::MOB;
         _stepAI = MobAI::step;
     }
 
