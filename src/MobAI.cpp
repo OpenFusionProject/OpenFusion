@@ -235,7 +235,7 @@ static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, i
         int style2 = Nanos::nanoStyle(plr->activeNano);
         if (style2 == -1) { // no nano
             respdata[i].iHitFlag = 8;
-            respdata[i].iDamage = Nanos::SkillTable[skillID].powerIntensity[0] * PC_MAXHEALTH((int)mob->data["m_iNpcLevel"]) / 1500;
+            respdata[i].iDamage = Abilities::SkillTable[skillID].powerIntensity[0] * PC_MAXHEALTH((int)mob->data["m_iNpcLevel"]) / 1500;
         } else if (style == style2) {
             respdata[i].iHitFlag = 8; // tie
             respdata[i].iDamage = 0;
@@ -248,12 +248,12 @@ static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, i
                 respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina = 150;
             // fire damage power disguised as a corruption attack back at the enemy
             std::vector<int> targetData2 = {1, mob->appearanceData.iNPC_ID, 0, 0, 0};
-            for (auto& pwr : Nanos::NanoPowers)
+            for (auto& pwr : Abilities::Powers)
                 if (pwr.skillType == EST_DAMAGE)
                     pwr.handle(sock, targetData2, plr->activeNano, skillID, 0, 200);
         } else {
             respdata[i].iHitFlag = 16; // lose
-            respdata[i].iDamage = Nanos::SkillTable[skillID].powerIntensity[0] * PC_MAXHEALTH((int)mob->data["m_iNpcLevel"]) / 1500;
+            respdata[i].iDamage = Abilities::SkillTable[skillID].powerIntensity[0] * PC_MAXHEALTH((int)mob->data["m_iNpcLevel"]) / 1500;
             respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina -= 90;
             if (plr->Nanos[plr->activeNano].iStamina < 0) {
                 respdata[i].bNanoDeactive = 1;
@@ -319,7 +319,7 @@ static void useAbilities(Mob *mob, time_t currTime) {
                     continue;
 
                 int distance = hypot(mob->hitX - plr->x, mob->hitY - plr->y);
-                if (distance < Nanos::SkillTable[skillID].effectArea) {
+                if (distance < Abilities::SkillTable[skillID].effectArea) {
                     targetData[0] += 1;
                     targetData[targetData[0]] = plr->iID;
                     if (targetData[0] > 3) // make sure not to have more than 4
@@ -328,9 +328,9 @@ static void useAbilities(Mob *mob, time_t currTime) {
             }
         }
 
-        for (auto& pwr : Combat::MobPowers)
-            if (pwr.skillType == Nanos::SkillTable[skillID].skillType)
-                pwr.handle(mob, targetData, skillID, Nanos::SkillTable[skillID].durationTime[0], Nanos::SkillTable[skillID].powerIntensity[0]);
+        for (auto& pwr : Abilities::Powers)
+            if (pwr.skillType == Abilities::SkillTable[skillID].skillType)
+                pwr.handle(mob, targetData, skillID, Abilities::SkillTable[skillID].durationTime[0], Abilities::SkillTable[skillID].powerIntensity[0]);
         mob->skillStyle = -3; // eruption cooldown
         mob->nextAttack = currTime + 1000;
         return;
@@ -349,11 +349,11 @@ static void useAbilities(Mob *mob, time_t currTime) {
     if (random < prob1) { // active skill hit
         int skillID = (int)mob->data["m_iActiveSkill1"];
         std::vector<int> targetData = {1, plr->iID, 0, 0, 0};
-        for (auto& pwr : Combat::MobPowers)
-            if (pwr.skillType == Nanos::SkillTable[skillID].skillType) {
+        for (auto& pwr : Abilities::Powers)
+            if (pwr.skillType == Abilities::SkillTable[skillID].skillType) {
                 if (pwr.bitFlag != 0 && (plr->iConditionBitFlag & pwr.bitFlag))
                     return; // prevent debuffing a player twice
-                pwr.handle(mob, targetData, skillID, Nanos::SkillTable[skillID].durationTime[0], Nanos::SkillTable[skillID].powerIntensity[0]);
+                pwr.handle(mob, targetData, skillID, Abilities::SkillTable[skillID].durationTime[0], Abilities::SkillTable[skillID].powerIntensity[0]);
             }
         mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
         return;
@@ -407,9 +407,9 @@ void MobAI::enterCombat(CNSocket *sock, Mob *mob) {
 
     int skillID = (int)mob->data["m_iPassiveBuff"]; // cast passive
     std::vector<int> targetData = {1, mob->appearanceData.iNPC_ID, 0, 0, 0};
-    for (auto& pwr : Combat::MobPowers)
-        if (pwr.skillType == Nanos::SkillTable[skillID].skillType)
-            pwr.handle(mob, targetData, skillID, Nanos::SkillTable[skillID].durationTime[0], Nanos::SkillTable[skillID].powerIntensity[0]);
+    for (auto& pwr : Abilities::Powers)
+        if (pwr.skillType == Abilities::SkillTable[skillID].skillType)
+            pwr.handle(mob, targetData, skillID, Abilities::SkillTable[skillID].durationTime[0], Abilities::SkillTable[skillID].powerIntensity[0]);
 
     for (NPCEvent& event : NPCManager::NPCEvents) // trigger an ON_COMBAT
         if (event.trigger == ON_COMBAT && event.npcType == mob->appearanceData.iNPCType)
@@ -773,9 +773,9 @@ static void retreatStep(Mob *mob, time_t currTime) {
 
         // cast a return home heal spell, this is the right way(tm)
         std::vector<int> targetData = {1, 0, 0, 0, 0};
-        for (auto& pwr : Combat::MobPowers)
-            if (pwr.skillType == Nanos::SkillTable[110].skillType)
-                pwr.handle(mob, targetData, 110, Nanos::SkillTable[110].durationTime[0], Nanos::SkillTable[110].powerIntensity[0]);
+        for (auto& pwr : Abilities::Powers)
+            if (pwr.skillType == Abilities::SkillTable[110].skillType)
+                pwr.handle(mob, targetData, 110, Abilities::SkillTable[110].durationTime[0], Abilities::SkillTable[110].powerIntensity[0]);
         // clear outlying debuffs
         clearDebuff(mob);
     }
