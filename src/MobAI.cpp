@@ -330,7 +330,7 @@ static void useAbilities(Mob *mob, time_t currTime) {
 
         for (auto& pwr : Abilities::Powers)
             if (pwr.skillType == Abilities::SkillTable[skillID].skillType)
-                pwr.handle(mob, targetData, skillID, Abilities::SkillTable[skillID].durationTime[0], Abilities::SkillTable[skillID].powerIntensity[0]);
+                pwr.handle(mob->id, targetData, skillID, Abilities::SkillTable[skillID].durationTime[0], Abilities::SkillTable[skillID].powerIntensity[0]);
         mob->skillStyle = -3; // eruption cooldown
         mob->nextAttack = currTime + 1000;
         return;
@@ -353,7 +353,7 @@ static void useAbilities(Mob *mob, time_t currTime) {
             if (pwr.skillType == Abilities::SkillTable[skillID].skillType) {
                 if (pwr.bitFlag != 0 && (plr->iConditionBitFlag & pwr.bitFlag))
                     return; // prevent debuffing a player twice
-                pwr.handle(mob, targetData, skillID, Abilities::SkillTable[skillID].durationTime[0], Abilities::SkillTable[skillID].powerIntensity[0]);
+                pwr.handle(mob->id, targetData, skillID, Abilities::SkillTable[skillID].durationTime[0], Abilities::SkillTable[skillID].powerIntensity[0]);
             }
         mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
         return;
@@ -409,7 +409,7 @@ void MobAI::enterCombat(CNSocket *sock, Mob *mob) {
     std::vector<int> targetData = {1, mob->id, 0, 0, 0};
     for (auto& pwr : Abilities::Powers)
         if (pwr.skillType == Abilities::SkillTable[skillID].skillType)
-            pwr.handle(mob, targetData, skillID, Abilities::SkillTable[skillID].durationTime[0], Abilities::SkillTable[skillID].powerIntensity[0]);
+            pwr.handle(mob->id, targetData, skillID, Abilities::SkillTable[skillID].durationTime[0], Abilities::SkillTable[skillID].powerIntensity[0]);
 
     for (NPCEvent& event : NPCManager::NPCEvents) // trigger an ON_COMBAT
         if (event.trigger == ON_COMBAT && event.npcType == mob->type)
@@ -772,7 +772,7 @@ static void retreatStep(Mob *mob, time_t currTime) {
         std::vector<int> targetData = {1, 0, 0, 0, 0};
         for (auto& pwr : Abilities::Powers)
             if (pwr.skillType == Abilities::SkillTable[110].skillType)
-                pwr.handle(mob, targetData, 110, Abilities::SkillTable[110].durationTime[0], Abilities::SkillTable[110].powerIntensity[0]);
+                pwr.handle(mob->id, targetData, 110, Abilities::SkillTable[110].durationTime[0], Abilities::SkillTable[110].powerIntensity[0]);
         // clear outlying debuffs
         clearDebuff(mob);
     }
