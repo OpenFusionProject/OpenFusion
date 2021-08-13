@@ -9,6 +9,37 @@
 std::mutex dbCrit;
 sqlite3 *db;
 
+/*
+ * When migrating from DB version 3 to 4, we change the username column
+ * to be case-insensitive. This function ensures there aren't any
+ * duplicates, e.g. username and USERNAME, before doing the migration.
+ * I handled this in the code itself rather than the migration file just so
+ * we can have a more detailed error message than what SQLite provides.
+ */
+static void checkCaseSensitiveDupes() {
+    const char* sql = "SELECT Login, COUNT(*) FROM Accounts GROUP BY LOWER(Login) HAVING COUNT(*) > 1;";
+
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    int stat = sqlite3_step(stmt);
+
+    if (stat == SQLITE_DONE) {
+        // no rows returned, so we're good
+        sqlite3_finalize(stmt);
+        return;
+    } else if (stat != SQLITE_ROW) {
+        std::cout << "[FATAL] Failed to check for duplicate accounts: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_finalize(stmt);
+        exit(1);
+    }
+
+    std::cout << "[FATAL] Case-sensitive duplicates detected in the Login column." << std::endl;
+    std::cout << "Either manually delete/rename the offending accounts, or run the pruning script:" << std::endl;
+    std::cout << "https://github.com/OpenFusionProject/scripts/tree/main/db_migration/caseinsens.py" << std::endl;
+    sqlite3_finalize(stmt);
+    exit(1);
+}
+
 static void createMetaTable() {
     std::lock_guard<std::mutex> lock(dbCrit); // XXX
 
@@ -143,6 +174,10 @@ static void checkMetaTable() {
     }
 
     while (dbVersion != DATABASE_VERSION) {
+        // need to run this before we do any migration logic
+        if (dbVersion == 3)
+            checkCaseSensitiveDupes();
+
         // db migrations
         std::cout << "[INFO] Migrating Database to Version " << dbVersion + 1 << std::endl;
 

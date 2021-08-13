@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS Accounts (
     AccountID    INTEGER NOT NULL,
-    Login        TEXT    NOT NULL UNIQUE,
+    Login        TEXT    NOT NULL UNIQUE COLLATE NOCASE,
     Password     TEXT    NOT NULL,
     Selected     INTEGER  DEFAULT 1 NOT NULL,
     AccountLevel INTEGER NOT NULL,

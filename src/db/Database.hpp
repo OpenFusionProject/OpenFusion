@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#define DATABASE_VERSION 3
+#define DATABASE_VERSION 4
 
 namespace Database {
 
