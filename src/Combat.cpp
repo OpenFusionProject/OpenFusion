@@ -154,7 +154,7 @@ void Combat::npcAttackPc(Mob *mob, time_t currTime) {
 
     INITVARPACKET(respbuf, sP_FE2CL_NPC_ATTACK_PCs, pkt, sAttackResult, atk);
 
-    auto damage = getDamage(450 + (int)mob->data["m_iPower"], plr->defense, false, false, -1, -1, 0);
+    auto damage = getDamage(450 + (int)mob->data["m_iPower"], plr->defense, true, false, -1, -1, 0);
 
     if (!(plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE))
         plr->HP -= damage.first;
