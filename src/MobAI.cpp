@@ -127,7 +127,7 @@ bool MobAI::aggroCheck(Mob *mob, time_t currTime) {
             CNSocket *s = ref.sock;
             Player *plr = PlayerManager::getPlayer(s);
 
-            if (plr->HP <= 0)
+            if (plr->HP <= 0 || plr->onMonkey)
                 continue;
 
             int mobRange = mob->sightRange;
