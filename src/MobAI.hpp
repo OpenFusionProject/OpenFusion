@@ -102,6 +102,6 @@ namespace MobAI {
     bool aggroCheck(Mob *mob, time_t currTime);
     void clearDebuff(Mob *mob);
     void followToCombat(Mob *mob);
-    void groupRetreat(Mob *mob);
+    void groupRetreat(Mob *mob, bool reAggro=false);
     void enterCombat(CNSocket *sock, Mob *mob);
 }

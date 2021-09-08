@@ -83,11 +83,17 @@ void MobAI::followToCombat(Mob *mob) {
     }
 }
 
-void MobAI::groupRetreat(Mob *mob) {
+void MobAI::groupRetreat(Mob *mob, bool reAggro) {
     if (NPCManager::NPCs.find(mob->groupLeader) == NPCManager::NPCs.end() || NPCManager::NPCs[mob->groupLeader]->type != EntityType::MOB)
         return;
 
     Mob* leadMob = (Mob*)NPCManager::NPCs[mob->groupLeader];
+
+    // attempt to grab aggro again as a group if reAggro is checked
+    bool caughtAggro = false;
+    if (leadMob->state == MobState::COMBAT && reAggro && aggroCheck(leadMob, getTime()))
+        caughtAggro = true;
+
     for (int i = 0; i < 4; i++) {
         if (leadMob->groupMember[i] == 0)
             break;
@@ -98,13 +104,26 @@ void MobAI::groupRetreat(Mob *mob) {
         }
         Mob* followerMob = (Mob*)NPCManager::NPCs[leadMob->groupMember[i]];
 
+        if (followerMob->state != MobState::COMBAT) // only combatants should retreat
+            continue;
+
+        // retreating no longer necessary as leader has gained aggro
+        if (caughtAggro) {
+            enterCombat(leadMob->target, followerMob);
+            continue;
+        }
+
         followerMob->target = nullptr;
         followerMob->state = MobState::RETREAT;
         clearDebuff(followerMob);
     }
 
+    if (leadMob->state != MobState::COMBAT || caughtAggro)
+        return;
+
     leadMob->target = nullptr;
     leadMob->state = MobState::RETREAT;
+
     clearDebuff(leadMob);
 }
 
@@ -264,11 +283,11 @@ static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, i
         if (plr->HP <= 0) {
             mob->target = nullptr;
             mob->state = MobState::RETREAT;
-            if (!aggroCheck(mob, getTime())) {
+
+            if (mob->groupLeader != 0)
+                groupRetreat(mob, true);
+            else if (!aggroCheck(mob, getTime()))
                 clearDebuff(mob);
-                if (mob->groupLeader != 0)
-                    groupRetreat(mob);
-            }
         }
     }
 
@@ -501,11 +520,12 @@ static void combatStep(Mob *mob, time_t currTime) {
     if (PlayerManager::players.find(mob->target) == PlayerManager::players.end()) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        if (!aggroCheck(mob, currTime)) {
+
+        if (mob->groupLeader != 0)
+            groupRetreat(mob, true);
+        else if (!aggroCheck(mob, getTime()))
             clearDebuff(mob);
-            if (mob->groupLeader != 0)
-                groupRetreat(mob);
-        }
+
         return;
     }
 
@@ -516,11 +536,12 @@ static void combatStep(Mob *mob, time_t currTime) {
      || (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE)) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        if (!aggroCheck(mob, currTime)) {
+
+        if (mob->groupLeader != 0)
+            groupRetreat(mob, true);
+        else if (!aggroCheck(mob, getTime()))
             clearDebuff(mob);
-            if (mob->groupLeader != 0)
-                groupRetreat(mob);
-        }
+
         return;
     }
 
@@ -628,9 +649,11 @@ static void combatStep(Mob *mob, time_t currTime) {
     if (distance >= mob->data["m_iCombatRange"]) {
         mob->target = nullptr;
         mob->state = MobState::RETREAT;
-        clearDebuff(mob);
+
         if (mob->groupLeader != 0)
-            groupRetreat(mob);
+            groupRetreat(mob, true);
+        else
+            clearDebuff(mob);
     }
 }
 
