@@ -98,10 +98,16 @@ void MobAI::groupRetreat(Mob *mob) {
         }
         Mob* followerMob = (Mob*)NPCManager::NPCs[leadMob->groupMember[i]];
 
+        if (followerMob->state != MobState::COMBAT)
+            continue;
+
         followerMob->target = nullptr;
         followerMob->state = MobState::RETREAT;
         clearDebuff(followerMob);
     }
+
+    if (leadMob->state != MobState::COMBAT)
+        return;
 
     leadMob->target = nullptr;
     leadMob->state = MobState::RETREAT;
