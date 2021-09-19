@@ -13,6 +13,7 @@
 #include <sstream>
 #include <iterator>
 #include <math.h>
+#include <limits.h>
 
 typedef void (*CommandHandler)(std::string fullString, std::vector<std::string>& args, CNSocket* sock);
 
@@ -690,39 +691,35 @@ static void whoisCommand(std::string full, std::vector<std::string>& args, CNSoc
 
 static void lairUnlockCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
-    if (!Chunking::chunkExists(plr->chunkPos))
-        return;
 
-    Chunk* chnk = Chunking::chunks[plr->chunkPos];
     int taskID = -1;
     int missionID = -1;
-    int found = 0;
-    for (const EntityRef& ref : chnk->entities) {
-        if (ref.type == EntityType::PLAYER)
-            continue;
+    int lastDist = INT_MAX;
+    for (Chunk *chnk : Chunking::getViewableChunks(plr->chunkPos)) {
+        for (const EntityRef& ref : chnk->entities) {
+            if (ref.type == EntityType::PLAYER)
+                continue;
 
-        int32_t id = ref.id;
-        if (NPCManager::NPCs.find(id) == NPCManager::NPCs.end())
-            continue;
+            BaseNPC* npc = (BaseNPC*)ref.getEntity();
 
-        BaseNPC* npc = NPCManager::NPCs[id];
-        for (auto it = NPCManager::Warps.begin(); it != NPCManager::Warps.end(); it++) {
-            if ((*it).second.npcID == npc->appearanceData.iNPCType) {
-                taskID = (*it).second.limitTaskID;
-                missionID = Missions::Tasks[taskID]->task["m_iHMissionID"];
-                found++;
-                break;
+            int distXY = std::hypot(plr->x - npc->x, plr->y - npc->y);
+            int dist = std::hypot(distXY, plr->z - npc->z);
+            if (dist >= lastDist)
+                continue;
+
+            for (auto it = NPCManager::Warps.begin(); it != NPCManager::Warps.end(); it++) {
+                if (it->second.npcID == npc->appearanceData.iNPCType) {
+                    taskID = it->second.limitTaskID;
+                    missionID = Missions::Tasks[taskID]->task["m_iHMissionID"];
+                    lastDist = dist;
+                    break;
+                }
             }
         }
     }
 
     if (missionID == -1 || taskID == -1) {
-        Chat::sendServerMessage(sock, "You are NOT standing near a lair portal; move around and try again!");
-        return;
-    }
-
-    if (found > 1) {
-        Chat::sendServerMessage(sock, "More than one lair found; decrease chunk size and try again!");
+        Chat::sendServerMessage(sock, "No nearby Lair portals found.");
         return;
     }
 
