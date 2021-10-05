@@ -13,7 +13,7 @@ OpenFusion is a reverse-engineered server for FusionFall. It primarily targets v
 
 ### Getting Started
 
-1. Download the client from [here](https://github.com/OpenFusionProject/OpenFusion/releases/download/1.3/OpenFusionClient-1.3.zip).
+1. Download the client from [here](https://github.com/OpenFusionProject/OpenFusion/releases/download/1.4/OpenFusionClient-1.4.zip).
 2. Extract it to a folder of your choice. Note: if you are upgrading from an older version, it is preferable to start with a fresh folder rather than overwriting a previous install.
 3. Run OpenFusionClient.exe - you will be given a choice between two public servers by default. Select the one you wish to play and click connect.
 4. To create an account, simply enter the details you wish to use at the login screen then click Log In. Do *not* click register, as this will just lead to a blank screen.
@@ -21,7 +21,7 @@ OpenFusion is a reverse-engineered server for FusionFall. It primarily targets v
 
 ### Hosting a server
 
-1. Grab `OpenFusionServer-1.3-original.zip` or `OpenFusionServer-1.3-academy.zip` from [here](https://github.com/OpenFusionProject/OpenFusion/releases/tag/1.3).
+1. Grab `OpenFusionServer-1.4-original.zip` or `OpenFusionServer-1.4-academy.zip` from [here](https://github.com/OpenFusionProject/OpenFusion/releases/tag/1.4).
 2. Extract it to a folder of your choice, then run `winfusion.exe` (Windows) or `fusion` (Linux) to start the server.
 3. Add a new server to the client's list: the default port is 23000, so the full IP with default settings would be 127.0.0.1:23000.
 4. Once you've added the server to the list, connect to it and log in. If you're having trouble with this, refer to steps 4 and 5 from the previous section.
