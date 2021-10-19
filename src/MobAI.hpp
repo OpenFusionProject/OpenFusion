@@ -65,9 +65,9 @@ struct Mob : public CombatNPC {
         idleRange = (int)data["m_iIdleRange"];
         level = data["m_iNpcLevel"];
 
-        roamX = spawnX = x;
-        roamY = spawnY = y;
-        roamZ = spawnZ = z;
+        roamX = x;
+        roamY = y;
+        roamZ = z;
 
         offsetX = 0;
         offsetY = 0;

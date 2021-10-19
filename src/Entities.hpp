@@ -82,10 +82,7 @@ public:
     int barkerType;
     bool loopingPath = false;
 
-    BaseNPC(int _X, int _Y, int _Z, int _A, uint64_t iID, int t, int _id) { // XXX
-        x = _X;
-        y = _Y;
-        z = _Z;
+    BaseNPC(int _A, uint64_t iID, int t, int _id) {
         type = t;
         hp = 400;
         angle = _A;
@@ -111,10 +108,12 @@ struct CombatNPC : public BaseNPC {
 
     void (*_stepAI)(CombatNPC*, time_t) = nullptr;
 
-    // XXX
-    CombatNPC(int x, int y, int z, int angle, uint64_t iID, int t, int id, int maxHP) :
-        BaseNPC(x, y, z, angle, iID, t, id),
-        maxHealth(maxHP) {}
+    CombatNPC(int x, int y, int z, int angle, uint64_t iID, int t, int id, int maxHP)
+        : BaseNPC(angle, iID, t, id), maxHealth(maxHP) {
+        spawnX = x;
+        spawnY = y;
+        spawnZ = z;
+    }
 
     virtual void stepAI(time_t currTime) {
         if (_stepAI != nullptr)
@@ -132,8 +131,8 @@ struct Egg : public BaseNPC {
     bool dead = false;
     time_t deadUntil;
 
-    Egg(int x, int y, int z, uint64_t iID, int t, int32_t id, bool summon)
-        : BaseNPC(x, y, z, 0, iID, t, id) {
+    Egg(uint64_t iID, int t, int32_t id, bool summon)
+        : BaseNPC(0, iID, t, id) {
         summoned = summon;
         kind = EntityType::EGG;
     }
@@ -146,8 +145,8 @@ struct Egg : public BaseNPC {
 
 // TODO: decouple from BaseNPC
 struct Bus : public BaseNPC {
-    Bus(int x, int y, int z, int angle, uint64_t iID, int t, int id) :
-        BaseNPC(x, y, z, angle, iID, t, id) {
+    Bus(int angle, uint64_t iID, int t, int id) :
+        BaseNPC(angle, iID, t, id) {
         kind = EntityType::BUS;
         loopingPath = true;
     }

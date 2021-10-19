@@ -310,8 +310,7 @@ void Chunking::createInstance(uint64_t instanceID) {
                 NPCManager::updateNPCPosition(newMob->id, baseNPC->x, baseNPC->y, baseNPC->z,
                     instanceID, baseNPC->angle);
             } else {
-                BaseNPC* newNPC = new BaseNPC(baseNPC->x, baseNPC->y, baseNPC->z, baseNPC->angle,
-                    instanceID, baseNPC->type, NPCManager::nextId--);
+                BaseNPC* newNPC = new BaseNPC(baseNPC->angle, instanceID, baseNPC->type, NPCManager::nextId--);
                 NPCManager::NPCs[newNPC->id] = newNPC;
                 NPCManager::updateNPCPosition(newNPC->id, baseNPC->x, baseNPC->y, baseNPC->z,
                     instanceID, baseNPC->angle);

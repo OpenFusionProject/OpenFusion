@@ -314,9 +314,9 @@ static void loadPaths(json& pathData, int32_t* nextId) {
             if (passedDistance >= SLIDER_GAP_SIZE) { // space them out uniformaly
                 passedDistance -= SLIDER_GAP_SIZE; // step down
                 // spawn a slider
-                Bus* slider = new Bus(point.x, point.y, point.z, 0, INSTANCE_OVERWORLD, 1, (*nextId)--);
+                Bus* slider = new Bus(0, INSTANCE_OVERWORLD, 1, (*nextId)--);
                 NPCManager::NPCs[slider->id] = slider;
-                NPCManager::updateNPCPosition(slider->id, slider->x, slider->y, slider->z, INSTANCE_OVERWORLD, 0);
+                NPCManager::updateNPCPosition(slider->id, point.x, point.y, point.z, INSTANCE_OVERWORLD, 0);
                 Transport::NPCQueues[slider->id] = route;
             }
             // rotate
@@ -659,7 +659,7 @@ static void loadEggs(json& eggData, int32_t* nextId) {
             int id = (*nextId)--;
             uint64_t instanceID = egg.find("iMapNum") == egg.end() ? INSTANCE_OVERWORLD : (int)egg["iMapNum"];
 
-            Egg* addEgg = new Egg((int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, (int)egg["iType"], id, false);
+            Egg* addEgg = new Egg(instanceID, (int)egg["iType"], id, false);
             NPCManager::NPCs[id] = addEgg;
             eggCount++;
             NPCManager::updateNPCPosition(id, (int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, 0);
@@ -791,7 +791,7 @@ static void loadGruntworkPost(json& gruntwork, int32_t* nextId) {
                 // re-enable respawning
                 ((Mob*)npc)->summoned = false;
             } else {
-                npc = new BaseNPC(mob["iX"], mob["iY"], mob["iZ"], mob["iAngle"], instanceID, mob["iNPCType"], id);
+                npc = new BaseNPC(mob["iAngle"], instanceID, mob["iNPCType"], id);
             }
 
             NPCManager::NPCs[npc->id] = npc;
@@ -859,7 +859,7 @@ static void loadGruntworkPost(json& gruntwork, int32_t* nextId) {
             int id = (*nextId)--;
             uint64_t instanceID = egg.find("iMapNum") == egg.end() ? INSTANCE_OVERWORLD : (int)egg["iMapNum"];
 
-            Egg* addEgg = new Egg((int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, (int)egg["iType"], id, false);
+            Egg* addEgg = new Egg(instanceID, (int)egg["iType"], id, false);
             NPCManager::NPCs[id] = addEgg;
             NPCManager::updateNPCPosition(id, (int)egg["iX"], (int)egg["iY"], (int)egg["iZ"], instanceID, 0);
             RunningEggs[id] = addEgg;
@@ -893,7 +893,7 @@ static void loadNPCs(json& npcData) {
             if (npc["iX"] > 512000 && npc["iY"] < 256000)
                 continue;
 #endif
-            BaseNPC* tmp = new BaseNPC(npc["iX"], npc["iY"], npc["iZ"], npc["iAngle"], instanceID, type, npcID);
+            BaseNPC* tmp = new BaseNPC(npc["iAngle"], instanceID, type, npcID);
 
             NPCManager::NPCs[npcID] = tmp;
             NPCManager::updateNPCPosition(npcID, npc["iX"], npc["iY"], npc["iZ"], instanceID, npc["iAngle"]);

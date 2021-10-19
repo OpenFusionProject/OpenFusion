@@ -532,7 +532,7 @@ static void eggCommand(std::string full, std::vector<std::string>& args, CNSocke
     int addX = 0; //-500.0f * sin(plr->angle / 180.0f * M_PI);
     int addY = 0;  //-500.0f * cos(plr->angle / 180.0f * M_PI);
 
-    Egg* egg = new Egg(plr->x + addX, plr->y + addY, plr->z, plr->instanceID, eggType, id, false); // change last arg to true after gruntwork
+    Egg* egg = new Egg(plr->instanceID, eggType, id, false); // change last arg to true after gruntwork
     NPCManager::NPCs[id] = egg;
     NPCManager::updateNPCPosition(id, plr->x + addX, plr->y + addY, plr->z, plr->instanceID, plr->angle);
 
@@ -977,7 +977,13 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
 
         // add first point at NPC's current location
         std::vector<BaseNPC*> pathPoints;
-        BaseNPC* marker = new BaseNPC(npc->x, npc->y, npc->z, 0, plr->instanceID, 1386, NPCManager::nextId--);
+        BaseNPC* marker = new BaseNPC(0, plr->instanceID, 1386, NPCManager::nextId--);
+
+        // assign coords manually, since we aren't actually adding markers to the world
+        marker->x = npc->x;
+        marker->y = npc->y;
+        marker->z = npc->z;
+
         pathPoints.push_back(marker);
         // map from player
         TableData::RunningNPCPaths[plr->iID] = std::make_pair(npc, pathPoints);
@@ -998,7 +1004,12 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
 
     // /path kf
     if (args[1] == "kf") {
-        BaseNPC* marker = new BaseNPC(npc->x, npc->y, npc->z, 0, plr->instanceID, 1386, NPCManager::nextId--);
+        BaseNPC* marker = new BaseNPC(0, plr->instanceID, 1386, NPCManager::nextId--);
+
+        marker->x = npc->x;
+        marker->y = npc->y;
+        marker->z = npc->z;
+
         entry->second.push_back(marker);
         Chat::sendServerMessage(sock, "[PATH] Added keyframe");
         updatePathMarkers(sock);
