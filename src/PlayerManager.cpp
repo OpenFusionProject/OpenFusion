@@ -385,14 +385,18 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
     if (reviveData->iRegenType == 3 && plr->iConditionBitFlag & CSB_BIT_PHOENIX) {
         // nano revive
         plr->Nanos[plr->activeNano].iStamina = 0;
-        plr->HP = PC_MAXHEALTH(plr->level);
+        plr->HP = PC_MAXHEALTH(plr->level) / 2;
         Nanos::applyBuff(sock, plr->Nanos[plr->activeNano].iSkillID, 2, 1, 0);
     } else if (reviveData->iRegenType == 4) {
-        plr->HP = PC_MAXHEALTH(plr->level);
-    } else {
+        // revived by group member's nano
+        plr->HP = PC_MAXHEALTH(plr->level) / 2;
+    } else if (reviveData->iRegenType == 5) {
+        // warp away
         move = true;
-        if (reviveData->iRegenType != 5)
-            plr->HP = PC_MAXHEALTH(plr->level);
+    } else {
+        // plain respawn
+        move = true;
+        plr->HP = PC_MAXHEALTH(plr->level) / 2;
     }
 
     for (int i = 0; i < 3; i++) {
