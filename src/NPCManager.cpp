@@ -300,19 +300,19 @@ static void lordFuseStageTwo(CNSocket *sock, BaseNPC *npc) {
 
     std::cout << "Lord Fuse stage two" << std::endl;
 
-    // Fuse doesn't move; spawnX, etc. is shorter to write than *appearanceData*
+    // Fuse doesn't move
     // Blastons, Heal
-    Mob *newbody = (Mob*)NPCManager::summonNPC(oldbody->spawnX, oldbody->spawnY, oldbody->spawnZ, plr->instanceID, 2467);
+    Mob *newbody = (Mob*)NPCManager::summonNPC(oldbody->x, oldbody->y, oldbody->z, plr->instanceID, 2467);
 
     newbody->angle = oldbody->angle;
-    NPCManager::updateNPCPosition(newbody->id, newbody->spawnX, newbody->spawnY, newbody->spawnZ,
+    NPCManager::updateNPCPosition(newbody->id, newbody->x, newbody->y, newbody->z,
         plr->instanceID, oldbody->angle);
 
     // right arm, Adaptium, Stun
-    Mob *arm = (Mob*)NPCManager::summonNPC(oldbody->spawnX - 600, oldbody->spawnY, oldbody->spawnZ, plr->instanceID, 2469);
+    Mob *arm = (Mob*)NPCManager::summonNPC(oldbody->x - 600, oldbody->y, oldbody->z, plr->instanceID, 2469);
 
     arm->angle = oldbody->angle;
-    NPCManager::updateNPCPosition(arm->id, arm->spawnX, arm->spawnY, arm->spawnZ,
+    NPCManager::updateNPCPosition(arm->id, arm->x, arm->y, arm->z,
         plr->instanceID, oldbody->angle);
 }
 
@@ -324,17 +324,17 @@ static void lordFuseStageThree(CNSocket *sock, BaseNPC *npc) {
     std::cout << "Lord Fuse stage three" << std::endl;
 
     // Cosmix, Damage Point
-    Mob *newbody = (Mob*)NPCManager::summonNPC(oldbody->spawnX, oldbody->spawnY, oldbody->spawnZ, plr->instanceID, 2468);
+    Mob *newbody = (Mob*)NPCManager::summonNPC(oldbody->x, oldbody->y, oldbody->z, plr->instanceID, 2468);
 
     newbody->angle = oldbody->angle;
-    NPCManager::updateNPCPosition(newbody->id, newbody->spawnX, newbody->spawnY, newbody->spawnZ,
+    NPCManager::updateNPCPosition(newbody->id, newbody->x, newbody->y, newbody->z,
         plr->instanceID, oldbody->angle);
 
     // Blastons, Heal
-    Mob *arm = (Mob*)NPCManager::summonNPC(oldbody->spawnX + 600, oldbody->spawnY, oldbody->spawnZ, plr->instanceID, 2470);
+    Mob *arm = (Mob*)NPCManager::summonNPC(oldbody->x + 600, oldbody->y, oldbody->z, plr->instanceID, 2470);
 
     arm->angle = oldbody->angle;
-    NPCManager::updateNPCPosition(arm->id, arm->spawnX, arm->spawnY, arm->spawnZ,
+    NPCManager::updateNPCPosition(arm->id, arm->x, arm->y, arm->z,
         plr->instanceID, oldbody->angle);
 }
 
