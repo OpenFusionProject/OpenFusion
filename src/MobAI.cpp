@@ -234,14 +234,14 @@ static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, i
 
         int style2 = Nanos::nanoStyle(plr->activeNano);
         if (style2 == -1) { // no nano
-            respdata[i].iHitFlag = 8;
+            respdata[i].iHitFlag = HF_BIT_STYLE_TIE;
             respdata[i].iDamage = Abilities::SkillTable[skillID].powerIntensity[0] * PC_MAXHEALTH((int)mob->data["m_iNpcLevel"]) / 1500;
         } else if (style == style2) {
-            respdata[i].iHitFlag = 8; // tie
+            respdata[i].iHitFlag = HF_BIT_STYLE_TIE;
             respdata[i].iDamage = 0;
             respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina;
         } else if (style - style2 == 1 || style2 - style == 2) {
-            respdata[i].iHitFlag = 4; // win
+            respdata[i].iHitFlag = HF_BIT_STYLE_WIN;
             respdata[i].iDamage = 0;
             respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina += 45;
             if (plr->Nanos[plr->activeNano].iStamina > 150)
@@ -252,7 +252,7 @@ static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, i
                 if (pwr.skillType == EST_DAMAGE)
                     pwr.handle(sock, targetData2, plr->activeNano, skillID, 0, 200);
         } else {
-            respdata[i].iHitFlag = 16; // lose
+            respdata[i].iHitFlag = HF_BIT_STYLE_LOSE;
             respdata[i].iDamage = Abilities::SkillTable[skillID].powerIntensity[0] * PC_MAXHEALTH((int)mob->data["m_iNpcLevel"]) / 1500;
             respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina -= 90;
             if (plr->Nanos[plr->activeNano].iStamina < 0) {

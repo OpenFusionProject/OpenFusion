@@ -367,7 +367,7 @@ static void taskStart(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
 
     // if escort task, assign matching paths to all nearby NPCs
-    if (task["m_iHTaskType"] == 6) {
+    if (task["m_iHTaskType"] == (int)eTaskTypeProperty::EscortDefence) {
         for (ChunkPos& chunkPos : Chunking::getChunksInMap(plr->instanceID)) { // check all NPCs in the instance
             Chunk* chunk = Chunking::chunks[chunkPos];
             for (EntityRef ref : chunk->entities) {
@@ -399,7 +399,7 @@ static void taskEnd(CNSocket* sock, CNPacketData* data) {
          * once we comb over mission logic more throughly
          */
         bool mobsAreKilled = false;
-        if (task->task["m_iHTaskType"] == 5) {
+        if (task->task["m_iHTaskType"] == (int)eTaskTypeProperty::Defeat) {
             mobsAreKilled = true;
             for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
                 if (plr->tasks[i] == missionData->iTaskNum) {

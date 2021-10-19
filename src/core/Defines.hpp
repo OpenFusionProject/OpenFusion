@@ -10,18 +10,40 @@ const float CN_EP_RANK_4 = 0.3f;
 const float CN_EP_RANK_5 = 0.29f;
 
 // methods of finding players for GM commands
-enum eCN_GM_TargetSearchBy {
-    eCN_GM_TargetSearchBy__PC_ID, // player id
-    eCN_GM_TargetSearchBy__PC_Name, // firstname, lastname
-    eCN_GM_TargetSearchBy__PC_UID // account id
+enum class eCN_GM_TargetSearchBy {
+    PC_ID, // player id
+    PC_Name, // firstname, lastname
+    PC_UID // account id
 };
 
-enum eCN_GM_TeleportType {
-    eCN_GM_TeleportMapType__XYZ,
-    eCN_GM_TeleportMapType__MapXYZ,
-    eCN_GM_TeleportMapType__MyLocation,
-    eCN_GM_TeleportMapType__SomeoneLocation,
-    eCN_GM_TeleportMapType__Unstick
+enum class eCN_GM_TeleportType {
+    XYZ,
+    MapXYZ,
+    MyLocation,
+    SomeoneLocation,
+    Unstick
+};
+
+enum class eTaskTypeProperty {
+    None = -1,
+    Talk = 1,
+    GotoLocation = 2,
+    UseItems = 3,
+    Delivery = 4,
+    Defeat = 5,
+    EscortDefence = 6,
+    Max = 7
+};
+
+enum class ePCRegenType {
+    None,
+    Xcom,
+    Here,
+    HereByPhoenix,
+    HereByPhoenixGroup,
+    Unstick,
+    HereByPhoenixItem,
+    End
 };
 
 // nano powers
