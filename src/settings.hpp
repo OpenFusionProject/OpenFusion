@@ -7,6 +7,7 @@ namespace settings {
     extern int DBSAVEINTERVAL;
     extern int SHARDPORT;
     extern std::string SHARDSERVERIP;
+    extern bool LOCALHOSTWORKAROUND;
     extern time_t TIMEOUT;
     extern int VIEWDISTANCE;
     extern bool SIMULATEMOBS;

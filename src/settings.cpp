@@ -14,6 +14,7 @@ int settings::DBSAVEINTERVAL = 240;
 
 int settings::SHARDPORT = 23001;
 std::string settings::SHARDSERVERIP = "127.0.0.1";
+bool settings::LOCALHOSTWORKAROUND = true;
 time_t settings::TIMEOUT = 60000;
 int settings::VIEWDISTANCE = 25600;
 bool settings::SIMULATEMOBS = true;
@@ -79,7 +80,8 @@ void settings::init() {
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);
     SHARDPORT = reader.GetInteger("shard", "port", SHARDPORT);
     DBSAVEINTERVAL = reader.GetInteger("login", "dbsaveinterval", DBSAVEINTERVAL);
-    SHARDSERVERIP = reader.Get("shard", "ip", "127.0.0.1");
+    SHARDSERVERIP = reader.Get("shard", "ip", SHARDSERVERIP);
+    LOCALHOSTWORKAROUND = reader.GetBoolean("shard", "localhostworkaround", LOCALHOSTWORKAROUND);
     TIMEOUT = reader.GetInteger("shard", "timeout", TIMEOUT);
     VIEWDISTANCE = reader.GetInteger("shard", "viewdistance", VIEWDISTANCE);
     SIMULATEMOBS = reader.GetBoolean("shard", "simulatemobs", SIMULATEMOBS);

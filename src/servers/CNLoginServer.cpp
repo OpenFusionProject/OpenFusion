@@ -445,7 +445,7 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
      * the shard IP has been configured to an address the local machine can't
      * reach itself from.
      */
-    if (sock->sockaddr.sin_addr.s_addr == htonl(INADDR_LOOPBACK))
+    if (settings::LOCALHOSTWORKAROUND && sock->sockaddr.sin_addr.s_addr == htonl(INADDR_LOOPBACK))
         shard_ip = "127.0.0.1";
 
     memcpy(resp.g_FE_ServerIP, shard_ip, strlen(shard_ip));
