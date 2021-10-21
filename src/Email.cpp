@@ -226,10 +226,10 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_REP_PC_SEND_EMAIL_SUCC, resp);
 
+    Player otherPlr = {};
+    Database::getPlayer(&otherPlr, pkt->iTo_PCUID);
     if (pkt->iCash || pkt->aItem[0].ItemInven.iID) {
         // if there are item or taro attachments
-        Player otherPlr = {};
-        Database::getPlayer(&otherPlr, pkt->iTo_PCUID);
         if (otherPlr.iID != 0 && plr->PCStyle2.iPayzoneFlag != otherPlr.PCStyle2.iPayzoneFlag) {
             // if the players are not in the same time period
             INITSTRUCT(sP_FE2CL_REP_PC_SEND_EMAIL_FAIL, resp);
@@ -304,6 +304,10 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
     resp.iTo_PCUID = pkt->iTo_PCUID;
 
     sock->sendPacket(resp, P_FE2CL_REP_PC_SEND_EMAIL_SUCC);
+
+    std::string logEmail = "[Email] " + PlayerManager::getPlayerName(plr, true) + " (to " + PlayerManager::getPlayerName(&otherPlr, true) + "): <" + email.SubjectLine + ">\n" + email.MsgBody;
+    std::cout << logEmail << std::endl;
+    Chat::dump.push_back(logEmail);
 }
 
 void Email::init() {
