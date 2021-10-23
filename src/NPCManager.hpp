@@ -2,7 +2,6 @@
 
 #include "core/Core.hpp"
 #include "PlayerManager.hpp"
-#include "NPC.hpp"
 #include "Transport.hpp"
 
 #include "JSON.hpp"

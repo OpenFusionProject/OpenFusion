@@ -2,7 +2,6 @@
 
 #include "core/Core.hpp"
 #include "servers/CNShardServer.hpp"
-#include "NPC.hpp"
 #include "MobAI.hpp"
 
 #include "JSON.hpp"
