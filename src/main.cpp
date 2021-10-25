@@ -155,7 +155,12 @@ std::string U16toU8(char16_t* src, size_t max) {
     src[max-1] = '\0'; // force a NULL terminatorstd::string U16toU8(char16_t* src) {
     try {
         std::wstring_convert<std::codecvt_utf8_utf16<char16_t>,char16_t> convert;
-        return convert.to_bytes(src);
+        std::string ret = convert.to_bytes(src);
+
+        if (ret.size() >= max)
+            ret.resize(max-2);
+
+        return ret;
     } catch(const std::exception& e) {
         return "";
     }
