@@ -25,6 +25,7 @@
 #include "Rand.hpp"
 
 #include "settings.hpp"
+#include "sandbox/Sandbox.hpp"
 
 #include "../version.h"
 
@@ -94,11 +95,13 @@ int main() {
 #else
     initsignals();
 #endif
-    Rand::init(getTime());
     settings::init();
+
     std::cout << "[INFO] OpenFusion v" GIT_VERSION << std::endl;
     std::cout << "[INFO] Protocol version: " << PROTOCOL_VERSION << std::endl;
     std::cout << "[INFO] Intializing Packet Managers..." << std::endl;
+
+    Rand::init(getTime());
     TableData::init();
     PlayerManager::init();
     PlayerMovement::init();
@@ -138,6 +141,8 @@ int main() {
 
     shardThread = new std::thread(startShard, (CNShardServer*)shardServer);
 
+    sandbox_start();
+
     loginServer.start();
 
     shardServer->kill();
@@ -152,7 +157,7 @@ int main() {
 // helper functions
 
 std::string U16toU8(char16_t* src, size_t max) {
-    src[max-1] = '\0'; // force a NULL terminatorstd::string U16toU8(char16_t* src) {
+    src[max-1] = '\0'; // force a NULL terminator
     try {
         std::wstring_convert<std::codecvt_utf8_utf16<char16_t>,char16_t> convert;
         std::string ret = convert.to_bytes(src);

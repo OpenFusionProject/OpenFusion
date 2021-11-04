@@ -2,6 +2,7 @@
 
 namespace settings {
     extern int VERBOSITY;
+    extern bool SANDBOX;
     extern int LOGINPORT;
     extern bool APPROVEALLNAMES;
     extern int DBSAVEINTERVAL;

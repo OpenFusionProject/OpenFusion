@@ -7,6 +7,7 @@
 
 // defaults :)
 int settings::VERBOSITY = 1;
+bool settings::SANDBOX = true;
 
 int settings::LOGINPORT = 23000;
 bool settings::APPROVEALLNAMES = true;
@@ -77,6 +78,7 @@ void settings::init() {
 
     APPROVEALLNAMES = reader.GetBoolean("", "acceptallcustomnames", APPROVEALLNAMES);
     VERBOSITY = reader.GetInteger("", "verbosity", VERBOSITY);
+    SANDBOX = reader.GetBoolean("", "sandbox", SANDBOX);
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);
     SHARDPORT = reader.GetInteger("shard", "port", SHARDPORT);
     DBSAVEINTERVAL = reader.GetInteger("login", "dbsaveinterval", DBSAVEINTERVAL);

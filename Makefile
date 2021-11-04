@@ -48,6 +48,7 @@ CXXSRC=\
 	src/db/shard.cpp\
 	src/db/player.cpp\
 	src/db/email.cpp\
+	src/sandbox/seccomp.cpp\
 	src/Chat.cpp\
 	src/CustomCommands.cpp\
 	src/Entities.cpp\
@@ -88,6 +89,7 @@ CXXHDR=\
 	src/servers/Monitor.hpp\
 	src/db/Database.hpp\
 	src/db/internal.hpp\
+	src/sandbox/Sandbox.hpp\
 	vendor/bcrypt/BCrypt.hpp\
 	vendor/INIReader.hpp\
 	vendor/JSON.hpp\
