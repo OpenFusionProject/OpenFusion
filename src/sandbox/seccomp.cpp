@@ -52,28 +52,54 @@ static inline int seccomp(unsigned int operation, unsigned int flags, void *args
 #define KILL_PROCESS \
     BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL)
 
-#define DENY_SYSCALL(name) \
-    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_##name, 0, 1), \
-    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL_PROCESS)
-
 static sock_filter filter[] = {
     VALIDATE_ARCHITECTURE,
     EXAMINE_SYSCALL,
 
-    // examples of undesirable syscalls
-    DENY_SYSCALL(execve),
-    DENY_SYSCALL(fork),
-    DENY_SYSCALL(vfork),
-    DENY_SYSCALL(clone),
-    DENY_SYSCALL(connect),
-    DENY_SYSCALL(listen),
-    DENY_SYSCALL(bind),
-    DENY_SYSCALL(kill),
-    DENY_SYSCALL(settimeofday),
-    // etc
+    // memory management
+    ALLOW_SYSCALL(mmap),
+    ALLOW_SYSCALL(munmap),
+    ALLOW_SYSCALL(mprotect),
+    ALLOW_SYSCALL(madvise),
+    ALLOW_SYSCALL(brk),
 
-    // default-permit mode
-    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW)
+    // basic file IO
+    ALLOW_SYSCALL(open),
+    ALLOW_SYSCALL(openat),
+    ALLOW_SYSCALL(read),
+    ALLOW_SYSCALL(write),
+    ALLOW_SYSCALL(close),
+    ALLOW_SYSCALL(stat),
+    ALLOW_SYSCALL(fstat),
+    ALLOW_SYSCALL(fsync), // maybe
+    ALLOW_SYSCALL(creat), // maybe; for DB journal
+    ALLOW_SYSCALL(unlink), // for DB journal
+
+    // more IO
+    ALLOW_SYSCALL(pread64),
+    ALLOW_SYSCALL(pwrite64),
+    ALLOW_SYSCALL(fdatasync),
+
+    // misc libc things
+    ALLOW_SYSCALL(getcwd),
+    ALLOW_SYSCALL(getpid),
+    ALLOW_SYSCALL(geteuid),
+    ALLOW_SYSCALL(fcntl),
+    ALLOW_SYSCALL(exit),
+    ALLOW_SYSCALL(exit_group),
+
+    // threading
+    ALLOW_SYSCALL(futex),
+
+    // networking
+    ALLOW_SYSCALL(poll),
+    ALLOW_SYSCALL(accept),
+    ALLOW_SYSCALL(setsockopt),
+    ALLOW_SYSCALL(sendto),
+    ALLOW_SYSCALL(recvfrom),
+    ALLOW_SYSCALL(shutdown),
+
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL_PROCESS)
 };
 
 static sock_fprog prog = {
