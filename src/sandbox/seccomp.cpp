@@ -117,7 +117,9 @@ static sock_filter filter[] = {
 
     // networking
     ALLOW_SYSCALL(poll),
+#ifdef __NR_accept
     ALLOW_SYSCALL(accept),
+#endif
     ALLOW_SYSCALL(setsockopt),
     ALLOW_SYSCALL(sendto),
     ALLOW_SYSCALL(recvfrom),
@@ -130,6 +132,11 @@ static sock_filter filter[] = {
     ALLOW_SYSCALL(time),
 #endif
     ALLOW_SYSCALL(rt_sigreturn),
+
+    // i386
+#ifdef __NR_socketcall
+    ALLOW_SYSCALL(socketcall),
+#endif
 
     // Raspberry Pi (ARM)
 #ifdef __NR_set_robust_list
