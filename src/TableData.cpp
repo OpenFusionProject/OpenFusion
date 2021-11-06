@@ -1073,12 +1073,12 @@ void TableData::init() {
     std::ifstream fstream;
     for (int i = 0; i < 7; i++) {
         std::pair<json*, std::string>& table = tables[i];
-        fstream.open(settings::TDATADIR + table.second); // open file
+        fstream.open(settings::TDATADIR + "/" + table.second); // open file
         if (!fstream.fail()) {
             fstream >> *table.first; // load file contents into table
         } else {
             if (table.first != &gruntwork) { // gruntwork isn't critical
-                std::cerr << "[FATAL] Critical tdata file missing: " << settings::TDATADIR << table.second << std::endl;
+                std::cerr << "[FATAL] Critical tdata file missing: " << table.second << std::endl;
                 exit(1);
             }
         }
@@ -1127,7 +1127,7 @@ void TableData::init() {
  * Write gruntwork output to file
  */
 void TableData::flush() {
-    std::ofstream file(settings::TDATADIR + settings::GRUNTWORKJSON);
+    std::ofstream file(settings::TDATADIR + "/" + settings::GRUNTWORKJSON);
     json gruntwork;
 
     for (auto& pair : RunningSkywayRoutes) {
