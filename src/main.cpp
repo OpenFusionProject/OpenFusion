@@ -184,7 +184,7 @@ size_t U8toU16(std::string src, char16_t* des, size_t max) {
 time_t getTime() {
     using namespace std::chrono;
 
-    milliseconds value = duration_cast<milliseconds>((time_point_cast<milliseconds>(high_resolution_clock::now())).time_since_epoch());
+    milliseconds value = duration_cast<milliseconds>((time_point_cast<milliseconds>(steady_clock::now())).time_since_epoch());
 
     return (time_t)value.count();
 }
