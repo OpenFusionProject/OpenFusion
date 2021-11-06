@@ -148,7 +148,7 @@ windows : SERVER=$(WIN_SERVER)
 	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
 # header timestamps are a prerequisite for OF object files
-$(CXXOBJ): $(CXXHDR)
+$(CXXOBJ): $(HDR)
 
 $(SERVER): $(OBJ) $(CHDR) $(CXXHDR)
 	mkdir -p bin
