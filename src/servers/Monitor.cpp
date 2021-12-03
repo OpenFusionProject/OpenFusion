@@ -1,6 +1,7 @@
 #include "servers/CNShardServer.hpp"
 #include "PlayerManager.hpp"
 #include "Chat.hpp"
+#include "Email.hpp"
 #include "servers/Monitor.hpp"
 #include "settings.hpp"
 
@@ -38,9 +39,42 @@ static bool transmit(std::list<SOCKET>::iterator& it, char *buff, int len) {
     return true;
 }
 
+/*
+ * The longest protocol message is for an email.
+ *
+ * message type + two formatted character names + the other formatting chars
+ * + the email title + the email body = ~1154
+ *
+ * The body can grow to twice its usual size (512) in the pathological case
+ * where every character is a newline.
+ *
+ * Multi-byte Unicode characters aren't a factor, as they should've been
+ * stripped out by sanitizeText().
+ */
+#define BUFSIZE 2048
+
+static int process_email(char *buff, std::string email) {
+    strncpy(buff, "email ", 6);
+    int i = 6;
+
+    for (char c : email) {
+        if (i == BUFSIZE-2)
+            break;
+
+        buff[i++] = c;
+
+        // indent each line to prevent "endemail" spoofing
+        if (c == '\n')
+            buff[i++] = '\t';
+    }
+
+    buff[i++] = '\n';
+    return i;
+}
+
 static void tick(CNServer *serv, time_t delta) {
     std::lock_guard<std::mutex> lock(sockLock);
-    char buff[256];
+    char buff[BUFSIZE];
     int n;
 
     auto it = sockets.begin();
@@ -70,6 +104,17 @@ outer:
                 goto outer;
         }
 
+        // emails
+        for (auto& str : Email::dump) {
+            n = process_email(buff, str);
+
+            if (!transmit(it, buff, n))
+                goto outer;
+
+            if (!transmit(it, (char*)"endemail\n", 9))
+                goto outer;
+        }
+
         if (!transmit(it, (char*)"end\n", 4))
             continue;
 
@@ -77,6 +122,7 @@ outer:
     }
 
     Chat::dump.clear();
+    Email::dump.clear();
 }
 
 bool Monitor::acceptConnection(SOCKET fd, uint16_t revents) {

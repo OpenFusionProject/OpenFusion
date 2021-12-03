@@ -1,5 +1,10 @@
 #pragma once
 
+#include <vector>
+#include <string>
+
 namespace Email {
-	void init();
+    extern std::vector<std::string> dump;
+
+    void init();
 }

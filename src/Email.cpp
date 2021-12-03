@@ -10,6 +10,8 @@
 
 using namespace Email;
 
+std::vector<std::string> Email::dump;
+
 // New email notification
 static void emailUpdateCheck(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_PC_NEW_EMAIL, resp);
@@ -307,7 +309,7 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
 
     std::string logEmail = "[Email] " + PlayerManager::getPlayerName(plr, true) + " (to " + PlayerManager::getPlayerName(&otherPlr, true) + "): <" + email.SubjectLine + ">\n" + email.MsgBody;
     std::cout << logEmail << std::endl;
-    Chat::dump.push_back(logEmail);
+    dump.push_back(logEmail);
 }
 
 void Email::init() {
