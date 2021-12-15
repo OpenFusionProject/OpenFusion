@@ -49,6 +49,7 @@ CXXSRC=\
 	src/db/player.cpp\
 	src/db/email.cpp\
 	src/sandbox/seccomp.cpp\
+	src/sandbox/openbsd.cpp\
 	src/Chat.cpp\
 	src/CustomCommands.cpp\
 	src/Entities.cpp\
