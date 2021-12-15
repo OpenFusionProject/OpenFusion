@@ -7,11 +7,15 @@
 
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
+#include <sys/mman.h> // for mmap() args
+#include <sys/ioctl.h> // for ioctl() args
+#include <termios.h> // for ioctl() args
 
 #include <linux/unistd.h>
 #include <linux/seccomp.h>
 #include <linux/filter.h>
 #include <linux/audit.h>
+#include <linux/net.h> // for socketcall() args
 
 // our own wrapper for the seccomp() syscall
 // TODO: should this be conditional on a feature check or something?
@@ -53,6 +57,57 @@ static inline int seccomp(unsigned int operation, unsigned int flags, void *args
     BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL)
 
 /*
+ * Macros adapted from openssh's sandbox-seccomp-filter.c
+ * Relevant license:
+ *     https://github.com/openssh/openssh-portable/blob/master/LICENCE
+ */
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+# define ARG_LO_OFFSET  0
+# define ARG_HI_OFFSET  sizeof(uint32_t)
+#elif __BYTE_ORDER == __BIG_ENDIAN
+# define ARG_LO_OFFSET  sizeof(uint32_t)
+# define ARG_HI_OFFSET  0
+#else
+#error "Unknown endianness"
+#endif
+
+#define ALLOW_SYSCALL_ARG(_nr, _arg_nr, _arg_val) \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (__NR_##_nr), 0, 6), \
+	/* load and test syscall argument, low word */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+	    offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_LO_OFFSET), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, \
+	    ((_arg_val) & 0xFFFFFFFF), 0, 3), \
+	/* load and test syscall argument, high word */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+	    offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_HI_OFFSET), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, \
+	    (((uint32_t)((uint64_t)(_arg_val) >> 32)) & 0xFFFFFFFF), 0, 1), \
+	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW), \
+	/* reload syscall number; all rules expect it in accumulator */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+		offsetof(struct seccomp_data, nr))
+
+/* Allow if syscall argument contains only values in mask */
+#define ALLOW_SYSCALL_ARG_MASK(_nr, _arg_nr, _arg_mask) \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (__NR_##_nr), 0, 8), \
+	/* load, mask and test syscall argument, low word */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+	    offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_LO_OFFSET), \
+	BPF_STMT(BPF_ALU+BPF_AND+BPF_K, ~((_arg_mask) & 0xFFFFFFFF)), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 0, 4), \
+	/* load, mask and test syscall argument, high word */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+	    offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_HI_OFFSET), \
+	BPF_STMT(BPF_ALU+BPF_AND+BPF_K, \
+	    ~(((uint32_t)((uint64_t)(_arg_mask) >> 32)) & 0xFFFFFFFF)), \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 0, 1), \
+	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW), \
+	/* reload syscall number; all rules expect it in accumulator */ \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+		offsetof(struct seccomp_data, nr))
+
+/*
  * The main supported configuration is Linux on x86_64 with either glibc or
  * musl-libc, with secondary support for Linux on the Raspberry Pi (ARM).
  *
@@ -74,10 +129,10 @@ static sock_filter filter[] = {
 
     // memory management
 #ifdef __NR_mmap
-    ALLOW_SYSCALL(mmap),
+    ALLOW_SYSCALL_ARG_MASK(mmap, 2, PROT_NONE|PROT_READ|PROT_WRITE),
 #endif
     ALLOW_SYSCALL(munmap),
-    ALLOW_SYSCALL(mprotect),
+    ALLOW_SYSCALL_ARG_MASK(mprotect, 2, PROT_NONE|PROT_READ|PROT_WRITE),
     ALLOW_SYSCALL(madvise),
     ALLOW_SYSCALL(brk),
 
@@ -93,6 +148,7 @@ static sock_filter filter[] = {
     ALLOW_SYSCALL(creat), // maybe; for DB journal
     ALLOW_SYSCALL(unlink), // for DB journal
     ALLOW_SYSCALL(lseek), // musl-libc; alt DB
+    ALLOW_SYSCALL(dup), // for perror(), apparently
 
     // more IO
     ALLOW_SYSCALL(pread64),
@@ -106,7 +162,8 @@ static sock_filter filter[] = {
     ALLOW_SYSCALL(getcwd),
     ALLOW_SYSCALL(getpid),
     ALLOW_SYSCALL(geteuid),
-    ALLOW_SYSCALL(ioctl), // musl-libc
+    ALLOW_SYSCALL(gettid), // maybe
+    ALLOW_SYSCALL_ARG(ioctl, 1, TIOCGWINSZ), // musl-libc
     ALLOW_SYSCALL(fcntl),
     ALLOW_SYSCALL(exit),
     ALLOW_SYSCALL(exit_group),
@@ -135,7 +192,13 @@ static sock_filter filter[] = {
 
     // i386
 #ifdef __NR_socketcall
-    ALLOW_SYSCALL(socketcall),
+    ALLOW_SYSCALL_ARG(socketcall, 0, SYS_ACCEPT),
+    ALLOW_SYSCALL_ARG(socketcall, 0, SYS_SETSOCKOPT),
+    ALLOW_SYSCALL_ARG(socketcall, 0, SYS_SEND),
+    ALLOW_SYSCALL_ARG(socketcall, 0, SYS_RECV),
+    ALLOW_SYSCALL_ARG(socketcall, 0, SYS_SENDTO), // maybe
+    ALLOW_SYSCALL_ARG(socketcall, 0, SYS_RECVFROM), // maybe
+    ALLOW_SYSCALL_ARG(socketcall, 0, SYS_SHUTDOWN),
 #endif
 
     // Raspberry Pi (ARM)
@@ -146,7 +209,7 @@ static sock_filter filter[] = {
     ALLOW_SYSCALL(clock_gettime64),
 #endif
 #ifdef __NR_mmap2
-    ALLOW_SYSCALL(mmap2),
+    ALLOW_SYSCALL_ARG_MASK(mmap2, 2, PROT_NONE|PROT_READ|PROT_WRITE),
 #endif
 #ifdef __NR_fcntl64
     ALLOW_SYSCALL(fcntl64),
