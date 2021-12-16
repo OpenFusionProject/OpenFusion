@@ -63,8 +63,20 @@ void terminate(int arg) {
     exit(0);
 }
 
-#ifndef _WIN32
+#ifdef _WIN32
+static BOOL winTerminate(DWORD arg) {
+    terminate(0);
+    return FALSE;
+}
+#endif
+
 void initsignals() {
+#ifdef _WIN32
+    if (!SetConsoleCtrlHandler(winTerminate, TRUE)) {
+        std::cerr << "[FATAL] Failed to set control handler" << std::endl;
+        exit(1);
+    }
+#else
     struct sigaction act;
 
     memset((void*)&act, 0, sizeof(act));
@@ -82,8 +94,8 @@ void initsignals() {
         perror("sigaction");
         exit(1);
     }
-}
 #endif
+}
 
 int main() {
 #ifdef _WIN32
@@ -92,9 +104,8 @@ int main() {
         std::cerr << "OpenFusion: WSAStartup failed" << std::endl;
         exit(EXIT_FAILURE);
     }
-#else
-    initsignals();
 #endif
+    initsignals();
     settings::init();
 
     std::cout << "[INFO] OpenFusion v" GIT_VERSION << std::endl;
