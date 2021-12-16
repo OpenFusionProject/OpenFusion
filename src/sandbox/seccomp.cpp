@@ -72,40 +72,40 @@ static inline int seccomp(unsigned int operation, unsigned int flags, void *args
 #endif
 
 #define ALLOW_SYSCALL_ARG(_nr, _arg_nr, _arg_val) \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (__NR_##_nr), 0, 6), \
-	/* load and test syscall argument, low word */ \
-	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
-	    offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_LO_OFFSET), \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, \
-	    ((_arg_val) & 0xFFFFFFFF), 0, 3), \
-	/* load and test syscall argument, high word */ \
-	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
-	    offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_HI_OFFSET), \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, \
-	    (((uint32_t)((uint64_t)(_arg_val) >> 32)) & 0xFFFFFFFF), 0, 1), \
-	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW), \
-	/* reload syscall number; all rules expect it in accumulator */ \
-	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
-		offsetof(struct seccomp_data, nr))
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (__NR_##_nr), 0, 6), \
+    /* load and test syscall argument, low word */ \
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+        offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_LO_OFFSET), \
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, \
+        ((_arg_val) & 0xFFFFFFFF), 0, 3), \
+    /* load and test syscall argument, high word */ \
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+        offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_HI_OFFSET), \
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, \
+        (((uint32_t)((uint64_t)(_arg_val) >> 32)) & 0xFFFFFFFF), 0, 1), \
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW), \
+    /* reload syscall number; all rules expect it in accumulator */ \
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+        offsetof(struct seccomp_data, nr))
 
 /* Allow if syscall argument contains only values in mask */
 #define ALLOW_SYSCALL_ARG_MASK(_nr, _arg_nr, _arg_mask) \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (__NR_##_nr), 0, 8), \
-	/* load, mask and test syscall argument, low word */ \
-	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
-	    offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_LO_OFFSET), \
-	BPF_STMT(BPF_ALU+BPF_AND+BPF_K, ~((_arg_mask) & 0xFFFFFFFF)), \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 0, 4), \
-	/* load, mask and test syscall argument, high word */ \
-	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
-	    offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_HI_OFFSET), \
-	BPF_STMT(BPF_ALU+BPF_AND+BPF_K, \
-	    ~(((uint32_t)((uint64_t)(_arg_mask) >> 32)) & 0xFFFFFFFF)), \
-	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 0, 1), \
-	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW), \
-	/* reload syscall number; all rules expect it in accumulator */ \
-	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
-		offsetof(struct seccomp_data, nr))
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (__NR_##_nr), 0, 8), \
+    /* load, mask and test syscall argument, low word */ \
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+        offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_LO_OFFSET), \
+    BPF_STMT(BPF_ALU+BPF_AND+BPF_K, ~((_arg_mask) & 0xFFFFFFFF)), \
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 0, 4), \
+    /* load, mask and test syscall argument, high word */ \
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+        offsetof(struct seccomp_data, args[(_arg_nr)]) + ARG_HI_OFFSET), \
+    BPF_STMT(BPF_ALU+BPF_AND+BPF_K, \
+        ~(((uint32_t)((uint64_t)(_arg_mask) >> 32)) & 0xFFFFFFFF)), \
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 0, 1), \
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW), \
+    /* reload syscall number; all rules expect it in accumulator */ \
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, \
+        offsetof(struct seccomp_data, nr))
 
 /*
  * The main supported configuration is Linux on x86_64 with either glibc or

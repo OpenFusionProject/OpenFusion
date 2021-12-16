@@ -9,7 +9,7 @@ struct EPInfo {
 };
 
 struct EPRace {
-	std::set<int> collectedRings;
+    std::set<int> collectedRings;
     int mode, ticketSlot;
     time_t startTime;
 };

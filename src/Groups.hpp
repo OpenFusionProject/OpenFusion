@@ -8,7 +8,7 @@
 #include <list>
 
 namespace Groups {
-	void init();
+    void init();
 
     void sendToGroup(Player* plr, void* buf, uint32_t type, size_t size);
     void groupTickInfo(Player* plr);

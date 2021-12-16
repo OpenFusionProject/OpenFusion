@@ -5,8 +5,8 @@
 #include "core/Core.hpp"
 
 namespace Buddies {
-	void init();
+    void init();
 
-	// Buddy list
-	void refreshBuddyList(CNSocket* sock);
+    // Buddy list
+    void refreshBuddyList(CNSocket* sock);
 }

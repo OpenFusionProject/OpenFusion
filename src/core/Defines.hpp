@@ -11,17 +11,17 @@ const float CN_EP_RANK_5 = 0.29f;
 
 // methods of finding players for GM commands
 enum eCN_GM_TargetSearchBy {
-	eCN_GM_TargetSearchBy__PC_ID, // player id
-	eCN_GM_TargetSearchBy__PC_Name, // firstname, lastname
-	eCN_GM_TargetSearchBy__PC_UID // account id
+    eCN_GM_TargetSearchBy__PC_ID, // player id
+    eCN_GM_TargetSearchBy__PC_Name, // firstname, lastname
+    eCN_GM_TargetSearchBy__PC_UID // account id
 };
 
 enum eCN_GM_TeleportType {
-	eCN_GM_TeleportMapType__XYZ,
-	eCN_GM_TeleportMapType__MapXYZ,
-	eCN_GM_TeleportMapType__MyLocation,
-	eCN_GM_TeleportMapType__SomeoneLocation,
-	eCN_GM_TeleportMapType__Unstick
+    eCN_GM_TeleportMapType__XYZ,
+    eCN_GM_TeleportMapType__MapXYZ,
+    eCN_GM_TeleportMapType__MyLocation,
+    eCN_GM_TeleportMapType__SomeoneLocation,
+    eCN_GM_TeleportMapType__Unstick
 };
 
 // nano powers
@@ -925,10 +925,10 @@ enum {
  * Each is the last packet - the upper bits + 1
  */
 enum {
-   N_CL2LS = 0xf,
-   N_CL2FE = 0xa5,
-   N_FE2CL = 0x12f,
-   N_LS2CL = 0x1a,
+    N_CL2LS = 0xf,
+    N_CL2FE = 0xa5,
+    N_FE2CL = 0x12f,
+    N_LS2CL = 0x1a,
 
-   N_PACKETS = N_CL2LS + N_CL2FE + N_FE2CL + N_LS2CL
+    N_PACKETS = N_CL2LS + N_CL2FE + N_FE2CL + N_LS2CL
 };
