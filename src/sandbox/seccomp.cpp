@@ -17,14 +17,8 @@
 #include <linux/audit.h>
 #include <linux/net.h> // for socketcall() args
 
-// our own wrapper for the seccomp() syscall
-// TODO: should this be conditional on a feature check or something?
-static inline int seccomp(unsigned int operation, unsigned int flags, void *args) {
-    return syscall(__NR_seccomp, operation, flags, args);
-}
-
 /*
- * Macros borrowed from from https://outflux.net/teach-seccomp/
+ * Macros adapted from https://outflux.net/teach-seccomp/
  * Relevant license:
  *     https://source.chromium.org/chromium/chromium/src/+/master:LICENSE
  */
@@ -44,7 +38,7 @@ static inline int seccomp(unsigned int operation, unsigned int flags, void *args
 #define VALIDATE_ARCHITECTURE \
     BPF_STMT(BPF_LD+BPF_W+BPF_ABS, arch_nr), \
     BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ARCH_NR, 1, 0), \
-    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL)
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL_PROCESS)
 
 #define EXAMINE_SYSCALL \
     BPF_STMT(BPF_LD+BPF_W+BPF_ABS, syscall_nr)
@@ -53,8 +47,12 @@ static inline int seccomp(unsigned int operation, unsigned int flags, void *args
     BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_##name, 0, 1), \
     BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW)
 
+#define DENY_SYSCALL_ERRNO(name, _errno) \
+    BPF_JUMP(BPF_JMP+BPF_K+BPF_JEQ, __NR_##name, 0, 1), \
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ERRNO|(_errno))
+
 #define KILL_PROCESS \
-    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL)
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL_PROCESS)
 
 /*
  * Macros adapted from openssh's sandbox-seccomp-filter.c
@@ -114,10 +112,10 @@ static inline int seccomp(unsigned int operation, unsigned int flags, void *args
  * Syscalls marked with "maybe" don't seem to be used in the default
  * configuration, but should probably be whitelisted anyway.
  *
- * Syscalls marked with "musl-libc", "raspi" or "alt DB" were observed to be
- * necessary on that configuration, but are probably neccessary in other
- * configurations as well. ("alt DB" represents libsqlite compiled with
- * different options.)
+ * Syscalls marked with comments like "musl-libc", "raspi" or "alt DB" were
+ * observed to be necessary on that particular configuration, but there are
+ * probably other configurations in which they are neccessary as well.
+ * ("alt DB" represents libsqlite compiled with different options.)
  *
  * Syscalls marked "vdso" aren't normally caught by seccomp because they are
  * implemented in the vdso(7) in most configurations, but it's still prudent
@@ -148,6 +146,8 @@ static sock_filter filter[] = {
     ALLOW_SYSCALL(creat), // maybe; for DB journal
     ALLOW_SYSCALL(unlink), // for DB journal
     ALLOW_SYSCALL(lseek), // musl-libc; alt DB
+    ALLOW_SYSCALL(truncate), // for truncate-mode DB
+    ALLOW_SYSCALL(ftruncate), // for truncate-mode DB
     ALLOW_SYSCALL(dup), // for perror(), apparently
 
     // more IO
@@ -164,10 +164,19 @@ static sock_filter filter[] = {
     ALLOW_SYSCALL(geteuid),
     ALLOW_SYSCALL(gettid), // maybe
     ALLOW_SYSCALL_ARG(ioctl, 1, TIOCGWINSZ), // musl-libc
-    ALLOW_SYSCALL(fcntl),
+    ALLOW_SYSCALL_ARG(fcntl, 1, F_GETFL),
+    ALLOW_SYSCALL_ARG(fcntl, 1, F_SETFL),
+    ALLOW_SYSCALL_ARG(fcntl, 1, F_GETLK),
+    ALLOW_SYSCALL_ARG(fcntl, 1, F_SETLK),
+    ALLOW_SYSCALL_ARG(fcntl, 1, F_SETLKW), // maybe
     ALLOW_SYSCALL(exit),
     ALLOW_SYSCALL(exit_group),
     ALLOW_SYSCALL(rt_sigprocmask), // musl-libc
+
+    // to crash properly on SIGSEGV
+    DENY_SYSCALL_ERRNO(tgkill, EPERM),
+    DENY_SYSCALL_ERRNO(tkill, EPERM), // musl-libc
+    DENY_SYSCALL_ERRNO(rt_sigaction, EPERM),
 
     // threading
     ALLOW_SYSCALL(futex),
@@ -229,16 +238,27 @@ static sock_filter filter[] = {
 #ifdef __NR_geteuid32
     ALLOW_SYSCALL(geteuid32),
 #endif
+#ifdef __NR_truncate64
+    ALLOW_SYSCALL(truncate64),
+#endif
+#ifdef __NR_ftruncate64
+    ALLOW_SYSCALL(ftruncate64),
+#endif
 #ifdef __NR_sigreturn
     ALLOW_SYSCALL(sigreturn), // vdso
 #endif
 
-    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL_PROCESS)
+    KILL_PROCESS
 };
 
 static sock_fprog prog = {
     ARRLEN(filter), filter
 };
+
+// our own wrapper for the seccomp() syscall
+int seccomp(unsigned int operation, unsigned int flags, void *args) {
+    return syscall(__NR_seccomp, operation, flags, args);
+}
 
 void sandbox_start() {
     if (!settings::SANDBOX) {
@@ -259,4 +279,4 @@ void sandbox_start() {
     }
 }
 
-#endif // SANDBOX_SECCOMP
+#endif

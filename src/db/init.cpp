@@ -99,7 +99,7 @@ static void checkMetaTable() {
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (sqlite3_step(stmt) != SQLITE_ROW) {
-        std::cout << "[FATAL] Failed to check meta table" << sqlite3_errmsg(db) << std::endl;
+        std::cout << "[FATAL] Failed to check meta table: " << sqlite3_errmsg(db) << std::endl;
         sqlite3_finalize(stmt);
         exit(1);
     }
