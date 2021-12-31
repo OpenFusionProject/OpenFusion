@@ -671,10 +671,10 @@ static void loadGruntworkPre(json& gruntwork, int32_t* nextId) {
             std::vector<int32_t> targetIDs;
             std::vector<int32_t> targetTypes; // target types are not exportable from gw, but load them anyway
             std::vector<Vec3> pathPoints;
-            int speed = (int)path["iBaseSpeed"];
-            int taskID = (int)path["iTaskID"];
-            bool relative = (bool)path["bRelative"];
-            bool loop = (bool)path["bLoop"];
+            int speed = path.find("iBaseSpeed") == path.end() ? NPC_DEFAULT_SPEED : (int)path["iBaseSpeed"];
+            int taskID = path.find("iTaskID") == path.end() ? -1 : (int)path["iTaskID"];
+            bool relative = path.find("bRelative") == path.end() ? false : (bool)path["bRelative"];
+            bool loop = path.find("bLoop") == path.end() ? true : (bool)path["bLoop"]; // loop by default
 
             // target IDs
             for (json::iterator _tID = path["aNPCIDs"].begin(); _tID != path["aNPCIDs"].end(); _tID++)
