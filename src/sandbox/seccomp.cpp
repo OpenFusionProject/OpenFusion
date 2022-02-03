@@ -172,6 +172,7 @@ static sock_filter filter[] = {
     ALLOW_SYSCALL(exit),
     ALLOW_SYSCALL(exit_group),
     ALLOW_SYSCALL(rt_sigprocmask), // musl-libc
+    ALLOW_SYSCALL(clock_nanosleep), // gets called very rarely
 
     // to crash properly on SIGSEGV
     DENY_SYSCALL_ERRNO(tgkill, EPERM),
@@ -246,6 +247,9 @@ static sock_filter filter[] = {
 #endif
 #ifdef __NR_sigreturn
     ALLOW_SYSCALL(sigreturn), // vdso
+#endif
+#ifdef __NR_clock_nanosleep_time64
+    ALLOW_SYSCALL(clock_nanosleep_time64), // maybe
 #endif
 
     KILL_PROCESS
