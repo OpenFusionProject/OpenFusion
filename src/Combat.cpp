@@ -226,7 +226,7 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
     mob->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
 
     // check for the edge case where hitting the mob did not aggro it
-    if (sock != nullptr) {
+    if (sock != nullptr && PlayerManager::players.find(sock) != PlayerManager::players.end()) {
         Player* plr = PlayerManager::getPlayer(sock);
 
         Items::DropRoll rolled;
