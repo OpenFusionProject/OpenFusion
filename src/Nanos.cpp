@@ -226,6 +226,9 @@ static void nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
     if (nano->iNanoSlotNum > 2 || nano->iNanoSlotNum < 0)
         return;
 
+    if (nano->iNanoID < 0 || nano->iNanoID >= NANO_COUNT)
+        return;
+
     resp.iNanoID = nano->iNanoID;
     resp.iNanoSlotNum = nano->iNanoSlotNum;
 
