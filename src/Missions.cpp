@@ -219,16 +219,13 @@ static bool endTask(CNSocket *sock, int32_t taskNum, int choice=0) {
     // ugly pointer/reference juggling for the sake of operator overloading...
     TaskData& task = *Tasks[taskNum];
 
-    // update player
+    // sanity check
     int i;
     bool found = false;
     for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
         if (plr->tasks[i] == taskNum) {
             found = true;
-            plr->tasks[i] = 0;
-            for (int j = 0; j < 3; j++) {
-                plr->RemainingNPCCount[i][j] = 0;
-            }
+            break;
         }
     }
 
@@ -248,6 +245,23 @@ static bool endTask(CNSocket *sock, int32_t taskNum, int choice=0) {
             return false; // we don't want to send anything
     }
     // don't take away quest items if we haven't finished the quest
+
+    /*
+     * Update player's active mission data.
+     *
+     * This must be done after all early returns have passed, otherwise we
+     * risk introducing non-atomic changes. For example, failing to finish
+     * a mission due to not having any inventory space could delete the
+     * mission server-side; leading to a desync.
+     */
+    for (i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+        if (plr->tasks[i] == taskNum) {
+            plr->tasks[i] = 0;
+            for (int j = 0; j < 3; j++) {
+                plr->RemainingNPCCount[i][j] = 0;
+            }
+        }
+    }
 
     /*
      * Give (or take away) quest items
