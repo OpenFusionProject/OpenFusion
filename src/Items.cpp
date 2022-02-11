@@ -199,7 +199,7 @@ static int getCrateItem(sItemBase* result, int itemSetId, int rarity, int player
         return -1;
     }
 
-   // initialize all weights as the default weight for all item slots
+    // initialize all weights as the default weight for all item slots
     std::vector<int> itemWeights(validItems.size(), itemSet.defaultItemWeight);
 
     if (!itemSet.alterItemWeightMap.empty()) {

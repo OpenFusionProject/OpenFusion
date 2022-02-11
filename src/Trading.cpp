@@ -392,7 +392,7 @@ static void tradeRegisterCash(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     if (pacdat->iCandy < 0 || pacdat->iCandy > plr->money)
-       return; // famous glitch, begone
+        return; // famous glitch, begone
 
     CNSocket* otherSock; // weird flip flop because we need to know who the other player is
     if (pacdat->iID_Request == pacdat->iID_From)

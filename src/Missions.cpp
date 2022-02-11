@@ -27,9 +27,9 @@ static void saveMission(Player* player, int missionId) {
 }
 
 static bool isMissionCompleted(Player* player, int missionId) {
-   int row = missionId / 64;
-   int column = missionId % 64;
-   return player->aQuestFlag[row] & (1ULL << column);
+    int row = missionId / 64;
+    int column = missionId % 64;
+    return player->aQuestFlag[row] & (1ULL << column);
 }
 
 int Missions::findQSlot(Player *plr, int id) {
@@ -230,8 +230,8 @@ static bool endTask(CNSocket *sock, int32_t taskNum, int choice=0) {
     }
 
     if (!found) {
-       std::cout << "[WARN] Player tried to end task that isn't in journal?" << std::endl;
-       return false;
+        std::cout << "[WARN] Player tried to end task that isn't in journal?" << std::endl;
+        return false;
     }
 
     if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != 0) {
@@ -305,13 +305,13 @@ bool Missions::startTask(Player* plr, int TaskID) {
     TaskData& task = *Missions::Tasks[TaskID];
 
     if (task["m_iCTRReqLvMin"] > plr->level) {
-       std::cout << "[WARN] Player tried to start a task below their level" << std::endl;
-       return false;
+        std::cout << "[WARN] Player tried to start a task below their level" << std::endl;
+        return false;
     }
 
     if (isMissionCompleted(plr, (int)(task["m_iHMissionID"]) - 1)) {
-       std::cout << "[WARN] Player tried to start an already completed mission" << std::endl;
-       return false;
+        std::cout << "[WARN] Player tried to start an already completed mission" << std::endl;
+        return false;
     }
 
     // client freaks out if nano mission isn't sent first after relogging, so it's easiest to set it here
