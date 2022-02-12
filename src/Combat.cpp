@@ -217,6 +217,30 @@ int Combat::hitMob(CNSocket *sock, Mob *mob, int damage) {
     return damage;
 }
 
+/*
+ * When a group of players is doing missions together, we want them to all get
+ * quest items at the same time, but we don't want the odds of quest item
+ * drops from different missions to be linked together. That's why we use a
+ * single RNG roll per mission task, and every group member shares that same
+ * set of rolls.
+ */
+static void genQItemRolls(Player *leader, std::map<int, int>& rolls) {
+    for (int i = 0; i < leader->groupCnt; i++) {
+        if (leader->groupIDs[i] == 0)
+            continue;
+
+        CNSocket *otherSock = PlayerManager::getSockFromID(leader->groupIDs[i]);
+        if (otherSock == nullptr)
+            continue;
+
+        Player *member = PlayerManager::getPlayer(otherSock);
+
+        for (int j = 0; j < ACTIVE_MISSION_COUNT; j++)
+            if (member->tasks[j] != 0)
+                rolls[member->tasks[j]] = Rand::rand();
+    }
+}
+
 void Combat::killMob(CNSocket *sock, Mob *mob) {
     mob->state = MobState::DEAD;
     mob->target = nullptr;
@@ -231,19 +255,19 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
 
         Items::DropRoll rolled;
         Items::DropRoll eventRolled;
-        int rolledQItem = Rand::rand();
+        std::map<int, int> qitemRolls;
+
+        Player *leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
+        assert(leader != nullptr); // should never happen
+
+        genQItemRolls(leader, qitemRolls);
 
         if (plr->groupCnt == 1 && plr->iIDGroup == plr->iID) {
             Items::giveMobDrop(sock, mob, rolled, eventRolled);
-            Missions::mobKilled(sock, mob->appearanceData.iNPCType, rolledQItem);
+            Missions::mobKilled(sock, mob->appearanceData.iNPCType, qitemRolls);
         } else {
-            Player* otherPlayer = PlayerManager::getPlayerFromID(plr->iIDGroup);
-
-            if (otherPlayer == nullptr)
-                return;
-
-            for (int i = 0; i < otherPlayer->groupCnt; i++) {
-                CNSocket* sockTo = PlayerManager::getSockFromID(otherPlayer->groupIDs[i]);
+            for (int i = 0; i < leader->groupCnt; i++) {
+                CNSocket* sockTo = PlayerManager::getSockFromID(leader->groupIDs[i]);
                 if (sockTo == nullptr)
                     continue;
 
@@ -255,7 +279,7 @@ void Combat::killMob(CNSocket *sock, Mob *mob) {
                     continue;
 
                 Items::giveMobDrop(sockTo, mob, rolled, eventRolled);
-                Missions::mobKilled(sockTo, mob->appearanceData.iNPCType, rolledQItem);
+                Missions::mobKilled(sockTo, mob->appearanceData.iNPCType, qitemRolls);
             }
         }
     }
@@ -379,7 +403,7 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_REQ_PC_ATTACK_CHARs* pkt = (sP_CL2FE_REQ_PC_ATTACK_CHARs*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
-    // only GMs can use this this variant
+    // only GMs can use this variant
     if (plr->accountLevel > 30)
         return;
 

@@ -567,7 +567,7 @@ void Missions::updateFusionMatter(CNSocket* sock, int fusion) {
     PlayerManager::sendToViewable(sock, (void*)&bcast, P_FE2CL_PC_EVENT, sizeof(sP_FE2CL_PC_EVENT));
 }
 
-void Missions::mobKilled(CNSocket *sock, int mobid, int rolledQItem) {
+void Missions::mobKilled(CNSocket *sock, int mobid, std::map<int, int>& rolls) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     bool missionmob = false;
@@ -593,7 +593,7 @@ void Missions::mobKilled(CNSocket *sock, int mobid, int rolledQItem) {
 
             // drop quest item
             if (task["m_iCSUItemNumNeeded"][j] != 0 && !isQuestItemFull(sock, task["m_iCSUItemID"][j], task["m_iCSUItemNumNeeded"][j]) ) {
-                bool drop = rolledQItem % 100 < task["m_iSTItemDropRate"][j];
+                bool drop = rolls[plr->tasks[i]] % 100 < task["m_iSTItemDropRate"][j];
                 if (drop) {
                     dropQuestItem(sock, plr->tasks[i], 1, task["m_iCSUItemID"][j], mobid);
 
