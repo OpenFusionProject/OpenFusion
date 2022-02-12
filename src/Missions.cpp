@@ -229,10 +229,8 @@ static bool endTask(CNSocket *sock, int32_t taskNum, int choice=0) {
         }
     }
 
-    if (!found) {
-        std::cout << "[WARN] Player tried to end task that isn't in journal?" << std::endl;
+    if (!found)
         return false;
-    }
 
     if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != 0) {
         std::cout << "[WARN] Player completed non-active mission!?" << std::endl;
@@ -601,12 +599,30 @@ void Missions::mobKilled(CNSocket *sock, int mobid, int rolledQItem) {
                     plr->RemainingNPCCount[i][j]--;
                 }
             }
+
             // drop quest item
             if (task["m_iCSUItemNumNeeded"][j] != 0 && !isQuestItemFull(sock, task["m_iCSUItemID"][j], task["m_iCSUItemNumNeeded"][j]) ) {
                 bool drop = rolledQItem % 100 < task["m_iSTItemDropRate"][j];
                 if (drop) {
                     // XXX: are CSUItemID and CSTItemID the same?
                     dropQuestItem(sock, plr->tasks[i], 1, task["m_iCSUItemID"][j], mobid);
+
+                    /*
+                     * Workaround: The client has a bug where it only sends a TASK_END request
+                     * for the first task of multiple that met their quest item requirements
+                     * at the same time. We deal with this by sending TASK_END response packets
+                     * proactively and then silently ignoring the extra TASK_END requests it
+                     * sends afterwards.
+                     */
+                    if (isQuestItemFull(sock, task["m_iCSUItemID"][j], task["m_iCSUItemNumNeeded"][j])) {
+                        INITSTRUCT(sP_FE2CL_REP_PC_TASK_END_SUCC, end);
+                        end.iTaskNum = plr->tasks[i];
+
+                        if (!endTask(sock, plr->tasks[i]))
+                            continue;
+
+                        sock->sendPacket(end, P_FE2CL_REP_PC_TASK_END_SUCC);
+                    }
                 } else {
                     // fail to drop (itemID == 0)
                     dropQuestItem(sock, plr->tasks[i], 1, 0, mobid);
