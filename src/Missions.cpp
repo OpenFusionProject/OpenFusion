@@ -232,11 +232,6 @@ static bool endTask(CNSocket *sock, int32_t taskNum, int choice=0) {
     if (!found)
         return false;
 
-    if (i == ACTIVE_MISSION_COUNT - 1 && plr->tasks[i] != 0) {
-        std::cout << "[WARN] Player completed non-active mission!?" << std::endl;
-        return false;
-    }
-
     // mission rewards
     if (Rewards.find(taskNum) != Rewards.end()) {
         if (giveMissionReward(sock, taskNum, choice) == -1)
@@ -303,7 +298,7 @@ bool Missions::startTask(Player* plr, int TaskID) {
     TaskData& task = *Missions::Tasks[TaskID];
 
     if (task["m_iCTRReqLvMin"] > plr->level) {
-        std::cout << "[WARN] Player tried to start a task below their level" << std::endl;
+        std::cout << "[WARN] Player tried to start a task above their level" << std::endl;
         return false;
     }
 
@@ -392,42 +387,41 @@ static void taskStart(CNSocket* sock, CNPacketData* data) {
 static void taskEnd(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_TASK_END* missionData = (sP_CL2FE_REQ_PC_TASK_END*)data->buf;
 
-    // failed timed missions give an iNPC_ID of 0
-    if (missionData->iNPC_ID == 0) {
-        TaskData* task = Missions::Tasks[missionData->iTaskNum];
-        if (task->task["m_iSTGrantTimer"] > 0) { // its a timed mission
-            Player* plr = PlayerManager::getPlayer(sock);
-            /*
-             * Enemy killing missions
-             * this is gross and should be cleaned up later
-             * once we comb over mission logic more throughly
-             */
-            bool mobsAreKilled = false;
-            if (task->task["m_iHTaskType"] == 5) {
-                mobsAreKilled = true;
-                for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
-                    if (plr->tasks[i] == missionData->iTaskNum) {
-                        for (int j = 0; j < 3; j++) {
-                            if (plr->RemainingNPCCount[i][j] > 0) {
-                                mobsAreKilled = false;
-                                break;
-                            }
+    TaskData* task = Missions::Tasks[missionData->iTaskNum];
+
+    // handle timed mission failure
+    if (task->task["m_iSTGrantTimer"] > 0 && missionData->iNPC_ID == 0) {
+        Player* plr = PlayerManager::getPlayer(sock);
+
+        /*
+         * Enemy killing missions
+         * this is gross and should be cleaned up later
+         * once we comb over mission logic more throughly
+         */
+        bool mobsAreKilled = false;
+        if (task->task["m_iHTaskType"] == 5) {
+            mobsAreKilled = true;
+            for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
+                if (plr->tasks[i] == missionData->iTaskNum) {
+                    for (int j = 0; j < 3; j++) {
+                        if (plr->RemainingNPCCount[i][j] > 0) {
+                            mobsAreKilled = false;
+                            break;
                         }
                     }
                 }
             }
+        }
 
-            if (!mobsAreKilled) {
-                
-                int failTaskID = task->task["m_iFOutgoingTask"];
-                if (failTaskID != 0) {
-                    Missions::quitTask(sock, missionData->iTaskNum, false);
-                    
-                    for (int i = 0; i < 6; i++)
-                        if (plr->tasks[i] == missionData->iTaskNum)
-                            plr->tasks[i] = failTaskID;
-                    return;
-                }
+        if (!mobsAreKilled) {
+            int failTaskID = task->task["m_iFOutgoingTask"];
+            if (failTaskID != 0) {
+                Missions::quitTask(sock, missionData->iTaskNum, false);
+
+                for (int i = 0; i < 6; i++)
+                    if (plr->tasks[i] == missionData->iTaskNum)
+                        plr->tasks[i] = failTaskID;
+                return;
             }
         }
     }
@@ -555,9 +549,6 @@ void Missions::updateFusionMatter(CNSocket* sock, int fusion) {
     response.iTaskNum = AvatarGrowth[plr->level]["m_iNanoQuestTaskID"];
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
 #else
-    if (plr->level >= 36)
-        return;
-
     plr->fusionmatter -= (int)Missions::AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"];
     plr->level++;
 
@@ -604,7 +595,6 @@ void Missions::mobKilled(CNSocket *sock, int mobid, int rolledQItem) {
             if (task["m_iCSUItemNumNeeded"][j] != 0 && !isQuestItemFull(sock, task["m_iCSUItemID"][j], task["m_iCSUItemNumNeeded"][j]) ) {
                 bool drop = rolledQItem % 100 < task["m_iSTItemDropRate"][j];
                 if (drop) {
-                    // XXX: are CSUItemID and CSTItemID the same?
                     dropQuestItem(sock, plr->tasks[i], 1, task["m_iCSUItemID"][j], mobid);
 
                     /*
