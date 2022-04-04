@@ -62,6 +62,7 @@ jobs:
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation
 
           Invoke-Expression "vcpkg install sqlite3"
+          Invoke-Expression "vcpkg integrate install"
 
           foreach ($version in $versions) {
               if (Test-Path -LiteralPath "build") {
