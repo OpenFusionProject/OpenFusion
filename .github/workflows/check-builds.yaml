@@ -61,7 +61,7 @@ jobs:
           Import-Module "$vsPath\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation
 
-          Invoke-Expression "vcpkg install sqlite3"
+          Invoke-Expression "vcpkg install sqlite3:x64-windows"
           Invoke-Expression "vcpkg integrate install"
 
           foreach ($version in $versions) {
