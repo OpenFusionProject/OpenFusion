@@ -61,6 +61,8 @@ jobs:
           Import-Module "$vsPath\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation
 
+          Invoke-Expression "vcpkg install sqlite3"
+
           foreach ($version in $versions) {
               if (Test-Path -LiteralPath "build") {
                   Remove-Item "build" -Recurse
