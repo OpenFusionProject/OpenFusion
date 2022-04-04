@@ -1,0 +1,42 @@
+name: Check Builds
+
+on:
+  push:
+    paths:
+        - src/**
+        - vendor/**
+        - .github/workflows/check-build.yaml
+        - CMakeLists.txt
+
+jobs:
+  ubuntu-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Install dependencies
+        run: sudo apt install clang cmake snap -y && sudo snap install powershell --classic
+      - name: Check compilation
+        run: '& $env:GITHUB_ACTION_PATH/compile-ubuntu.ps'
+        shell: pwsh
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ubuntu20_04-bin-x64
+          path: bin
+
+  windows-build:
+    runs-on: windows-2019
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Check compilation
+        run: '& $env:GITHUB_ACTION_PATH/compile-windows.ps'
+        shell: pwsh
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: windows-vs2019-bin-x64
+          path: bin

@@ -1,0 +1,32 @@
+$versions = "104", "728", "1013"
+$configurations = "Release"
+# "Debug" builds are disabled, since we don't really need them
+
+$vsPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community"
+
+Import-Module "$vsPath\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
+Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation
+
+foreach ($version in $versions) {
+    if (Test-Path -LiteralPath "build") {
+        Remove-Item "build" -Recurse
+        Write-Output "Deleted existing build folder"
+    }
+    Invoke-Expression "cmake -B build -DPROTOCOL_VERSION=$version"
+    if ($LASTEXITCODE -ne "0") {
+        Write-Error "cmake generation failed for version $version" -ErrorAction Stop
+    }
+    Write-Output "Generated build files for version $version"
+
+    foreach ($configuration in $configurations) {
+        Write-Output "Building version $version $configuration"
+        Invoke-Expression "msbuild build\OpenFusion.sln /maxcpucount:8 /p:BuildInParallel=true /p:CL_MPCount=8 /p:UseMultiToolTask=true /p:Configuration=$configuration"
+        if ($LASTEXITCODE -ne "0") {
+            Write-Error "msbuild build failed for version $version" -ErrorAction Stop
+        }
+        Rename-Item -Path "bin/$configuration" -newName "$version-$configuration"
+        Write-Output "Built version $version $configuration"
+        Copy-Item -Path "sql" -Destination "bin/$version-$configuration/sql" -Recurse
+        Copy-Item -Path "config.ini" -Destination "bin/$version-$configuration"
+    }
+}
