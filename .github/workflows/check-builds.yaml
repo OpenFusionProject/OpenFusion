@@ -18,7 +18,7 @@ jobs:
       - name: Install dependencies
         run: sudo apt install clang cmake snap -y && sudo snap install powershell --classic
       - name: Check compilation
-        run: '& $env:GITHUB_ACTION_PATH/compile-ubuntu.ps'
+        run: ${{ github.action_path }}/compile-ubuntu.ps
         shell: pwsh
       - name: Upload build artifact
         uses: actions/upload-artifact@v2
@@ -33,7 +33,7 @@ jobs:
         with:
           submodules: recursive
       - name: Check compilation
-        run: '& $env:GITHUB_ACTION_PATH/compile-windows.ps'
+        run: ${{ github.action_path }}/compile-windows.ps
         shell: pwsh
       - name: Upload build artifact
         uses: actions/upload-artifact@v2

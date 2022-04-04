@@ -26,7 +26,7 @@
 
 #include "settings.hpp"
 #include "sandbox/Sandbox.hpp"
-
+ 
 #include "../version.h"
 
 #if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
