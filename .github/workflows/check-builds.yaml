@@ -69,7 +69,7 @@ jobs:
                   Remove-Item "build" -Recurse
                   Write-Output "Deleted existing build folder"
               }
-              Invoke-Expression "cmake -B build -DPROTOCOL_VERSION=$version"
+              Invoke-Expression "cmake -B build -DPROTOCOL_VERSION=$version -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
               if ($LASTEXITCODE -ne "0") {
                   Write-Error "cmake generation failed for version $version" -ErrorAction Stop
               }
