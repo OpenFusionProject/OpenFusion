@@ -5,7 +5,7 @@ on:
     paths:
         - src/**
         - vendor/**
-        - .github/workflows/check-build.yaml
+        - .github/workflows/check-builds.yaml
         - CMakeLists.txt
 
 jobs:
@@ -56,7 +56,7 @@ jobs:
           $configurations = "Release"
           # "Debug" builds are disabled, since we don't really need them
 
-          $vsPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community"
+          $vsPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise"
 
           Import-Module "$vsPath\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation
