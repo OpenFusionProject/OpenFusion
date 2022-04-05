@@ -43,10 +43,7 @@ add_executable(openfusion ${SOURCES})
 
 set_target_properties(openfusion PROPERTIES OUTPUT_NAME ${BIN_NAME})
 
-# find sqlite3 and use it
-find_package(sqlite3 REQUIRED)
-target_include_directories(openfusion PRIVATE ${SQLite3_INCLUDE_DIRS})
-target_link_libraries(openfusion PRIVATE sqlite3)
+target_link_libraries(openfusion sqlite3)
 
 # Makes it so config, tdata, etc. get picked up when starting via the debugger in VS
 set_property(TARGET openfusion PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
