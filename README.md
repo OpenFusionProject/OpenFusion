@@ -32,8 +32,6 @@ OpenFusion is a reverse-engineered server for FusionFall. It primarily targets v
 3. Add a new server to the client's list: the default port is 23000, so the full IP with default settings would be 127.0.0.1:23000.
 4. Once you've added the server to the list, connect to it and log in. If you're having trouble with this, refer to steps 4 and 5 from the previous section.
 
-If you want, [compiled binaries (artifacts) for each new commit can be found on AppVeyor.](https://ci.appveyor.com/project/OpenFusionProject/openfusion)
-
 For a more detailed overview of the game's architecture and how to configure it, read the following sections.
 
 ## Architecture
