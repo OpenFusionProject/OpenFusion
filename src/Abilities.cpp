@@ -6,7 +6,6 @@
 #include "Groups.hpp"
 #include "Eggs.hpp"
 
-
 /*
  * TODO: This file is in desperate need of deduplication and rewriting.
  */
