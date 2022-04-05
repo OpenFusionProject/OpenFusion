@@ -1,0 +1,95 @@
+name: Check Builds
+
+on:
+  push:
+    paths:
+        - src/**
+        - vendor/**
+        - .github/workflows/check-builds.yaml
+        - CMakeLists.txt
+
+jobs:
+  ubuntu-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Install dependencies
+        run: sudo apt install clang cmake snap -y && sudo snap install powershell --classic
+      - name: Check compilation
+        run: |
+          $versions = "104", "728", "1013"
+
+          foreach ($version in $versions) {
+              Write-Output "Cleaning old output"
+              Invoke-Expression "make clean"
+              if ($LASTEXITCODE -ne "0") {
+                  Write-Error "make clean failed for version $version" -ErrorAction Stop
+              }
+              Write-Output "Building version $version"
+              Invoke-Expression "make -j8 PROTOCOL_VERSION=$version"
+              if ($LASTEXITCODE -ne "0") {
+                  Write-Error "make failed for version $version" -ErrorAction Stop
+              }
+              Rename-Item -Path "bin/fusion" -newName "$version-fusion"
+              Write-Output "Built version $version"
+          }
+          Copy-Item -Path "sql" -Destination "bin/sql" -Recurse
+          Copy-Item -Path "config.ini" -Destination "bin"
+        shell: pwsh
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ubuntu20_04-bin-x64
+          path: bin
+
+  windows-build:
+    runs-on: windows-2019
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Check compilation
+        run: |
+          $versions = "104", "728", "1013"
+          $configurations = "Release"
+          # "Debug" builds are disabled, since we don't really need them
+
+          $vsPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise"
+
+          Import-Module "$vsPath\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation
+
+          Invoke-Expression "vcpkg install sqlite3:x64-windows"
+          Invoke-Expression "vcpkg integrate install"
+
+          foreach ($version in $versions) {
+              if (Test-Path -LiteralPath "build") {
+                  Remove-Item "build" -Recurse
+                  Write-Output "Deleted existing build folder"
+              }
+              Invoke-Expression "cmake -B build -DPROTOCOL_VERSION=$version -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+              if ($LASTEXITCODE -ne "0") {
+                  Write-Error "cmake generation failed for version $version" -ErrorAction Stop
+              }
+              Write-Output "Generated build files for version $version"
+
+              foreach ($configuration in $configurations) {
+                  Write-Output "Building version $version $configuration"
+                  Invoke-Expression "msbuild build\OpenFusion.sln /maxcpucount:8 /p:BuildInParallel=true /p:CL_MPCount=8 /p:UseMultiToolTask=true /p:Configuration=$configuration"
+                  if ($LASTEXITCODE -ne "0") {
+                      Write-Error "msbuild build failed for version $version" -ErrorAction Stop
+                  }
+                  Rename-Item -Path "bin/$configuration" -newName "$version-$configuration"
+                  Write-Output "Built version $version $configuration"
+                  Copy-Item -Path "sql" -Destination "bin/$version-$configuration/sql" -Recurse
+                  Copy-Item -Path "config.ini" -Destination "bin/$version-$configuration"
+              }
+          }
+        shell: pwsh
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: windows-vs2019-bin-x64
+          path: bin

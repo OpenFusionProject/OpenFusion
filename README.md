@@ -2,7 +2,7 @@
 
 <p align="center">
     <a href="https://github.com/OpenFusionProject/OpenFusion/releases/latest"><img src="https://img.shields.io/github/v/release/OpenFusionProject/OpenFusion" alt="Current Release"></a>
-    <a href="https://ci.appveyor.com/project/OpenFusionProject/openfusion"><img src="https://ci.appveyor.com/api/projects/status/github/OpenFusionProject/OpenFusion?svg=true" alt="AppVeyor"></a>
+    <a href="https://github.com/OpenFusionProject/OpenFusion/actions/workflows/check-builds.yaml"><img src="https://github.com/OpenFusionProject/OpenFusion/actions/workflows/check-build.syaml/badge.svg" alt="Workflow"></a>
     <a href="https://discord.gg/DYavckB"><img src="https://img.shields.io/badge/chat-on%20discord-7289da.svg?logo=discord" alt="Discord"></a>
     <a href="https://github.com/OpenFusionProject/OpenFusion/blob/master/LICENSE.md"><img src="https://img.shields.io/github/license/OpenFusionProject/OpenFusion" alt="License"></a>
 </p>
