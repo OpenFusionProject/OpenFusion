@@ -13,6 +13,9 @@ jobs:
   ubuntu-build:
     runs-on: ubuntu-latest
     steps:
+      - name: Set environment
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
+        shell: bash
       - uses: actions/checkout@v2
         with:
           submodules: recursive
@@ -42,12 +45,15 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v2
         with:
-          name: 'ubuntu20_04-bin-x64-${{ github.sha }}'
+          name: 'ubuntu20_04-bin-x64-${{ env.SHORT_SHA }}'
           path: bin
 
   windows-build:
     runs-on: windows-2019
     steps:
+      - name: Set environment
+        run: $s = $env:GITHUB_SHA.subString(0, 7); echo "SHORT_SHA=$s" >> $env:GITHUB_ENV
+        shell: pwsh
       - uses: actions/checkout@v2
         with:
           submodules: recursive
@@ -92,7 +98,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v2
         with:
-          name: 'windows-vs2019-bin-x64-${{ github.sha }}'
+          name: 'windows-vs2019-bin-x64-${{ env.SHORT_SHA }}'
           path: bin
 
   copy-artifacts:
