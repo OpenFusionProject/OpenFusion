@@ -8,6 +8,13 @@ on:
         - .github/workflows/check-builds.yaml
         - CMakeLists.txt
         - Makefile
+  pull_request:
+    types: ready_for_review
+    paths:
+        - src/**
+        - vendor/**
+        - CMakeLists.txt
+        - Makefile
 
 jobs:
   ubuntu-build:
