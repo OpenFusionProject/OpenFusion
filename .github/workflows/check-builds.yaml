@@ -94,3 +94,12 @@ jobs:
         with:
           name: windows-vs2019-bin-x64
           path: bin
+
+  copy-artifacts:
+    runs-on: ubuntu-latest
+    needs: [windows-build, ubuntu-build]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v3
+      - name: Upload artifacts
+        run: ls -al
