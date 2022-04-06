@@ -107,6 +107,18 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           path: ${{ github.sha }}
+      - name: Prepare artifacts
+        shell: bash
+        run: |
+          sudo apt install zip -y
+          cd ${{ github.sha }}
+          for build in *; do
+            cd $build
+            zip ../$build.zip *
+            cd ..
+            rm -r $build
+          done
+          cd ..
       - name: Upload artifacts
         shell: bash
         run: |
