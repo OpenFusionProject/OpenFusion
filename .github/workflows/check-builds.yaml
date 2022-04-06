@@ -120,7 +120,7 @@ jobs:
           cd ${{ github.sha }}
           for build in *; do
             cd $build
-            zip ../$build.zip *
+            zip -r ../$build.zip *
             cd ..
             rm -r $build
           done
