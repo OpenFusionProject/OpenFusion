@@ -96,6 +96,7 @@ jobs:
           path: bin
 
   copy-artifacts:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     needs: [windows-build, ubuntu-build]
     env:
