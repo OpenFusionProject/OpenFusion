@@ -122,15 +122,17 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
-      - run: mkdir ${{ github.sha }}
+      - run: |
+          GITDESC=$(git describe --tags)
+          mkdir $GITDESC
+          echo "ARTDIR=$GITDESC" >> $GITHUB_ENV
       - uses: actions/download-artifact@v3
         with:
-          path: ${{ github.sha }}
+          path: ${{ env.ARTDIR }}
       - name: Upload artifacts
         shell: bash
         run: |
           sudo apt install zip -y
-          ARTDIR=$(git describe --tags)
           cd $ARTDIR
           for build in *; do
             cd $build
