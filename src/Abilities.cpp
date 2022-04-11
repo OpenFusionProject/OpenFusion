@@ -148,12 +148,12 @@ bool doDebuff(CNSocket *sock, sSkillResult_Buff *respdata, int i, int32_t target
     }
 
     Mob* mob = (Mob*)npc;
-    Combat::hitMob(sock, mob, 0);
+    mob->takeDamage(sock, 0);
 
     respdata[i].eCT = 4;
     respdata[i].iID = mob->id;
     respdata[i].bProtected = 1;
-    if (mob->skillStyle < 0 && mob->state != MobState::RETREAT 
+    if (mob->skillStyle < 0 && mob->state != AIState::RETREAT
     && !(mob->cbf & CSB_BIT_FREEDOM)) { // only debuff if the enemy is not retreating, casting corruption or in freedom
         mob->cbf |= bitFlag;
         mob->unbuffTimes[bitFlag] = getTime() + duration * 100;
@@ -220,14 +220,14 @@ bool doDamageNDebuff(CNSocket *sock, sSkillResult_Damage_N_Debuff *respdata, int
 
     Mob* mob = (Mob*)npc;
 
-    Combat::hitMob(sock, mob, 0); // just to gain aggro
+    mob->takeDamage(sock, 0);
 
     respdata[i].eCT = 4;
     respdata[i].iDamage = duration / 10;
     respdata[i].iID = mob->id;
     respdata[i].iHP = mob->hp;
     respdata[i].bProtected = 1;
-    if (mob->skillStyle < 0 && mob->state != MobState::RETREAT 
+    if (mob->skillStyle < 0 && mob->state != AIState::RETREAT
     && !(mob->cbf & CSB_BIT_FREEDOM)) { // only debuff if the enemy is not retreating, casting corruption or in freedom
         mob->cbf |= bitFlag;
         mob->unbuffTimes[bitFlag] = getTime() + duration * 100;
@@ -289,7 +289,7 @@ bool doDamage(CNSocket *sock, sSkillResult_Damage *respdata, int i, int32_t targ
     Mob* mob = (Mob*)npc;
     Player *plr = PlayerManager::getPlayer(sock);
 
-    int damage = Combat::hitMob(sock, mob, std::max(PC_MAXHEALTH(plr->level) * amount / 1000, mob->maxHealth * amount / 1000));
+    int damage = mob->takeDamage(sock, std::max(PC_MAXHEALTH(plr->level) * amount / 1000, mob->maxHealth * amount / 1000));
 
     respdata[i].eCT = 4;
     respdata[i].iDamage = damage;
@@ -344,7 +344,7 @@ bool doLeech(CNSocket *sock, sSkillResult_Heal_HP *healdata, int i, int32_t targ
 
     Mob* mob = (Mob*)npc;
 
-    int damage = Combat::hitMob(sock, mob, amount * 2);
+    int damage = mob->takeDamage(sock, amount * 2);
 
     damagedata->eCT = 4;
     damagedata->iDamage = damage;
@@ -449,13 +449,8 @@ bool doDamageNDebuff(Mob* mob, sSkillResult_Damage_N_Debuff* respdata, int i, in
     respdata[i].iConditionBitFlag = plr->iConditionBitFlag;
 
     if (plr->HP <= 0) {
-        mob->target = nullptr;
-        mob->state = MobState::RETREAT;
-        if (!MobAI::aggroCheck(mob, getTime())) {
-            MobAI::clearDebuff(mob);
-            if (mob->groupLeader != 0)
-                MobAI::groupRetreat(mob);
-        }
+        if (!MobAI::aggroCheck(mob, getTime()))
+            mob->transition(AIState::RETREAT, mob->target);
     }
 
     return true;
@@ -529,13 +524,8 @@ bool doDamage(Mob* mob, sSkillResult_Damage* respdata, int i, int32_t targetID, 
     respdata[i].iHP = plr->HP -= damage;
 
     if (plr->HP <= 0) {
-        mob->target = nullptr;
-        mob->state = MobState::RETREAT;
-        if (!MobAI::aggroCheck(mob, getTime())) {
-            MobAI::clearDebuff(mob);
-            if (mob->groupLeader != 0)
-                MobAI::groupRetreat(mob);
-        }
+        if (!MobAI::aggroCheck(mob, getTime()))
+            mob->transition(AIState::RETREAT, mob->target);
     }
 
     return true;
@@ -587,13 +577,8 @@ bool doLeech(Mob* mob, sSkillResult_Heal_HP* healdata, int i, int32_t targetID, 
     damagedata->iHP = plr->HP -= damage;
 
     if (plr->HP <= 0) {
-        mob->target = nullptr;
-        mob->state = MobState::RETREAT;
-        if (!MobAI::aggroCheck(mob, getTime())) {
-            MobAI::clearDebuff(mob);
-            if (mob->groupLeader != 0)
-                MobAI::groupRetreat(mob);
-        }
+        if (!MobAI::aggroCheck(mob, getTime()))
+            mob->transition(AIState::RETREAT, mob->target);
     }
 
     return true;

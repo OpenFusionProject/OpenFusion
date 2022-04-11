@@ -328,7 +328,7 @@ static void toggleAiCommand(std::string full, std::vector<std::string>& args, CN
             continue;
 
         Mob* mob = (Mob*)pair.second;
-        mob->state = MobState::RETREAT;
+        mob->state = AIState::RETREAT;
         mob->target = nullptr;
         mob->nextMovement = getTime();
 

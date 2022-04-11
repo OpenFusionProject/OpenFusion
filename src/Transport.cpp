@@ -263,7 +263,7 @@ static void stepNPCPathing() {
         }
 
         // do not roam if not roaming
-        if (npc->kind == EntityType::MOB && ((Mob*)npc)->state != MobState::ROAMING) {
+        if (npc->kind == EntityType::MOB && ((Mob*)npc)->state != AIState::ROAMING) {
             it++;
             continue;
         }

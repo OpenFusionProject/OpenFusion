@@ -77,7 +77,7 @@ void Chunking::untrackEntity(ChunkPos chunkPos, const EntityRef& ref) {
 
 void Chunking::addEntityToChunks(std::set<Chunk*> chnks, const EntityRef& ref) {
     Entity *ent = ref.getEntity();
-    bool alive = ent->isAlive();
+    bool alive = ent->isExtant();
 
     // TODO: maybe optimize this, potentially using AROUND packets?
     for (Chunk *chunk : chnks) {
@@ -94,7 +94,7 @@ void Chunking::addEntityToChunks(std::set<Chunk*> chnks, const EntityRef& ref) {
             }
 
             // notify this *player* of the existence of all visible Entities
-            if (ref.type == EntityType::PLAYER && other->isAlive()) {
+            if (ref.type == EntityType::PLAYER && other->isExtant()) {
                 other->enterIntoViewOf(ref.sock);
             }
 
@@ -109,7 +109,7 @@ void Chunking::addEntityToChunks(std::set<Chunk*> chnks, const EntityRef& ref) {
 
 void Chunking::removeEntityFromChunks(std::set<Chunk*> chnks, const EntityRef& ref) {
     Entity *ent = ref.getEntity();
-    bool alive = ent->isAlive();
+    bool alive = ent->isExtant();
 
     // TODO: same as above
     for (Chunk *chunk : chnks) {
@@ -126,7 +126,7 @@ void Chunking::removeEntityFromChunks(std::set<Chunk*> chnks, const EntityRef& r
             }
 
             // notify this *player* of the departure of all visible Entities
-            if (ref.type == EntityType::PLAYER && other->isAlive()) {
+            if (ref.type == EntityType::PLAYER && other->isExtant()) {
                 other->disappearFromViewOf(ref.sock);
             }
 

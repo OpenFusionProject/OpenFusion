@@ -6,6 +6,8 @@
 #include "Combat.hpp"
 #include "Abilities.hpp"
 #include "Rand.hpp"
+#include "Items.hpp"
+#include "Missions.hpp"
 
 #include <cmath>
 #include <limits.h>
@@ -13,8 +15,6 @@
 using namespace MobAI;
 
 bool MobAI::simulateMobs = settings::SIMULATEMOBS;
-
-static void roamingStep(Mob *mob, time_t currTime);
 
 /*
  * Dynamic lerp; distinct from Transport::lerp(). This one doesn't care about height and
@@ -70,16 +70,16 @@ void MobAI::followToCombat(Mob *mob) {
             }
             Mob* followerMob = (Mob*)NPCManager::NPCs[leadMob->groupMember[i]];
 
-            if (followerMob->state != MobState::ROAMING) // only roaming mobs should transition to combat
+            if (followerMob->state != AIState::ROAMING) // only roaming mobs should transition to combat
                 continue;
 
-            enterCombat(mob->target, followerMob);
+            followerMob->transition(AIState::COMBAT, mob->target);
         }
 
-        if (leadMob->state != MobState::ROAMING)
+        if (leadMob->state != AIState::ROAMING)
             return;
 
-        enterCombat(mob->target, leadMob);
+        leadMob->transition(AIState::COMBAT, mob->target);
     }
 }
 
@@ -98,19 +98,19 @@ void MobAI::groupRetreat(Mob *mob) {
         }
         Mob* followerMob = (Mob*)NPCManager::NPCs[leadMob->groupMember[i]];
 
-        if (followerMob->state != MobState::COMBAT)
+        if (followerMob->state != AIState::COMBAT)
             continue;
 
         followerMob->target = nullptr;
-        followerMob->state = MobState::RETREAT;
+        followerMob->state = AIState::RETREAT;
         clearDebuff(followerMob);
     }
 
-    if (leadMob->state != MobState::COMBAT)
+    if (leadMob->state != AIState::COMBAT)
         return;
 
     leadMob->target = nullptr;
-    leadMob->state = MobState::RETREAT;
+    leadMob->state = AIState::RETREAT;
     clearDebuff(leadMob);
 }
 
@@ -147,7 +147,7 @@ bool MobAI::aggroCheck(Mob *mob, time_t currTime) {
             if (levelDifference > -10)
                 mobRange = levelDifference < 10 ? mobRange - (levelDifference * mobRange / 15) : mobRange / 3;
 
-            if (mob->state != MobState::ROAMING && plr->inCombat) // freshly out of aggro mobs
+            if (mob->state != AIState::ROAMING && plr->inCombat) // freshly out of aggro mobs
                 mobRange = mob->sightRange * 2; // should not be impacted by the above
 
             if (plr->iSpecialState & (CN_SPECIAL_STATE_FLAG__INVISIBLE|CN_SPECIAL_STATE_FLAG__INVULNERABLE))
@@ -168,7 +168,7 @@ bool MobAI::aggroCheck(Mob *mob, time_t currTime) {
 
     if (closest != nullptr) {
         // found closest player. engage.
-        enterCombat(closest, mob);
+        mob->transition(AIState::COMBAT, closest);
 
         if (mob->groupLeader != 0)
             followToCombat(mob);
@@ -268,13 +268,8 @@ static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, i
         respdata[i].iConditionBitFlag = plr->iConditionBitFlag;
 
         if (plr->HP <= 0) {
-            mob->target = nullptr;
-            mob->state = MobState::RETREAT;
-            if (!aggroCheck(mob, getTime())) {
-                clearDebuff(mob);
-                if (mob->groupLeader != 0)
-                    groupRetreat(mob);
-            }
+            if (!MobAI::aggroCheck(mob, getTime()))
+                mob->transition(AIState::RETREAT, mob->target);
         }
     }
 
@@ -395,27 +390,6 @@ static void useAbilities(Mob *mob, time_t currTime) {
     return;
 }
 
-void MobAI::enterCombat(CNSocket *sock, Mob *mob) {
-    mob->target = sock;
-    mob->state = MobState::COMBAT;
-    mob->nextMovement = getTime();
-    mob->nextAttack = 0;
-
-    mob->roamX = mob->x;
-    mob->roamY = mob->y;
-    mob->roamZ = mob->z;
-
-    int skillID = (int)mob->data["m_iPassiveBuff"]; // cast passive
-    std::vector<int> targetData = {1, mob->id, 0, 0, 0};
-    for (auto& pwr : Abilities::Powers)
-        if (pwr.skillType == Abilities::SkillTable[skillID].skillType)
-            pwr.handle(mob->id, targetData, skillID, Abilities::SkillTable[skillID].durationTime[0], Abilities::SkillTable[skillID].powerIntensity[0]);
-
-    for (NPCEvent& event : NPCManager::NPCEvents) // trigger an ON_COMBAT
-        if (event.trigger == ON_COMBAT && event.npcType == mob->type)
-            event.handler(sock, mob);
-}
-
 static void drainMobHP(Mob *mob, int amount) {
     size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_Damage);
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
@@ -438,52 +412,52 @@ static void drainMobHP(Mob *mob, int amount) {
     NPCManager::sendToViewable(mob, (void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
 
     if (mob->hp <= 0)
-        Combat::killMob(mob->target, mob);
+        mob->transition(AIState::DEAD, mob->target);
 }
 
-static void deadStep(Mob *mob, time_t currTime) {
+void Mob::deadStep(time_t currTime) {
     // despawn the mob after a short delay
-    if (mob->killedTime != 0 && !mob->despawned && currTime - mob->killedTime > 2000) {
-        mob->despawned = true;
+    if (killedTime != 0 && !despawned && currTime - killedTime > 2000) {
+        despawned = true;
 
         INITSTRUCT(sP_FE2CL_NPC_EXIT, pkt);
 
-        pkt.iNPC_ID = mob->id;
+        pkt.iNPC_ID = id;
 
-        NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
+        NPCManager::sendToViewable(this, &pkt, P_FE2CL_NPC_EXIT, sizeof(sP_FE2CL_NPC_EXIT));
 
         // if it was summoned, mark it for removal
-        if (mob->summoned) {
+        if (summoned) {
             std::cout << "[INFO] Queueing killed summoned mob for removal" << std::endl;
-            NPCManager::queueNPCRemoval(mob->id);
+            NPCManager::queueNPCRemoval(id);
             return;
         }
 
         // pre-set spawn coordinates if not marked for removal
-        mob->x = mob->spawnX;
-        mob->y = mob->spawnY;
-        mob->z = mob->spawnZ;
+        x = spawnX;
+        y = spawnY;
+        z = spawnZ;
     }
 
     // to guide their groupmates, group leaders still need to move despite being dead
-    if (mob->groupLeader == mob->id)
-        roamingStep(mob, currTime);
+    if (groupLeader == id)
+        roamingStep(currTime);
 
-    if (mob->killedTime != 0 && currTime - mob->killedTime < mob->regenTime * 100)
+    if (killedTime != 0 && currTime - killedTime < regenTime * 100)
         return;
 
-    std::cout << "respawning mob " << mob->id << " with HP = " << mob->maxHealth << std::endl;
+    std::cout << "respawning mob " << id << " with HP = " << maxHealth << std::endl;
 
-    mob->hp = mob->maxHealth;
-    mob->state = MobState::ROAMING;
+    hp = maxHealth;
+    state = AIState::ROAMING;
 
     // if mob is a group leader/follower, spawn where the group is.
-    if (mob->groupLeader != 0) {
-        if (NPCManager::NPCs.find(mob->groupLeader) != NPCManager::NPCs.end() && NPCManager::NPCs[mob->groupLeader]->kind == EntityType::MOB) {
-            Mob* leaderMob = (Mob*)NPCManager::NPCs[mob->groupLeader];
-            mob->x = leaderMob->x + mob->offsetX;
-            mob->y = leaderMob->y + mob->offsetY;
-            mob->z = leaderMob->z;
+    if (groupLeader != 0) {
+        if (NPCManager::NPCs.find(groupLeader) != NPCManager::NPCs.end() && NPCManager::NPCs[groupLeader]->kind == EntityType::MOB) {
+            Mob* leaderMob = (Mob*)NPCManager::NPCs[groupLeader];
+            x = leaderMob->x + offsetX;
+            y = leaderMob->y + offsetY;
+            z = leaderMob->z;
         } else {
             std::cout << "[WARN] deadStep: mob cannot find it's leader!" << std::endl;
         }
@@ -491,127 +465,116 @@ static void deadStep(Mob *mob, time_t currTime) {
 
     INITSTRUCT(sP_FE2CL_NPC_NEW, pkt);
 
-    pkt.NPCAppearanceData = mob->getAppearanceData();
+    pkt.NPCAppearanceData = getAppearanceData();
 
     // notify all nearby players
-    NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_NEW, sizeof(sP_FE2CL_NPC_NEW));
+    NPCManager::sendToViewable(this, &pkt, P_FE2CL_NPC_NEW, sizeof(sP_FE2CL_NPC_NEW));
 }
 
-static void combatStep(Mob *mob, time_t currTime) {
-    assert(mob->target != nullptr);
+void Mob::combatStep(time_t currTime) {
+    assert(target != nullptr);
 
     // lose aggro if the player lost connection
-    if (PlayerManager::players.find(mob->target) == PlayerManager::players.end()) {
-        mob->target = nullptr;
-        mob->state = MobState::RETREAT;
-        if (!aggroCheck(mob, currTime)) {
-            clearDebuff(mob);
-            if (mob->groupLeader != 0)
-                groupRetreat(mob);
-        }
+    if (PlayerManager::players.find(target) == PlayerManager::players.end()) {
+        if (!MobAI::aggroCheck(this, getTime()))
+            transition(AIState::RETREAT, target);
         return;
     }
 
-    Player *plr = PlayerManager::getPlayer(mob->target);
+    Player *plr = PlayerManager::getPlayer(target);
 
     // lose aggro if the player became invulnerable or died
     if (plr->HP <= 0
      || (plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE)) {
-        mob->target = nullptr;
-        mob->state = MobState::RETREAT;
-        if (!aggroCheck(mob, currTime)) {
-            clearDebuff(mob);
-            if (mob->groupLeader != 0)
-                groupRetreat(mob);
-        }
+        if (!MobAI::aggroCheck(this, getTime()))
+            transition(AIState::RETREAT, target);
         return;
     }
 
     // drain
-    if (mob->skillStyle < 0 && (mob->lastDrainTime == 0 || currTime - mob->lastDrainTime >= 1000)
-        && mob->cbf & CSB_BIT_BOUNDINGBALL) {
-        drainMobHP(mob, mob->maxHealth / 20); // lose 5% every second
-        mob->lastDrainTime = currTime;
+    if (skillStyle < 0 && (lastDrainTime == 0 || currTime - lastDrainTime >= 1000)
+        && cbf & CSB_BIT_BOUNDINGBALL) {
+        drainMobHP(this, maxHealth / 20); // lose 5% every second
+        lastDrainTime = currTime;
     }
 
     // if drain killed the mob, return early
-    if (mob->hp <= 0)
+    if (hp <= 0)
         return;
 
     // unbuffing
-    std::unordered_map<int32_t, time_t>::iterator it = mob->unbuffTimes.begin();
-    while (it != mob->unbuffTimes.end()) {
+    std::unordered_map<int32_t, time_t>::iterator it = unbuffTimes.begin();
+    while (it != unbuffTimes.end()) {
 
         if (currTime >= it->second) {
-            mob->cbf &= ~it->first;
+            cbf &= ~it->first;
 
             INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
             pkt1.eCT = 2;
-            pkt1.iID = mob->id;
-            pkt1.iConditionBitFlag = mob->cbf;
-            NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
+            pkt1.iID = id;
+            pkt1.iConditionBitFlag = cbf;
+            NPCManager::sendToViewable(this, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
 
-            it = mob->unbuffTimes.erase(it);
+            it = unbuffTimes.erase(it);
         } else {
             it++;
         }
     }
 
     // skip attack if stunned or asleep
-    if (mob->cbf & (CSB_BIT_STUN|CSB_BIT_MEZ)) {
-        mob->skillStyle = -1; // in this case we also reset the any outlying abilities the mob might be winding up.
+    if (cbf & (CSB_BIT_STUN|CSB_BIT_MEZ)) {
+        skillStyle = -1; // in this case we also reset the any outlying abilities the mob might be winding up.
         return;
     }
 
-    int distance = hypot(plr->x - mob->x, plr->y - mob->y);
-    int mobRange = (int)mob->data["m_iAtkRange"] + (int)mob->data["m_iRadius"];
+    int distance = hypot(plr->x - x, plr->y - y);
+    int mobRange = (int)data["m_iAtkRange"] + (int)data["m_iRadius"];
 
-    if (currTime >= mob->nextAttack) {
-        if (mob->skillStyle != -1 || distance <= mobRange || Rand::rand(20) == 0) // while not in attack range, 1 / 20 chance.
-            useAbilities(mob, currTime);
-        if (mob->target == nullptr)
+    if (currTime >= nextAttack) {
+        if (skillStyle != -1 || distance <= mobRange || Rand::rand(20) == 0) // while not in attack range, 1 / 20 chance.
+            useAbilities(this, currTime);
+        if (target == nullptr)
             return;
     }
 
     int distanceToTravel = INT_MAX;
-    int speed = mob->speed;
     // movement logic: move when out of range but don't move while casting a skill
-    if (distance > mobRange && mob->skillStyle == -1) {
-        if (mob->nextMovement != 0 && currTime < mob->nextMovement)
+    if (distance > mobRange && skillStyle == -1) {
+        if (nextMovement != 0 && currTime < nextMovement)
             return;
-        mob->nextMovement = currTime + 400;
-        if (currTime >= mob->nextAttack)
-            mob->nextAttack = 0;
+        nextMovement = currTime + 400;
+        if (currTime >= nextAttack)
+            nextAttack = 0;
 
         // halve movement speed if snared
-        if (mob->cbf & CSB_BIT_DN_MOVE_SPEED)
+        if (cbf & CSB_BIT_DN_MOVE_SPEED)
             speed /= 2;
 
         int targetX = plr->x;
         int targetY = plr->y;
-        if (mob->groupLeader != 0) {
-            targetX += mob->offsetX*distance/(mob->idleRange + 1);
-            targetY += mob->offsetY*distance/(mob->idleRange + 1);
+        if (groupLeader != 0) {
+            targetX += offsetX*distance/(idleRange + 1);
+            targetY += offsetY*distance/(idleRange + 1);
         }
 
         distanceToTravel = std::min(distance-mobRange+1, speed*2/5);
-        auto targ = lerp(mob->x, mob->y, targetX, targetY, distanceToTravel);
-        if (distanceToTravel < speed*2/5 && currTime >= mob->nextAttack)
-            mob->nextAttack = 0;
+        auto targ = lerp(x, y, targetX, targetY, distanceToTravel);
+        if (distanceToTravel < speed*2/5 && currTime >= nextAttack)
+            nextAttack = 0;
 
-        NPCManager::updateNPCPosition(mob->id, targ.first, targ.second, mob->z, mob->instanceID, mob->angle);
+        NPCManager::updateNPCPosition(id, targ.first, targ.second, z, instanceID, angle);
 
         INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
 
-        pkt.iNPC_ID = mob->id;
+        pkt.iNPC_ID = id;
         pkt.iSpeed = speed;
-        pkt.iToX = mob->x = targ.first;
-        pkt.iToY = mob->y = targ.second;
+        pkt.iToX = x = targ.first;
+        pkt.iToY = y = targ.second;
         pkt.iToZ = plr->z;
         pkt.iMoveStyle = 1;
 
         // notify all nearby players
-        NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
+        NPCManager::sendToViewable(this, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
     }
 
     /* attack logic
@@ -619,21 +582,17 @@ static void combatStep(Mob *mob, time_t currTime) {
      * if the mob is one move interval away, we should just start attacking anyways.
      */
     if (distance <= mobRange || distanceToTravel < speed*2/5) {
-        if (mob->nextAttack == 0 || currTime >= mob->nextAttack) {
-            mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
-            Combat::npcAttackPc(mob, currTime);
+        if (nextAttack == 0 || currTime >= nextAttack) {
+            nextAttack = currTime + (int)data["m_iDelayTime"] * 100;
+            Combat::npcAttackPc(this, currTime);
         }
     }
 
     // retreat if the player leaves combat range
-    int xyDistance = hypot(plr->x - mob->roamX, plr->y - mob->roamY);
-    distance = hypot(xyDistance, plr->z - mob->roamZ);
-    if (distance >= mob->data["m_iCombatRange"]) {
-        mob->target = nullptr;
-        mob->state = MobState::RETREAT;
-        clearDebuff(mob);
-        if (mob->groupLeader != 0)
-            groupRetreat(mob);
+    int xyDistance = hypot(plr->x - roamX, plr->y - roamY);
+    distance = hypot(xyDistance, plr->z - roamZ);
+    if (distance >= data["m_iCombatRange"]) {
+        transition(AIState::RETREAT, target);
     }
 }
 
@@ -645,23 +604,23 @@ void MobAI::incNextMovement(Mob *mob, time_t currTime) {
     mob->nextMovement = currTime + delay/2 + Rand::rand(delay/2);
 }
 
-static void roamingStep(Mob *mob, time_t currTime) {
+void Mob::roamingStep(time_t currTime) {
     /*
      * We reuse nextAttack to avoid scanning for players all the time, but to still
      * do so more often than if we waited for nextMovement (which is way too slow).
      * In the case of group leaders, this step will be called by dead mobs, so disable attack.
      */
-    if (mob->state != MobState::DEAD && (mob->nextAttack == 0 || currTime >= mob->nextAttack)) {
-        mob->nextAttack = currTime + 500;
-        if (aggroCheck(mob, currTime))
+    if (state != AIState::DEAD && (nextAttack == 0 || currTime >= nextAttack)) {
+        nextAttack = currTime + 500;
+        if (aggroCheck(this, currTime))
             return;
     }
 
     // no random roaming if the mob already has a set path
-    if (mob->staticPath)
+    if (staticPath)
         return;
 
-    if (mob->groupLeader != 0 && mob->groupLeader != mob->id) // don't roam by yourself without group leader
+    if (groupLeader != 0 && groupLeader != id) // don't roam by yourself without group leader
         return;
 
     /*
@@ -669,62 +628,61 @@ static void roamingStep(Mob *mob, time_t currTime) {
      * Transport::stepNPCPathing() (which ticks at a higher frequency than nextMovement),
      * so we don't have to check if there's already entries in the queue since we know there won't be.
      */
-    if (mob->nextMovement != 0 && currTime < mob->nextMovement)
+    if (nextMovement != 0 && currTime < nextMovement)
         return;
-    incNextMovement(mob, currTime);
+    incNextMovement(this, currTime);
 
-    int xStart = mob->spawnX - mob->idleRange/2;
-    int yStart = mob->spawnY - mob->idleRange/2;
-    int speed = mob->speed;
+    int xStart = spawnX - idleRange/2;
+    int yStart = spawnY - idleRange/2;
 
     // some mobs don't move (and we mustn't divide/modulus by zero)
-    if (mob->idleRange == 0 || speed == 0)
+    if (idleRange == 0 || speed == 0)
         return;
 
     int farX, farY, distance;
-    int minDistance = mob->idleRange / 2;
+    int minDistance = idleRange / 2;
 
     // pick a random destination
-    farX = xStart + Rand::rand(mob->idleRange);
-    farY = yStart + Rand::rand(mob->idleRange);
+    farX = xStart + Rand::rand(idleRange);
+    farY = yStart + Rand::rand(idleRange);
 
-    distance = std::abs(std::max(farX - mob->x, farY - mob->y));
+    distance = std::abs(std::max(farX - x, farY - y));
     if (distance == 0)
         distance += 1; // hack to avoid FPE
 
     // if it's too short a walk, go further in that direction
-    farX = mob->x + (farX - mob->x) * minDistance / distance;
-    farY = mob->y + (farY - mob->y) * minDistance / distance;
+    farX = x + (farX - x) * minDistance / distance;
+    farY = y + (farY - y) * minDistance / distance;
 
     // but don't got out of bounds
-    farX = std::clamp(farX, xStart, xStart + mob->idleRange);
-    farY = std::clamp(farY, yStart, yStart + mob->idleRange);
+    farX = std::clamp(farX, xStart, xStart + idleRange);
+    farY = std::clamp(farY, yStart, yStart + idleRange);
 
     // halve movement speed if snared
-    if (mob->cbf & CSB_BIT_DN_MOVE_SPEED)
+    if (cbf & CSB_BIT_DN_MOVE_SPEED)
         speed /= 2;
 
     std::queue<Vec3> queue;
-    Vec3 from = { mob->x, mob->y, mob->z };
-    Vec3 to = { farX, farY, mob->z };
+    Vec3 from = { x, y, z };
+    Vec3 to = { farX, farY, z };
 
     // add a route to the queue; to be processed in Transport::stepNPCPathing()
     Transport::lerp(&queue, from, to, speed);
-    Transport::NPCQueues[mob->id] = queue;
+    Transport::NPCQueues[id] = queue;
 
-    if (mob->groupLeader != 0 && mob->groupLeader == mob->id) {
+    if (groupLeader != 0 && groupLeader == id) {
         // make followers follow this npc.
         for (int i = 0; i < 4; i++) {
-            if (mob->groupMember[i] == 0)
+            if (groupMember[i] == 0)
                 break;
 
-            if (NPCManager::NPCs.find(mob->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[mob->groupMember[i]]->kind != EntityType::MOB) {
+            if (NPCManager::NPCs.find(groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[groupMember[i]]->kind != EntityType::MOB) {
                 std::cout << "[WARN] roamingStep: leader can't find a group member!" << std::endl;
                 continue;
             }
 
             std::queue<Vec3> queue2;
-            Mob* followerMob = (Mob*)NPCManager::NPCs[mob->groupMember[i]];
+            Mob* followerMob = (Mob*)NPCManager::NPCs[groupMember[i]];
             from = { followerMob->x, followerMob->y, followerMob->z };
             to = { farX + followerMob->offsetX, farY + followerMob->offsetY, followerMob->z };
             Transport::lerp(&queue2, from, to, speed);
@@ -733,78 +691,148 @@ static void roamingStep(Mob *mob, time_t currTime) {
     }
 }
 
-static void retreatStep(Mob *mob, time_t currTime) {
-    if (mob->nextMovement != 0 && currTime < mob->nextMovement)
+void Mob::retreatStep(time_t currTime) {
+    if (nextMovement != 0 && currTime < nextMovement)
         return;
 
-    mob->nextMovement = currTime + 400;
+    nextMovement = currTime + 400;
 
     // distance between spawn point and current location
-    int distance = hypot(mob->x - mob->roamX, mob->y - mob->roamY);
+    int distance = hypot(x - roamX, y - roamY);
 
     //if (distance > mob->data["m_iIdleRange"]) {
     if (distance > 10) {
         INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
 
-        auto targ = lerp(mob->x, mob->y, mob->roamX, mob->roamY, (int)mob->speed*4/5);
+        auto targ = lerp(x, y, roamX, roamY, (int)speed*4/5);
 
-        pkt.iNPC_ID = mob->id;
-        pkt.iSpeed = (int)mob->speed * 2;
-        pkt.iToX = mob->x = targ.first;
-        pkt.iToY = mob->y = targ.second;
-        pkt.iToZ = mob->z = mob->spawnZ;
+        pkt.iNPC_ID = id;
+        pkt.iSpeed = (int)speed * 2;
+        pkt.iToX = x = targ.first;
+        pkt.iToY = y = targ.second;
+        pkt.iToZ = z = spawnZ;
         pkt.iMoveStyle = 1;
 
         // notify all nearby players
-        NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
+        NPCManager::sendToViewable(this, &pkt, P_FE2CL_NPC_MOVE, sizeof(sP_FE2CL_NPC_MOVE));
     }
 
     // if we got there
     //if (distance <= mob->data["m_iIdleRange"]) {
     if (distance <= 10) { // retreat back to the spawn point
-        mob->state = MobState::ROAMING;
-        mob->hp = mob->maxHealth;
-        mob->killedTime = 0;
-        mob->nextAttack = 0;
-        mob->cbf = 0;
+        state = AIState::ROAMING;
+        hp = maxHealth;
+        killedTime = 0;
+        nextAttack = 0;
+        cbf = 0;
 
         // cast a return home heal spell, this is the right way(tm)
         std::vector<int> targetData = {1, 0, 0, 0, 0};
         for (auto& pwr : Abilities::Powers)
             if (pwr.skillType == Abilities::SkillTable[110].skillType)
-                pwr.handle(mob->id, targetData, 110, Abilities::SkillTable[110].durationTime[0], Abilities::SkillTable[110].powerIntensity[0]);
+                pwr.handle(id, targetData, 110, Abilities::SkillTable[110].durationTime[0], Abilities::SkillTable[110].powerIntensity[0]);
         // clear outlying debuffs
-        clearDebuff(mob);
+        clearDebuff(this);
     }
 }
 
-void MobAI::step(CombatNPC *npc, time_t currTime) {
-    assert(npc->kind == EntityType::MOB);
-    auto mob = (Mob*)npc;
+void Mob::onInactive() {
+    // no-op
+}
 
-    if (mob->playersInView < 0)
-        std::cout << "[WARN] Weird playerview value " << mob->playersInView << std::endl;
+void Mob::onRoamStart() {
+    // stub
+}
 
-    // skip mob movement and combat if disabled or not in view
-    if ((!simulateMobs || mob->playersInView == 0) && mob->state != MobState::DEAD
-    && mob->state != MobState::RETREAT)
+void Mob::onCombatStart(EntityRef src) {
+    assert(src.type == EntityType::PLAYER);
+    target = src.sock;
+    nextMovement = getTime();
+    nextAttack = 0;
+
+    roamX = x;
+    roamY = y;
+    roamZ = z;
+
+    int skillID = (int)data["m_iPassiveBuff"]; // cast passive
+    std::vector<int> targetData = { 1, id, 0, 0, 0 };
+    for (auto& pwr : Abilities::Powers)
+        if (pwr.skillType == Abilities::SkillTable[skillID].skillType)
+            pwr.handle(id, targetData, skillID, Abilities::SkillTable[skillID].durationTime[0], Abilities::SkillTable[skillID].powerIntensity[0]);
+}
+
+void Mob::onRetreat() {
+    target = nullptr;
+    MobAI::clearDebuff(this);
+    if (groupLeader != 0)
+        MobAI::groupRetreat(this);
+}
+
+void Mob::onDeath(EntityRef src) {
+    target = nullptr;
+    cbf = 0;
+    skillStyle = -1;
+    unbuffTimes.clear();
+    killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
+
+    // check for the edge case where hitting the mob did not aggro it
+    if (src.type == EntityType::PLAYER && src.isValid()) {
+        Player* plr = PlayerManager::getPlayer(src.sock);
+
+        Items::DropRoll rolled;
+        Items::DropRoll eventRolled;
+        std::map<int, int> qitemRolls;
+
+        Player* leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
+        assert(leader != nullptr); // should never happen
+
+        Combat::genQItemRolls(leader, qitemRolls);
+
+        if (plr->groupCnt == 1 && plr->iIDGroup == plr->iID) {
+            Items::giveMobDrop(src.sock, this, rolled, eventRolled);
+            Missions::mobKilled(src.sock, type, qitemRolls);
+        }
+        else {
+            for (int i = 0; i < leader->groupCnt; i++) {
+                CNSocket* sockTo = PlayerManager::getSockFromID(leader->groupIDs[i]);
+                if (sockTo == nullptr)
+                    continue;
+
+                Player* otherPlr = PlayerManager::getPlayer(sockTo);
+
+                // only contribute to group members' kills if they're close enough
+                int dist = std::hypot(plr->x - otherPlr->x + 1, plr->y - otherPlr->y + 1);
+                if (dist > 5000)
+                    continue;
+
+                Items::giveMobDrop(sockTo, this, rolled, eventRolled);
+                Missions::mobKilled(sockTo, type, qitemRolls);
+            }
+        }
+    }
+
+    // delay the despawn animation
+    despawned = false;
+
+    auto it = Transport::NPCQueues.find(id);
+    if (it == Transport::NPCQueues.end() || it->second.empty())
         return;
 
-    switch (mob->state) {
-    case MobState::INACTIVE:
-        // no-op
-        break;
-    case MobState::ROAMING:
-        roamingStep(mob, currTime);
-        break;
-    case MobState::COMBAT:
-        combatStep(mob, currTime);
-        break;
-    case MobState::RETREAT:
-        retreatStep(mob, currTime);
-        break;
-    case MobState::DEAD:
-        deadStep(mob, currTime);
-        break;
+    // rewind or empty the movement queue
+    if (staticPath) {
+        /*
+         * This is inelegant, but we wind forward in the path until we find the point that
+         * corresponds with the Mob's spawn point.
+         *
+         * IMPORTANT: The check in TableData::loadPaths() must pass or else this will loop forever.
+         */
+        auto& queue = it->second;
+        for (auto point = queue.front(); point.x != spawnX || point.y != spawnY; point = queue.front()) {
+            queue.pop();
+            queue.push(point);
+        }
+    }
+    else {
+        Transport::NPCQueues.erase(id);
     }
 }

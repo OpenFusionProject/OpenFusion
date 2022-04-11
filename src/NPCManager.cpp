@@ -355,7 +355,7 @@ static void step(CNServer *serv, time_t currTime) {
             continue;
         auto npc = (CombatNPC*)pair.second;
 
-        npc->stepAI(currTime);
+        npc->step(currTime);
     }
 
     // deallocate all NPCs queued for removal

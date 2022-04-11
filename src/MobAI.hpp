@@ -2,24 +2,10 @@
 
 #include "core/Core.hpp"
 #include "NPCManager.hpp"
-
-enum class MobState {
-    INACTIVE,
-    ROAMING,
-    COMBAT,
-    RETREAT,
-    DEAD
-};
-
-namespace MobAI {
-    // needs to be declared before Mob's constructor
-    void step(CombatNPC*, time_t);
-};
+#include "Entities.hpp"
 
 struct Mob : public CombatNPC {
     // general
-    MobState state = MobState::INACTIVE;
-
     std::unordered_map<int32_t,time_t> unbuffTimes = {};
 
     // dead
@@ -47,16 +33,13 @@ struct Mob : public CombatNPC {
     int offsetX = 0, offsetY = 0;
     int groupMember[4] = {};
 
-    // for optimizing away AI in empty chunks
-    int playersInView = 0;
-
     // temporary; until we're sure what's what
     nlohmann::json data = {};
 
     Mob(int x, int y, int z, int angle, uint64_t iID, int t, nlohmann::json d, int32_t id)
         : CombatNPC(x, y, z, angle, iID, t, id, d["m_iHP"]),
           sightRange(d["m_iSightRange"]) {
-        state = MobState::ROAMING;
+        state = AIState::ROAMING;
 
         data = d;
 
@@ -78,7 +61,6 @@ struct Mob : public CombatNPC {
         hp = maxHealth;
 
         kind = EntityType::MOB;
-        _stepAI = MobAI::step;
     }
 
     // constructor for /summon
@@ -88,6 +70,17 @@ struct Mob : public CombatNPC {
     }
 
     ~Mob() {}
+
+    virtual void roamingStep(time_t currTime) override;
+    virtual void combatStep(time_t currTime) override;
+    virtual void retreatStep(time_t currTime) override;
+    virtual void deadStep(time_t currTime) override;
+
+    virtual void onInactive() override;
+    virtual void onRoamStart() override;
+    virtual void onCombatStart(EntityRef src) override;
+    virtual void onRetreat() override;
+    virtual void onDeath(EntityRef src) override;
 
     auto operator[](std::string s) {
         return data[s];
@@ -103,5 +96,4 @@ namespace MobAI {
     void clearDebuff(Mob *mob);
     void followToCombat(Mob *mob);
     void groupRetreat(Mob *mob);
-    void enterCombat(CNSocket *sock, Mob *mob);
 }

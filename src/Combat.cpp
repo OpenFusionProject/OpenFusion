@@ -17,6 +17,148 @@ using namespace Combat;
 /// Player Id -> Bullet Id -> Bullet
 std::map<int32_t, std::map<int8_t, Bullet>> Combat::Bullets;
 
+int Player::takeDamage(EntityRef src, int amt) {
+    HP -= amt;
+    return amt;
+}
+
+void Player::heal(EntityRef src, int amt) {
+    // stubbed
+}
+
+bool Player::isAlive() {
+    return HP > 0;
+}
+
+int Player::getCurrentHP() {
+    return HP;
+}
+
+int32_t Player::getID() {
+    return iID;
+}
+
+void Player::step(time_t currTime) {
+    // no-op
+}
+
+int CombatNPC::takeDamage(EntityRef src, int amt) {
+
+    /* REFACTOR: all of this logic is strongly coupled to mobs.
+     * come back to this when more of it is moved to CombatNPC.
+     * remove this cast when done */
+    Mob* mob = (Mob*)this;
+
+    // cannot kill mobs multiple times; cannot harm retreating mobs
+    if (mob->state != AIState::ROAMING && mob->state != AIState::COMBAT) {
+        return 0; // no damage
+    }
+
+    if (mob->skillStyle >= 0)
+        return 0; // don't hurt a mob casting corruption
+
+    if (mob->state == AIState::ROAMING) {
+        assert(mob->target == nullptr && src.type == EntityType::PLAYER); // players only for now
+        mob->transition(AIState::COMBAT, src);
+
+        if (mob->groupLeader != 0)
+            MobAI::followToCombat(mob);
+    }
+
+    hp -= amt;
+
+    // wake up sleeping monster
+    if (mob->cbf & CSB_BIT_MEZ) {
+        mob->cbf &= ~CSB_BIT_MEZ;
+
+        INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
+        pkt1.eCT = 2;
+        pkt1.iID = mob->id;
+        pkt1.iConditionBitFlag = mob->cbf;
+        NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
+    }
+
+    if (mob->hp <= 0)
+        transition(AIState::DEAD, src);
+
+    return amt;
+}
+
+void CombatNPC::heal(EntityRef src, int amt) {
+    // stubbed
+}
+
+bool CombatNPC::isAlive() {
+    return hp > 0;
+}
+
+int CombatNPC::getCurrentHP() {
+    return hp;
+}
+
+int32_t CombatNPC::getID() {
+    return id;
+}
+
+void CombatNPC::step(time_t currTime) {
+    if (playersInView < 0)
+        std::cout << "[WARN] Weird playerview value " << playersInView << std::endl;
+
+    // skip movement and combat if disabled or not in view
+    if ((!MobAI::simulateMobs || playersInView == 0) && state != AIState::DEAD
+        && state != AIState::RETREAT)
+        return;
+
+    switch (state) {
+    case AIState::INACTIVE:
+        // no-op
+        break;
+    case AIState::ROAMING:
+        roamingStep(currTime);
+        break;
+    case AIState::COMBAT:
+        combatStep(currTime);
+        break;
+    case AIState::RETREAT:
+        retreatStep(currTime);
+        break;
+    case AIState::DEAD:
+        deadStep(currTime);
+        break;
+    }
+}
+
+void CombatNPC::transition(AIState newState, EntityRef src) {
+    state = newState;
+    switch (newState) {
+    case AIState::INACTIVE:
+        onInactive();
+        break;
+    case AIState::ROAMING:
+        onRoamStart();
+        break;
+    case AIState::COMBAT:
+        /* TODO: fire any triggered events
+        for (NPCEvent& event : NPCManager::NPCEvents)
+            if (event.trigger == ON_COMBAT && event.npcType == type)
+                event.handler(src, this);
+        */
+        onCombatStart(src);
+        break;
+    case AIState::RETREAT:
+        onRetreat();
+        break;
+    case AIState::DEAD:
+        /* TODO: fire any triggered events
+        for (NPCEvent& event : NPCManager::NPCEvents)
+            if (event.trigger == ON_KILLED && event.npcType == type)
+                event.handler(src, this);
+        */
+        onDeath(src);
+        break;
+    }
+}
+
 static std::pair<int,int> getDamage(int attackPower, int defensePower, bool shouldCrit,
                                          bool batteryBoost, int attackerStyle,
                                          int defenderStyle, int difficulty) {
@@ -137,7 +279,7 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         else
             plr->batteryW = 0;
 
-        damage.first = hitMob(sock, mob, damage.first);
+        damage.first = mob->takeDamage(sock, damage.first);
 
         respdata[i].iID = mob->id;
         respdata[i].iDamage = damage.first;
@@ -180,50 +322,9 @@ void Combat::npcAttackPc(Mob *mob, time_t currTime) {
     PlayerManager::sendToViewable(mob->target, respbuf, P_FE2CL_NPC_ATTACK_PCs);
 
     if (plr->HP <= 0) {
-        mob->target = nullptr;
-        mob->state = MobState::RETREAT;
-        if (!MobAI::aggroCheck(mob, currTime)) {
-            MobAI::clearDebuff(mob);
-            if (mob->groupLeader != 0)
-                MobAI::groupRetreat(mob);
-        }
+        if (!MobAI::aggroCheck(mob, getTime()))
+            mob->transition(AIState::RETREAT, mob->target);
     }
-}
-
-int Combat::hitMob(CNSocket *sock, Mob *mob, int damage) {
-    // cannot kill mobs multiple times; cannot harm retreating mobs
-    if (mob->state != MobState::ROAMING && mob->state != MobState::COMBAT) {
-        return 0; // no damage
-    }
-
-    if (mob->skillStyle >= 0)
-        return 0; // don't hurt a mob casting corruption
-
-    if (mob->state == MobState::ROAMING) {
-        assert(mob->target == nullptr);
-        MobAI::enterCombat(sock, mob);
-
-        if (mob->groupLeader != 0)
-            MobAI::followToCombat(mob);
-    }
-
-    mob->hp -= damage;
-
-    // wake up sleeping monster
-    if (mob->cbf & CSB_BIT_MEZ) {
-        mob->cbf &= ~CSB_BIT_MEZ;
-
-        INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
-        pkt1.eCT = 2;
-        pkt1.iID = mob->id;
-        pkt1.iConditionBitFlag = mob->cbf;
-        NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
-    }
-
-    if (mob->hp <= 0)
-        killMob(mob->target, mob);
-
-    return damage;
 }
 
 /*
@@ -233,7 +334,7 @@ int Combat::hitMob(CNSocket *sock, Mob *mob, int damage) {
  * single RNG roll per mission task, and every group member shares that same
  * set of rolls.
  */
-static void genQItemRolls(Player *leader, std::map<int, int>& rolls) {
+void Combat::genQItemRolls(Player *leader, std::map<int, int>& rolls) {
     for (int i = 0; i < leader->groupCnt; i++) {
         if (leader->groupIDs[i] == 0)
             continue;
@@ -247,79 +348,6 @@ static void genQItemRolls(Player *leader, std::map<int, int>& rolls) {
         for (int j = 0; j < ACTIVE_MISSION_COUNT; j++)
             if (member->tasks[j] != 0)
                 rolls[member->tasks[j]] = Rand::rand();
-    }
-}
-
-void Combat::killMob(CNSocket *sock, Mob *mob) {
-    mob->state = MobState::DEAD;
-    mob->target = nullptr;
-    mob->cbf = 0;
-    mob->skillStyle = -1;
-    mob->unbuffTimes.clear();
-    mob->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
-
-    // check for the edge case where hitting the mob did not aggro it
-    if (sock != nullptr) {
-        Player* plr = PlayerManager::getPlayer(sock);
-
-        Items::DropRoll rolled;
-        Items::DropRoll eventRolled;
-        std::map<int, int> qitemRolls;
-
-        Player *leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
-        assert(leader != nullptr); // should never happen
-
-        genQItemRolls(leader, qitemRolls);
-
-        if (plr->groupCnt == 1 && plr->iIDGroup == plr->iID) {
-            Items::giveMobDrop(sock, mob, rolled, eventRolled);
-            Missions::mobKilled(sock, mob->type, qitemRolls);
-        } else {
-            for (int i = 0; i < leader->groupCnt; i++) {
-                CNSocket* sockTo = PlayerManager::getSockFromID(leader->groupIDs[i]);
-                if (sockTo == nullptr)
-                    continue;
-
-                Player *otherPlr = PlayerManager::getPlayer(sockTo);
-
-                // only contribute to group members' kills if they're close enough
-                int dist = std::hypot(plr->x - otherPlr->x + 1, plr->y - otherPlr->y + 1);
-                if (dist > 5000)
-                    continue;
-
-                Items::giveMobDrop(sockTo, mob, rolled, eventRolled);
-                Missions::mobKilled(sockTo, mob->type, qitemRolls);
-            }
-        }
-    }
-
-    // delay the despawn animation
-    mob->despawned = false;
-
-    // fire any triggered events
-    for (NPCEvent& event : NPCManager::NPCEvents)
-        if (event.trigger == ON_KILLED && event.npcType == mob->type)
-            event.handler(sock, mob);
-
-    auto it = Transport::NPCQueues.find(mob->id);
-    if (it == Transport::NPCQueues.end() || it->second.empty())
-        return;
-
-    // rewind or empty the movement queue
-    if (mob->staticPath) {
-        /*
-         * This is inelegant, but we wind forward in the path until we find the point that
-         * corresponds with the Mob's spawn point.
-         *
-         * IMPORTANT: The check in TableData::loadPaths() must pass or else this will loop forever.
-         */
-        auto& queue = it->second;
-        for (auto point = queue.front(); point.x != mob->spawnX || point.y != mob->spawnY; point = queue.front()) {
-            queue.pop();
-            queue.push(point);
-        }
-    } else {
-        Transport::NPCQueues.erase(mob->id);
     }
 }
 
@@ -417,7 +445,7 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
         return;
 
     // Unlike the attack mob packet, attacking players packet has an 8-byte trail (Instead of 4 bytes).
-    if (!validInVarPacket(sizeof(sP_CL2FE_REQ_PC_ATTACK_CHARs), pkt->iTargetCnt, sizeof(int32_t) * 2, data->size)) {
+    if (!validInVarPacket(sizeof(sP_CL2FE_REQ_PC_ATTACK_CHARs), pkt->iTargetCnt, sizeof(sGM_PVPTarget), data->size)) {
         std::cout << "[WARN] bad sP_CL2FE_REQ_PC_ATTACK_CHARs packet size\n";
         return;
     }
@@ -441,11 +469,20 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
     resp->iTargetCnt = pkt->iTargetCnt;
 
     for (int i = 0; i < pkt->iTargetCnt; i++) {
-        if (pktdata[i*2+1] == 1) { // eCT == 1; attack player
-            Player *target = nullptr;
+
+        ICombatant* target = nullptr;
+        sGM_PVPTarget* targdata = (sGM_PVPTarget*)(pktdata + i * 2);
+        std::pair<int, int> damage;
+
+        if (pkt->iTargetCnt > 1)
+            damage.first = plr->groupDamage;
+        else
+            damage.first = plr->pointDamage;
+
+        if (targdata->eCT == 1) { // eCT == 1; attack player
 
             for (auto& pair : PlayerManager::players) {
-                if (pair.second->iID == pktdata[i*2]) {
+                if (pair.second->iID == targdata->iID) {
                     target = pair.second;
                     break;
                 }
@@ -457,67 +494,41 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
                 return;
             }
 
-            std::pair<int,int> damage;
+            damage = getDamage(damage.first, ((Player*)target)->defense, true, (plr->batteryW > 6 + plr->level), -1, -1, 0);
 
-            if (pkt->iTargetCnt > 1)
-                damage.first = plr->groupDamage;
-            else
-                damage.first = plr->pointDamage;
-
-            damage = getDamage(damage.first, target->defense, true, (plr->batteryW > 6 + plr->level), -1, -1, 0);
-
-            if (plr->batteryW >= 6 + plr->level)
-                plr->batteryW -= 6 + plr->level;
-            else
-                plr->batteryW = 0;
-
-            target->HP -= damage.first;
-
-            respdata[i].eCT = pktdata[i*2+1];
-            respdata[i].iID = target->iID;
-            respdata[i].iDamage = damage.first;
-            respdata[i].iHP = target->HP;
-            respdata[i].iHitFlag = damage.second; // hitscan, not a rocket or a grenade
         } else { // eCT == 4; attack mob
-            if (NPCManager::NPCs.find(pktdata[i*2]) == NPCManager::NPCs.end()) {
+
+            if (NPCManager::NPCs.find(targdata->iID) == NPCManager::NPCs.end()) {
                 // not sure how to best handle this
                 std::cout << "[WARN] pcAttackChars: NPC ID not found" << std::endl;
                 return;
             }
 
-            BaseNPC* npc = NPCManager::NPCs[pktdata[i * 2]];
+            BaseNPC* npc = NPCManager::NPCs[targdata->iID];
             if (npc->kind != EntityType::MOB) {
                 std::cout << "[WARN] pcAttackChars: NPC is not a mob" << std::endl;
                 return;
             }
 
             Mob* mob = (Mob*)npc;
-
-            std::pair<int,int> damage;
-
-            if (pkt->iTargetCnt > 1)
-                damage.first = plr->groupDamage;
-            else
-                damage.first = plr->pointDamage;
-
+            target = mob;
             int difficulty = (int)mob->data["m_iNpcLevel"];
-
             damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW > 6 + difficulty),
                 Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
-
-            if (plr->batteryW >= 6 + difficulty)
-                plr->batteryW -= 6 + difficulty;
-            else
-                plr->batteryW = 0;
-
-            damage.first = hitMob(sock, mob, damage.first);
-
-            respdata[i].eCT = pktdata[i*2+1];
-            respdata[i].iID = mob->id;
-            respdata[i].iDamage = damage.first;
-            respdata[i].iHP = mob->hp;
-            respdata[i].iHitFlag = damage.second; // hitscan, not a rocket or a grenade
         }
+
+        if (plr->batteryW >= 6 + plr->level)
+            plr->batteryW -= 6 + plr->level;
+        else
+            plr->batteryW = 0;
+
+        damage.first = target->takeDamage(sock, damage.first);
+
+        respdata[i].eCT = targdata->eCT;
+        respdata[i].iID = target->getID();
+        respdata[i].iDamage = damage.first;
+        respdata[i].iHP = target->getCurrentHP();
+        respdata[i].iHitFlag = damage.second; // hitscan, not a rocket or a grenade
     }
 
     sock->sendPacket((void*)respbuf, P_FE2CL_PC_ATTACK_CHARs_SUCC, resplen);
@@ -709,7 +720,7 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
         int difficulty = (int)mob->data["m_iNpcLevel"];
         damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, bullet->weaponBoost, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
 
-        damage.first = hitMob(sock, mob, damage.first);
+        damage.first = mob->takeDamage(sock, damage.first);
 
         respdata[i].iID = mob->id;
         respdata[i].iDamage = damage.first;

@@ -16,6 +16,16 @@ enum class EntityType : uint8_t {
     BUS
 };
 
+enum class AIState {
+    INACTIVE,
+    ROAMING,
+    COMBAT,
+    RETREAT,
+    DEAD
+};
+
+class Chunk;
+
 struct Entity {
     EntityType kind = EntityType::INVALID;
     int x = 0, y = 0, z = 0;
@@ -26,7 +36,7 @@ struct Entity {
     // destructor must be virtual, apparently
     virtual ~Entity() {}
 
-    virtual bool isAlive() { return true; }
+    virtual bool isExtant() { return true; }
 
     // stubs
     virtual void enterIntoViewOf(CNSocket *sock) = 0;
@@ -70,6 +80,24 @@ struct EntityRef {
 };
 
 /*
+ * Interfaces
+ */
+
+class ICombatant {
+public:
+    ICombatant() {}
+    virtual ~ICombatant() {}
+
+    virtual int takeDamage(EntityRef, int) = 0;
+    virtual void heal(EntityRef, int) = 0;
+    virtual bool isAlive() = 0;
+    virtual int getCurrentHP() = 0;
+    virtual int32_t getID() = 0;
+
+    virtual void step(time_t currTime) = 0;
+};
+
+/*
  * Subclasses
  */
 class BaseNPC : public Entity {
@@ -98,15 +126,15 @@ public:
     sNPCAppearanceData getAppearanceData();
 };
 
-struct CombatNPC : public BaseNPC {
+struct CombatNPC : public BaseNPC, public ICombatant {
     int maxHealth = 0;
     int spawnX = 0;
     int spawnY = 0;
     int spawnZ = 0;
     int level = 0;
     int speed = 300;
-
-    void (*_stepAI)(CombatNPC*, time_t) = nullptr;
+    AIState state = AIState::INACTIVE;
+    int playersInView = 0; // for optimizing away AI in empty chunks
 
     CombatNPC(int x, int y, int z, int angle, uint64_t iID, int t, int id, int maxHP)
         : BaseNPC(angle, iID, t, id), maxHealth(maxHP) {
@@ -115,17 +143,30 @@ struct CombatNPC : public BaseNPC {
         spawnZ = z;
     }
 
-    virtual void stepAI(time_t currTime) {
-        if (_stepAI != nullptr)
-            _stepAI(this, currTime);
-    }
+    virtual bool isExtant() override { return hp > 0; }
 
-    virtual bool isAlive() override { return hp > 0; }
+    virtual int takeDamage(EntityRef src, int amt) override;
+    virtual void heal(EntityRef src, int amt) override;
+    virtual bool isAlive() override;
+    virtual int getCurrentHP() override;
+    virtual int32_t getID() override;
+
+    virtual void step(time_t currTime) override;
+    virtual void roamingStep(time_t currTime) {} // no-ops by default
+    virtual void combatStep(time_t currTime) {}
+    virtual void retreatStep(time_t currTime) {}
+    virtual void deadStep(time_t currTime) {}
+
+    virtual void transition(AIState newState, EntityRef src);
+    virtual void onInactive() {} // no-ops by default
+    virtual void onRoamStart() {}
+    virtual void onCombatStart(EntityRef src) {}
+    virtual void onRetreat() {}
+    virtual void onDeath(EntityRef src) {}
 };
 
 // Mob is in MobAI.hpp, Player is in Player.hpp
 
-// TODO: decouple from BaseNPC
 struct Egg : public BaseNPC {
     bool summoned = false;
     bool dead = false;
@@ -137,13 +178,12 @@ struct Egg : public BaseNPC {
         kind = EntityType::EGG;
     }
 
-    virtual bool isAlive() override { return !dead; }
+    virtual bool isExtant() override { return !dead; }
 
     virtual void enterIntoViewOf(CNSocket *sock) override;
     virtual void disappearFromViewOf(CNSocket *sock) override;
 };
 
-// TODO: decouple from BaseNPC
 struct Bus : public BaseNPC {
     Bus(int angle, uint64_t iID, int t, int id) :
         BaseNPC(angle, iID, t, id) {
