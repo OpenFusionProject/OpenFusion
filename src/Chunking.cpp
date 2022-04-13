@@ -54,7 +54,7 @@ void Chunking::trackEntity(ChunkPos chunkPos, const EntityRef& ref) {
 
     chunks[chunkPos]->entities.insert(ref);
 
-    if (ref.type == EntityType::PLAYER)
+    if (ref.kind == EntityKind::PLAYER)
         chunks[chunkPos]->nplayers++;
 }
 
@@ -66,7 +66,7 @@ void Chunking::untrackEntity(ChunkPos chunkPos, const EntityRef& ref) {
 
     chunk->entities.erase(ref); // gone
 
-    if (ref.type == EntityType::PLAYER)
+    if (ref.kind == EntityKind::PLAYER)
         chunks[chunkPos]->nplayers--;
     assert(chunks[chunkPos]->nplayers >= 0);
 
@@ -89,19 +89,19 @@ void Chunking::addEntityToChunks(std::set<Chunk*> chnks, const EntityRef& ref) {
             Entity *other = otherRef.getEntity();
 
             // notify all visible players of the existence of this Entity
-            if (alive && otherRef.type == EntityType::PLAYER) {
+            if (alive && otherRef.kind == EntityKind::PLAYER) {
                 ent->enterIntoViewOf(otherRef.sock);
             }
 
             // notify this *player* of the existence of all visible Entities
-            if (ref.type == EntityType::PLAYER && other->isExtant()) {
+            if (ref.kind == EntityKind::PLAYER && other->isExtant()) {
                 other->enterIntoViewOf(ref.sock);
             }
 
             // for mobs, increment playersInView
-            if (ref.type == EntityType::MOB && otherRef.type == EntityType::PLAYER)
+            if (ref.kind == EntityKind::MOB && otherRef.kind == EntityKind::PLAYER)
                 ((Mob*)ent)->playersInView++;
-            if (otherRef.type == EntityType::MOB && ref.type == EntityType::PLAYER)
+            if (otherRef.kind == EntityKind::MOB && ref.kind == EntityKind::PLAYER)
                 ((Mob*)other)->playersInView++;
         }
     }
@@ -121,19 +121,19 @@ void Chunking::removeEntityFromChunks(std::set<Chunk*> chnks, const EntityRef& r
             Entity *other = otherRef.getEntity();
 
             // notify all visible players of the departure of this Entity
-            if (alive && otherRef.type == EntityType::PLAYER) {
+            if (alive && otherRef.kind == EntityKind::PLAYER) {
                 ent->disappearFromViewOf(otherRef.sock);
             }
 
             // notify this *player* of the departure of all visible Entities
-            if (ref.type == EntityType::PLAYER && other->isExtant()) {
+            if (ref.kind == EntityKind::PLAYER && other->isExtant()) {
                 other->disappearFromViewOf(ref.sock);
             }
 
             // for mobs, decrement playersInView
-            if (ref.type == EntityType::MOB && otherRef.type == EntityType::PLAYER)
+            if (ref.kind == EntityKind::MOB && otherRef.kind == EntityKind::PLAYER)
                 ((Mob*)ent)->playersInView--;
-            if (otherRef.type == EntityType::MOB && ref.type == EntityType::PLAYER)
+            if (otherRef.kind == EntityKind::MOB && ref.kind == EntityKind::PLAYER)
                 ((Mob*)other)->playersInView--;
         }
     }
@@ -155,7 +155,7 @@ static void emptyChunk(ChunkPos chunkPos) {
     // unspawn all of the mobs/npcs
     std::set refs(chunk->entities);
     for (const EntityRef& ref : refs) {
-        if (ref.type == EntityType::PLAYER)
+        if (ref.kind == EntityKind::PLAYER)
             assert(0);
 
         // every call of this will check if the chunk is empty and delete it if so
@@ -268,14 +268,14 @@ void Chunking::createInstance(uint64_t instanceID) {
     std::cout << "Creating instance " << instanceID << std::endl;
     for (ChunkPos &coords : templateChunks) {
         for (const EntityRef& ref : chunks[coords]->entities) {
-            if (ref.type == EntityType::PLAYER)
+            if (ref.kind == EntityKind::PLAYER)
                 continue;
 
             int npcID = ref.id;
             BaseNPC* baseNPC = (BaseNPC*)ref.getEntity();
 
             // make a copy of each NPC in the template chunks and put them in the new instance
-            if (baseNPC->kind == EntityType::MOB) {
+            if (baseNPC->kind == EntityKind::MOB) {
                 if (((Mob*)baseNPC)->groupLeader != 0 && ((Mob*)baseNPC)->groupLeader != npcID)
                     continue; // follower; don't copy individually
 

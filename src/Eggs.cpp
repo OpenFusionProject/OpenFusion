@@ -19,7 +19,8 @@ int Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
     Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
     int bitFlag = Groups::getGroupFlags(otherPlr);
-    int CBFlag = Abilities::applyBuff(sock, skillId, 1, 3, bitFlag);
+    // TODO ABILITIES
+    int CBFlag = 0;// Abilities::applyBuff(sock, skillId, 1, 3, bitFlag);
 
     size_t resplen; 
 
@@ -100,23 +101,24 @@ static void eggStep(CNServer* serv, time_t currTime) {
             Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
             int groupFlags = Groups::getGroupFlags(otherPlr);
-            for (auto& pwr : Abilities::Powers) {
-                if (pwr.bitFlag == CBFlag) { // pick the power with the right flag and unbuff
-                    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, resp);
-                    resp.eCSTB = pwr.timeBuffID;
-                    resp.eTBU = 2;
-                    resp.eTBT = 3; // for egg buffs
-                    plr->iConditionBitFlag &= ~CBFlag;
-                    resp.iConditionBitFlag = plr->iConditionBitFlag |= groupFlags | plr->iSelfConditionBitFlag;
-                    sock->sendPacket(resp, P_FE2CL_PC_BUFF_UPDATE);
+            // TODO ABILITIES
+            //for (auto& pwr : Abilities::Powers) {
+            //    if (pwr.bitFlag == CBFlag) { // pick the power with the right flag and unbuff
+            //        INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, resp);
+            //        resp.eCSTB = pwr.timeBuffID;
+            //        resp.eTBU = 2;
+            //        resp.eTBT = 3; // for egg buffs
+            //        plr->iConditionBitFlag &= ~CBFlag;
+            //        resp.iConditionBitFlag = plr->iConditionBitFlag |= groupFlags | plr->iSelfConditionBitFlag;
+            //        sock->sendPacket(resp, P_FE2CL_PC_BUFF_UPDATE);
 
-                    INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, resp2); // send a buff timeout to other players
-                    resp2.eCT = 1;
-                    resp2.iID = plr->iID;
-                    resp2.iConditionBitFlag = plr->iConditionBitFlag;
-                    PlayerManager::sendToViewable(sock, resp2, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT);
-                }
-            }
+            //        INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, resp2); // send a buff timeout to other players
+            //        resp2.eCT = 1;
+            //        resp2.iID = plr->iID;
+            //        resp2.iConditionBitFlag = plr->iConditionBitFlag;
+            //        PlayerManager::sendToViewable(sock, resp2, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT);
+            //    }
+            //}
             // remove buff from the map
             it = EggBuffs.erase(it);
         }
@@ -124,7 +126,7 @@ static void eggStep(CNServer* serv, time_t currTime) {
 
     // check dead eggs and eggs in inactive chunks
     for (auto npc : NPCManager::NPCs) {
-        if (npc.second->kind != EntityType::EGG)
+        if (npc.second->kind != EntityKind::EGG)
             continue;
 
         auto egg = (Egg*)npc.second;
@@ -163,7 +165,7 @@ static void eggPickup(CNSocket* sock, CNPacketData* data) {
         return;
     }
     auto egg = (Egg*)eggRef.getEntity();
-    if (egg->kind != EntityType::EGG) {
+    if (egg->kind != EntityKind::EGG) {
         std::cout << "[WARN] Player tried to open something other than an?!" << std::endl;
         return;
     }

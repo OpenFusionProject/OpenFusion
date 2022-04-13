@@ -4,6 +4,20 @@
 #include "NPCManager.hpp"
 #include "Entities.hpp"
 
+/* kill me */
+struct Mob;
+namespace MobAI {
+    void deadStep(CombatNPC* self, time_t currTime);
+    void combatStep(CombatNPC* self, time_t currTime);
+    void roamingStep(CombatNPC* self, time_t currTime);
+    void retreatStep(CombatNPC* self, time_t currTime);
+
+    void onRoamStart(CombatNPC* self, EntityRef src);
+    void onCombatStart(CombatNPC* self, EntityRef src);
+    void onRetreat(CombatNPC* self, EntityRef src);
+    void onDeath(CombatNPC* self, EntityRef src);
+}
+
 struct Mob : public CombatNPC {
     // general
     std::unordered_map<int32_t,time_t> unbuffTimes = {};
@@ -60,7 +74,18 @@ struct Mob : public CombatNPC {
         // NOTE: there appear to be discrepancies in the dump
         hp = maxHealth;
 
-        kind = EntityType::MOB;
+        kind = EntityKind::MOB;
+
+        // AI
+        stateHandlers[AIState::DEAD] = MobAI::deadStep;
+        stateHandlers[AIState::COMBAT] = MobAI::combatStep;
+        stateHandlers[AIState::ROAMING] = MobAI::roamingStep;
+        stateHandlers[AIState::RETREAT] = MobAI::retreatStep;
+
+        transitionHandlers[AIState::DEAD] = MobAI::onDeath;
+        transitionHandlers[AIState::COMBAT] = MobAI::onCombatStart;
+        transitionHandlers[AIState::ROAMING] = MobAI::onRoamStart;
+        transitionHandlers[AIState::RETREAT] = MobAI::onRetreat;
     }
 
     // constructor for /summon
@@ -71,16 +96,8 @@ struct Mob : public CombatNPC {
 
     ~Mob() {}
 
-    virtual void roamingStep(time_t currTime) override;
-    virtual void combatStep(time_t currTime) override;
-    virtual void retreatStep(time_t currTime) override;
-    virtual void deadStep(time_t currTime) override;
-
-    virtual void onInactive() override;
-    virtual void onRoamStart() override;
-    virtual void onCombatStart(EntityRef src) override;
-    virtual void onRetreat() override;
-    virtual void onDeath(EntityRef src) override;
+    virtual int takeDamage(EntityRef src, int amt) override;
+    virtual void step(time_t currTime) override;
 
     auto operator[](std::string s) {
         return data[s];

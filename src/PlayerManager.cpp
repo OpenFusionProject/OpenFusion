@@ -353,7 +353,7 @@ void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, siz
     for (auto it = plr->viewableChunks.begin(); it != plr->viewableChunks.end(); it++) {
         Chunk* chunk = *it;
         for (const EntityRef& ref : chunk->entities) {
-            if (ref.type != EntityType::PLAYER || ref.sock == sock)
+            if (ref.kind != EntityKind::PLAYER || ref.sock == sock)
                 continue;
 
             ref.sock->sendPacket(buf, type, size);
@@ -411,7 +411,8 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
         if (!(plr->iConditionBitFlag & CSB_BIT_PHOENIX))
             return; // sanity check
         plr->Nanos[plr->activeNano].iStamina = 0;
-        Abilities::applyBuff(sock, plr->Nanos[plr->activeNano].iSkillID, 2, 1, 0);
+        // TODO ABILITIES
+        //Abilities::applyBuff(sock, plr->Nanos[plr->activeNano].iSkillID, 2, 1, 0);
         // fallthrough
     case ePCRegenType::HereByPhoenixGroup: // revived by group member's nano
         plr->HP = PC_MAXHEALTH(plr->level) / 2;

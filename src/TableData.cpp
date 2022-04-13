@@ -1226,7 +1226,7 @@ void TableData::flush() {
             continue;
 
         int x, y, z;
-        if (npc->kind == EntityType::MOB) {
+        if (npc->kind == EntityKind::MOB) {
             Mob *m = (Mob*)npc;
             x = m->spawnX;
             y = m->spawnY;
@@ -1259,7 +1259,7 @@ void TableData::flush() {
 
         int x, y, z;
         std::vector<Mob*> followers;
-        if (npc->kind == EntityType::MOB) {
+        if (npc->kind == EntityKind::MOB) {
             Mob* m = (Mob*)npc;
             x = m->spawnX;
             y = m->spawnY;
@@ -1271,7 +1271,7 @@ void TableData::flush() {
 
             // add follower data to vector; go until OOB or until follower ID is 0
             for (int i = 0; i < 4 && m->groupMember[i] > 0; i++) {
-                if (NPCManager::NPCs.find(m->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[m->groupMember[i]]->kind != EntityType::MOB) {
+                if (NPCManager::NPCs.find(m->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[m->groupMember[i]]->kind != EntityKind::MOB) {
                     std::cout << "[WARN] Follower with ID " << m->groupMember[i] << " not found; skipping\n";
                     continue;
                 }

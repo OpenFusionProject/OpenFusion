@@ -135,10 +135,11 @@ static void joinGroup(CNSocket* sock, CNPacketData* data) {
         // client doesnt read nano data here
 
         if (varPlr != plr) { // apply the new member's buffs to the group and the group's buffs to the new member
-            if (Abilities::SkillTable[varPlr->Nanos[varPlr->activeNano].iSkillID].targetType == 3)
+            // TODO ABILITIES
+            /*if (Abilities::SkillTable[varPlr->Nanos[varPlr->activeNano].iSkillID].targetType == 3)
                 Abilities::applyBuff(sock, varPlr->Nanos[varPlr->activeNano].iSkillID, 1, 1, bitFlag);
             if (Abilities::SkillTable[plr->Nanos[plr->activeNano].iSkillID].targetType == 3)
-                Abilities::applyBuff(sockTo, plr->Nanos[plr->activeNano].iSkillID, 1, 1, bitFlag);
+                Abilities::applyBuff(sockTo, plr->Nanos[plr->activeNano].iSkillID, 1, 1, bitFlag);*/
         }
     }
 
@@ -221,7 +222,8 @@ static void groupUnbuff(Player* plr) {
             Player* otherPlr = PlayerManager::getPlayerFromID(plr->groupIDs[i]);
             CNSocket* sock = PlayerManager::getSockFromID(plr->groupIDs[n]);
 
-            Abilities::applyBuff(sock, otherPlr->Nanos[otherPlr->activeNano].iSkillID, 2, 1, 0);
+            // TODO ABILITIES
+            //Abilities::applyBuff(sock, otherPlr->Nanos[otherPlr->activeNano].iSkillID, 2, 1, 0);
         }
     }
 }
@@ -295,10 +297,11 @@ void Groups::groupKickPlayer(Player* plr) {
             moveDown = 1;
             otherPlr->groupIDs[i] = 0;
         } else { // remove the leaving member's buffs from the group and remove the group buffs from the leaving member.
-            if (Abilities::SkillTable[varPlr->Nanos[varPlr->activeNano].iSkillID].targetType == 3)
+            // TODO ABILITIES
+          /*if (Abilities::SkillTable[varPlr->Nanos[varPlr->activeNano].iSkillID].targetType == 3)
                 Abilities::applyBuff(sock, varPlr->Nanos[varPlr->activeNano].iSkillID, 2, 1, 0);
             if (Abilities::SkillTable[plr->Nanos[varPlr->activeNano].iSkillID].targetType == 3)
-                Abilities::applyBuff(sockTo, plr->Nanos[plr->activeNano].iSkillID, 2, 1, bitFlag);
+                Abilities::applyBuff(sockTo, plr->Nanos[plr->activeNano].iSkillID, 2, 1, bitFlag);*/
         }
     }
 

@@ -3,29 +3,6 @@
 #include "core/Core.hpp"
 #include "Combat.hpp"
 
-typedef void (*PowerHandler)(EntityRef, std::vector<int>, int16_t, int16_t, int16_t, int16_t, int16_t, int32_t, int16_t);
-
-struct Power {
-    int16_t skillType;
-    int32_t bitFlag;
-    int16_t timeBuffID;
-    PowerHandler handler;
-
-    Power(int16_t s, int32_t b, int16_t t, PowerHandler h) : skillType(s), bitFlag(b), timeBuffID(t), handler(h) {}
-
-    void handle(EntityRef ref, std::vector<int> targetData, int16_t nanoID, int16_t skillID, int16_t duration, int16_t amount) {
-        if (handler == nullptr)
-            return;
-
-        handler(ref, targetData, nanoID, skillID, duration, amount, skillType, bitFlag, timeBuffID);
-    }
-
-    /* overload for non-nano abilities */
-    void handle(EntityRef ref, std::vector<int> targetData, int16_t skillID, int16_t duration, int16_t amount) {
-        handle(ref, targetData, -1, skillID, duration, amount);
-    }
-};
-
 struct SkillData {
     int skillType;
     int targetType;
@@ -37,11 +14,5 @@ struct SkillData {
 };
 
 namespace Abilities {
-    extern std::vector<Power> Powers;
     extern std::map<int32_t, SkillData> SkillTable;
-
-    void removeBuff(CNSocket* sock, std::vector<int> targetData, int32_t bitFlag, int16_t timeBuffID, int16_t amount, bool groupPower);
-    int applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags);
-
-    std::vector<int> findTargets(Player* plr, int skillID, CNPacketData* data = nullptr);
 }

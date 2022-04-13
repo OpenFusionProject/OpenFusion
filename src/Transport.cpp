@@ -257,13 +257,13 @@ static void stepNPCPathing() {
         }
 
         // skip if not simulating mobs
-        if (npc->kind == EntityType::MOB && !MobAI::simulateMobs) {
+        if (npc->kind == EntityKind::MOB && !MobAI::simulateMobs) {
             it++;
             continue;
         }
 
         // do not roam if not roaming
-        if (npc->kind == EntityType::MOB && ((Mob*)npc)->state != AIState::ROAMING) {
+        if (npc->kind == EntityKind::MOB && ((Mob*)npc)->state != AIState::ROAMING) {
             it++;
             continue;
         }
@@ -280,7 +280,7 @@ static void stepNPCPathing() {
 
         // TODO: move walking logic into Entity stack
         switch (npc->kind) {
-        case EntityType::BUS:
+        case EntityKind::BUS:
             INITSTRUCT(sP_FE2CL_TRANSPORTATION_MOVE, busMove);
 
             busMove.eTT = 3;
@@ -293,7 +293,7 @@ static void stepNPCPathing() {
 
             NPCManager::sendToViewable(npc, &busMove, P_FE2CL_TRANSPORTATION_MOVE, sizeof(sP_FE2CL_TRANSPORTATION_MOVE));
             break;
-        case EntityType::MOB:
+        case EntityKind::MOB:
             MobAI::incNextMovement((Mob*)npc);
             /* fallthrough */
         default:
@@ -385,7 +385,7 @@ NPCPath* Transport::findApplicablePath(int32_t id, int32_t type, int taskID) {
 
 void Transport::constructPathNPC(int32_t id, NPCPath* path) {
     BaseNPC* npc = NPCManager::NPCs[id];
-    if (npc->kind == EntityType::MOB)
+    if (npc->kind == EntityKind::MOB)
         ((Mob*)(npc))->staticPath = true;
     npc->loopingPath = path->isLoop;
 

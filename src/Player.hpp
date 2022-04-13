@@ -85,7 +85,7 @@ struct Player : public Entity, public ICombatant {
     time_t lastShot = 0;
     std::vector<sItemBase> buyback = {};
 
-    Player() { kind = EntityType::PLAYER; }
+    Player() { kind = EntityKind::PLAYER; }
 
     virtual void enterIntoViewOf(CNSocket *sock) override;
     virtual void disappearFromViewOf(CNSocket *sock) override;

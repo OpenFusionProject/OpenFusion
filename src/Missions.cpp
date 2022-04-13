@@ -371,7 +371,7 @@ static void taskStart(CNSocket* sock, CNPacketData* data) {
         for (ChunkPos& chunkPos : Chunking::getChunksInMap(plr->instanceID)) { // check all NPCs in the instance
             Chunk* chunk = Chunking::chunks[chunkPos];
             for (EntityRef ref : chunk->entities) {
-                if (ref.type != EntityType::PLAYER) {
+                if (ref.kind != EntityKind::PLAYER) {
                     BaseNPC* npc = (BaseNPC*)ref.getEntity();
                     NPCPath* path = Transport::findApplicablePath(npc->id, npc->type, missionData->iTaskNum);
                     if (path != nullptr) {

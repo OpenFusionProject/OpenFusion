@@ -83,7 +83,7 @@ void NPCManager::sendToViewable(BaseNPC *npc, void *buf, uint32_t type, size_t s
     for (auto it = npc->viewableChunks.begin(); it != npc->viewableChunks.end(); it++) {
         Chunk* chunk = *it;
         for (const EntityRef& ref : chunk->entities) {
-            if (ref.type == EntityType::PLAYER)
+            if (ref.kind == EntityKind::PLAYER)
                 ref.sock->sendPacket(buf, type, size);
         }
     }
@@ -275,7 +275,7 @@ BaseNPC* NPCManager::getNearestNPC(std::set<Chunk*>* chunks, int X, int Y, int Z
     for (auto c = chunks->begin(); c != chunks->end(); c++) { // haha get it
         Chunk* chunk = *c;
         for (auto ent = chunk->entities.begin(); ent != chunk->entities.end(); ent++) {
-            if (ent->type == EntityType::PLAYER)
+            if (ent->kind == EntityKind::PLAYER)
                 continue;
 
             BaseNPC* npcTemp = (BaseNPC*)ent->getEntity();
@@ -351,7 +351,7 @@ void NPCManager::queueNPCRemoval(int32_t id) {
 
 static void step(CNServer *serv, time_t currTime) {
     for (auto& pair : NPCs) {
-        if (pair.second->kind != EntityType::COMBAT_NPC && pair.second->kind != EntityType::MOB)
+        if (pair.second->kind != EntityKind::COMBAT_NPC && pair.second->kind != EntityKind::MOB)
             continue;
         auto npc = (CombatNPC*)pair.second;
 

@@ -12,7 +12,7 @@ static_assert(std::is_standard_layout<EntityRef>::value);
 static_assert(std::is_trivially_copyable<EntityRef>::value);
 
 EntityRef::EntityRef(CNSocket *s) {
-    type = EntityType::PLAYER;
+    kind = EntityKind::PLAYER;
     sock = s;
 }
 
@@ -20,11 +20,11 @@ EntityRef::EntityRef(int32_t i) {
     id = i;
 
     assert(NPCManager::NPCs.find(id) != NPCManager::NPCs.end());
-    type = NPCManager::NPCs[id]->kind;
+    kind = NPCManager::NPCs[id]->kind;
 }
 
 bool EntityRef::isValid() const {
-    if (type == EntityType::PLAYER)
+    if (kind == EntityKind::PLAYER)
         return PlayerManager::players.find(sock) != PlayerManager::players.end();
 
     return NPCManager::NPCs.find(id) != NPCManager::NPCs.end();
@@ -33,7 +33,7 @@ bool EntityRef::isValid() const {
 Entity *EntityRef::getEntity() const {
     assert(isValid());
 
-    if (type == EntityType::PLAYER)
+    if (kind == EntityKind::PLAYER)
         return PlayerManager::getPlayer(sock);
 
     return NPCManager::NPCs[id];

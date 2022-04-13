@@ -44,41 +44,8 @@ void Player::step(time_t currTime) {
 
 int CombatNPC::takeDamage(EntityRef src, int amt) {
 
-    /* REFACTOR: all of this logic is strongly coupled to mobs.
-     * come back to this when more of it is moved to CombatNPC.
-     * remove this cast when done */
-    Mob* mob = (Mob*)this;
-
-    // cannot kill mobs multiple times; cannot harm retreating mobs
-    if (mob->state != AIState::ROAMING && mob->state != AIState::COMBAT) {
-        return 0; // no damage
-    }
-
-    if (mob->skillStyle >= 0)
-        return 0; // don't hurt a mob casting corruption
-
-    if (mob->state == AIState::ROAMING) {
-        assert(mob->target == nullptr && src.type == EntityType::PLAYER); // players only for now
-        mob->transition(AIState::COMBAT, src);
-
-        if (mob->groupLeader != 0)
-            MobAI::followToCombat(mob);
-    }
-
     hp -= amt;
-
-    // wake up sleeping monster
-    if (mob->cbf & CSB_BIT_MEZ) {
-        mob->cbf &= ~CSB_BIT_MEZ;
-
-        INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
-        pkt1.eCT = 2;
-        pkt1.iID = mob->id;
-        pkt1.iConditionBitFlag = mob->cbf;
-        NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
-    }
-
-    if (mob->hp <= 0)
+    if (hp <= 0)
         transition(AIState::DEAD, src);
 
     return amt;
@@ -101,62 +68,29 @@ int32_t CombatNPC::getID() {
 }
 
 void CombatNPC::step(time_t currTime) {
-    if (playersInView < 0)
-        std::cout << "[WARN] Weird playerview value " << playersInView << std::endl;
-
-    // skip movement and combat if disabled or not in view
-    if ((!MobAI::simulateMobs || playersInView == 0) && state != AIState::DEAD
-        && state != AIState::RETREAT)
-        return;
-
-    switch (state) {
-    case AIState::INACTIVE:
-        // no-op
-        break;
-    case AIState::ROAMING:
-        roamingStep(currTime);
-        break;
-    case AIState::COMBAT:
-        combatStep(currTime);
-        break;
-    case AIState::RETREAT:
-        retreatStep(currTime);
-        break;
-    case AIState::DEAD:
-        deadStep(currTime);
-        break;
+    
+    if(stateHandlers.find(state) != stateHandlers.end())
+        stateHandlers[state](this, currTime);
+    else {
+        std::cout << "[WARN] State " << (int)state << " has no handler; going inactive" << std::endl;
+        transition(AIState::INACTIVE, id);
     }
 }
 
 void CombatNPC::transition(AIState newState, EntityRef src) {
+
     state = newState;
-    switch (newState) {
-    case AIState::INACTIVE:
-        onInactive();
-        break;
-    case AIState::ROAMING:
-        onRoamStart();
-        break;
-    case AIState::COMBAT:
-        /* TODO: fire any triggered events
-        for (NPCEvent& event : NPCManager::NPCEvents)
-            if (event.trigger == ON_COMBAT && event.npcType == type)
-                event.handler(src, this);
-        */
-        onCombatStart(src);
-        break;
-    case AIState::RETREAT:
-        onRetreat();
-        break;
-    case AIState::DEAD:
-        /* TODO: fire any triggered events
-        for (NPCEvent& event : NPCManager::NPCEvents)
-            if (event.trigger == ON_KILLED && event.npcType == type)
-                event.handler(src, this);
-        */
-        onDeath(src);
-        break;
+    if (transitionHandlers.find(newState) != transitionHandlers.end())
+        transitionHandlers[newState](this, src);
+    else {
+        std::cout << "[WARN] Transition to " << (int)state << " has no handler; going inactive" << std::endl;
+        transition(AIState::INACTIVE, id);
     }
+    /* TODO: fire any triggered events
+    for (NPCEvent& event : NPCManager::NPCEvents)
+        if (event.trigger == ON_KILLED && event.npcType == type)
+            event.handler(src, this);
+    */
 }
 
 static std::pair<int,int> getDamage(int attackPower, int defensePower, bool shouldCrit,
@@ -256,7 +190,7 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
 
         BaseNPC* npc = NPCManager::NPCs[targets[i]];
-        if (npc->kind != EntityType::MOB) {
+        if (npc->kind != EntityKind::MOB) {
             std::cout << "[WARN] pcAttackNpcs: NPC is not a mob" << std::endl;
             return;
         }
@@ -450,7 +384,7 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
         return;
     }
 
-    int32_t *pktdata = (int32_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_PC_ATTACK_CHARs));
+    sGM_PVPTarget* pktdata = (sGM_PVPTarget*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_PC_ATTACK_CHARs));
 
     if (!validOutVarPacket(sizeof(sP_FE2CL_PC_ATTACK_CHARs_SUCC), pkt->iTargetCnt, sizeof(sAttackResult))) {
         std::cout << "[WARN] bad sP_FE2CL_PC_ATTACK_CHARs_SUCC packet size\n";
@@ -471,7 +405,6 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
     for (int i = 0; i < pkt->iTargetCnt; i++) {
 
         ICombatant* target = nullptr;
-        sGM_PVPTarget* targdata = (sGM_PVPTarget*)(pktdata + i * 2);
         std::pair<int, int> damage;
 
         if (pkt->iTargetCnt > 1)
@@ -479,10 +412,10 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
         else
             damage.first = plr->pointDamage;
 
-        if (targdata->eCT == 1) { // eCT == 1; attack player
+        if (pktdata[i].eCT == 1) { // eCT == 1; attack player
 
             for (auto& pair : PlayerManager::players) {
-                if (pair.second->iID == targdata->iID) {
+                if (pair.second->iID == pktdata[i].iID) {
                     target = pair.second;
                     break;
                 }
@@ -498,14 +431,14 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
 
         } else { // eCT == 4; attack mob
 
-            if (NPCManager::NPCs.find(targdata->iID) == NPCManager::NPCs.end()) {
+            if (NPCManager::NPCs.find(pktdata[i].iID) == NPCManager::NPCs.end()) {
                 // not sure how to best handle this
                 std::cout << "[WARN] pcAttackChars: NPC ID not found" << std::endl;
                 return;
             }
 
-            BaseNPC* npc = NPCManager::NPCs[targdata->iID];
-            if (npc->kind != EntityType::MOB) {
+            BaseNPC* npc = NPCManager::NPCs[pktdata[i].iID];
+            if (npc->kind != EntityKind::MOB) {
                 std::cout << "[WARN] pcAttackChars: NPC is not a mob" << std::endl;
                 return;
             }
@@ -524,7 +457,7 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
 
         damage.first = target->takeDamage(sock, damage.first);
 
-        respdata[i].eCT = targdata->eCT;
+        respdata[i].eCT = pktdata[i].eCT;
         respdata[i].iID = target->getID();
         respdata[i].iDamage = damage.first;
         respdata[i].iHP = target->getCurrentHP();
@@ -707,7 +640,7 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
         }
 
         BaseNPC* npc = NPCManager::NPCs[pktdata[i]];
-        if (npc->kind != EntityType::MOB) {
+        if (npc->kind != EntityKind::MOB) {
             std::cout << "[WARN] projectileHit: NPC is not a mob" << std::endl;
             return;
         }

@@ -283,10 +283,10 @@ static void unsummonWCommand(std::string full, std::vector<std::string>& args, C
         return;
     }
 
-    if (NPCManager::NPCs.find(npc->id) != NPCManager::NPCs.end() && NPCManager::NPCs[npc->id]->kind == EntityType::MOB) {
+    if (NPCManager::NPCs.find(npc->id) != NPCManager::NPCs.end() && NPCManager::NPCs[npc->id]->kind == EntityKind::MOB) {
         int leadId = ((Mob*)npc)->groupLeader;
         if (leadId != 0) {
-            if (NPCManager::NPCs.find(leadId) == NPCManager::NPCs.end() || NPCManager::NPCs[leadId]->kind != EntityType::MOB) {
+            if (NPCManager::NPCs.find(leadId) == NPCManager::NPCs.end() || NPCManager::NPCs[leadId]->kind != EntityKind::MOB) {
                 std::cout << "[WARN] unsummonW: leader not found!" << std::endl;
             }
             Mob* leadNpc = (Mob*)NPCManager::NPCs[leadId];
@@ -294,7 +294,7 @@ static void unsummonWCommand(std::string full, std::vector<std::string>& args, C
                 if (leadNpc->groupMember[i] == 0)
                     break;
 
-                if (NPCManager::NPCs.find(leadNpc->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[leadNpc->groupMember[i]]->kind != EntityType::MOB) {
+                if (NPCManager::NPCs.find(leadNpc->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[leadNpc->groupMember[i]]->kind != EntityKind::MOB) {
                     std::cout << "[WARN] unsommonW: leader can't find a group member!" << std::endl;
                     continue;
                 }
@@ -324,7 +324,7 @@ static void toggleAiCommand(std::string full, std::vector<std::string>& args, CN
 
     // return all mobs to their spawn points
     for (auto& pair : NPCManager::NPCs) {
-        if (pair.second->kind != EntityType::MOB)
+        if (pair.second->kind != EntityKind::MOB)
             continue;
 
         Mob* mob = (Mob*)pair.second;
@@ -609,7 +609,7 @@ static void summonGroupCommand(std::string full, std::vector<std::string>& args,
         }
 
         BaseNPC *npc = NPCManager::summonNPC(x, y, z, plr->instanceID, type, wCommand);
-        if (team == 2 && i > 0 && npc->kind == EntityType::MOB) {
+        if (team == 2 && i > 0 && npc->kind == EntityKind::MOB) {
             leadNpc->groupMember[i-1] = npc->id;
             Mob* mob = (Mob*)NPCManager::NPCs[npc->id];
             mob->groupLeader = leadNpc->id;
@@ -624,7 +624,7 @@ static void summonGroupCommand(std::string full, std::vector<std::string>& args,
         if (PLAYERID(plr->instanceID) != 0) {
             npc = NPCManager::summonNPC(plr->x, plr->y, plr->z, plr->instanceID, type, wCommand, true);
 
-            if (team == 2 && i > 0 && npc->kind == EntityType::MOB) {
+            if (team == 2 && i > 0 && npc->kind == EntityKind::MOB) {
                 leadNpc->groupMember[i-1] = npc->id;
                 Mob* mob = (Mob*)NPCManager::NPCs[npc->id];
                 mob->groupLeader = leadNpc->id;
@@ -639,7 +639,7 @@ static void summonGroupCommand(std::string full, std::vector<std::string>& args,
         Chat::sendServerMessage(sock, "/summonGroup(W): placed mob with type: " + std::to_string(type) +
             ", id: " + std::to_string(npc->id));
 
-        if (i == 0 && team == 2 && npc->kind == EntityType::MOB) {
+        if (i == 0 && team == 2 && npc->kind == EntityKind::MOB) {
             type = type2;
             leadNpc = (Mob*)NPCManager::NPCs[npc->id];
             leadNpc->groupLeader = leadNpc->id;
@@ -694,7 +694,7 @@ static void lairUnlockCommand(std::string full, std::vector<std::string>& args, 
     int lastDist = INT_MAX;
     for (Chunk *chnk : Chunking::getViewableChunks(plr->chunkPos)) {
         for (const EntityRef& ref : chnk->entities) {
-            if (ref.type == EntityType::PLAYER)
+            if (ref.kind == EntityKind::PLAYER)
                 continue;
 
             BaseNPC* npc = (BaseNPC*)ref.getEntity();
