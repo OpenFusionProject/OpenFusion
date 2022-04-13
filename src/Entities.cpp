@@ -42,7 +42,7 @@ Entity *EntityRef::getEntity() const {
 sNPCAppearanceData BaseNPC::getAppearanceData() {
     sNPCAppearanceData data = {};
     data.iAngle = angle;
-    data.iBarkerType = barkerType;
+    data.iBarkerType = 0; // unused?
     data.iConditionBitFlag = cbf;
     data.iHP = hp;
     data.iNPCType = type;
