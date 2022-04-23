@@ -6,6 +6,7 @@
 #include "core/Core.hpp"
 #include "Chunking.hpp"
 #include "Entities.hpp"
+#include "Groups.hpp"
 
 #define ACTIVE_MISSION_COUNT 6
 
@@ -65,10 +66,7 @@ struct Player : public Entity, public ICombatant {
 
     sTimeLimitItemDeleteInfo2CL toRemoveVehicle = {};
 
-    int32_t iIDGroup = 0;
-    int groupCnt = 0;
-    int32_t groupIDs[4] = {};
-    int32_t iGroupConditionBitFlag = 0;
+    Group* group = nullptr;
 
     bool notify = false;
     bool hidden = false;

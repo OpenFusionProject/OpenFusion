@@ -182,9 +182,12 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
     if (Warps[warpId].isInstance) {
         uint64_t instanceID = Warps[warpId].instanceID;
 
+        Player* leader = plr;
+        if (plr->group != nullptr) leader = PlayerManager::getPlayer((*plr->group)[EntityKind::PLAYER][0].sock);
+
         // if warp requires you to be on a mission, it's gotta be a unique instance
         if (Warps[warpId].limitTaskID != 0 || instanceID == 14) { // 14 is a special case for the Time Lab
-            instanceID += ((uint64_t)plr->iIDGroup << 32); // upper 32 bits are leader ID
+            instanceID += ((uint64_t)leader->iID << 32); // upper 32 bits are leader ID
             Chunking::createInstance(instanceID);
 
             // save Lair entrance coords as a pseudo-Resurrect 'Em
@@ -194,14 +197,13 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
             plr->recallInstance = instanceID;
         }
 
-        if (plr->iID == plr->iIDGroup && plr->groupCnt == 1)
+        if (plr->group == nullptr)
             PlayerManager::sendPlayerTo(sock, Warps[warpId].x, Warps[warpId].y, Warps[warpId].z, instanceID);
         else {
-            Player* leaderPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
-
-            for (int i = 0; i < leaderPlr->groupCnt; i++) {
-                Player* otherPlr = PlayerManager::getPlayerFromID(leaderPlr->groupIDs[i]);
-                CNSocket* sockTo = PlayerManager::getSockFromID(leaderPlr->groupIDs[i]);
+            auto players = (*plr->group)[EntityKind::PLAYER];
+            for (int i = 0; i < players.size(); i++) {
+                CNSocket* sockTo = players[i].sock;
+                Player* otherPlr = PlayerManager::getPlayer(sockTo);
 
                 if (otherPlr == nullptr || sockTo == nullptr)
                     continue;

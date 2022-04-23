@@ -41,7 +41,8 @@ void PlayerManager::removePlayer(CNSocket* key) {
     Player* plr = getPlayer(key);
     uint64_t fromInstance = plr->instanceID;
 
-    Groups::groupKickPlayer(plr);
+    if(plr->group != nullptr)
+        Groups::groupKick(plr);
 
     // remove player's bullets
     Combat::Bullets.erase(plr->iID);
@@ -232,8 +233,7 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
         Database::getPlayer(plr, lm->playerId);
     }
 
-    plr->groupCnt = 1;
-    plr->iIDGroup = plr->groupIDs[0] = plr->iID;
+    plr->group = nullptr;
 
     response.iID = plr->iID;
     response.uiSvrTime = getTime();
@@ -474,9 +474,8 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
     resp2.PCRegenDataForOtherPC.iHP = plr->HP;
     resp2.PCRegenDataForOtherPC.iAngle = plr->angle;
 
-    Player *otherPlr = getPlayerFromID(plr->iIDGroup);
-    if (otherPlr != nullptr) {
-        int bitFlag = Groups::getGroupFlags(otherPlr);
+    if (plr->group != nullptr) {
+        int bitFlag = plr->group->conditionBitFlag;
         resp2.PCRegenDataForOtherPC.iConditionBitFlag = plr->iConditionBitFlag = plr->iSelfConditionBitFlag | bitFlag;
 
         resp2.PCRegenDataForOtherPC.iPCState = plr->iPCState;

@@ -25,5 +25,5 @@ namespace Combat {
     void init();
 
     void npcAttackPc(Mob *mob, time_t currTime);
-    void genQItemRolls(Player* leader, std::map<int, int>& rolls);
+    void genQItemRolls(std::vector<Player*> players, std::map<int, int>& rolls);
 }

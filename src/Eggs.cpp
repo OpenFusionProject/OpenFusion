@@ -16,10 +16,9 @@ std::unordered_map<int, EggType> Eggs::EggTypes;
 
 int Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
     Player* plr = PlayerManager::getPlayer(sock);
-    Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
-    int bitFlag = Groups::getGroupFlags(otherPlr);
     // TODO ABILITIES
+    int bitFlag = plr->group->conditionBitFlag;
     int CBFlag = 0;// Abilities::applyBuff(sock, skillId, 1, 3, bitFlag);
 
     size_t resplen; 
@@ -98,9 +97,8 @@ static void eggStep(CNServer* serv, time_t currTime) {
             CNSocket* sock = it->first.first;
             int32_t CBFlag = it->first.second;
             Player* plr = PlayerManager::getPlayer(sock);
-            Player* otherPlr = PlayerManager::getPlayerFromID(plr->iIDGroup);
 
-            int groupFlags = Groups::getGroupFlags(otherPlr);
+            int groupFlags = plr->group->conditionBitFlag;
             // TODO ABILITIES
             //for (auto& pwr : Abilities::Powers) {
             //    if (pwr.bitFlag == CBFlag) { // pick the power with the right flag and unbuff

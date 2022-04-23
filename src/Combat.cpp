@@ -268,17 +268,10 @@ void Combat::npcAttackPc(Mob *mob, time_t currTime) {
  * single RNG roll per mission task, and every group member shares that same
  * set of rolls.
  */
-void Combat::genQItemRolls(Player *leader, std::map<int, int>& rolls) {
-    for (int i = 0; i < leader->groupCnt; i++) {
-        if (leader->groupIDs[i] == 0)
-            continue;
+void Combat::genQItemRolls(std::vector<Player*> players, std::map<int, int>& rolls) {
+    for (int i = 0; i < players.size(); i++) {
 
-        CNSocket *otherSock = PlayerManager::getSockFromID(leader->groupIDs[i]);
-        if (otherSock == nullptr)
-            continue;
-
-        Player *member = PlayerManager::getPlayer(otherSock);
-
+        Player* member = players[i];
         for (int j = 0; j < ACTIVE_MISSION_COUNT; j++)
             if (member->tasks[j] != 0)
                 rolls[member->tasks[j]] = Rand::rand();
@@ -679,7 +672,7 @@ static void playerTick(CNServer *serv, time_t currTime) {
         bool transmit = false;
 
         // group ticks
-        if (plr->groupCnt > 1)
+        if (plr->group != nullptr)
             Groups::groupTickInfo(plr);
 
         // do not tick dead players
