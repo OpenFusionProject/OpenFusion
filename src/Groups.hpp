@@ -14,7 +14,7 @@ struct Group {
     std::vector<EntityRef> members;
     int32_t conditionBitFlag;
 
-    auto operator[](EntityKind kind) {
+    std::vector<EntityRef> filter(EntityKind kind) {
         std::vector<EntityRef> filtered;
         std::copy_if(members.begin(), members.end(), std::back_inserter(filtered), [kind](EntityRef e) {
             return e.kind == kind;

@@ -77,7 +77,7 @@ static void requestGroup(CNSocket* sock, CNPacketData* data) {
         return;
 
     // fail if the group is full or the other player is already in a group
-    if ((plr->group != nullptr && (*plr->group)[EntityKind::PLAYER].size() >= 4) || otherPlr->group != nullptr) {
+    if ((plr->group != nullptr && plr->group->filter(EntityKind::PLAYER).size() >= 4) || otherPlr->group != nullptr) {
         INITSTRUCT(sP_FE2CL_PC_GROUP_INVITE_FAIL, resp);
         sock->sendPacket((void*)&resp, P_FE2CL_PC_GROUP_INVITE_FAIL, sizeof(sP_FE2CL_PC_GROUP_INVITE_FAIL));
         return;
@@ -120,7 +120,7 @@ static void joinGroup(CNSocket* sock, CNPacketData* data) {
     if (otherPlr == nullptr)
         return;
 
-    int size = otherPlr->group == nullptr ? 1 : (*otherPlr->group)[EntityKind::PLAYER].size();
+    int size = otherPlr->group == nullptr ? 1 : otherPlr->group->filter(EntityKind::PLAYER).size();
 
     // fail if the group is full or the other player is already in a group
     if (plr->group != nullptr || size + 1 > 4) {
@@ -140,7 +140,7 @@ static void joinGroup(CNSocket* sock, CNPacketData* data) {
         addToGroup(PlayerManager::getSockFromID(recv->iID_From), otherPlr->group);
     }
     addToGroup(sock, otherPlr->group);
-    auto players = (*otherPlr->group)[EntityKind::PLAYER];
+    auto players = otherPlr->group->filter(EntityKind::PLAYER);
 
     size_t resplen = sizeof(sP_FE2CL_PC_GROUP_JOIN) + players.size() * sizeof(sPCGroupMemberInfo);
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
@@ -196,7 +196,7 @@ static void leaveGroup(CNSocket* sock, CNPacketData* data) {
 }
 
 void Groups::sendToGroup(Group* group, void* buf, uint32_t type, size_t size) {
-    auto players = (*group)[EntityKind::PLAYER];
+    auto players = group->filter(EntityKind::PLAYER);
     for (int i = 0; i < players.size(); i++) {
         CNSocket* sock = players[i].sock;
         sock->sendPacket(buf, type, size);
@@ -205,7 +205,7 @@ void Groups::sendToGroup(Group* group, void* buf, uint32_t type, size_t size) {
 
 void Groups::groupTickInfo(Player* plr) {
 
-    auto players = (*plr->group)[EntityKind::PLAYER];
+    auto players = plr->group->filter(EntityKind::PLAYER);
 
     if (!validOutVarPacket(sizeof(sP_FE2CL_PC_GROUP_MEMBER_INFO), players.size(), sizeof(sPCGroupMemberInfo))) {
         std::cout << "[WARN] bad sP_FE2CL_PC_GROUP_JOIN packet size\n";
@@ -280,7 +280,7 @@ void Groups::groupKick(Player* plr) {
         return;
     }
 
-    auto players = (*group)[EntityKind::PLAYER];
+    auto players = group->filter(EntityKind::PLAYER);
 
     if (!validOutVarPacket(sizeof(sP_FE2CL_PC_GROUP_LEAVE), players.size() - 1, sizeof(sPCGroupMemberInfo))) {
         std::cout << "[WARN] bad sP_FE2CL_PC_GROUP_LEAVE packet size\n";
@@ -307,7 +307,7 @@ void Groups::groupKick(Player* plr) {
 
     removeFromGroup(sock, group);
 
-    players = (*group)[EntityKind::PLAYER];
+    players = group->filter(EntityKind::PLAYER);
     for (int i = 0; i < players.size(); i++) {
         CNSocket* sockTo = players[i].sock;
         Player* varPlr = PlayerManager::getPlayer(sock);

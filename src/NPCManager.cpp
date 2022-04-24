@@ -183,7 +183,7 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
         uint64_t instanceID = Warps[warpId].instanceID;
 
         Player* leader = plr;
-        if (plr->group != nullptr) leader = PlayerManager::getPlayer((*plr->group)[EntityKind::PLAYER][0].sock);
+        if (plr->group != nullptr) leader = PlayerManager::getPlayer(plr->group->filter(EntityKind::PLAYER)[0].sock);
 
         // if warp requires you to be on a mission, it's gotta be a unique instance
         if (Warps[warpId].limitTaskID != 0 || instanceID == 14) { // 14 is a special case for the Time Lab
@@ -200,7 +200,7 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
         if (plr->group == nullptr)
             PlayerManager::sendPlayerTo(sock, Warps[warpId].x, Warps[warpId].y, Warps[warpId].z, instanceID);
         else {
-            auto players = (*plr->group)[EntityKind::PLAYER];
+            auto players = plr->group->filter(EntityKind::PLAYER);
             for (int i = 0; i < players.size(); i++) {
                 CNSocket* sockTo = players[i].sock;
                 Player* otherPlr = PlayerManager::getPlayer(sockTo);

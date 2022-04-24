@@ -851,7 +851,7 @@ void MobAI::onDeath(CombatNPC* npc, EntityRef src) {
             Missions::mobKilled(src.sock, self->type, qitemRolls);
         }
         else {
-            auto players = (*plr->group)[EntityKind::PLAYER];
+            auto players = plr->group->filter(EntityKind::PLAYER);
             for (EntityRef pRef : players) playerRefs.push_back(PlayerManager::getPlayer(pRef.sock));
             Combat::genQItemRolls(playerRefs, qitemRolls);
             for (int i = 0; i < players.size(); i++) {
