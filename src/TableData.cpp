@@ -231,15 +231,31 @@ static void loadXDT(json& xdtData) {
         // load nano powers
         json skills = xdtData["m_pSkillTable"]["m_pSkillData"];
 
-        for (json::iterator _skills = skills.begin(); _skills != skills.end(); _skills++) {
-            auto skills = _skills.value();
-            SkillData skillData = { skills["m_iSkillType"], skills["m_iTargetType"], skills["m_iBatteryDrainType"], skills["m_iEffectArea"] };
+        for (json::iterator _skill = skills.begin(); _skill != skills.end(); _skill++) {
+            auto skill = _skill.value();
+            SkillData skillData = {
+                skill["m_iSkillType"],
+                skill["m_iEffectTarget"],
+                skill["m_iEffectType"],
+                skill["m_iTargetType"],
+                skill["m_iBatteryDrainType"],
+                skill["m_iEffectArea"]
+            };
+
+            skillData.valueTypes[0] = skill["m_iValueA_Type"];
+            skillData.valueTypes[1] = skill["m_iValueB_Type"];
+            skillData.valueTypes[2] = skill["m_iValueC_Type"];
+
             for (int i = 0; i < 4; i++) {
-                skillData.batteryUse[i] = skills["m_iBatteryDrainUse"][i];
-                skillData.durationTime[i] = skills["m_iDurationTime"][i];
-                skillData.powerIntensity[i] = skills["m_iValueA"][i];
+                skillData.batteryUse[i] = skill["m_iBatteryDrainUse"][i];
+                skillData.durationTime[i] = skill["m_iDurationTime"][i];
+
+                skillData.values[0][i] = skill["m_iValueA"][i];
+                skillData.values[1][i] = skill["m_iValueB"][i];
+                skillData.values[2][i] = skill["m_iValueC"][i];
             }
-            Abilities::SkillTable[skills["m_iSkillNumber"]] = skillData;
+
+            Abilities::SkillTable[skill["m_iSkillNumber"]] = skillData;
         }
 
         std::cout << "[INFO] Loaded " << Abilities::SkillTable.size() << " nano skills" << std::endl;

@@ -153,7 +153,7 @@ static void joinGroup(CNSocket* sock, CNPacketData* data) {
     resp->iID_NewMember = plr->iID;
     resp->iMemberPCCnt = players.size();
 
-    int bitFlag = otherPlr->group->conditionBitFlag;
+    //int bitFlag = otherPlr->group->conditionBitFlag;
     for (int i = 0; i < players.size(); i++) {
 
         Player* varPlr = PlayerManager::getPlayer(players[i].sock);

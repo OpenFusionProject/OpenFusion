@@ -18,7 +18,7 @@ int Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     // TODO ABILITIES
-    int bitFlag = plr->group->conditionBitFlag;
+    //int bitFlag = plr->group->conditionBitFlag;
     int CBFlag = 0;// Abilities::applyBuff(sock, skillId, 1, 3, bitFlag);
 
     size_t resplen; 
@@ -41,7 +41,7 @@ int Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
         memset(respbuf, 0, resplen);
         skill->eCT = 1;
         skill->iID = plr->iID;
-        skill->iDamage = PC_MAXHEALTH(plr->level) * Abilities::SkillTable[skillId].powerIntensity[0] / 1000;
+        skill->iDamage = PC_MAXHEALTH(plr->level) * Abilities::SkillTable[skillId].values[0][0] / 1000;
         plr->HP -= skill->iDamage;
         if (plr->HP < 0)
             plr->HP = 0;
@@ -51,7 +51,7 @@ int Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
         memset(respbuf, 0, resplen);
         skill->eCT = 1;
         skill->iID = plr->iID;
-        skill->iHealHP = PC_MAXHEALTH(plr->level) * Abilities::SkillTable[skillId].powerIntensity[0] / 1000;
+        skill->iHealHP = PC_MAXHEALTH(plr->level) * Abilities::SkillTable[skillId].values[0][0] / 1000;
         plr->HP += skill->iHealHP;
         if (plr->HP > PC_MAXHEALTH(plr->level))
             plr->HP = PC_MAXHEALTH(plr->level);
@@ -98,7 +98,7 @@ static void eggStep(CNServer* serv, time_t currTime) {
             int32_t CBFlag = it->first.second;
             Player* plr = PlayerManager::getPlayer(sock);
 
-            int groupFlags = plr->group->conditionBitFlag;
+            //int groupFlags = plr->group->conditionBitFlag;
             // TODO ABILITIES
             //for (auto& pwr : Abilities::Powers) {
             //    if (pwr.bitFlag == CBFlag) { // pick the power with the right flag and unbuff

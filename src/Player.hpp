@@ -50,7 +50,6 @@ struct Player : public Entity, public ICombatant {
 
     bool inCombat = false;
     bool onMonkey = false;
-    int nanoDrainRate = 0;
     int healCooldown = 0;
 
     int pointDamage = 0;

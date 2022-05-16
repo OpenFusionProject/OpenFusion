@@ -82,42 +82,14 @@ void Nanos::summonNano(CNSocket *sock, int slot, bool silent) {
     if (slot != -1 && plr->Nanos[nanoID].iSkillID == 0)
         return; // prevent powerless nanos from summoning
 
-    plr->nanoDrainRate = 0;
-    int16_t skillID = plr->Nanos[plr->activeNano].iSkillID;
-
-    // passive nano unbuffing
-    if (Abilities::SkillTable[skillID].drainType == 2) {
-        // TODO ABILITIES
-        /*std::vector<int> targetData = Abilities::findTargets(plr, skillID);
-
-        for (auto& pwr : Abilities::Powers)
-            if (pwr.skillType == Abilities::SkillTable[skillID].skillType)
-                Abilities::removeBuff(sock, targetData, pwr.bitFlag, pwr.timeBuffID, 0,(Abilities::SkillTable[skillID].targetType == 3));*/
-    }
-
     if (nanoID >= NANO_COUNT || nanoID < 0)
         return; // sanity check
 
     plr->activeNano = nanoID;
-    skillID = plr->Nanos[nanoID].iSkillID;
 
-    // passive nano buffing
-    if (Abilities::SkillTable[skillID].drainType == 2) {
-        int boost = 0;
-        if (getNanoBoost(plr))
-            boost = 1;
-
-        // TODO ABILITIES
-        //std::vector<int> targetData = Abilities::findTargets(plr, skillID);
-        //for (auto& pwr : Abilities::Powers) {
-        //    if (pwr.skillType == Abilities::SkillTable[skillID].skillType) {
-        //        resp.eCSTB___Add = 1; // the part that makes nano go ZOOMAZOOM
-        //        plr->nanoDrainRate = Abilities::SkillTable[skillID].batteryUse[boost*3];
-
-        //        pwr.handle(sock, targetData, nanoID, skillID, 0, Abilities::SkillTable[skillID].powerIntensity[boost]);
-        //    }
-        //}
-    }
+    int16_t skillID = plr->Nanos[nanoID].iSkillID;
+    if (Abilities::SkillTable.count(skillID) > 0 && Abilities::SkillTable[skillID].drainType == SkillDrainType::PASSIVE)
+        resp.eCSTB___Add = 1; // passive buff effect
 
     if (!silent) // silent nano death but only for the summoning player
         sock->sendPacket(resp, P_FE2CL_REP_NANO_ACTIVE_SUCC);
@@ -290,8 +262,15 @@ static void nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
 static void nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
-    int16_t nanoID = plr->activeNano;
-    int16_t skillID = plr->Nanos[nanoID].iSkillID;
+    // validate request check
+    sP_CL2FE_REQ_NANO_SKILL_USE* pkt = (sP_CL2FE_REQ_NANO_SKILL_USE*)data->buf;
+    if (!validInVarPacket(sizeof(sP_CL2FE_REQ_NANO_SKILL_USE), pkt->iTargetCnt, sizeof(int32_t), data->size)) {
+        std::cout << "[WARN] bad sP_CL2FE_REQ_NANO_SKILL_USE packet size" << std::endl;
+        return;
+    }
+
+    int16_t skillID = plr->Nanos[plr->activeNano].iSkillID;
+    SkillData* skillData = &Abilities::SkillTable[skillID];
 
     DEBUGLOG(
         std::cout << PlayerManager::getPlayerName(plr) << " requested to summon nano skill " << std::endl;
@@ -306,8 +285,8 @@ static void nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
         plr->Nanos[plr->activeNano].iStamina = 0;
 
     // TODO ABILITIES
-    /*std::vector<int> targetData = Abilities::findTargets(plr, skillID, data);
-    for (auto& pwr : Abilities::Powers)
+    std::vector<EntityRef> targetData = Abilities::matchTargets(skillData, pkt->iTargetCnt, (int32_t*)(pkt + 1));
+    /*for (auto& pwr : Abilities::Powers)
         if (pwr.skillType == Abilities::SkillTable[skillID].skillType)
             pwr.handle(sock, targetData, nanoID, skillID, Abilities::SkillTable[skillID].durationTime[boost], Abilities::SkillTable[skillID].powerIntensity[boost]);*/
 

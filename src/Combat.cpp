@@ -695,15 +695,37 @@ static void playerTick(CNServer *serv, time_t currTime) {
                 plr->healCooldown -= 4000;
         }
 
+        // nanos
         for (int i = 0; i < 3; i++) {
-            if (plr->activeNano != 0 && plr->equippedNanos[i] == plr->activeNano) { // spend stamina
-                plr->Nanos[plr->activeNano].iStamina -= 1 + plr->nanoDrainRate / 5;
+            if (plr->activeNano != 0 && plr->equippedNanos[i] == plr->activeNano) { // tick active nano
+                sNano& nano = plr->Nanos[plr->activeNano];
+                int drainRate = 0;
 
-                if (plr->Nanos[plr->activeNano].iStamina <= 0)
+                if (Abilities::SkillTable.find(nano.iSkillID) != Abilities::SkillTable.end()) {
+                    // nano has skill data
+                    SkillData* skill = &Abilities::SkillTable[nano.iSkillID];
+                    int boost = Nanos::getNanoBoost(plr);
+                    drainRate = skill->batteryUse[boost * 3];
+
+                    if (skill->drainType == SkillDrainType::PASSIVE) {
+                        // passive buff
+                        std::vector<EntityRef> targets;
+                        if (skill->targetType == SkillTargetType::GROUP && plr->group != nullptr)
+                            targets = plr->group->members; // group
+                        else if(skill->targetType == SkillTargetType::SELF)
+                            targets.push_back(sock); // self
+
+                        std::cout << "[SKILL] id " << nano.iSkillID << ", type " << skill->skillType << ", target " << (int)skill->targetType << std::endl;
+                    }
+                }
+
+                nano.iStamina -= 1 + drainRate / 5;
+
+                if (nano.iStamina <= 0)
                     Nanos::summonNano(sock, -1, true); // unsummon nano silently
 
                 transmit = true;
-            } else if (plr->Nanos[plr->equippedNanos[i]].iStamina < 150) { // regain stamina
+            } else if (plr->Nanos[plr->equippedNanos[i]].iStamina < 150) { // tick resting nano
                 sNano& nano = plr->Nanos[plr->equippedNanos[i]];
                 nano.iStamina += 1;
 
