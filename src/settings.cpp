@@ -11,6 +11,7 @@ bool settings::SANDBOX = true;
 
 int settings::LOGINPORT = 23000;
 bool settings::APPROVEALLNAMES = true;
+bool settings::AUTOCREATEACCOUNTS = true;
 int settings::DBSAVEINTERVAL = 240;
 
 int settings::SHARDPORT = 23001;
@@ -76,12 +77,13 @@ void settings::init() {
         return;
     }
 
-    APPROVEALLNAMES = reader.GetBoolean("", "acceptallcustomnames", APPROVEALLNAMES);
     VERBOSITY = reader.GetInteger("", "verbosity", VERBOSITY);
     SANDBOX = reader.GetBoolean("", "sandbox", SANDBOX);
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);
-    SHARDPORT = reader.GetInteger("shard", "port", SHARDPORT);
+    APPROVEALLNAMES = reader.GetBoolean("login", "acceptallcustomnames", APPROVEALLNAMES);
+    AUTOCREATEACCOUNTS = reader.GetBoolean("login", "autocreateaccounts", AUTOCREATEACCOUNTS);
     DBSAVEINTERVAL = reader.GetInteger("login", "dbsaveinterval", DBSAVEINTERVAL);
+    SHARDPORT = reader.GetInteger("shard", "port", SHARDPORT);
     SHARDSERVERIP = reader.Get("shard", "ip", SHARDSERVERIP);
     LOCALHOSTWORKAROUND = reader.GetBoolean("shard", "localhostworkaround", LOCALHOSTWORKAROUND);
     TIMEOUT = reader.GetInteger("shard", "timeout", TIMEOUT);

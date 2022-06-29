@@ -5,6 +5,7 @@ namespace settings {
     extern bool SANDBOX;
     extern int LOGINPORT;
     extern bool APPROVEALLNAMES;
+    extern bool AUTOCREATEACCOUNTS;
     extern int DBSAVEINTERVAL;
     extern int SHARDPORT;
     extern std::string SHARDSERVERIP;

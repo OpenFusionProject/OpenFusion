@@ -133,8 +133,12 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
     Database::findAccount(&findUser, userLogin);
     
     // account was not found
-    if (findUser.AccountID == 0)
-        return newAccount(sock, userLogin, userPassword, login->iClientVerC);
+    if (findUser.AccountID == 0) {
+        if (settings::AUTOCREATEACCOUNTS)
+            return newAccount(sock, userLogin, userPassword, login->iClientVerC);
+
+        return loginFail(LoginError::ID_DOESNT_EXIST, userLogin, sock);
+    }
 
     if (!CNLoginServer::isPasswordCorrect(findUser.Password, userPassword))
         return loginFail(LoginError::ID_AND_PASSWORD_DO_NOT_MATCH, userLogin, sock);
