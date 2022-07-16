@@ -590,21 +590,6 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    // rapid fire anti-cheat
-    time_t currTime = getTime();
-    if (currTime - plr->lastShot < plr->fireRate * 80)
-        plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // gain suspicion for rapid firing
-    else if (currTime - plr->lastShot < plr->fireRate * 180 && plr->suspicionRating > 0)
-        plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // lose suspicion for delayed firing
-
-    plr->lastShot = currTime;
-
-    if (plr->suspicionRating > 10000) { // kill the socket when the player is too suspicious
-        sock->kill();
-        CNShardServer::_killConnection(sock);
-        return;
-    }
-
     /*
      * initialize response struct
      * rocket style hit doesn't work properly, so we're always sending this one
