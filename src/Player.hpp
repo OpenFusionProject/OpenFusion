@@ -1,12 +1,11 @@
 #pragma once
 
-#include <string>
-#include <cstring>
-
 #include "core/Core.hpp"
-#include "Chunking.hpp"
+
 #include "Entities.hpp"
 #include "Groups.hpp"
+
+#include <vector>
 
 #define ACTIVE_MISSION_COUNT 6
 

@@ -1,12 +1,10 @@
 #pragma once
 
-#include "core/Core.hpp"
+#include "Entities.hpp"
 
-#include <utility>
 #include <set>
 #include <map>
-#include <tuple>
-#include <algorithm>
+#include <vector>
 
 struct EntityRef;
 

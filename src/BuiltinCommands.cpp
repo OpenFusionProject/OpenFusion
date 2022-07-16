@@ -1,10 +1,13 @@
 #include "BuiltinCommands.hpp"
+
+#include "servers/CNShardServer.hpp"
+
+#include "Player.hpp"
 #include "PlayerManager.hpp"
-#include "Chat.hpp"
 #include "Items.hpp"
 #include "Missions.hpp"
+#include "Chat.hpp"
 #include "Nanos.hpp"
-#include "Rand.hpp"
 
 // helper function, not a packet handler
 void BuiltinCommands::setSpecialState(CNSocket* sock, CNPacketData* data) {

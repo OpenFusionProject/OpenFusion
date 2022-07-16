@@ -1,13 +1,9 @@
-#include "servers/CNShardServer.hpp"
-#include "PlayerManager.hpp"
 #include "Groups.hpp"
-#include "Nanos.hpp"
-#include "Abilities.hpp"
 
-#include <iostream>
-#include <chrono>
-#include <algorithm>
-#include <thread>
+#include "servers/CNShardServer.hpp"
+
+#include "Player.hpp"
+#include "PlayerManager.hpp"
 
 /*
  * NOTE: Variadic response packets that list group members are technically

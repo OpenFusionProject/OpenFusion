@@ -1,8 +1,11 @@
 #pragma once
 
-#include "servers/CNShardServer.hpp"
+#include "core/Core.hpp"
 
 #include <unordered_map>
+#include <map>
+#include <vector>
+#include <queue>
 
 const int SLIDER_SPEED = 1200;
 const int SLIDER_STOP_TICKS = 16;

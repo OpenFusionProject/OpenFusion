@@ -1,13 +1,16 @@
 #include "MobAI.hpp"
-#include "Player.hpp"
+
+#include "Chunking.hpp"
+#include "NPCManager.hpp"
+#include "Entities.hpp"
+#include "PlayerManager.hpp"
 #include "Racing.hpp"
-#include "Transport.hpp"
 #include "Nanos.hpp"
-#include "Combat.hpp"
 #include "Abilities.hpp"
-#include "Rand.hpp"
+#include "Combat.hpp"
 #include "Items.hpp"
 #include "Missions.hpp"
+#include "Rand.hpp"
 
 #include <cmath>
 #include <limits.h>

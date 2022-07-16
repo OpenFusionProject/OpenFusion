@@ -1,11 +1,11 @@
-#include "servers/CNShardServer.hpp"
 #include "Nanos.hpp"
+
+#include "servers/CNShardServer.hpp"
+
 #include "PlayerManager.hpp"
-#include "NPCManager.hpp"
-#include "Combat.hpp"
 #include "Missions.hpp"
-#include "Groups.hpp"
 #include "Abilities.hpp"
+#include "NPCManager.hpp"
 
 #include <cmath>
 

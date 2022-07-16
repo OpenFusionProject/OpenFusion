@@ -1,15 +1,14 @@
 #pragma once
 
-#include "Player.hpp"
 #include "core/Core.hpp"
-#include "servers/CNShardServer.hpp"
-#include "Chunking.hpp"
 
-#include <utility>
+#include "Player.hpp"
+#include "Chunking.hpp"
+#include "Transport.hpp"
+#include "Entities.hpp"
+
 #include <map>
 #include <list>
-
-struct WarpLocation;
 
 namespace PlayerManager {
     extern std::map<CNSocket*, Player*> players;

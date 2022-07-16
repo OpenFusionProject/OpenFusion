@@ -1,14 +1,10 @@
 #pragma once
 
-#include "core/Core.hpp"
-#include "servers/CNShardServer.hpp"
+#include "Player.hpp"
 #include "MobAI.hpp"
 
-#include "JSON.hpp"
-
 #include <map>
-#include <unordered_map>
-#include <queue>
+#include <vector>
 
 struct Bullet {
     int pointDamage;
@@ -16,8 +12,6 @@ struct Bullet {
     bool weaponBoost;
     int bulletType;
 };
-
-
 
 namespace Combat {
     extern std::map<int32_t, std::map<int8_t, Bullet>> Bullets;

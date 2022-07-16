@@ -2,6 +2,7 @@
 
 #include <random>
 #include <memory>
+#include <vector>
 
 namespace Rand {
     extern std::unique_ptr<std::mt19937> generator;

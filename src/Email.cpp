@@ -1,9 +1,9 @@
 #include "Email.hpp"
 
 #include "core/Core.hpp"
+#include "db/Database.hpp"
 #include "servers/CNShardServer.hpp"
 
-#include "db/Database.hpp"
 #include "PlayerManager.hpp"
 #include "Items.hpp"
 #include "Chat.hpp"

@@ -1,18 +1,18 @@
 #include "CustomCommands.hpp"
-#include "Chat.hpp"
+
+#include "db/Database.hpp"
+
+#include "Player.hpp"
 #include "PlayerManager.hpp"
+#include "Chat.hpp"
 #include "TableData.hpp"
 #include "NPCManager.hpp"
-#include "Eggs.hpp"
 #include "MobAI.hpp"
-#include "Items.hpp"
-#include "db/Database.hpp"
-#include "Transport.hpp"
 #include "Missions.hpp"
+#include "Eggs.hpp"
+#include "Items.hpp"
 
 #include <sstream>
-#include <iterator>
-#include <math.h>
 #include <limits.h>
 
 typedef void (*CommandHandler)(std::string fullString, std::vector<std::string>& args, CNSocket* sock);

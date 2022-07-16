@@ -1,10 +1,13 @@
-#include "core/Core.hpp"
 #include "Eggs.hpp"
+
+#include "servers/CNShardServer.hpp"
+
+#include "Player.hpp"
 #include "PlayerManager.hpp"
-#include "Items.hpp"
-#include "Nanos.hpp"
 #include "Abilities.hpp"
-#include "Groups.hpp"
+#include "NPCManager.hpp"
+#include "Entities.hpp"
+#include "Items.hpp"
 
 #include <assert.h>
 

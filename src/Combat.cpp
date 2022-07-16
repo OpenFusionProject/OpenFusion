@@ -1,14 +1,13 @@
 #include "Combat.hpp"
-#include "PlayerManager.hpp"
-#include "Nanos.hpp"
-#include "NPCManager.hpp"
-#include "Items.hpp"
-#include "Missions.hpp"
-#include "Groups.hpp"
-#include "Transport.hpp"
-#include "Racing.hpp"
-#include "Abilities.hpp"
+
+#include "servers/CNShardServer.hpp"
+
 #include "Rand.hpp"
+#include "Player.hpp"
+#include "PlayerManager.hpp"
+#include "NPCManager.hpp"
+#include "Nanos.hpp"
+#include "Abilities.hpp"
 
 #include <assert.h>
 

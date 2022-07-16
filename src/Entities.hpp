@@ -3,8 +3,8 @@
 #include "core/Core.hpp"
 #include "Chunking.hpp"
 
-#include <stdint.h>
 #include <set>
+#include <map>
 
 enum EntityKind {
     INVALID,

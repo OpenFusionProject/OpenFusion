@@ -1,7 +1,9 @@
 #pragma once
 
-#include "core/Core.hpp"
-#include "Combat.hpp"
+#include "Entities.hpp"
+
+#include <map>
+#include <vector>
 
 enum class SkillEffectTarget {
     POINT = 1,

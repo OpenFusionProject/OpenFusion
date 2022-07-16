@@ -1,12 +1,14 @@
 #include "servers/CNLoginServer.hpp"
+
 #include "core/CNShared.hpp"
 #include "db/Database.hpp"
-#include "PlayerManager.hpp"
-#include "Items.hpp"
-#include <regex>
 #include "bcrypt/BCrypt.hpp"
 
+#include "PlayerManager.hpp"
+#include "Items.hpp"
 #include "settings.hpp"
+
+#include <regex>
 
 std::map<CNSocket*, CNLoginData> CNLoginServer::loginSessions;
 

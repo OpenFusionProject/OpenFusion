@@ -1,9 +1,12 @@
+#include "Transport.hpp"
+
 #include "servers/CNShardServer.hpp"
+
 #include "PlayerManager.hpp"
 #include "Nanos.hpp"
-#include "Transport.hpp"
 #include "TableData.hpp"
-#include "Combat.hpp"
+#include "Entities.hpp"
+#include "NPCManager.hpp"
 #include "MobAI.hpp"
 
 #include <unordered_map>

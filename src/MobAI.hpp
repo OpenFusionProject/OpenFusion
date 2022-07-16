@@ -1,11 +1,13 @@
 #pragma once
 
 #include "core/Core.hpp"
-#include "NPCManager.hpp"
+#include "JSON.hpp"
+
 #include "Entities.hpp"
 
-/* kill me */
-struct Mob;
+#include <unordered_map>
+#include <string>
+
 namespace MobAI {
     void deadStep(CombatNPC* self, time_t currTime);
     void combatStep(CombatNPC* self, time_t currTime);

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "core/Core.hpp"
-#include "Entities.hpp"
 
 struct EggType {
     int dropCrateId;

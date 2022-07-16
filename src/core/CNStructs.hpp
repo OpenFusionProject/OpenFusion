@@ -23,6 +23,7 @@
 #include <string>
 #include <locale>
 #include <codecvt>
+#include <tuple>
 
 // yes this is ugly, but this is needed to zero out the memory so we don't have random stackdata in our structs.
 #define INITSTRUCT(T, x) T x; \

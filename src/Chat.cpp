@@ -1,6 +1,9 @@
 #include "Chat.hpp"
+
+#include "servers/CNShardServer.hpp"
+
+#include "Player.hpp"
 #include "PlayerManager.hpp"
-#include "Groups.hpp"
 #include "CustomCommands.hpp"
 
 #include <assert.h>

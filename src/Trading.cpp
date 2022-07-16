@@ -1,4 +1,7 @@
 #include "Trading.hpp"
+
+#include "servers/CNShardServer.hpp"
+
 #include "PlayerManager.hpp"
 #include "db/Database.hpp"
 

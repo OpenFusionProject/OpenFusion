@@ -1,14 +1,15 @@
 #pragma once
 
 #include "core/Core.hpp"
-#include "PlayerManager.hpp"
-#include "Transport.hpp"
-
 #include "JSON.hpp"
+
+#include "Transport.hpp"
+#include "Chunking.hpp"
 
 #include <map>
 #include <unordered_map>
 #include <vector>
+#include <set>
 
 #define RESURRECT_HEIGHT 400
 
@@ -27,8 +28,6 @@ struct NPCEvent {
     NPCEvent(int32_t t, int tr, NPCEventHandler hndlr)
         : npcType(t), trigger(tr), handler(hndlr) {}
 };
-
-struct WarpLocation;
 
 namespace NPCManager {
     extern std::unordered_map<int32_t, BaseNPC*> NPCs;

@@ -1,12 +1,9 @@
-#include "core/Core.hpp"
 #include "Entities.hpp"
-#include "Chunking.hpp"
-#include "PlayerManager.hpp"
-#include "NPCManager.hpp"
-#include "Eggs.hpp"
-#include "MobAI.hpp"
 
-#include <type_traits>
+#include "NPCManager.hpp"
+#include "PlayerManager.hpp"
+
+#include <assert.h>
 
 static_assert(std::is_standard_layout<EntityRef>::value);
 static_assert(std::is_trivially_copyable<EntityRef>::value);

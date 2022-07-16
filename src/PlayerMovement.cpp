@@ -1,4 +1,7 @@
 #include "PlayerMovement.hpp"
+
+#include "servers/CNShardServer.hpp"
+
 #include "PlayerManager.hpp"
 #include "TableData.hpp"
 #include "core/Core.hpp"

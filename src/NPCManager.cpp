@@ -1,4 +1,8 @@
 #include "NPCManager.hpp"
+
+#include "servers/CNShardServer.hpp"
+
+#include "PlayerManager.hpp"
 #include "Items.hpp"
 #include "settings.hpp"
 #include "Combat.hpp"
@@ -19,8 +23,6 @@
 #include <vector>
 #include <assert.h>
 #include <limits.h>
-
-#include "JSON.hpp"
 
 using namespace NPCManager;
 

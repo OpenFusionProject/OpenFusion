@@ -1,9 +1,13 @@
 #pragma once
 
-#include "servers/CNShardServer.hpp"
+#include "core/Core.hpp"
+
 #include "Player.hpp"
-#include "MobAI.hpp"
 #include "Rand.hpp"
+#include "MobAI.hpp"
+
+#include <vector>
+#include <map>
 
 struct CrocPotEntry {
     int multStats, multLooks;

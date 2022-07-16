@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Player.hpp"
-#include "core/Core.hpp"
 #include "core/Core.hpp"
 
 namespace Buddies {

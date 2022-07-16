@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 namespace settings {
     extern int VERBOSITY;
     extern bool SANDBOX;

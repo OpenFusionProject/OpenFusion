@@ -3,6 +3,7 @@
 #include "core/Core.hpp"
 
 #include <map>
+#include <list>
 
 #define REGISTER_SHARD_PACKET(pactype, handlr) CNShardServer::ShardPackets[pactype] = handlr;
 #define REGISTER_SHARD_TIMER(handlr, delta) CNShardServer::Timers.push_back(TimerEvent(handlr, delta));

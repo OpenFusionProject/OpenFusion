@@ -1,10 +1,10 @@
 #pragma once
 
-#include <set>
-#include <vector>
+#include "core/Core.hpp"
 
 #include "Player.hpp"
-#include "servers/CNShardServer.hpp"
+
+#include <map>
 
 struct NanoData {
     int style;

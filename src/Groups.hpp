@@ -1,14 +1,13 @@
 #pragma once
 
-#include "core/Core.hpp"
-#include "servers/CNShardServer.hpp"
 #include "Entities.hpp"
 
+#include <vector>
 #include <map>
 #include <list>
 
+/* forward declaration(s) */
 struct Player;
-enum EntityKind;
 
 struct Group {
     std::vector<EntityRef> members;

@@ -1,16 +1,18 @@
-#include "servers/CNShardServer.hpp"
 #include "Items.hpp"
+
+#include "servers/CNShardServer.hpp"
+
+#include "Player.hpp"
 #include "PlayerManager.hpp"
 #include "Nanos.hpp"
-#include "NPCManager.hpp"
-#include "Player.hpp"
 #include "Abilities.hpp"
-#include "Missions.hpp"
 #include "Eggs.hpp"
-#include "Rand.hpp"
+#include "MobAI.hpp"
+#include "Missions.hpp"
 
 #include <string.h> // for memset()
 #include <assert.h>
+#include <numeric>
 
 using namespace Items;
 
