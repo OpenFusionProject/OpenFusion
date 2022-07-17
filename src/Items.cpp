@@ -9,6 +9,7 @@
 #include "Eggs.hpp"
 #include "MobAI.hpp"
 #include "Missions.hpp"
+#include "Buffs.hpp"
 
 #include <string.h> // for memset()
 #include <assert.h>
@@ -484,27 +485,31 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
     resp->eST = EST_NANOSTIMPAK;
     resp->iSkillID = 144;
 
-    int value1 = CSB_BIT_STIMPAKSLOT1 << request->iNanoSlot;
-    int value2 = ECSB_STIMPAKSLOT1 + request->iNanoSlot;
+    int eCSB = ECSB_STIMPAKSLOT1 + request->iNanoSlot;
 
     respdata->eCT = 1;
     respdata->iID = player->iID;
-    respdata->iConditionBitFlag = value1;
+    respdata->iConditionBitFlag = CSB_FROM_ECSB(eCSB);
 
-    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt);
-    pkt.eCSTB = value2; // eCharStatusTimeBuffID
-    pkt.eTBU = 1; // eTimeBuffUpdate
-    pkt.eTBT = 1; // eTimeBuffType 1 means nano
-    pkt.iConditionBitFlag = player->iConditionBitFlag |= value1;
-    sock->sendPacket(pkt, P_FE2CL_PC_BUFF_UPDATE);
+    int durationMilliseconds = Abilities::SkillTable[144].durationTime[0] * 100;
+    BuffStack gumballBuff = {
+        durationMilliseconds / MS_PER_PLAYER_TICK,
+        0,
+        sock,
+        BuffClass::CASH_ITEM // or BuffClass::ITEM?
+    };
+    player->addBuff(eCSB,
+        [](EntityRef self, Buff* buff, int status, BuffStack* stack) {
+            Buffs::timeBuffUpdate(self, buff, status, stack);
+        },
+        [](EntityRef self, Buff* buff, time_t currTime) {
+            // no-op
+        },
+        &gumballBuff);
 
     sock->sendPacket((void*)&respbuf, P_FE2CL_REP_PC_ITEM_USE_SUCC, resplen);
     // update inventory serverside
     player->Inven[resp->iSlotNum] = resp->RemainItem;
-
-    std::pair<CNSocket*, int32_t> key = std::make_pair(sock, value1);
-    time_t until = getTime() + (time_t)Abilities::SkillTable[144].durationTime[0] * 100;
-    Eggs::EggBuffs[key] = until;
 }
 
 static void itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
@@ -757,7 +762,7 @@ static void giveSingleDrop(CNSocket *sock, Mob* mob, int mobDropId, const DropRo
     if (rolled.taros % miscDropChance.taroDropChanceTotal < miscDropChance.taroDropChance) {
         plr->money += miscDropType.taroAmount;
         // money nano boost
-        if (plr->iConditionBitFlag & CSB_BIT_REWARD_CASH) {
+        if (plr->hasBuff(ECSB_REWARD_CASH)) {
             int boost = 0;
             if (Nanos::getNanoBoost(plr)) // for gumballs
                 boost = 1;
@@ -772,7 +777,7 @@ static void giveSingleDrop(CNSocket *sock, Mob* mob, int mobDropId, const DropRo
         if (levelDifference > 0)
             fm = levelDifference < 10 ? fm - (levelDifference * fm / 10) : 0;
         // scavenger nano boost
-        if (plr->iConditionBitFlag & CSB_BIT_REWARD_BLOB) {
+        if (plr->hasBuff(ECSB_REWARD_BLOB)) {
             int boost = 0;
             if (Nanos::getNanoBoost(plr)) // for gumballs
                 boost = 1;

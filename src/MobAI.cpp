@@ -187,7 +187,7 @@ bool MobAI::aggroCheck(Mob *mob, time_t currTime) {
 
             int mobRange = mob->sightRange;
 
-            if (plr->iConditionBitFlag & CSB_BIT_UP_STEALTH
+            if (plr->hasBuff(ECSB_UP_STEALTH)
             || Racing::EPRaces.find(s) != Racing::EPRaces.end())
                 mobRange /= 3;
 
@@ -315,7 +315,7 @@ static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, i
             plr->HP -= respdata[i].iDamage;
 
         respdata[i].iHP = plr->HP;
-        respdata[i].iConditionBitFlag = plr->iConditionBitFlag;
+        respdata[i].iConditionBitFlag = plr->getCompositeCondition();
 
         if (plr->HP <= 0) {
             if (!MobAI::aggroCheck(mob, getTime()))

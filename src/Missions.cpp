@@ -163,14 +163,14 @@ static int giveMissionReward(CNSocket *sock, int task, int choice=0) {
 
     // update player
     plr->money += reward->money;
-    if (plr->iConditionBitFlag & CSB_BIT_REWARD_CASH) { // nano boost for taros
+    if (plr->hasBuff(ECSB_REWARD_CASH)) { // nano boost for taros
         int boost = 0;
         if (Nanos::getNanoBoost(plr)) // for gumballs
             boost = 1;
         plr->money += reward->money * (5 + boost) / 25;
     }
 
-    if (plr->iConditionBitFlag & CSB_BIT_REWARD_BLOB) { // nano boost for fm
+    if (plr->hasBuff(ECSB_REWARD_BLOB)) { // nano boost for fm
         int boost = 0;
         if (Nanos::getNanoBoost(plr)) // for gumballs
             boost = 1;

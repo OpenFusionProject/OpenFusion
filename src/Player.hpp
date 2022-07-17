@@ -7,6 +7,10 @@
 
 #include <vector>
 
+/* forward declaration(s) */
+class Buff;
+struct BuffStack;
+
 #define ACTIVE_MISSION_COUNT 6
 
 #define PC_MAXHEALTH(level) (925 + 75 * (level))
@@ -32,9 +36,8 @@ struct Player : public Entity, public ICombatant {
     int8_t iPCState = 0;
     int32_t iWarpLocationFlag = 0;
     int64_t aSkywayLocationFlag[2] = {};
-    int32_t iConditionBitFlag = 0;
-    int32_t iSelfConditionBitFlag = 0;
     int8_t iSpecialState = 0;
+    std::unordered_map<int, Buff*> buffs = {};
 
     int angle = 0;
     int lastX = 0, lastY = 0, lastZ = 0, lastAngle = 0;
@@ -86,13 +89,25 @@ struct Player : public Entity, public ICombatant {
     virtual void enterIntoViewOf(CNSocket *sock) override;
     virtual void disappearFromViewOf(CNSocket *sock) override;
 
+    virtual bool addBuff(int buffId, BuffCallback<int, BuffStack*> onUpdate, BuffCallback<time_t> onTick, BuffStack* stack) override;
+    virtual Buff* getBuff(int buffId) override;
+    virtual void removeBuff(int buffId) override;
+    virtual void removeBuff(int buffId, int buffClass) override;
+    virtual bool hasBuff(int buffId) override;
+    virtual int getCompositeCondition() override;
     virtual int takeDamage(EntityRef src, int amt) override;
-    virtual void heal(EntityRef src, int amt) override;
+    virtual int heal(EntityRef src, int amt) override;
     virtual bool isAlive() override;
     virtual int getCurrentHP() override;
+    virtual int getMaxHP() override;
+    virtual int getLevel() override;
+    virtual std::vector<EntityRef> getGroupMembers() override;
+    virtual int32_t getCharType() override;
     virtual int32_t getID() override;
+    virtual EntityRef getRef() override;
 
     virtual void step(time_t currTime) override;
 
+    sNano* getActiveNano();
     sPCAppearanceData getAppearanceData();
 };

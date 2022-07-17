@@ -83,6 +83,10 @@ void Egg::enterIntoViewOf(CNSocket *sock) {
     sock->sendPacket(pkt, P_FE2CL_SHINY_ENTER);
 }
 
+sNano* Player::getActiveNano() {
+    return &Nanos[activeNano];
+}
+
 sPCAppearanceData Player::getAppearanceData() {
     sPCAppearanceData data = {};
     data.iID = iID;

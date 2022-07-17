@@ -3,6 +3,7 @@
 #include "core/Core.hpp"
 
 #include "Player.hpp"
+#include "Abilities.hpp"
 
 #include <map>
 
@@ -25,4 +26,5 @@ namespace Nanos {
     void summonNano(CNSocket* sock, int slot, bool silent = false);
     int nanoStyle(int nanoID);
     bool getNanoBoost(Player* plr);
+    std::vector<ICombatant*> applyNanoBuff(SkillData* skill, Player* plr);
 }

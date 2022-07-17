@@ -11,6 +11,7 @@
 #include "Missions.hpp"
 #include "Eggs.hpp"
 #include "Items.hpp"
+#include "Abilities.hpp"
 
 #include <sstream>
 #include <limits.h>
@@ -501,9 +502,12 @@ static void buffCommand(std::string full, std::vector<std::string>& args, CNSock
     if (*tmp)
         return;
 
-    if (Eggs::eggBuffPlayer(sock, skillId, 0, duration)<0)
+    if (Abilities::SkillTable.count(skillId) == 0) {
         Chat::sendServerMessage(sock, "/buff: unknown skill Id");
-    
+        return;
+    }
+
+    Eggs::eggBuffPlayer(sock, skillId, 0, duration);
 }
 
 static void eggCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {

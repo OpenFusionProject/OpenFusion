@@ -69,6 +69,52 @@ void Nanos::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spendfm) 
     PlayerManager::sendToViewable(sock, resp2, P_FE2CL_REP_PC_CHANGE_LEVEL);
 }
 
+std::vector<ICombatant*> Nanos::applyNanoBuff(SkillData* skill, Player* plr) {
+    assert(skill->drainType == SkillDrainType::PASSIVE);
+
+    EntityRef self = PlayerManager::getSockFromID(plr->iID);
+    std::vector<ICombatant*> affected;
+    std::vector<EntityRef> targets;
+    if (skill->targetType == SkillTargetType::GROUP) {
+        targets = plr->getGroupMembers(); // group
+    }
+    else if(skill->targetType == SkillTargetType::SELF) {
+        targets.push_back(self); // self
+    } else {
+        std::cout << "[WARN] Passive skill with type " << skill->skillType << " has target type MOB" << std::endl;
+    }
+
+    int timeBuffId = Abilities::getCSTBFromST(skill->skillType);
+    int boost = Nanos::getNanoBoost(plr) ? 3 : 0;
+    int value = skill->values[0][boost];
+
+    BuffStack passiveBuff = {
+        1, // passive nano buffs refreshed every tick
+        value,
+        self,
+        BuffClass::NONE, // overwritten per target
+    };
+
+    for (EntityRef target : targets) {
+        Entity* entity = target.getEntity();
+        if (entity->kind != PLAYER && entity->kind != COMBAT_NPC && entity->kind != MOB)
+            continue; // not a combatant
+
+        passiveBuff.buffStackClass = target == self ? BuffClass::NANO : BuffClass::GROUP_NANO;
+        ICombatant* combatant = dynamic_cast<ICombatant*>(entity);
+        if(combatant->addBuff(timeBuffId,
+            [](EntityRef self, Buff* buff, int status, BuffStack* stack) {
+                Buffs::timeBuffUpdate(self, buff, status, stack);
+            },
+            [](EntityRef self, Buff* buff, time_t currTime) {
+                // no-op
+            },
+            &passiveBuff)) affected.push_back(combatant);
+    }
+
+    return affected;
+}
+
 void Nanos::summonNano(CNSocket *sock, int slot, bool silent) {
     INITSTRUCT(sP_FE2CL_REP_NANO_ACTIVE_SUCC, resp);
     resp.iActiveNanoSlotNum = slot;
@@ -86,10 +132,16 @@ void Nanos::summonNano(CNSocket *sock, int slot, bool silent) {
         return; // sanity check
 
     plr->activeNano = nanoID;
+    sNano& nano = plr->Nanos[nanoID];
 
-    int16_t skillID = plr->Nanos[nanoID].iSkillID;
-    if (Abilities::SkillTable.count(skillID) > 0 && Abilities::SkillTable[skillID].drainType == SkillDrainType::PASSIVE)
-        resp.eCSTB___Add = 1; // passive buff effect
+    SkillData* skill = Abilities::SkillTable.count(nano.iSkillID) > 0
+                        ? &Abilities::SkillTable[nano.iSkillID] : nullptr;
+    if (slot != -1 && skill != nullptr && skill->drainType == SkillDrainType::PASSIVE) {
+        // passive buff effect
+        resp.eCSTB___Add = 1;
+        std::vector<ICombatant*> affectedCombatants = applyNanoBuff(skill, plr);
+        if(!affectedCombatants.empty()) Abilities::useNanoSkill(sock, nano, affectedCombatants);
+    }
 
     if (!silent) // silent nano death but only for the summoning player
         sock->sendPacket(resp, P_FE2CL_REP_NANO_ACTIVE_SUCC);
@@ -97,7 +149,7 @@ void Nanos::summonNano(CNSocket *sock, int slot, bool silent) {
     // Send to other players, these players can't handle silent nano deaths so this packet needs to be sent.
     INITSTRUCT(sP_FE2CL_NANO_ACTIVE, pkt1);
     pkt1.iPC_ID = plr->iID;
-    pkt1.Nano = plr->Nanos[nanoID];
+    pkt1.Nano = nano;
     PlayerManager::sendToViewable(sock, pkt1, P_FE2CL_NANO_ACTIVE);
 }
 
@@ -184,7 +236,7 @@ int Nanos::nanoStyle(int nanoID) {
 bool Nanos::getNanoBoost(Player* plr) {
     for (int i = 0; i < 3; i++) 
         if (plr->equippedNanos[i] == plr->activeNano)
-            if (plr->iConditionBitFlag & (CSB_BIT_STIMPAKSLOT1 << i))
+            if (plr->hasBuff(ECSB_STIMPAKSLOT1 + i))
                 return true;
     return false;
 }
@@ -207,18 +259,6 @@ static void nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
 
     // Update player
     plr->equippedNanos[nano->iNanoSlotNum] = nano->iNanoID;
-
-    // Unbuff gumballs
-    int value1 = CSB_BIT_STIMPAKSLOT1 << nano->iNanoSlotNum;
-    if (plr->iConditionBitFlag & value1) {
-        int value2 = ECSB_STIMPAKSLOT1 + nano->iNanoSlotNum;
-        INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt);
-        pkt.eCSTB = value2; // eCharStatusTimeBuffID
-        pkt.eTBU = 2; // eTimeBuffUpdate
-        pkt.eTBT = 1; // eTimeBuffType 1 means nano
-        pkt.iConditionBitFlag = plr->iConditionBitFlag &= ~value1;
-        sock->sendPacket(pkt, P_FE2CL_PC_BUFF_UPDATE);
-    }
 
     // unsummon nano if replaced
     if (plr->activeNano == plr->equippedNanos[nano->iNanoSlotNum])

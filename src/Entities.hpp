@@ -3,18 +3,16 @@
 #include "core/Core.hpp"
 #include "Chunking.hpp"
 
+#include "EntityRef.hpp"
+#include "Buffs.hpp"
+
 #include <set>
 #include <map>
+#include <functional>
 
-enum EntityKind {
-    INVALID,
-    PLAYER,
-    SIMPLE_NPC,
-    COMBAT_NPC,
-    MOB,
-    EGG,
-    BUS
-};
+/* forward declaration(s) */
+class Chunk;
+struct Group;
 
 enum class AIState {
     INACTIVE,
@@ -23,9 +21,6 @@ enum class AIState {
     RETREAT,
     DEAD
 };
-
-class Chunk;
-struct Group;
 
 struct Entity {
     EntityKind kind = EntityKind::INVALID;
@@ -44,42 +39,6 @@ struct Entity {
     virtual void disappearFromViewOf(CNSocket *sock) = 0;
 };
 
-struct EntityRef {
-    EntityKind kind;
-    union {
-        CNSocket *sock;
-        int32_t id;
-    };
-
-    EntityRef(CNSocket *s);
-    EntityRef(int32_t i);
-
-    bool isValid() const;
-    Entity *getEntity() const;
-
-    bool operator==(const EntityRef& other) const {
-        if (kind != other.kind)
-            return false;
-
-        if (kind == EntityKind::PLAYER)
-            return sock == other.sock;
-
-        return id == other.id;
-    }
-
-    // arbitrary ordering
-    bool operator<(const EntityRef& other) const {
-        if (kind == other.kind) {
-            if (kind == EntityKind::PLAYER)
-                return sock < other.sock;
-            else
-                return id < other.id;
-        }
-
-        return kind < other.kind;
-    }
-};
-
 /*
  * Interfaces
  */
@@ -88,11 +47,22 @@ public:
     ICombatant() {}
     virtual ~ICombatant() {}
 
+    virtual bool addBuff(int, BuffCallback<int, BuffStack*>, BuffCallback<time_t>, BuffStack*) = 0;
+    virtual Buff* getBuff(int) = 0;
+    virtual void removeBuff(int) = 0;
+    virtual void removeBuff(int, int) = 0;
+    virtual bool hasBuff(int) = 0;
+    virtual int getCompositeCondition() = 0;
     virtual int takeDamage(EntityRef, int) = 0;
-    virtual void heal(EntityRef, int) = 0;
+    virtual int heal(EntityRef, int) = 0;
     virtual bool isAlive() = 0;
     virtual int getCurrentHP() = 0;
+    virtual int getMaxHP() = 0;
+    virtual int getLevel() = 0;
+    virtual std::vector<EntityRef> getGroupMembers() = 0;
+    virtual int32_t getCharType() = 0;
     virtual int32_t getID() = 0;
+    virtual EntityRef getRef() = 0;
     virtual void step(time_t currTime) = 0;
 };
 
@@ -109,6 +79,7 @@ public:
     bool loopingPath = false;
 
     BaseNPC(int _A, uint64_t iID, int t, int _id) {
+        kind = EntityKind::SIMPLE_NPC;
         type = t;
         hp = 400;
         angle = _A;
@@ -143,17 +114,30 @@ struct CombatNPC : public BaseNPC, public ICombatant {
         spawnY = y;
         spawnZ = z;
 
+        kind = EntityKind::COMBAT_NPC;
+
         stateHandlers[AIState::INACTIVE] = {};
         transitionHandlers[AIState::INACTIVE] = {};
     }
 
     virtual bool isExtant() override { return hp > 0; }
 
+    virtual bool addBuff(int buffId, BuffCallback<int, BuffStack*> onUpdate, BuffCallback<time_t> onTick, BuffStack* stack) override;
+    virtual Buff* getBuff(int buffId) override;
+    virtual void removeBuff(int buffId) override;
+    virtual void removeBuff(int buffId, int buffClass) override;
+    virtual bool hasBuff(int buffId) override;
+    virtual int getCompositeCondition() override;
     virtual int takeDamage(EntityRef src, int amt) override;
-    virtual void heal(EntityRef src, int amt) override;
+    virtual int heal(EntityRef src, int amt) override;
     virtual bool isAlive() override;
     virtual int getCurrentHP() override;
+    virtual int getMaxHP() override;
+    virtual int getLevel() override;
+    virtual std::vector<EntityRef> getGroupMembers() override;
+    virtual int32_t getCharType() override;
     virtual int32_t getID() override;
+    virtual EntityRef getRef() override;
     virtual void step(time_t currTime) override;
 
     virtual void transition(AIState newState, EntityRef src);

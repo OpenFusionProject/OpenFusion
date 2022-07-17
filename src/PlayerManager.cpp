@@ -36,8 +36,13 @@ void PlayerManager::removePlayer(CNSocket* key) {
     Player* plr = getPlayer(key);
     uint64_t fromInstance = plr->instanceID;
 
+    // free buff memory
+    for(auto buffEntry : plr->buffs)
+        delete buffEntry.second;
+
+    // leave group
     if(plr->group != nullptr)
-        Groups::groupKick(plr);
+        Groups::groupKick(plr->group, key);
 
     // remove player's bullets
     Combat::Bullets.erase(plr->iID);
@@ -60,16 +65,6 @@ void PlayerManager::removePlayer(CNSocket* key) {
 
     // if the player was in a lair, clean it up
     Chunking::destroyInstanceIfEmpty(fromInstance);
-
-    // remove player's buffs from the server
-    auto it = Eggs::EggBuffs.begin();
-    while (it != Eggs::EggBuffs.end()) {
-        if (it->first.first == key) {
-            it = Eggs::EggBuffs.erase(it);
-        }
-        else
-            it++;
-    }
 
     std::cout << players.size() << " players" << std::endl;
 }
@@ -403,7 +398,7 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
 
     switch ((ePCRegenType)reviveData->iRegenType) {
     case ePCRegenType::HereByPhoenix: // nano revive
-        if (!(plr->iConditionBitFlag & CSB_BIT_PHOENIX))
+        if (!(plr->hasBuff(ECSB_PHOENIX)))
             return; // sanity check
         plr->Nanos[plr->activeNano].iStamina = 0;
         // TODO ABILITIES
@@ -470,10 +465,8 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
     resp2.PCRegenDataForOtherPC.iAngle = plr->angle;
 
     if (plr->group != nullptr) {
-        // TODO ABILITIES
-        //int bitFlag = plr->group->conditionBitFlag;
-        //resp2.PCRegenDataForOtherPC.iConditionBitFlag = plr->iConditionBitFlag = plr->iSelfConditionBitFlag | bitFlag;
-
+        
+        resp2.PCRegenDataForOtherPC.iConditionBitFlag = plr->getCompositeCondition();
         resp2.PCRegenDataForOtherPC.iPCState = plr->iPCState;
         resp2.PCRegenDataForOtherPC.iSpecialState = plr->iSpecialState;
         resp2.PCRegenDataForOtherPC.Nano = plr->Nanos[plr->activeNano];

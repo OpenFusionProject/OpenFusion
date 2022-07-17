@@ -119,6 +119,27 @@ enum {
 };
 
 enum {
+	ETBU_NONE = 0,
+	ETBU_ADD = 1,
+	ETBU_DEL = 2,
+	ETBU_CHANGE = 3,
+    ETBU__END = 4,
+};
+
+enum  {
+	ETBT_NONE = 0,
+	ETBT_NANO = 1,
+	ETBT_GROUPNANO = 2,
+	ETBT_SHINY = 3,
+	ETBT_LANDEFFECT = 4,
+	ETBT_ITEM = 5,
+	ETBT_CASHITEM = 6,
+	ETBT__END = 7,
+	ETBT_SKILL = 1,
+	ETBT_GROUPSKILL = 2
+};
+
+enum {
     SUCC = 1,
     FAIL = 0,
 

@@ -19,16 +19,19 @@ struct Group {
             });
         return filtered;
     }
+
+    Group(EntityRef leader);
 };
 
 namespace Groups {
     void init();
 
     void sendToGroup(Group* group, void* buf, uint32_t type, size_t size);
-    void groupTickInfo(Player* plr);
-    void groupKick(Player* plr);
+    void sendToGroup(Group* group, EntityRef excluded, void* buf, uint32_t type, size_t size);
+    void groupTickInfo(CNSocket* sock);
 
-    void addToGroup(EntityRef member, Group* group);
-    void removeFromGroup(EntityRef member, Group* group);
+    void groupKick(Group* group, EntityRef ref);
+    void addToGroup(Group* group, EntityRef member);
+    bool removeFromGroup(Group* group, EntityRef member); // true iff group deleted
     void disbandGroup(Group* group);
 }

@@ -81,7 +81,7 @@ void NPCManager::updateNPCPosition(int32_t id, int X, int Y, int Z, uint64_t I, 
     Chunking::updateEntityChunk({id}, oldChunk, newChunk);
 }
 
-void NPCManager::sendToViewable(BaseNPC *npc, void *buf, uint32_t type, size_t size) {
+void NPCManager::sendToViewable(Entity *npc, void *buf, uint32_t type, size_t size) {
     for (auto it = npc->viewableChunks.begin(); it != npc->viewableChunks.end(); it++) {
         Chunk* chunk = *it;
         for (const EntityRef& ref : chunk->entities) {

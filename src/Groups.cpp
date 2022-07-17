@@ -15,7 +15,54 @@
 
 using namespace Groups;
 
-void Groups::addToGroup(EntityRef member, Group* group) {
+Group::Group(EntityRef leader) {
+    addToGroup(this, leader);
+}
+
+static void attachGroupData(std::vector<EntityRef>& pcs, std::vector<EntityRef>& npcs, uint8_t* pivot) {
+    for(EntityRef pcRef : pcs) {
+        sPCGroupMemberInfo* info = (sPCGroupMemberInfo*)pivot;
+
+        Player* plr = PlayerManager::getPlayer(pcRef.sock);
+        info->iPC_ID = plr->iID;
+        info->iPCUID = plr->PCStyle.iPC_UID;
+        info->iNameCheck = plr->PCStyle.iNameCheck;
+        memcpy(info->szFirstName, plr->PCStyle.szFirstName, sizeof(plr->PCStyle.szFirstName));
+        memcpy(info->szLastName, plr->PCStyle.szLastName, sizeof(plr->PCStyle.szLastName));
+        info->iSpecialState = plr->iSpecialState;
+        info->iLv = plr->level;
+        info->iHP = plr->HP;
+        info->iMaxHP = PC_MAXHEALTH(plr->level);
+        // info->iMapType = 0;
+        // info->iMapNum = 0;
+        info->iX = plr->x;
+        info->iY = plr->y;
+        info->iZ = plr->z;
+        if(plr->activeNano > 0) {
+            info->Nano = *plr->getActiveNano();
+            info->bNano = true;
+        }
+
+        pivot = (uint8_t*)(info + 1);
+    }
+    for(EntityRef npcRef : npcs) {
+        sNPCGroupMemberInfo* info = (sNPCGroupMemberInfo*)pivot;
+
+        // probably should not assume that the combatant is an
+        // entity, but it works for now
+        BaseNPC* npc = (BaseNPC*)npcRef.getEntity();
+        info->iNPC_ID = npcRef.id;
+        info->iNPC_Type = npc->type;
+        info->iHP = npc->hp;
+        info->iX = npc->x;
+        info->iY = npc->y;
+        info->iZ = npc->z;
+
+        pivot = (uint8_t*)(info + 1);
+    }
+}
+
+void Groups::addToGroup(Group* group, EntityRef member) {
     if (member.kind == EntityKind::PLAYER) {
         Player* plr = PlayerManager::getPlayer(member.sock);
         plr->group = group;
@@ -29,37 +76,102 @@ void Groups::addToGroup(EntityRef member, Group* group) {
     }
 
     group->members.push_back(member);
+
+    if(member.kind == EntityKind::PLAYER) {
+        std::vector<EntityRef> pcs = group->filter(EntityKind::PLAYER);
+        std::vector<EntityRef> npcs = group->filter(EntityKind::COMBAT_NPC);
+        size_t pcCount = pcs.size();
+        size_t npcCount = npcs.size();
+
+        uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+        memset(respbuf, 0, CN_PACKET_BUFFER_SIZE);
+        sP_FE2CL_PC_GROUP_JOIN* pkt = (sP_FE2CL_PC_GROUP_JOIN*)respbuf;
+
+        pkt->iID_NewMember = PlayerManager::getPlayer(member.sock)->iID;
+        pkt->iMemberPCCnt = (int32_t)pcCount;
+        pkt->iMemberNPCCnt = (int32_t)npcCount;
+
+        if(!validOutVarPacket(sizeof(sP_FE2CL_PC_GROUP_JOIN), pcCount, sizeof(sPCGroupMemberInfo))
+            || !validOutVarPacket(sizeof(sP_FE2CL_PC_GROUP_JOIN) + pcCount * sizeof(sPCGroupMemberInfo), npcCount, sizeof(sNPCGroupMemberInfo))) {
+            std::cout << "[WARN] bad sP_FE2CL_PC_GROUP_JOIN packet size" << std::endl;
+        } else {
+            uint8_t* pivot = (uint8_t*)(pkt + 1);
+            attachGroupData(pcs, npcs, pivot);
+            // PC_GROUP_JOIN_SUCC and PC_GROUP_JOIN carry identical payloads but have different IDs
+            // (and the client does care!) so we need to send one to the new member
+            // and the other to the rest
+            size_t resplen = sizeof(sP_FE2CL_PC_GROUP_JOIN) + pcCount * sizeof(sPCGroupMemberInfo) + npcCount * sizeof(sNPCGroupMemberInfo);
+            member.sock->sendPacket(respbuf, P_FE2CL_PC_GROUP_JOIN_SUCC, resplen);
+            sendToGroup(group, member, respbuf, P_FE2CL_PC_GROUP_JOIN, resplen);
+        }
+    }
 }
 
-void Groups::removeFromGroup(EntityRef member, Group* group) {
+bool Groups::removeFromGroup(Group* group, EntityRef member) {
     if (member.kind == EntityKind::PLAYER) {
         Player* plr = PlayerManager::getPlayer(member.sock);
         plr->group = nullptr; // no dangling pointers here muahaahahah
+
+        INITSTRUCT(sP_FE2CL_PC_GROUP_LEAVE_SUCC, leavePkt);
+        member.sock->sendPacket(leavePkt, P_FE2CL_PC_GROUP_LEAVE_SUCC);
     }
     else if (member.kind == EntityKind::COMBAT_NPC) {
         CombatNPC* npc = (CombatNPC*)member.getEntity();
         npc->group = nullptr;
     }
     else {
-        std::cout << "[WARN] Adding a weird entity type to a group" << std::endl;
+        std::cout << "[WARN] Removing a weird entity type from a group" << std::endl;
     }
 
     auto it = std::find(group->members.begin(), group->members.end(), member);
     if (it == group->members.end()) {
         std::cout << "[WARN] Tried to remove a member that isn't in the group" << std::endl;
-        return;
+    } else {
+        group->members.erase(it);
     }
 
-    group->members.erase(it);
+    if(member.kind == EntityKind::PLAYER) {
+        std::vector<EntityRef> pcs = group->filter(EntityKind::PLAYER);
+        std::vector<EntityRef> npcs = group->filter(EntityKind::COMBAT_NPC);
+        size_t pcCount = pcs.size();
+        size_t npcCount = npcs.size();
 
-    if (group->members.empty()) delete group; // cleanup memory
+        uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+        memset(respbuf, 0, CN_PACKET_BUFFER_SIZE);
+        sP_FE2CL_PC_GROUP_LEAVE* pkt = (sP_FE2CL_PC_GROUP_LEAVE*)respbuf;
+
+        pkt->iID_LeaveMember = PlayerManager::getPlayer(member.sock)->iID;
+        pkt->iMemberPCCnt = (int32_t)pcCount;
+        pkt->iMemberNPCCnt = (int32_t)npcCount;
+
+        if(!validOutVarPacket(sizeof(sP_FE2CL_PC_GROUP_LEAVE), pcCount, sizeof(sPCGroupMemberInfo))
+            || !validOutVarPacket(sizeof(sP_FE2CL_PC_GROUP_LEAVE) + pcCount * sizeof(sPCGroupMemberInfo), npcCount, sizeof(sNPCGroupMemberInfo))) {
+            std::cout << "[WARN] bad sP_FE2CL_PC_GROUP_LEAVE packet size" << std::endl;
+        } else {
+            uint8_t* pivot = (uint8_t*)(pkt + 1);
+            attachGroupData(pcs, npcs, pivot);
+            sendToGroup(group, respbuf, P_FE2CL_PC_GROUP_LEAVE,
+                sizeof(sP_FE2CL_PC_GROUP_LEAVE) + pcCount * sizeof(sPCGroupMemberInfo) + npcCount * sizeof(sNPCGroupMemberInfo));
+        }
+    }
+
+    if (group->members.size() == 1) {
+        return removeFromGroup(group, group->members.back());
+    }
+
+    if (group->members.empty()) {
+        delete group; // cleanup memory
+        return true;
+    }
+    return false;
 }
 
 void Groups::disbandGroup(Group* group) {
     // remove everyone from the group!!
-    std::vector<EntityRef> members = group->members;
-    for (EntityRef member : members) {
-        removeFromGroup(member, group);
+    bool done = false;
+    while(!done) {
+        EntityRef back = group->members.back();
+        done = removeFromGroup(group, back);
     }
 }
 
@@ -114,7 +226,7 @@ static void joinGroup(CNSocket* sock, CNPacketData* data) {
     Player* otherPlr = PlayerManager::getPlayerFromID(recv->iID_From);
 
     if (otherPlr == nullptr)
-        return;
+        return; // disconnect or something
 
     int size = otherPlr->group == nullptr ? 1 : otherPlr->group->filter(EntityKind::PLAYER).size();
 
@@ -125,220 +237,69 @@ static void joinGroup(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    if (!validOutVarPacket(sizeof(sP_FE2CL_PC_GROUP_JOIN), size + 1, sizeof(sPCGroupMemberInfo))) {
-        std::cout << "[WARN] bad sP_FE2CL_PC_GROUP_JOIN packet size\n";
-        return;
-    }
-
     if (otherPlr->group == nullptr) {
         // create group
-        otherPlr->group = new Group(); // spooky
-        addToGroup(PlayerManager::getSockFromID(recv->iID_From), otherPlr->group);
+        EntityRef otherPlrRef = PlayerManager::getSockFromID(recv->iID_From);
+        otherPlr->group = new Group(otherPlrRef);
     }
-    addToGroup(sock, otherPlr->group);
-    auto players = otherPlr->group->filter(EntityKind::PLAYER);
-
-    size_t resplen = sizeof(sP_FE2CL_PC_GROUP_JOIN) + players.size() * sizeof(sPCGroupMemberInfo);
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-
-    memset(respbuf, 0, resplen);
-
-    sP_FE2CL_PC_GROUP_JOIN *resp = (sP_FE2CL_PC_GROUP_JOIN*)respbuf;
-    sPCGroupMemberInfo *respdata = (sPCGroupMemberInfo*)(respbuf+sizeof(sP_FE2CL_PC_GROUP_JOIN));
-
-    resp->iID_NewMember = plr->iID;
-    resp->iMemberPCCnt = players.size();
-
-    //int bitFlag = otherPlr->group->conditionBitFlag;
-    for (int i = 0; i < players.size(); i++) {
-
-        Player* varPlr = PlayerManager::getPlayer(players[i].sock);
-        CNSocket* sockTo = players[i].sock;
-
-        if (varPlr == nullptr || sockTo == nullptr)
-            continue;
-
-        respdata[i].iPC_ID = varPlr->iID;
-        respdata[i].iPCUID = varPlr->PCStyle.iPC_UID;
-        respdata[i].iNameCheck = varPlr->PCStyle.iNameCheck;
-        memcpy(respdata[i].szFirstName, varPlr->PCStyle.szFirstName, sizeof(varPlr->PCStyle.szFirstName));
-        memcpy(respdata[i].szLastName, varPlr->PCStyle.szLastName, sizeof(varPlr->PCStyle.szLastName));
-        respdata[i].iSpecialState = varPlr->iSpecialState;
-        respdata[i].iLv = varPlr->level;
-        respdata[i].iHP = varPlr->HP;
-        respdata[i].iMaxHP = PC_MAXHEALTH(varPlr->level);
-        //respdata[i].iMapType = 0;
-        //respdata[i].iMapNum = 0;
-        respdata[i].iX = varPlr->x;
-        respdata[i].iY = varPlr->y;
-        respdata[i].iZ = varPlr->z;
-        // client doesnt read nano data here
-
-        if (varPlr != plr) { // apply the new member's buffs to the group and the group's buffs to the new member
-            // TODO ABILITIES
-            /*if (Abilities::SkillTable[varPlr->Nanos[varPlr->activeNano].iSkillID].targetType == 3)
-                Abilities::applyBuff(sock, varPlr->Nanos[varPlr->activeNano].iSkillID, 1, 1, bitFlag);
-            if (Abilities::SkillTable[plr->Nanos[plr->activeNano].iSkillID].targetType == 3)
-                Abilities::applyBuff(sockTo, plr->Nanos[plr->activeNano].iSkillID, 1, 1, bitFlag);*/
-        }
-    }
-
-    Groups::sendToGroup(otherPlr->group, (void*)&respbuf, P_FE2CL_PC_GROUP_JOIN, resplen);
+    addToGroup(otherPlr->group, sock);
 }
 
 static void leaveGroup(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
-    groupKick(plr);
+    groupKick(plr->group, sock);
 }
 
 void Groups::sendToGroup(Group* group, void* buf, uint32_t type, size_t size) {
     auto players = group->filter(EntityKind::PLAYER);
-    for (int i = 0; i < players.size(); i++) {
-        CNSocket* sock = players[i].sock;
-        sock->sendPacket(buf, type, size);
+    for (EntityRef ref : players) {
+        ref.sock->sendPacket(buf, type, size);
     }
 }
 
-void Groups::groupTickInfo(Player* plr) {
-
-    auto players = plr->group->filter(EntityKind::PLAYER);
-
-    if (!validOutVarPacket(sizeof(sP_FE2CL_PC_GROUP_MEMBER_INFO), players.size(), sizeof(sPCGroupMemberInfo))) {
-        std::cout << "[WARN] bad sP_FE2CL_PC_GROUP_JOIN packet size\n";
-        return;
+void Groups::sendToGroup(Group* group, EntityRef excluded, void* buf, uint32_t type, size_t size) {
+    auto players = group->filter(EntityKind::PLAYER);
+    for (EntityRef ref : players) {
+        if(ref != excluded) ref.sock->sendPacket(buf, type, size);
     }
+}
 
-    size_t resplen = sizeof(sP_FE2CL_PC_GROUP_MEMBER_INFO) + players.size() * sizeof(sPCGroupMemberInfo);
+void Groups::groupTickInfo(CNSocket* sock) {
+    Player* plr = PlayerManager::getPlayer(sock);
+    Group* group = plr->group;
+    std::vector<EntityRef> pcs = group->filter(EntityKind::PLAYER);
+    std::vector<EntityRef> npcs = group->filter(EntityKind::COMBAT_NPC);
+    size_t pcCount = pcs.size();
+    size_t npcCount = npcs.size();
+
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    memset(respbuf, 0, CN_PACKET_BUFFER_SIZE);
+    sP_FE2CL_PC_GROUP_MEMBER_INFO* pkt = (sP_FE2CL_PC_GROUP_MEMBER_INFO*)respbuf;
 
-    memset(respbuf, 0, resplen);
+    pkt->iID = plr->iID;
+    pkt->iMemberPCCnt = (int32_t)pcCount;
+    pkt->iMemberNPCCnt = (int32_t)npcCount;
 
-    sP_FE2CL_PC_GROUP_MEMBER_INFO *resp = (sP_FE2CL_PC_GROUP_MEMBER_INFO*)respbuf;
-    sPCGroupMemberInfo *respdata = (sPCGroupMemberInfo*)(respbuf+sizeof(sP_FE2CL_PC_GROUP_MEMBER_INFO));
-
-    resp->iID = plr->iID;
-    resp->iMemberPCCnt = players.size();
-
-    for (int i = 0; i < players.size(); i++) {
-        EntityRef member = players[i];
-        Player* varPlr = PlayerManager::getPlayer(member.sock);
-
-        if (varPlr == nullptr)
-            continue;
-
-        respdata[i].iPC_ID = varPlr->iID;
-        respdata[i].iPCUID = varPlr->PCStyle.iPC_UID;
-        respdata[i].iNameCheck = varPlr->PCStyle.iNameCheck;
-        memcpy(respdata[i].szFirstName, varPlr->PCStyle.szFirstName, sizeof(varPlr->PCStyle.szFirstName));
-        memcpy(respdata[i].szLastName, varPlr->PCStyle.szLastName, sizeof(varPlr->PCStyle.szLastName));
-        respdata[i].iSpecialState = varPlr->iSpecialState;
-        respdata[i].iLv = varPlr->level;
-        respdata[i].iHP = varPlr->HP;
-        respdata[i].iMaxHP = PC_MAXHEALTH(varPlr->level);
-        //respdata[i].iMapType = 0;
-        //respdata[i].iMapNum = 0;
-        respdata[i].iX = varPlr->x;
-        respdata[i].iY = varPlr->y;
-        respdata[i].iZ = varPlr->z;
-        if (varPlr->activeNano > 0) {
-            respdata[i].bNano = 1;
-            respdata[i].Nano = varPlr->Nanos[varPlr->activeNano];
-        }
-    }
-
-    sendToGroup(plr->group, (void*)&respbuf, P_FE2CL_PC_GROUP_MEMBER_INFO, resplen);
-}
-
-static void groupUnbuff(Player* plr) {
-    Group* group = plr->group;
-    for (int i = 0; i < group->members.size(); i++) {
-        for (int n = 0; n < group->members.size(); n++) {
-            if (i == n)
-                continue;
-
-            EntityRef other = group->members[n];
-
-            // TODO ABILITIES
-            //Abilities::applyBuff(sock, otherPlr->Nanos[otherPlr->activeNano].iSkillID, 2, 1, 0);
-        }
+    if(!validOutVarPacket(sizeof(sP_FE2CL_PC_GROUP_MEMBER_INFO), pcCount, sizeof(sPCGroupMemberInfo))
+        || !validOutVarPacket(sizeof(sP_FE2CL_PC_GROUP_MEMBER_INFO) + pcCount * sizeof(sPCGroupMemberInfo), npcCount, sizeof(sNPCGroupMemberInfo))) {
+        std::cout << "[WARN] bad sP_FE2CL_PC_GROUP_MEMBER_INFO packet size" << std::endl;
+    } else {
+        uint8_t* pivot = (uint8_t*)(pkt + 1);
+        attachGroupData(pcs, npcs, pivot);
+        sock->sendPacket(respbuf, P_FE2CL_PC_GROUP_MEMBER_INFO,
+            sizeof(sP_FE2CL_PC_GROUP_MEMBER_INFO) + pcCount * sizeof(sPCGroupMemberInfo) + npcCount * sizeof(sNPCGroupMemberInfo));
     }
 }
 
-void Groups::groupKick(Player* plr) {
-    Group* group = plr->group;
+void Groups::groupKick(Group* group, EntityRef ref) {
 
     // if you are the group leader, destroy your own group and kick everybody
-    if (plr->group->members[0] == PlayerManager::getSockFromID(plr->iID)) {
-        groupUnbuff(plr);
-        INITSTRUCT(sP_FE2CL_PC_GROUP_LEAVE_SUCC, resp1);
-        sendToGroup(plr->group, (void*)&resp1, P_FE2CL_PC_GROUP_LEAVE_SUCC, sizeof(sP_FE2CL_PC_GROUP_LEAVE_SUCC));
-        disbandGroup(plr->group);
+    if (group->members[0] == ref) {
+        disbandGroup(group);
         return;
     }
 
-    auto players = group->filter(EntityKind::PLAYER);
-
-    if (!validOutVarPacket(sizeof(sP_FE2CL_PC_GROUP_LEAVE), players.size() - 1, sizeof(sPCGroupMemberInfo))) {
-        std::cout << "[WARN] bad sP_FE2CL_PC_GROUP_LEAVE packet size\n";
-        return;
-    }
-
-    size_t resplen = sizeof(sP_FE2CL_PC_GROUP_LEAVE) + (players.size() - 1) * sizeof(sPCGroupMemberInfo);
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-
-    memset(respbuf, 0, resplen);
-
-    sP_FE2CL_PC_GROUP_LEAVE *resp = (sP_FE2CL_PC_GROUP_LEAVE*)respbuf;
-    sPCGroupMemberInfo *respdata = (sPCGroupMemberInfo*)(respbuf+sizeof(sP_FE2CL_PC_GROUP_LEAVE));
-
-    resp->iID_LeaveMember = plr->iID;
-    resp->iMemberPCCnt = players.size() - 1;
-
-    int bitFlag = 0; // TODO ABILITIES getGroupFlags(otherPlr) & ~plr->iGroupConditionBitFlag;
-
-    CNSocket* sock = PlayerManager::getSockFromID(plr->iID);
-
-    if (sock == nullptr)
-        return;
-
-    removeFromGroup(sock, group);
-
-    players = group->filter(EntityKind::PLAYER);
-    for (int i = 0; i < players.size(); i++) {
-        CNSocket* sockTo = players[i].sock;
-        Player* varPlr = PlayerManager::getPlayer(sock);
-
-        if (varPlr == nullptr || sockTo == nullptr)
-            continue;
-
-        respdata[i].iPC_ID = varPlr->iID;
-        respdata[i].iPCUID = varPlr->PCStyle.iPC_UID;
-        respdata[i].iNameCheck = varPlr->PCStyle.iNameCheck;
-        memcpy(respdata[i].szFirstName, varPlr->PCStyle.szFirstName, sizeof(varPlr->PCStyle.szFirstName));
-        memcpy(respdata[i].szLastName, varPlr->PCStyle.szLastName, sizeof(varPlr->PCStyle.szLastName));
-        respdata[i].iSpecialState = varPlr->iSpecialState;
-        respdata[i].iLv = varPlr->level;
-        respdata[i].iHP = varPlr->HP;
-        respdata[i].iMaxHP = PC_MAXHEALTH(varPlr->level);
-        // respdata[i]].iMapType = 0;
-        // respdata[i]].iMapNum = 0;
-        respdata[i].iX = varPlr->x;
-        respdata[i].iY = varPlr->y;
-        respdata[i].iZ = varPlr->z;
-        // client doesnt read nano data here
-
-        // remove the leaving member's buffs from the group and remove the group buffs from the leaving member.
-            // TODO ABILITIES
-          /*if (Abilities::SkillTable[varPlr->Nanos[varPlr->activeNano].iSkillID].targetType == 3)
-                Abilities::applyBuff(sock, varPlr->Nanos[varPlr->activeNano].iSkillID, 2, 1, 0);
-            if (Abilities::SkillTable[plr->Nanos[varPlr->activeNano].iSkillID].targetType == 3)
-                Abilities::applyBuff(sockTo, plr->Nanos[plr->activeNano].iSkillID, 2, 1, bitFlag);*/
-    }
-
-    sendToGroup(group, (void*)&respbuf, P_FE2CL_PC_GROUP_LEAVE, resplen);
-
-    INITSTRUCT(sP_FE2CL_PC_GROUP_LEAVE_SUCC, resp1);
-    sock->sendPacket((void*)&resp1, P_FE2CL_PC_GROUP_LEAVE_SUCC, sizeof(sP_FE2CL_PC_GROUP_LEAVE_SUCC));
+    removeFromGroup(group, ref);
 }
 
 void Groups::init() {

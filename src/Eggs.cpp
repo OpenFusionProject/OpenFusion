@@ -13,118 +13,52 @@
 
 using namespace Eggs;
 
-/// sock, CBFlag -> until
-std::map<std::pair<CNSocket*, int32_t>, time_t> Eggs::EggBuffs;
 std::unordered_map<int, EggType> Eggs::EggTypes;
 
-int Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
+void Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
     Player* plr = PlayerManager::getPlayer(sock);
 
-    // TODO ABILITIES
-    //int bitFlag = plr->group->conditionBitFlag;
-    int CBFlag = 0;// Abilities::applyBuff(sock, skillId, 1, 3, bitFlag);
-
-    size_t resplen; 
-
-    if (skillId == 183) {
-        resplen = sizeof(sP_FE2CL_NPC_SKILL_HIT) + sizeof(sSkillResult_Damage);
-    } else if (skillId == 150) {
-        resplen = sizeof(sP_FE2CL_NPC_SKILL_HIT) + sizeof(sSkillResult_Heal_HP);
-    } else {
-        resplen = sizeof(sP_FE2CL_NPC_SKILL_HIT) + sizeof(sSkillResult_Buff);
-    }
-    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
-    // we know it's only one trailing struct, so we can skip full validation
-
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-    auto skillUse = (sP_FE2CL_NPC_SKILL_HIT*)respbuf;
-
-    if (skillId == 183) { // damage egg
-        auto skill = (sSkillResult_Damage*)(respbuf + sizeof(sP_FE2CL_NPC_SKILL_HIT));
-        memset(respbuf, 0, resplen);
-        skill->eCT = 1;
-        skill->iID = plr->iID;
-        skill->iDamage = PC_MAXHEALTH(plr->level) * Abilities::SkillTable[skillId].values[0][0] / 1000;
-        plr->HP -= skill->iDamage;
-        if (plr->HP < 0)
-            plr->HP = 0;
-        skill->iHP = plr->HP;
-    } else if (skillId == 150) { // heal egg
-        auto skill = (sSkillResult_Heal_HP*)(respbuf + sizeof(sP_FE2CL_NPC_SKILL_HIT));
-        memset(respbuf, 0, resplen);
-        skill->eCT = 1;
-        skill->iID = plr->iID;
-        skill->iHealHP = PC_MAXHEALTH(plr->level) * Abilities::SkillTable[skillId].values[0][0] / 1000;
-        plr->HP += skill->iHealHP;
-        if (plr->HP > PC_MAXHEALTH(plr->level))
-            plr->HP = PC_MAXHEALTH(plr->level);
-        skill->iHP = plr->HP;
-    } else { // regular buff egg
-        auto skill = (sSkillResult_Buff*)(respbuf + sizeof(sP_FE2CL_NPC_SKILL_HIT));
-        memset(respbuf, 0, resplen);
-        skill->eCT = 1;
-        skill->iID = plr->iID;
-        skill->iConditionBitFlag = plr->iConditionBitFlag;
+    // eggId might be 0 if the buff is made by the /buff command
+    EntityRef src = eggId == 0 ? sock : EntityRef(eggId);
+    
+    if(Abilities::SkillTable.count(skillId) == 0) {
+        std::cout << "[WARN] egg " << eggId << " has skill ID " << skillId << " which doesn't exist" << std::endl;
+        return;
     }
 
-    skillUse->iNPC_ID = eggId;
-    skillUse->iSkillID = skillId;
-    skillUse->eST = Abilities::SkillTable[skillId].skillType;
-    skillUse->iTargetCnt = 1;
+    SkillData* skill = &Abilities::SkillTable[skillId];
+    if(skill->drainType == SkillDrainType::PASSIVE) {
+        // apply buff
+        if(skill->targetType != SkillTargetType::SELF) {
+            std::cout << "[WARN] weird skill type for egg " << eggId << " with skill " << skillId << ", should be " << (int)skill->targetType << std::endl;
+        }
 
-    sock->sendPacket((void*)&respbuf, P_FE2CL_NPC_SKILL_HIT, resplen);
-    PlayerManager::sendToViewable(sock, (void*)&respbuf, P_FE2CL_NPC_SKILL_HIT, resplen);
+        int timeBuffId = Abilities::getCSTBFromST(skill->skillType);
+        int value = skill->values[0][0];
+        BuffStack eggBuff = {
+            duration * 1000 / MS_PER_PLAYER_TICK,
+            value,
+            src,
+            BuffClass::EGG
+        };
+        plr->addBuff(timeBuffId,
+            [](EntityRef self, Buff* buff, int status, BuffStack* stack) {
+                Buffs::timeBuffUpdate(self, buff, status, stack);
+                if(status == ETBU_DEL) Buffs::timeBuffTimeout(self);
+            },
+            [](EntityRef self, Buff* buff, time_t currTime) {
+                // no-op
+            },
+            &eggBuff);
+    }
 
-    if (CBFlag == 0)
-        return -1;
-
-    std::pair<CNSocket*, int32_t> key = std::make_pair(sock, CBFlag);
-
-    // save the buff serverside;
-    // if you get the same buff again, new duration will override the previous one
-    time_t until = getTime() + (time_t)duration * 1000;
-    EggBuffs[key] = until;
-
-    return 0;
+    // use skill
+    std::vector<ICombatant*> targets;
+    targets.push_back(dynamic_cast<ICombatant*>(plr));
+    Abilities::useNPCSkill(src, skillId, targets);
 }
 
 static void eggStep(CNServer* serv, time_t currTime) {
-    // tick buffs
-    time_t timeStamp = currTime;
-    auto it = EggBuffs.begin();
-    while (it != EggBuffs.end()) {
-        // check remaining time
-        if (it->second > timeStamp) {
-            it++;
-        } else { // if time reached 0
-            CNSocket* sock = it->first.first;
-            int32_t CBFlag = it->first.second;
-            Player* plr = PlayerManager::getPlayer(sock);
-
-            //int groupFlags = plr->group->conditionBitFlag;
-            // TODO ABILITIES
-            //for (auto& pwr : Abilities::Powers) {
-            //    if (pwr.bitFlag == CBFlag) { // pick the power with the right flag and unbuff
-            //        INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, resp);
-            //        resp.eCSTB = pwr.timeBuffID;
-            //        resp.eTBU = 2;
-            //        resp.eTBT = 3; // for egg buffs
-            //        plr->iConditionBitFlag &= ~CBFlag;
-            //        resp.iConditionBitFlag = plr->iConditionBitFlag |= groupFlags | plr->iSelfConditionBitFlag;
-            //        sock->sendPacket(resp, P_FE2CL_PC_BUFF_UPDATE);
-
-            //        INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, resp2); // send a buff timeout to other players
-            //        resp2.eCT = 1;
-            //        resp2.iID = plr->iID;
-            //        resp2.iConditionBitFlag = plr->iConditionBitFlag;
-            //        PlayerManager::sendToViewable(sock, resp2, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT);
-            //    }
-            //}
-            // remove buff from the map
-            it = EggBuffs.erase(it);
-        }
-    }
-
     // check dead eggs and eggs in inactive chunks
     for (auto npc : NPCManager::NPCs) {
         if (npc.second->kind != EntityKind::EGG)
@@ -134,7 +68,7 @@ static void eggStep(CNServer* serv, time_t currTime) {
         if (!egg->dead || !Chunking::inPopulatedChunks(&egg->viewableChunks))
             continue;
 
-        if (egg->deadUntil <= timeStamp) {
+        if (egg->deadUntil <= currTime) {
             // respawn it
             egg->dead = false;
             egg->deadUntil = 0;
@@ -191,16 +125,13 @@ static void eggPickup(CNSocket* sock, CNPacketData* data) {
 
     EggType* type = &EggTypes[typeId];
 
-    // buff the player
-    if (type->effectId != 0)
-        eggBuffPlayer(sock, type->effectId, eggRef.id, type->duration);
-
     /*
      * SHINY_PICKUP_SUCC is only causing a GUI effect in the client
      * (buff icon pops up in the bottom of the screen)
      * so we don't send it for non-effect
      */
     if (type->effectId != 0) {
+        eggBuffPlayer(sock, type->effectId, eggRef.id, type->duration);
         INITSTRUCT(sP_FE2CL_REP_SHINY_PICKUP_SUCC, resp);
         resp.iSkillID = type->effectId;
 
