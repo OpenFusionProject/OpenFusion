@@ -369,6 +369,9 @@ static void exitGame(CNSocket* sock, CNPacketData* data) {
     response.iExitCode = 1;
 
     sock->sendPacket(response, P_FE2CL_REP_PC_EXIT_SUCC);
+
+    sock->kill();
+    CNShardServer::_killConnection(sock);
 }
 
 static void revivePlayer(CNSocket* sock, CNPacketData* data) {
