@@ -18,6 +18,7 @@ namespace PlayerManager {
     void removePlayer(CNSocket* key);
 
     void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, uint64_t I, int angle);
+    void updatePlayerPositionForWarp(CNSocket* sock, int X, int Y, int Z, uint64_t inst);
 
     void sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I);
     void sendPlayerTo(CNSocket* sock, int X, int Y, int Z);

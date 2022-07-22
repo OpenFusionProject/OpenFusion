@@ -1,7 +1,6 @@
 #pragma once
 
 #include "core/Core.hpp"
-#include "Entities.hpp"
 
 #include <utility>
 #include <set>
@@ -9,12 +8,21 @@
 #include <tuple>
 #include <algorithm>
 
+struct EntityRef;
+
 class Chunk {
 public:
-    //std::set<CNSocket*> players;
-    //std::set<int32_t> NPCs;
     std::set<EntityRef> entities;
     int nplayers = 0;
+};
+
+// to help the readability of ChunkPos
+typedef std::tuple<int, int, uint64_t> _ChunkPos;
+
+class ChunkPos : public _ChunkPos {
+public:
+    ChunkPos() : _ChunkPos(0, 0, (uint64_t) -1) {}
+    ChunkPos(int x, int y, uint64_t inst) : _ChunkPos(x, y, inst) {}
 };
 
 enum {
@@ -25,6 +33,8 @@ enum {
 
 namespace Chunking {
     extern std::map<ChunkPos, Chunk*> chunks;
+
+    extern const ChunkPos INVALID_CHUNK;
 
     void updateEntityChunk(const EntityRef& ref, ChunkPos from, ChunkPos to);
 

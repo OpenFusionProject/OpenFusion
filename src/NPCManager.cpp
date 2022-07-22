@@ -246,8 +246,7 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
         Missions::failInstancedMissions(sock); // fail any instanced missions
         sock->sendPacket(resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC);
 
-        Chunking::updateEntityChunk({sock}, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
-        PlayerManager::updatePlayerPosition(sock, resp.iX, resp.iY, resp.iZ, INSTANCE_OVERWORLD, plr->angle);
+        PlayerManager::updatePlayerPositionForWarp(sock, resp.iX, resp.iY, resp.iZ, INSTANCE_OVERWORLD);
 
         // remove the player's ongoing race, if any
         if (Racing::EPRaces.find(sock) != Racing::EPRaces.end())

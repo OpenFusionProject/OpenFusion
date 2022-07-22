@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/Core.hpp"
+#include "Chunking.hpp"
 
 #include <stdint.h>
 #include <set>
@@ -14,8 +15,6 @@ enum class EntityType : uint8_t {
     EGG,
     BUS
 };
-
-class Chunk;
 
 struct Entity {
     EntityType type = EntityType::INVALID;

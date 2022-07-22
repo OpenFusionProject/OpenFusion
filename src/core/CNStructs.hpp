@@ -41,9 +41,6 @@
 #define ARRLEN(x) (sizeof(x)/sizeof(*x))
 #define AUTOU16TOU8(x) U16toU8(x, ARRLEN(x)) 
 
-// typedef for chunk position tuple
-typedef std::tuple<int, int, uint64_t> ChunkPos;
-
 // TODO: rewrite U16toU8 & U8toU16 to not use codecvt
 
 std::string U16toU8(char16_t* src, size_t max);

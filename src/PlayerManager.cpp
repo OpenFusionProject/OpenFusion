@@ -35,7 +35,7 @@ static void addPlayer(CNSocket* key, Player plr) {
     *p = plr;
 
     players[key] = p;
-    p->chunkPos = std::make_tuple(0, 0, 0); // TODO: maybe replace with specialized "no chunk" value
+    p->chunkPos = Chunking::INVALID_CHUNK;
     p->lastHeartbeat = 0;
 
     std::cout << getPlayerName(p) << " has joined!" << std::endl;
@@ -97,6 +97,19 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, ui
     Chunking::updateEntityChunk({sock}, oldChunk, newChunk);
 }
 
+/*
+ * Low-level helper function for correctly updating chunks when teleporting players.
+ *
+ * Use PlayerManager::sendPlayerTo() to actually teleport players.
+ */
+void PlayerManager::updatePlayerPositionForWarp(CNSocket* sock, int X, int Y, int Z, uint64_t inst) {
+    Player *plr = getPlayer(sock);
+
+    // force player to reload chunks
+    Chunking::updateEntityChunk({sock}, plr->chunkPos, Chunking::INVALID_CHUNK);
+    updatePlayerPosition(sock, X, Y, Z, inst, plr->angle);
+}
+
 void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I) {
     Player* plr = getPlayer(sock);
     plr->onMonkey = false;
@@ -148,8 +161,7 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
     pkt2.iZ = Z;
     sock->sendPacket(pkt2, P_FE2CL_REP_PC_GOTO_SUCC);
 
-    Chunking::updateEntityChunk({sock}, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
-    updatePlayerPosition(sock, X, Y, Z, I, plr->angle);
+    updatePlayerPositionForWarp(sock, X, Y, Z, I);
 
     // post-warp: check if the source instance has no more players in it and delete it if so
     Chunking::destroyInstanceIfEmpty(fromInstance);
@@ -466,8 +478,7 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
     if (!move)
         return;
 
-    Chunking::updateEntityChunk({sock}, plr->chunkPos, std::make_tuple(0, 0, 0)); // force player to reload chunks
-    updatePlayerPosition(sock, x, y, z, plr->instanceID, plr->angle);
+    updatePlayerPositionForWarp(sock, x, y, z, plr->instanceID);
 }
 
 static void enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {

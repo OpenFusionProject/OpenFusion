@@ -7,11 +7,16 @@
 
 using namespace Chunking;
 
+/*
+ * The initial chunkPos value before a player is placed into the world.
+ */
+const ChunkPos Chunking::INVALID_CHUNK = {};
+
 std::map<ChunkPos, Chunk*> Chunking::chunks;
 
 static void newChunk(ChunkPos pos) {
     if (chunkExists(pos)) {
-        std::cout << "[WARN] Tried to create a chunk that already exists\n";
+        std::cout << "[WARN] Tried to create a chunk that already exists" << std::endl;
         return;
     }
 
@@ -27,7 +32,7 @@ static void newChunk(ChunkPos pos) {
 
 static void deleteChunk(ChunkPos pos) {
     if (!chunkExists(pos)) {
-        std::cout << "[WARN] Tried to delete a chunk that doesn't exist\n";
+        std::cout << "[WARN] Tried to delete a chunk that doesn't exist" << std::endl;
         return;
     }
 
@@ -200,7 +205,7 @@ bool Chunking::chunkExists(ChunkPos chunk) {
 }
 
 ChunkPos Chunking::chunkPosAt(int posX, int posY, uint64_t instanceID) {
-    return std::make_tuple(posX / (settings::VIEWDISTANCE / 3), posY / (settings::VIEWDISTANCE / 3), instanceID);
+    return ChunkPos(posX / (settings::VIEWDISTANCE / 3), posY / (settings::VIEWDISTANCE / 3), instanceID);
 }
 
 std::set<Chunk*> Chunking::getViewableChunks(ChunkPos chunk) {
@@ -213,7 +218,7 @@ std::set<Chunk*> Chunking::getViewableChunks(ChunkPos chunk) {
     // grabs surrounding chunks if they exist
     for (int i = -1; i < 2; i++) {
         for (int z = -1; z < 2; z++) {
-            ChunkPos pos = std::make_tuple(x+i, y+z, inst);
+            ChunkPos pos = ChunkPos(x+i, y+z, inst);
 
             // if chunk exists, add it to the set
             if (chunkExists(pos))
