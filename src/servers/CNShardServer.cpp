@@ -99,14 +99,7 @@ void CNShardServer::_killConnection(CNSocket* cns) {
     if (PlayerManager::players.find(cns) == PlayerManager::players.end())
         return;
 
-    Player* plr = PlayerManager::getPlayer(cns);
-
-    int64_t key = plr->SerialKey;
-
     PlayerManager::removePlayer(cns); // removes the player from the list and saves it to DB
-
-    // remove from CNShared
-    CNShared::erasePlayer(key);
 }
 
 void CNShardServer::killConnection(CNSocket *cns) {

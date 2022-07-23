@@ -14,9 +14,7 @@
 struct Player : public Entity {
     int accountId = 0;
     int accountLevel = 0; // permission level (see CN_ACCOUNT_LEVEL enums)
-    int64_t SerialKey = 0;
     int32_t iID = 0;
-    uint64_t FEKey = 0;
 
     int level = 0;
     int HP = 0;

@@ -468,21 +468,24 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
     resp.g_FE_ServerIP[strlen(shard_ip)] = '\0';
     resp.g_FE_ServerPort = settings::SHARDPORT;
 
-    // pass player to CNShared
-    Player passPlayer = {};
-    Database::getPlayer(&passPlayer, selection->iPC_UID);
+    LoginMetadata *lm = new LoginMetadata();
+    lm->FEKey = sock->getFEKey();
+    lm->timestamp = getTime();
+
+    Database::getPlayer(&lm->plr, selection->iPC_UID);
     // this should never happen but for extra safety
-    if (passPlayer.iID == 0)
+    if (lm->plr.iID == 0)
         return invalidCharacter(sock);
 
-    passPlayer.FEKey = sock->getFEKey();
-    resp.iEnterSerialKey = passPlayer.iID;
-    CNShared::setPlayer(resp.iEnterSerialKey, passPlayer);
+    resp.iEnterSerialKey = Rand::rand(); // TODO: cryptographic RNG
+
+    // transfer ownership of connection data to CNShared
+    CNShared::storeLoginMetadata(resp.iEnterSerialKey, lm);
 
     sock->sendPacket(resp, P_LS2CL_REP_SHARD_SELECT_SUCC);
 
     // update current slot in DB
-    Database::updateSelected(loginSessions[sock].userID, passPlayer.slot);
+    Database::updateSelected(loginSessions[sock].userID, lm->plr.slot);
 }
 
 void CNLoginServer::finishTutorial(CNSocket* sock, CNPacketData* data) {

@@ -28,7 +28,7 @@ using namespace PlayerManager;
 
 std::map<CNSocket*, Player*> PlayerManager::players;
 
-static void addPlayer(CNSocket* key, Player plr) {
+static void addPlayer(CNSocket* key, Player& plr) {
     Player *p = new Player();
 
     // copy object into heap memory
@@ -209,19 +209,21 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
     auto enter = (sP_CL2FE_REQ_PC_ENTER*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_ENTER_SUCC, response);
 
-    // TODO: check if serialkey exists, if it doesn't send sP_FE2CL_REP_PC_ENTER_FAIL
-    Player plr = CNShared::getPlayer(enter->iEnterSerialKey);
+    LoginMetadata *lm = CNShared::getLoginMetadata(enter->iEnterSerialKey);
+    if (lm == nullptr) {
+        delete lm;
+
+        std::cout << "[WARN] Refusing invalid REQ_PC_ENTER" << std::endl;
+        INITSTRUCT(sP_FE2CL_REP_PC_ENTER_FAIL, fail);
+        sock->sendPacket(fail, P_FE2CL_REP_PC_ENTER_FAIL);
+        return;
+    }
+
+    // for convenience
+    Player& plr = lm->plr;
 
     plr.groupCnt = 1;
     plr.iIDGroup = plr.groupIDs[0] = plr.iID;
-
-    DEBUGLOG(
-        std::cout << "P_CL2FE_REQ_PC_ENTER:" << std::endl;
-        std::cout << "\tID: " << AUTOU16TOU8(enter->szID) << std::endl;
-        std::cout << "\tSerial: " << enter->iEnterSerialKey << std::endl;
-        std::cout << "\tTemp: " << enter->iTempValue << std::endl;
-        std::cout << "\tPC_UID: " << plr.PCStyle.iPC_UID << std::endl;
-    )
 
     // check if account is already in use
     if (isAccountInUse(plr.accountId)) {
@@ -267,7 +269,6 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
     // nanos
     for (int i = 1; i < SIZEOF_NANO_BANK_SLOT; i++) {
         response.PCLoadData2CL.aNanoBank[i] = plr.Nanos[i];
-        //response.PCLoadData2CL.aNanoBank[i] = plr.Nanos[i] = {0};
     }
     for (int i = 0; i < 3; i++) {
         response.PCLoadData2CL.aNanoSlots[i] = plr.equippedNanos[i];
@@ -308,11 +309,10 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
         response.PCLoadData2CL.iFirstUseFlag2 = plr.iFirstUseFlag[1];
     }
 
-    plr.SerialKey = enter->iEnterSerialKey;
     plr.instanceID = INSTANCE_OVERWORLD; // the player should never be in an instance on enter
 
     sock->setEKey(CNSocketEncryption::createNewKey(response.uiSvrTime, response.iID + 1, response.PCLoadData2CL.iFusionMatter + 1));
-    sock->setFEKey(plr.FEKey);
+    sock->setFEKey(lm->FEKey);
     sock->setActiveKey(SOCKETKEY_FE); // send all packets using the FE key from now on
 
     sock->sendPacket(response, P_FE2CL_REP_PC_ENTER_SUCC);
@@ -320,7 +320,9 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
     // transmit MOTD after entering the game, so the client hopefully changes modes on time
     Chat::sendServerMessage(sock, settings::MOTDSTRING);
 
+    // copy Player object into the shard
     addPlayer(sock, plr);
+
     // check if there is an expiring vehicle
     Items::checkItemExpire(sock, getPlayer(sock));
 
@@ -337,6 +339,9 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
     for (auto& pair : players)
         if (pair.second->notify)
             Chat::sendServerMessage(pair.first, "[ADMIN]" + getPlayerName(&plr) + " has joined.");
+
+    // deallocate lm (and therefore the plr object)
+    delete lm;
 }
 
 void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size) {
@@ -705,4 +710,6 @@ void PlayerManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_VEHICLE_OFF, exitPlayerVehicle);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_CHANGE_MENTOR, changePlayerGuide);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_FIRST_USE_FLAG_SET, setFirstUseFlag);
+
+    REGISTER_SHARD_TIMER(CNShared::pruneLoginMetadata, CNSHARED_TIMEOUT);
 }

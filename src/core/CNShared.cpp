@@ -5,23 +5,47 @@
 #else
     #include <mutex>
 #endif
-std::map<int64_t, Player> CNShared::players;
-std::mutex playerCrit;
 
-void CNShared::setPlayer(int64_t sk, Player& plr) {
-    std::lock_guard<std::mutex> lock(playerCrit); // the lock will be removed when the function ends
+static std::unordered_map<int64_t, LoginMetadata*> login;
+static std::mutex mtx;
 
-    players[sk] = plr;
+void CNShared::storeLoginMetadata(int64_t sk, LoginMetadata *lm) {
+    std::lock_guard<std::mutex> lock(mtx);
+
+    // take ownership of connection data
+    login[sk] = lm;
 }
 
-Player CNShared::getPlayer(int64_t sk) {
-    std::lock_guard<std::mutex> lock(playerCrit); // the lock will be removed when the function ends
+LoginMetadata* CNShared::getLoginMetadata(int64_t sk) {
+    std::lock_guard<std::mutex> lock(mtx);
 
-    return players[sk];
+    // fail if the key isn't found
+    if (login.find(sk) == login.end())
+        return nullptr;
+
+    // transfer ownership of connection data to shard
+    LoginMetadata *lm = login[sk];
+    login.erase(sk);
+
+    return lm;
 }
 
-void CNShared::erasePlayer(int64_t sk) {
-    std::lock_guard<std::mutex> lock(playerCrit); // the lock will be removed when the function ends
+void CNShared::pruneLoginMetadata(CNServer *serv, time_t currTime) {
+    std::lock_guard<std::mutex> lock(mtx);
 
-    players.erase(sk);
+    auto it = login.begin();
+    while (it != login.end()) {
+        auto& sk = it->first;
+        auto& lm = it->second;
+
+        if (lm->timestamp + CNSHARED_TIMEOUT > currTime) {
+            std::cout << "[WARN] Pruning hung connection attempt" << std::endl;
+
+            // deallocate object and remove map entry
+            delete login[sk];
+            it = login.erase(it); // skip the invalidated iterator
+        } else {
+            it++;
+        }
+    }
 }

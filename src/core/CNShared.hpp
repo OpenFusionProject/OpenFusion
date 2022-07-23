@@ -10,11 +10,16 @@
 
 #include "Player.hpp"
 
-namespace CNShared {
-    // serialkey corresponds to player data
-    extern std::map<int64_t, Player> players;
+#define CNSHARED_TIMEOUT 30000
 
-    void setPlayer(int64_t sk, Player& plr);
-    Player getPlayer(int64_t sk);
-    void erasePlayer(int64_t sk);
+struct LoginMetadata {
+    uint64_t FEKey;
+    Player plr;
+    time_t timestamp;
+};
+
+namespace CNShared {
+    void storeLoginMetadata(int64_t sk, LoginMetadata *lm);
+    LoginMetadata* getLoginMetadata(int64_t sk);
+    void pruneLoginMetadata(CNServer *serv, time_t currTime);
 }
