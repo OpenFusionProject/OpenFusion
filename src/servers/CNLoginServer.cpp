@@ -468,7 +468,7 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
     resp.g_FE_ServerIP[strlen(shard_ip)] = '\0';
     resp.g_FE_ServerPort = settings::SHARDPORT;
 
-    // pass player to CNSharedData
+    // pass player to CNShared
     Player passPlayer = {};
     Database::getPlayer(&passPlayer, selection->iPC_UID);
     // this should never happen but for extra safety
@@ -477,7 +477,7 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
 
     passPlayer.FEKey = sock->getFEKey();
     resp.iEnterSerialKey = passPlayer.iID;
-    CNSharedData::setPlayer(resp.iEnterSerialKey, passPlayer);
+    CNShared::setPlayer(resp.iEnterSerialKey, passPlayer);
 
     sock->sendPacket(resp, P_LS2CL_REP_SHARD_SELECT_SUCC);
 

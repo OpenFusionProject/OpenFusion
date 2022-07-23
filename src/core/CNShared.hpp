@@ -10,7 +10,7 @@
 
 #include "Player.hpp"
 
-namespace CNSharedData {
+namespace CNShared {
     // serialkey corresponds to player data
     extern std::map<int64_t, Player> players;
 

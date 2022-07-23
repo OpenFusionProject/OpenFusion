@@ -105,8 +105,8 @@ void CNShardServer::_killConnection(CNSocket* cns) {
 
     PlayerManager::removePlayer(cns); // removes the player from the list and saves it to DB
 
-    // remove from CNSharedData
-    CNSharedData::erasePlayer(key);
+    // remove from CNShared
+    CNShared::erasePlayer(key);
 }
 
 void CNShardServer::killConnection(CNSocket *cns) {

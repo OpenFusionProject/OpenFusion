@@ -210,7 +210,7 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_PC_ENTER_SUCC, response);
 
     // TODO: check if serialkey exists, if it doesn't send sP_FE2CL_REP_PC_ENTER_FAIL
-    Player plr = CNSharedData::getPlayer(enter->iEnterSerialKey);
+    Player plr = CNShared::getPlayer(enter->iEnterSerialKey);
 
     plr.groupCnt = 1;
     plr.iIDGroup = plr.groupIDs[0] = plr.iID;
