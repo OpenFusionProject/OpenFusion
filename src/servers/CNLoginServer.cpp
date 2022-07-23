@@ -19,6 +19,17 @@ CNLoginServer::CNLoginServer(uint16_t p) {
 void CNLoginServer::handlePacket(CNSocket* sock, CNPacketData* data) {
     printPacket(data);
 
+    if (loginSessions.find(sock) == loginSessions.end() &&
+        data->type != P_CL2LS_REQ_LOGIN && data->type != P_CL2LS_REP_LIVE_CHECK) {
+
+        if (settings::VERBOSITY > 0) {
+            std::cerr << "OpenFusion: LOGIN PKT OUT-OF-SEQ. PacketType: " <<
+                Packets::p2str(data->type) << " (" << data->type << ")" << std::endl;
+        }
+
+        return;
+    }
+
     switch (data->type) {
         case P_CL2LS_REQ_LOGIN: {
             login(sock, data);

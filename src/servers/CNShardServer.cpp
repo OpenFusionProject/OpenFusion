@@ -29,11 +29,31 @@ CNShardServer::CNShardServer(uint16_t p) {
 void CNShardServer::handlePacket(CNSocket* sock, CNPacketData* data) {
     printPacket(data);
 
-    if (ShardPackets.find(data->type) != ShardPackets.end())
-        ShardPackets[data->type](sock, data);
-    else if (settings::VERBOSITY > 0)
-        std::cerr << "OpenFusion: SHARD UNIMPLM ERR. PacketType: " << Packets::p2str(data->type) << " (" << data->type << ")" << std::endl;
+    // if it's a valid packet
+    if (ShardPackets.find(data->type) != ShardPackets.end()) {
 
+        // reject gameplay packets if not yet fully connected
+        if (PlayerManager::players.find(sock) == PlayerManager::players.end()
+            && data->type != P_CL2FE_REQ_PC_ENTER && data->type != P_CL2FE_REP_LIVE_CHECK) {
+
+            if (settings::VERBOSITY > 0) {
+                std::cerr << "OpenFusion: SHARD PKT OUT-OF-SEQ. PacketType: " <<
+                    Packets::p2str(data->type) << " (" << data->type << ")" << std::endl;
+            }
+
+            return;
+        }
+
+        // run the appropriate packet handler
+        ShardPackets[data->type](sock, data);
+    } else if (settings::VERBOSITY > 0) {
+        std::cerr << "OpenFusion: SHARD UNIMPLM ERR. PacketType: " << Packets::p2str(data->type) << " (" << data->type << ")" << std::endl;
+    }
+
+    /*
+     * We must re-check if the player is still connected in case
+     * they were dropped when handling the packet.
+     */
     if (PlayerManager::players.find(sock) != PlayerManager::players.end())
         PlayerManager::players[sock]->lastHeartbeat = getTime();
 }
