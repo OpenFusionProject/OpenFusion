@@ -1,4 +1,5 @@
 #include "Rand.hpp"
+#include "core/Core.hpp"
 
 std::unique_ptr<std::mt19937> Rand::generator;
 
@@ -31,6 +32,58 @@ float Rand::randFloat(float endExclusive) {
 
 float Rand::randFloat() {
     return Rand::randFloat(0.0f, 1.0f);
+}
+
+#define RANDBYTES 8
+
+/*
+ * Cryptographically secure RNG. Borrowed from bcrypt_gensalt().
+ */
+uint64_t Rand::cryptoRand() {
+    uint8_t buf[RANDBYTES];
+
+#ifdef _WIN32
+    HCRYPTPROV p;
+
+    // Acquire a crypt context for generating random bytes.
+    if (CryptAcquireContext(&p, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT) == FALSE) {
+        goto fail;
+    }
+
+    if (CryptGenRandom(p, RANDBYTES, (BYTE*)buf) == FALSE) {
+        goto fail;
+    }
+
+    if (CryptReleaseContext(p, 0) == FALSE) {
+        goto fail;
+    }
+#else
+    int fd;
+
+    // Get random bytes on Unix/Linux.
+    fd = open("/dev/urandom", O_RDONLY);
+    if (fd < 0) {
+        perror("open");
+        goto fail;
+    }
+
+    if (read(fd, buf, RANDBYTES) < RANDBYTES) {
+        perror("read");
+        close(fd);
+        goto fail;
+    }
+
+    close(fd);
+#endif
+
+    return *(uint64_t*)buf;
+
+fail:
+    std::cout << "[FATAL] Failed to generate cryptographic random number" << std::endl;
+    terminate(0);
+
+    /* not reached */
+    return 0;
 }
 
 void Rand::init(uint64_t seed) {

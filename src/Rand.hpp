@@ -14,6 +14,8 @@ namespace Rand {
 
     int32_t randWeighted(const std::vector<int32_t>& weights);
 
+    uint64_t cryptoRand();
+
     float randFloat(float startInclusive, float endExclusive);
     float randFloat(float endExclusive);
     float randFloat();

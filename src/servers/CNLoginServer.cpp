@@ -477,7 +477,7 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
     if (lm->plr.iID == 0)
         return invalidCharacter(sock);
 
-    resp.iEnterSerialKey = Rand::rand(); // TODO: cryptographic RNG
+    resp.iEnterSerialKey = Rand::cryptoRand();
 
     // transfer ownership of connection data to CNShared
     CNShared::storeLoginMetadata(resp.iEnterSerialKey, lm);
