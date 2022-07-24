@@ -31,6 +31,8 @@
 # define ARCH_NR AUDIT_ARCH_X86_64
 #elif defined(__arm__)
 # define ARCH_NR AUDIT_ARCH_ARM
+#elif defined(__aarch64__)
+# define ARCH_NR AUDIT_ARCH_AARCH64
 #else
 # error "Seccomp-bpf sandbox unsupported on this architecture"
 #endif
@@ -106,8 +108,17 @@
         offsetof(struct seccomp_data, nr))
 
 /*
+ * This is a special case for AArch64 where this syscall apparently only
+ * exists in 32-bit compatibility mode, so we can't include the definition
+ * even though it gets called somewhere in libc.
+ */
+#if defined(__aarch64__) && !defined(__NR_fstatat64)
+#define __NR_fstatat64 0x4f
+#endif
+
+/*
  * The main supported configuration is Linux on x86_64 with either glibc or
- * musl-libc, with secondary support for Linux on the Raspberry Pi (ARM).
+ * musl-libc, with secondary support for x86, ARM and ARM64 (AAarch64) Linux.
  *
  * Syscalls marked with "maybe" don't seem to be used in the default
  * configuration, but should probably be whitelisted anyway.
@@ -135,16 +146,24 @@ static sock_filter filter[] = {
     ALLOW_SYSCALL(brk),
 
     // basic file IO
+#ifdef __NR_open
     ALLOW_SYSCALL(open),
+#endif
     ALLOW_SYSCALL(openat),
     ALLOW_SYSCALL(read),
     ALLOW_SYSCALL(write),
     ALLOW_SYSCALL(close),
+#if __NR_stat
     ALLOW_SYSCALL(stat),
+#endif
     ALLOW_SYSCALL(fstat),
     ALLOW_SYSCALL(fsync), // maybe
+#if __NR_creat
     ALLOW_SYSCALL(creat), // maybe; for DB journal
+#endif
+#if __NR_unlink
     ALLOW_SYSCALL(unlink), // for DB journal
+#endif
     ALLOW_SYSCALL(lseek), // musl-libc; alt DB
     ALLOW_SYSCALL(truncate), // for truncate-mode DB
     ALLOW_SYSCALL(ftruncate), // for truncate-mode DB
@@ -183,7 +202,9 @@ static sock_filter filter[] = {
     ALLOW_SYSCALL(futex),
 
     // networking
+#ifdef __NR_poll
     ALLOW_SYSCALL(poll),
+#endif
 #ifdef __NR_accept
     ALLOW_SYSCALL(accept),
 #endif
@@ -250,6 +271,17 @@ static sock_filter filter[] = {
 #endif
 #ifdef __NR_clock_nanosleep_time64
     ALLOW_SYSCALL(clock_nanosleep_time64), // maybe
+#endif
+
+    // AArch64 (ARM64)
+#if __NR_unlinkat
+    ALLOW_SYSCALL(unlinkat),
+#endif
+#ifdef __NR_fstatat64
+    ALLOW_SYSCALL(fstatat64),
+#endif
+#ifdef __NR_ppoll
+    ALLOW_SYSCALL(ppoll),
 #endif
 
     KILL_PROCESS
