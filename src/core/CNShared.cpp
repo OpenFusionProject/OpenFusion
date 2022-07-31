@@ -1,31 +1,25 @@
 #include "core/CNShared.hpp"
 
-#if defined(__MINGW32__) && !defined(_GLIBCXX_HAS_GTHREADS)
-    #include "mingw/mingw.mutex.h"
-#else
-    #include <mutex>
-#endif
-
-static std::unordered_map<int64_t, LoginMetadata*> login;
+static std::unordered_map<int64_t, LoginMetadata*> logins;
 static std::mutex mtx;
 
 void CNShared::storeLoginMetadata(int64_t sk, LoginMetadata *lm) {
     std::lock_guard<std::mutex> lock(mtx);
 
     // take ownership of connection data
-    login[sk] = lm;
+    logins[sk] = lm;
 }
 
 LoginMetadata* CNShared::getLoginMetadata(int64_t sk) {
     std::lock_guard<std::mutex> lock(mtx);
 
     // fail if the key isn't found
-    if (login.find(sk) == login.end())
+    if (logins.find(sk) == logins.end())
         return nullptr;
 
     // transfer ownership of connection data to shard
-    LoginMetadata *lm = login[sk];
-    login.erase(sk);
+    LoginMetadata *lm = logins[sk];
+    logins.erase(sk);
 
     return lm;
 }
@@ -33,8 +27,8 @@ LoginMetadata* CNShared::getLoginMetadata(int64_t sk) {
 void CNShared::pruneLoginMetadata(CNServer *serv, time_t currTime) {
     std::lock_guard<std::mutex> lock(mtx);
 
-    auto it = login.begin();
-    while (it != login.end()) {
+    auto it = logins.begin();
+    while (it != logins.end()) {
         auto& sk = it->first;
         auto& lm = it->second;
 
@@ -42,8 +36,8 @@ void CNShared::pruneLoginMetadata(CNServer *serv, time_t currTime) {
             std::cout << "[WARN] Pruning hung connection attempt" << std::endl;
 
             // deallocate object and remove map entry
-            delete login[sk];
-            it = login.erase(it); // skip the invalidated iterator
+            delete logins[sk];
+            it = logins.erase(it); // skip the invalidated iterator
         } else {
             it++;
         }

@@ -211,11 +211,16 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     LoginMetadata *lm = CNShared::getLoginMetadata(enter->iEnterSerialKey);
     if (lm == nullptr) {
-        delete lm;
-
         std::cout << "[WARN] Refusing invalid REQ_PC_ENTER" << std::endl;
+
+        // send failure packet
         INITSTRUCT(sP_FE2CL_REP_PC_ENTER_FAIL, fail);
         sock->sendPacket(fail, P_FE2CL_REP_PC_ENTER_FAIL);
+
+        // kill the connection
+        sock->kill();
+        // no need to call _killConnection(); Player isn't in shard yet
+
         return;
     }
 
@@ -711,5 +716,5 @@ void PlayerManager::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_CHANGE_MENTOR, changePlayerGuide);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_FIRST_USE_FLAG_SET, setFirstUseFlag);
 
-    REGISTER_SHARD_TIMER(CNShared::pruneLoginMetadata, CNSHARED_TIMEOUT);
+    REGISTER_SHARD_TIMER(CNShared::pruneLoginMetadata, CNSHARED_PERIOD);
 }

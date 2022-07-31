@@ -10,7 +10,11 @@
 
 #include "Player.hpp"
 
-#define CNSHARED_TIMEOUT 30000
+/*
+ * Connecions time out after 15 minutes, checked every 30 seconds.
+ */
+#define CNSHARED_TIMEOUT 900000
+#define CNSHARED_PERIOD 30000
 
 struct LoginMetadata {
     uint64_t FEKey;
