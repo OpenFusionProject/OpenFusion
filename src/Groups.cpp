@@ -4,6 +4,7 @@
 
 #include "Player.hpp"
 #include "PlayerManager.hpp"
+#include "Entities.hpp"
 
 /*
  * NOTE: Variadic response packets that list group members are technically

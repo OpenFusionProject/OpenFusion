@@ -5,6 +5,7 @@
 
 #include "Transport.hpp"
 #include "Chunking.hpp"
+#include "Entities.hpp"
 
 #include <map>
 #include <unordered_map>

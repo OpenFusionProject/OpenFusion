@@ -26,7 +26,7 @@ static void newChunk(ChunkPos pos) {
     // add the chunk to the cache of all players and NPCs in the surrounding chunks
     std::set<Chunk*> surroundings = getViewableChunks(pos);
     for (Chunk* c : surroundings)
-        for (const EntityRef& ref : c->entities)
+        for (const EntityRef ref : c->entities)
             ref.getEntity()->viewableChunks.insert(chunk);
 }
 
@@ -41,14 +41,14 @@ static void deleteChunk(ChunkPos pos) {
     // remove the chunk from the cache of all players and NPCs in the surrounding chunks
     std::set<Chunk*> surroundings = getViewableChunks(pos);
     for(Chunk* c : surroundings)
-        for (const EntityRef& ref : c->entities)
+        for (const EntityRef ref : c->entities)
             ref.getEntity()->viewableChunks.erase(chunk);
 
     chunks.erase(pos); // remove from map
     delete chunk; // free from memory
 }
 
-void Chunking::trackEntity(ChunkPos chunkPos, const EntityRef& ref) {
+void Chunking::trackEntity(ChunkPos chunkPos, const EntityRef ref) {
     if (!chunkExists(chunkPos))
         return; // shouldn't happen
 
@@ -58,7 +58,7 @@ void Chunking::trackEntity(ChunkPos chunkPos, const EntityRef& ref) {
         chunks[chunkPos]->nplayers++;
 }
 
-void Chunking::untrackEntity(ChunkPos chunkPos, const EntityRef& ref) {
+void Chunking::untrackEntity(ChunkPos chunkPos, const EntityRef ref) {
     if (!chunkExists(chunkPos))
         return; // do nothing if chunk doesn't even exist
 
@@ -75,13 +75,13 @@ void Chunking::untrackEntity(ChunkPos chunkPos, const EntityRef& ref) {
         deleteChunk(chunkPos);
 }
 
-void Chunking::addEntityToChunks(std::set<Chunk*> chnks, const EntityRef& ref) {
+void Chunking::addEntityToChunks(std::set<Chunk*> chnks, const EntityRef ref) {
     Entity *ent = ref.getEntity();
     bool alive = ent->isExtant();
 
     // TODO: maybe optimize this, potentially using AROUND packets?
     for (Chunk *chunk : chnks) {
-        for (const EntityRef& otherRef : chunk->entities) {
+        for (const EntityRef otherRef : chunk->entities) {
             // skip oneself
             if (ref == otherRef)
                 continue;
@@ -107,13 +107,13 @@ void Chunking::addEntityToChunks(std::set<Chunk*> chnks, const EntityRef& ref) {
     }
 }
 
-void Chunking::removeEntityFromChunks(std::set<Chunk*> chnks, const EntityRef& ref) {
+void Chunking::removeEntityFromChunks(std::set<Chunk*> chnks, const EntityRef ref) {
     Entity *ent = ref.getEntity();
     bool alive = ent->isExtant();
 
     // TODO: same as above
     for (Chunk *chunk : chnks) {
-        for (const EntityRef& otherRef : chunk->entities) {
+        for (const EntityRef otherRef : chunk->entities) {
             // skip oneself
             if (ref == otherRef)
                 continue;
@@ -154,7 +154,7 @@ static void emptyChunk(ChunkPos chunkPos) {
 
     // unspawn all of the mobs/npcs
     std::set refs(chunk->entities);
-    for (const EntityRef& ref : refs) {
+    for (const EntityRef ref : refs) {
         if (ref.kind == EntityKind::PLAYER)
             assert(0);
 
@@ -163,7 +163,7 @@ static void emptyChunk(ChunkPos chunkPos) {
     }
 }
 
-void Chunking::updateEntityChunk(const EntityRef& ref, ChunkPos from, ChunkPos to) {
+void Chunking::updateEntityChunk(const EntityRef ref, ChunkPos from, ChunkPos to) {
     Entity* ent = ref.getEntity();
 
     // move to other chunk's player set
@@ -267,7 +267,7 @@ void Chunking::createInstance(uint64_t instanceID) {
 
     std::cout << "Creating instance " << instanceID << std::endl;
     for (ChunkPos &coords : templateChunks) {
-        for (const EntityRef& ref : chunks[coords]->entities) {
+        for (const EntityRef ref : chunks[coords]->entities) {
             if (ref.kind == EntityKind::PLAYER)
                 continue;
 

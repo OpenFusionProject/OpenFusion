@@ -1,18 +1,15 @@
 #pragma once
 
 #include "core/Core.hpp"
-#include "Chunking.hpp"
 
 #include "EntityRef.hpp"
 #include "Buffs.hpp"
+#include "Chunking.hpp"
+#include "Groups.hpp"
 
 #include <set>
 #include <map>
 #include <functional>
-
-/* forward declaration(s) */
-class Chunk;
-struct Group;
 
 enum class AIState {
     INACTIVE,

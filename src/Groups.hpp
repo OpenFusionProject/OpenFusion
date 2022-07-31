@@ -1,13 +1,8 @@
 #pragma once
 
-#include "Entities.hpp"
+#include "EntityRef.hpp"
 
 #include <vector>
-#include <map>
-#include <list>
-
-/* forward declaration(s) */
-struct Player;
 
 struct Group {
     std::vector<EntityRef> members;
