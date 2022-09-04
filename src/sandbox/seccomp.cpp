@@ -153,15 +153,18 @@ static sock_filter filter[] = {
     ALLOW_SYSCALL(read),
     ALLOW_SYSCALL(write),
     ALLOW_SYSCALL(close),
-#if __NR_stat
+#ifdef __NR_stat
     ALLOW_SYSCALL(stat),
 #endif
     ALLOW_SYSCALL(fstat),
+#ifdef __NR_newfstatat
+    ALLOW_SYSCALL(newfstatat),
+#endif
     ALLOW_SYSCALL(fsync), // maybe
-#if __NR_creat
+#ifdef __NR_creat
     ALLOW_SYSCALL(creat), // maybe; for DB journal
 #endif
-#if __NR_unlink
+#ifdef __NR_unlink
     ALLOW_SYSCALL(unlink), // for DB journal
 #endif
     ALLOW_SYSCALL(lseek), // musl-libc; alt DB
@@ -274,7 +277,7 @@ static sock_filter filter[] = {
 #endif
 
     // AArch64 (ARM64)
-#if __NR_unlinkat
+#ifdef __NR_unlinkat
     ALLOW_SYSCALL(unlinkat),
 #endif
 #ifdef __NR_fstatat64
