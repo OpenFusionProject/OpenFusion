@@ -25,6 +25,8 @@ OpenFusion is a reverse-engineered server for FusionFall. It primarily targets v
 4. To create an account, simply enter the details you wish to use at the login screen then click Log In. Do *not* click register, as this will just lead to a blank screen.
 5. Make a new character, and enjoy the game! Your progress will be saved automatically, and you can resume playing by entering the login details you used in step 4.
 
+Instructions for getting the client to run on Linux through Wine can be found [here](https://github.com/OpenFusionProject/OpenFusion/wiki/Running-the-game-client-on-Linux).
+
 ### Hosting a server
 
 1. Grab `OpenFusionServer-1.4-original.zip` or `OpenFusionServer-1.4-academy.zip` from [here](https://github.com/OpenFusionProject/OpenFusion/releases/tag/1.4).
@@ -35,7 +37,7 @@ OpenFusion is a reverse-engineered server for FusionFall. It primarily targets v
     3. Lastly Game Version - select `beta-20100104` if you downloaded the original zip, or `beta-20111013` if you downloaded the academy zip.
 5. Once you've added the server to the list, connect to it and log in. If you're having trouble with this, refer to steps 4 and 5 from the previous section.
 
-If you want, [compiled binaries (artifacts) for each functional commit can be found here.](http://cdn.dexlabs.systems/of-builds/)
+If you want to run the latest development builds of the server, [compiled binaries (artifacts) for each functional commit can be found here.](http://cdn.dexlabs.systems/of-builds/)
 
 For a more detailed overview of the game's architecture and how to configure it, read the following sections.
 
