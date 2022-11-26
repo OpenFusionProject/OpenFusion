@@ -10,6 +10,7 @@ namespace settings {
     extern int SHARDPORT;
     extern std::string SHARDSERVERIP;
     extern bool LOCALHOSTWORKAROUND;
+    extern bool ANTICHEAT;
     extern time_t TIMEOUT;
     extern int VIEWDISTANCE;
     extern bool SIMULATEMOBS;

@@ -20,6 +20,7 @@ bool settings::LOCALHOSTWORKAROUND = true;
 time_t settings::TIMEOUT = 60000;
 int settings::VIEWDISTANCE = 25600;
 bool settings::SIMULATEMOBS = true;
+bool settings::ANTICHEAT = true;
 
 // default spawn point
 #ifndef ACADEMY
@@ -108,6 +109,7 @@ void settings::init() {
     ACCLEVEL = reader.GetInteger("shard", "accountlevel", ACCLEVEL);
     EVENTMODE = reader.GetInteger("shard", "eventmode", EVENTMODE);
     DISABLEFIRSTUSEFLAG = reader.GetBoolean("shard", "disablefirstuseflag", DISABLEFIRSTUSEFLAG);
+    ANTICHEAT = reader.GetBoolean("shard", "anticheat", ANTICHEAT);
     MONITORENABLED = reader.GetBoolean("monitor", "enabled", MONITORENABLED);
     MONITORPORT = reader.GetInteger("monitor", "port", MONITORPORT);
     MONITORINTERVAL = reader.GetInteger("monitor", "interval", MONITORINTERVAL);

@@ -56,14 +56,10 @@ static std::pair<int,int> getDamage(int attackPower, int defensePower, bool shou
     return ret;
 }
 
-static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
-    auto pkt = (sP_CL2FE_REQ_PC_ATTACK_NPCs*)data->buf;
+static bool checkRapidFire(CNSocket *sock, int targetCount) {
     Player *plr = PlayerManager::getPlayer(sock);
-    auto targets = (int32_t*)data->trailers;
-
-    // rapid fire anti-cheat
-    // TODO: move this out of here, when generalizing packet frequency validation
     time_t currTime = getTime();
+
     if (currTime - plr->lastShot < plr->fireRate * 80)
         plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // gain suspicion for rapid firing
     else if (currTime - plr->lastShot < plr->fireRate * 180 && plr->suspicionRating > 0)
@@ -71,15 +67,28 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
     plr->lastShot = currTime;
 
-    if (pkt->iNPCCnt > 3) // 3+ targets should never be possible
+    // 3+ targets should never be possible
+    if (targetCount > 3)
         plr->suspicionRating += 10000;
 
-    if (plr->suspicionRating > 10000) { // kill the socket when the player is too suspicious
+    // kill the socket when the player is too suspicious
+    if (plr->suspicionRating > 10000) {
         sock->kill();
         CNShardServer::_killConnection(sock);
-        return;
+        return true;
     }
-        
+
+    return false;
+}
+
+static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
+    auto pkt = (sP_CL2FE_REQ_PC_ATTACK_NPCs*)data->buf;
+    Player *plr = PlayerManager::getPlayer(sock);
+    auto targets = (int32_t*)data->trailers;
+
+    // kick the player if firing too rapidly
+    if (settings::ANTICHEAT && checkRapidFire(sock, pkt->iNPCCnt))
+        return;
 
     /*
      * IMPORTANT: This validates memory safety in addition to preventing
