@@ -51,13 +51,13 @@ int Mob::takeDamage(EntityRef src, int amt) {
     }
 
     // wake up sleeping monster
-    if (cbf & CSB_BIT_MEZ) {
-        cbf &= ~CSB_BIT_MEZ;
+    if (hasBuff(ECSB_MEZ)) {
+        removeBuff(ECSB_MEZ);
 
         INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
         pkt1.eCT = 2;
         pkt1.iID = id;
-        pkt1.iConditionBitFlag = cbf;
+        pkt1.iConditionBitFlag = getCompositeCondition();
         NPCManager::sendToViewable(this, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
     }
 
@@ -96,13 +96,12 @@ static std::pair<int,int> lerp(int x1, int y1, int x2, int y2, int speed) {
 
 void MobAI::clearDebuff(Mob *mob) {
     mob->skillStyle = -1;
-    mob->cbf = 0;
-    mob->unbuffTimes.clear();
+    mob->clearBuffs(false);
 
     INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
     pkt1.eCT = 2;
     pkt1.iID = mob->id;
-    pkt1.iConditionBitFlag = mob->cbf;
+    pkt1.iConditionBitFlag = mob->getCompositeCondition();
     NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
 }
 
@@ -442,6 +441,7 @@ static void useAbilities(Mob *mob, time_t currTime) {
     return;
 }
 
+// TODO abiilities
 static void drainMobHP(Mob *mob, int amount) {
     size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_Damage);
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
@@ -553,9 +553,9 @@ void MobAI::combatStep(CombatNPC* npc, time_t currTime) {
         return;
     }
 
-    // drain
+    // drain TODO abilities
     if (self->skillStyle < 0 && (self->lastDrainTime == 0 || currTime - self->lastDrainTime >= 1000)
-        && self->cbf & CSB_BIT_BOUNDINGBALL) {
+        && self->hasBuff(ECSB_BOUNDINGBALL)) {
         drainMobHP(self, self->maxHealth / 20); // lose 5% every second
         self->lastDrainTime = currTime;
     }
@@ -564,27 +564,13 @@ void MobAI::combatStep(CombatNPC* npc, time_t currTime) {
     if (self->hp <= 0)
         return;
 
-    // unbuffing
-    std::unordered_map<int32_t, time_t>::iterator it = self->unbuffTimes.begin();
-    while (it != self->unbuffTimes.end()) {
-
-        if (currTime >= it->second) {
-            self->cbf &= ~it->first;
-
-            INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
-            pkt1.eCT = 2;
-            pkt1.iID = self->id;
-            pkt1.iConditionBitFlag = self->cbf;
-            NPCManager::sendToViewable(self, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
-
-            it = self->unbuffTimes.erase(it);
-        } else {
-            it++;
-        }
+    // tick buffs
+    for(auto buffEntry : self->buffs) {
+        buffEntry.second->combatTick(currTime);
     }
 
     // skip attack if stunned or asleep
-    if (self->cbf & (CSB_BIT_STUN|CSB_BIT_MEZ)) {
+    if (self->hasBuff(ECSB_STUN) || self->hasBuff(ECSB_MEZ)) {
         self->skillStyle = -1; // in this case we also reset the any outlying abilities the mob might be winding up.
         return;
     }
@@ -609,7 +595,7 @@ void MobAI::combatStep(CombatNPC* npc, time_t currTime) {
             self->nextAttack = 0;
 
         // halve movement speed if snared
-        if (self->cbf & CSB_BIT_DN_MOVE_SPEED)
+        if (self->hasBuff(ECSB_DN_MOVE_SPEED))
             self->speed /= 2;
 
         int targetX = plr->x;
@@ -715,7 +701,7 @@ void MobAI::roamingStep(CombatNPC* npc, time_t currTime) {
     farY = std::clamp(farY, yStart, yStart + self->idleRange);
 
     // halve movement speed if snared
-    if (self->cbf & CSB_BIT_DN_MOVE_SPEED)
+    if (self->hasBuff(ECSB_DN_MOVE_SPEED))
         self->speed /= 2;
 
     std::queue<Vec3> queue;
@@ -788,7 +774,6 @@ void MobAI::onRoamStart(CombatNPC* npc, EntityRef src) {
     self->hp = self->maxHealth;
     self->killedTime = 0;
     self->nextAttack = 0;
-    self->cbf = 0;
 
     // cast a return home heal spell, this is the right way(tm)
     // TODO ABILITIES
@@ -833,9 +818,8 @@ void MobAI::onDeath(CombatNPC* npc, EntityRef src) {
     Mob* self = (Mob*)npc;
 
     self->target = nullptr;
-    self->cbf = 0;
     self->skillStyle = -1;
-    self->unbuffTimes.clear();
+    self->clearBuffs(true);
     self->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
 
     // check for the edge case where hitting the mob did not aggro it

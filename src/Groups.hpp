@@ -3,6 +3,7 @@
 #include "EntityRef.hpp"
 
 #include <vector>
+#include <assert.h>
 
 struct Group {
     std::vector<EntityRef> members;
@@ -13,6 +14,10 @@ struct Group {
             return e.kind == kind;
             });
         return filtered;
+    }
+    EntityRef getLeader() {
+        assert(members.size() > 0);
+        return members[0];
     }
 
     Group(EntityRef leader);

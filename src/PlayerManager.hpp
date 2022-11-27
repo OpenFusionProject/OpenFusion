@@ -33,6 +33,7 @@ namespace PlayerManager {
     CNSocket *getSockFromAny(int by, int id, int uid, std::string firstname, std::string lastname);
     WarpLocation *getRespawnPoint(Player *plr);
 
+    void sendToGroup(CNSocket *sock, void* buf, uint32_t type, size_t size);
     void sendToViewable(CNSocket *sock, void* buf, uint32_t type, size_t size);
 
     // TODO: unify this under the new Entity system

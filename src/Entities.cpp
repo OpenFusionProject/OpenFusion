@@ -40,13 +40,19 @@ sNPCAppearanceData BaseNPC::getAppearanceData() {
     sNPCAppearanceData data = {};
     data.iAngle = angle;
     data.iBarkerType = 0; // unused?
-    data.iConditionBitFlag = cbf;
+    data.iConditionBitFlag = 0;
     data.iHP = hp;
     data.iNPCType = type;
     data.iNPC_ID = id;
     data.iX = x;
     data.iY = y;
     data.iZ = z;
+    return data;
+}
+
+sNPCAppearanceData CombatNPC::getAppearanceData() {
+    sNPCAppearanceData data = BaseNPC::getAppearanceData();
+    data.iConditionBitFlag = getCompositeCondition();
     return data;
 }
 

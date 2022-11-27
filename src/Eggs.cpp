@@ -29,7 +29,7 @@ void Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
     SkillData* skill = &Abilities::SkillTable[skillId];
     if(skill->drainType == SkillDrainType::PASSIVE) {
         // apply buff
-        if(skill->targetType != SkillTargetType::SELF) {
+        if(skill->targetType != SkillTargetType::PLAYERS) {
             std::cout << "[WARN] weird skill type for egg " << eggId << " with skill " << skillId << ", should be " << (int)skill->targetType << std::endl;
         }
 

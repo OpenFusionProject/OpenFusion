@@ -21,8 +21,6 @@ namespace MobAI {
 }
 
 struct Mob : public CombatNPC {
-    // general
-    std::unordered_map<int32_t,time_t> unbuffTimes = {};
 
     // dead
     time_t killedTime = 0;
@@ -70,8 +68,6 @@ struct Mob : public CombatNPC {
 
         offsetX = 0;
         offsetY = 0;
-
-        cbf = 0;
 
         // NOTE: there appear to be discrepancies in the dump
         hp = maxHealth;

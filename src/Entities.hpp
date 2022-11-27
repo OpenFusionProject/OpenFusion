@@ -48,6 +48,7 @@ public:
     virtual Buff* getBuff(int) = 0;
     virtual void removeBuff(int) = 0;
     virtual void removeBuff(int, int) = 0;
+    virtual void clearBuffs(bool) = 0;
     virtual bool hasBuff(int) = 0;
     virtual int getCompositeCondition() = 0;
     virtual int takeDamage(EntityRef, int) = 0;
@@ -72,7 +73,6 @@ public:
     int type;
     int hp;
     int angle;
-    int cbf;
     bool loopingPath = false;
 
     BaseNPC(int _A, uint64_t iID, int t, int _id) {
@@ -80,7 +80,6 @@ public:
         type = t;
         hp = 400;
         angle = _A;
-        cbf = 0;
         id = _id;
         instanceID = iID;
     };
@@ -88,7 +87,7 @@ public:
     virtual void enterIntoViewOf(CNSocket *sock) override;
     virtual void disappearFromViewOf(CNSocket *sock) override;
 
-    sNPCAppearanceData getAppearanceData();
+    virtual sNPCAppearanceData getAppearanceData();
 };
 
 struct CombatNPC : public BaseNPC, public ICombatant {
@@ -105,6 +104,8 @@ struct CombatNPC : public BaseNPC, public ICombatant {
     std::map<AIState, void (*)(CombatNPC*, time_t)> stateHandlers;
     std::map<AIState, void (*)(CombatNPC*, EntityRef)> transitionHandlers;
 
+    std::unordered_map<int, Buff*> buffs = {};
+
     CombatNPC(int x, int y, int z, int angle, uint64_t iID, int t, int id, int maxHP)
         : BaseNPC(angle, iID, t, id), maxHealth(maxHP) {
         spawnX = x;
@@ -117,12 +118,15 @@ struct CombatNPC : public BaseNPC, public ICombatant {
         transitionHandlers[AIState::INACTIVE] = {};
     }
 
+    virtual sNPCAppearanceData getAppearanceData() override;
+
     virtual bool isExtant() override { return hp > 0; }
 
     virtual bool addBuff(int buffId, BuffCallback<int, BuffStack*> onUpdate, BuffCallback<time_t> onTick, BuffStack* stack) override;
     virtual Buff* getBuff(int buffId) override;
     virtual void removeBuff(int buffId) override;
     virtual void removeBuff(int buffId, int buffClass) override;
+    virtual void clearBuffs(bool force) override;
     virtual bool hasBuff(int buffId) override;
     virtual int getCompositeCondition() override;
     virtual int takeDamage(EntityRef src, int amt) override;

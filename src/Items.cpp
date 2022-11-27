@@ -482,7 +482,7 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
     resp->iSlotNum = request->iSlotNum;
     resp->RemainItem = gumball;
     resp->iTargetCnt = 1;
-    resp->eST = EST_NANOSTIMPAK;
+    resp->eST = (int32_t)SkillType::NANOSTIMPAK;
     resp->iSkillID = 144;
 
     int eCSB = ECSB_STIMPAKSLOT1 + request->iNanoSlot;

@@ -5,8 +5,6 @@
 #include "Buffs.hpp"
 #include "Nanos.hpp"
 
-#include <assert.h>
-
 using namespace Abilities;
 
 std::map<int32_t, SkillData> Abilities::SkillTable;
@@ -35,7 +33,8 @@ static SkillResult handleSkillDamage(SkillData* skill, int power, ICombatant* so
 static SkillResult handleSkillHealHP(SkillData* skill, int power, ICombatant* source, ICombatant* target) {
     EntityRef sourceRef = source->getRef();
     int heal = skill->values[0][power];
-    int healed = target->heal(sourceRef, heal);
+    double scalingFactor = target->getMaxHP() / 1000.0;
+    int healed = target->heal(sourceRef, heal * scalingFactor);
 
     sSkillResult_Heal_HP result{};
     result.eCT = target->getCharType();
@@ -46,16 +45,67 @@ static SkillResult handleSkillHealHP(SkillData* skill, int power, ICombatant* so
 }
 
 static SkillResult handleSkillDamageNDebuff(SkillData* skill, int power, ICombatant* source, ICombatant* target) {
-    // TODO abilities
+    // take aggro
+    target->takeDamage(source->getRef(), 0);
+
+    int duration = 0;
+    int strength = 0;
+    bool blocked = target->hasBuff(ECSB_FREEDOM);
+    if(!blocked) {
+        duration = skill->durationTime[power];
+        strength = skill->values[0][power];
+        BuffStack debuff = {
+            duration, // ticks
+            strength, // value
+            source->getRef(), // source
+            BuffClass::NANO, // buff class
+        };
+        int timeBuffId = Abilities::getCSTBFromST(skill->skillType);
+        target->addBuff(timeBuffId,
+            [](EntityRef self, Buff* buff, int status, BuffStack* stack) {
+                Buffs::timeBuffUpdate(self, buff, status, stack);
+            },
+            [](EntityRef self, Buff* buff, time_t currTime) {
+                // no-op
+            },
+            &debuff);
+    }
+
     sSkillResult_Damage_N_Debuff result{};
+    result.iDamage = duration / 10; // we use the duration as the damage number (why?)
+    result.iHP = target->getCurrentHP();
     result.eCT = target->getCharType();
     result.iID = target->getID();
-    result.bProtected = false;
+    result.bProtected = blocked;
     result.iConditionBitFlag = target->getCompositeCondition();
     return SkillResult(sizeof(sSkillResult_Damage_N_Debuff), &result);
 }
 
+static SkillResult handleSkillLeech(SkillData* skill, int power, ICombatant* source, ICombatant* target) {
+    // TODO abilities
+    return SkillResult();
+}
+
 static SkillResult handleSkillBuff(SkillData* skill, int power, ICombatant* source, ICombatant* target) {
+    int duration = skill->durationTime[power];
+    int strength = skill->values[0][power];
+    BuffStack passiveBuff = {
+        skill->drainType == SkillDrainType::PASSIVE ? 1 : duration, // ticks
+        strength, // value
+        source->getRef(), // source
+        source == target ? BuffClass::NANO : BuffClass::GROUP_NANO, // buff class
+    };
+
+    int timeBuffId = Abilities::getCSTBFromST(skill->skillType);
+    if(!target->addBuff(timeBuffId,
+        [](EntityRef self, Buff* buff, int status, BuffStack* stack) {
+            Buffs::timeBuffUpdate(self, buff, status, stack);
+        },
+        [](EntityRef self, Buff* buff, time_t currTime) {
+            // no-op
+        },
+        &passiveBuff)) return SkillResult(); // no result if already buffed
+
     sSkillResult_Buff result{};
     result.eCT = target->getCharType();
     result.iID = target->getID();
@@ -96,7 +146,13 @@ static SkillResult handleSkillBatteryDrain(SkillData* skill, int power, ICombata
 static SkillResult handleSkillMove(SkillData* skill, int power, ICombatant* source, ICombatant* target) {
     if(source->getCharType() != 1)
         return SkillResult(); // only Players are valid sources for recall
+
     Player* plr = dynamic_cast<Player*>(source);
+    if(source == target) {
+        // no trailing struct for self
+        PlayerManager::sendPlayerTo(target->getRef().sock, plr->recallX, plr->recallY, plr->recallZ, plr->recallInstance);
+        return SkillResult();
+    }
 
     sSkillResult_Move result{};
     result.eCT = target->getCharType();
@@ -118,63 +174,70 @@ static SkillResult handleSkillResurrect(SkillData* skill, int power, ICombatant*
 #pragma endregion
 
 static std::vector<SkillResult> handleSkill(SkillData* skill, int power, ICombatant* src, std::vector<ICombatant*> targets) {
-    size_t resultSize = 0;
     SkillResult (*skillHandler)(SkillData*, int, ICombatant*, ICombatant*) = nullptr;
     std::vector<SkillResult> results;
 
     switch(skill->skillType)
     {
-        case EST_DAMAGE:
-            resultSize = sizeof(sSkillResult_Damage);
+        case SkillType::DAMAGE:
             skillHandler = handleSkillDamage;
             break;
-        case EST_HEAL_HP:
-        case EST_RETURNHOMEHEAL:
-            resultSize = sizeof(sSkillResult_Heal_HP);
+        case SkillType::HEAL_HP:
+        case SkillType::RETURNHOMEHEAL:
             skillHandler = handleSkillHealHP;
             break;
-        case EST_JUMP:
-        case EST_RUN:
-        case EST_FREEDOM:
-        case EST_PHOENIX:
-        case EST_INVULNERABLE:
-        case EST_MINIMAPENEMY:
-        case EST_MINIMAPTRESURE:
-        case EST_NANOSTIMPAK:
-        case EST_PROTECTBATTERY:
-        case EST_PROTECTINFECTION:
-        case EST_REWARDBLOB:
-        case EST_REWARDCASH:
-        case EST_STAMINA_SELF:
-        case EST_STEALTH:
-            resultSize = sizeof(sSkillResult_Buff);
+        case SkillType::KNOCKDOWN:
+        case SkillType::SLEEP:
+        case SkillType::SNARE:
+        case SkillType::STUN:
+            skillHandler = handleSkillDamageNDebuff;
+            break;
+        case SkillType::JUMP:
+        case SkillType::RUN:
+        case SkillType::STEALTH:
+        case SkillType::MINIMAPENEMY:
+        case SkillType::MINIMAPTRESURE:
+        case SkillType::PHOENIX:
+        case SkillType::PROTECTBATTERY:
+        case SkillType::PROTECTINFECTION:
+        case SkillType::REWARDBLOB:
+        case SkillType::REWARDCASH:
+        // case SkillType::INFECTIONDAMAGE:
+        case SkillType::FREEDOM:
+        case SkillType::BOUNDINGBALL:
+        case SkillType::INVULNERABLE:
+        case SkillType::STAMINA_SELF:
+        case SkillType::NANOSTIMPAK:
+        case SkillType::BUFFHEAL:
             skillHandler = handleSkillBuff;
             break;
-        case EST_BATTERYDRAIN:
-            resultSize = sizeof(sSkillResult_BatteryDrain);
-            skillHandler = handleSkillBatteryDrain;
+        case SkillType::BLOODSUCKING:
+            skillHandler = handleSkillLeech;
             break;
-        case EST_RECALL:
-        case EST_RECALL_GROUP:
-            resultSize = sizeof(sSkillResult_Move);
-            skillHandler = handleSkillMove;
-            break;
-        case EST_PHOENIX_GROUP:
-            resultSize = sizeof(sSkillResult_Resurrect);
+        case SkillType::RETROROCKET_SELF:
+            // no-op
+            return results;
+        case SkillType::PHOENIX_GROUP:
             skillHandler = handleSkillResurrect;
             break;
+        case SkillType::RECALL:
+        case SkillType::RECALL_GROUP:
+            skillHandler = handleSkillMove;
+            break;
+        case SkillType::BATTERYDRAIN:
+            skillHandler = handleSkillBatteryDrain;
+            break;
         default:
-            std::cout << "[WARN] Unhandled skill type " << skill->skillType << std::endl;
+            std::cout << "[WARN] Unhandled skill type " << (int)skill->skillType << std::endl;
             return results;
     }
-    assert(skillHandler != nullptr);
 
     for(ICombatant* target : targets) {
         assert(target != nullptr);
         SkillResult result = skillHandler(skill, power, src != nullptr ? src : target, target);
         if(result.size == 0) continue; // skill not applicable
-        if(result.size != resultSize) {
-            std::cout << "[WARN] bad skill result size for " << skill->skillType << " from " << (void*)handleSkillBuff << std::endl;
+        if(result.size > MAX_SKILLRESULT_SIZE) {
+            std::cout << "[WARN] bad skill result size for " << (int)skill->skillType << " from " << (void*)handleSkillBuff << std::endl;
             continue;
         }
         results.push_back(result);
@@ -182,30 +245,42 @@ static std::vector<SkillResult> handleSkill(SkillData* skill, int power, ICombat
     return results;
 }
 
-static void attachSkillResults(std::vector<SkillResult> results, size_t resultSize, uint8_t* pivot) {
+static void attachSkillResults(std::vector<SkillResult> results, uint8_t* pivot) {
     for(SkillResult& result : results) {
-        memcpy(pivot, result.payload, resultSize);
-        pivot += resultSize;
+        size_t sz = result.size;
+        memcpy(pivot, result.payload, sz);
+        pivot += sz;
     }
 }
 
-void Abilities::useNanoSkill(CNSocket* sock, sNano& nano, std::vector<ICombatant*> affected) {
-    if(SkillTable.count(nano.iSkillID) == 0)
-        return;
+void Abilities::useNanoSkill(CNSocket* sock, SkillData* skill, sNano& nano, std::vector<ICombatant*> affected) {
 
-    SkillData* skill = &SkillTable[nano.iSkillID];
     Player* plr = PlayerManager::getPlayer(sock);
+    ICombatant* combatant = dynamic_cast<ICombatant*>(plr);
 
-    std::vector<SkillResult> results = handleSkill(skill, Nanos::getNanoBoost(plr), plr, affected);
-    size_t resultSize = results.back().size; // guaranteed to be the same for every item
+    int boost = 0;
+    if (Nanos::getNanoBoost(plr))
+        boost = 3;
 
-    if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC), results.size(), resultSize)) {
+    if(skill->drainType == SkillDrainType::ACTIVE) {
+        nano.iStamina -= skill->batteryUse[boost];
+        if (nano.iStamina <= 0)
+            nano.iStamina = 0;
+    }
+
+    std::vector<SkillResult> results = handleSkill(skill, boost, combatant, affected);
+    if(results.empty()) return; // no effect; no need for confirmation packets
+
+    // lazy validation since skill results might be different sizes
+    if (!validOutVarPacket(sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC), results.size(), MAX_SKILLRESULT_SIZE)) {
         std::cout << "[WARN] bad sP_FE2CL_NANO_SKILL_USE_SUCC packet size\n";
         return;
     }
 
     // initialize response struct
-    size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC) + results.size() * resultSize;
+    size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC);
+    for(SkillResult& sr : results)
+        resplen += sr.size;
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
     memset(respbuf, 0, resplen);
 
@@ -215,12 +290,17 @@ void Abilities::useNanoSkill(CNSocket* sock, sNano& nano, std::vector<ICombatant
     pkt->iSkillID = nano.iSkillID;
     pkt->iNanoStamina = nano.iStamina;
     pkt->bNanoDeactive = nano.iStamina <= 0;
-    pkt->eST = skill->skillType;
+    pkt->eST = (int32_t)skill->skillType;
     pkt->iTargetCnt = (int32_t)results.size();
 
-    attachSkillResults(results, resultSize, (uint8_t*)(pkt + 1));
+    attachSkillResults(results, (uint8_t*)(pkt + 1));
     sock->sendPacket(pkt, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
-    PlayerManager::sendToViewable(sock, pkt, P_FE2CL_NANO_SKILL_USE_SUCC, resplen);
+
+    if(skill->skillType == SkillType::RECALL_GROUP)
+        // group recall packet is sent only to group members
+        PlayerManager::sendToGroup(sock, pkt, P_FE2CL_NANO_SKILL_USE, resplen);
+    else
+        PlayerManager::sendToViewable(sock, pkt, P_FE2CL_NANO_SKILL_USE, resplen);
 }
 
 void Abilities::useNPCSkill(EntityRef npc, int skillID, std::vector<ICombatant*> affected) {
@@ -235,43 +315,73 @@ void Abilities::useNPCSkill(EntityRef npc, int skillID, std::vector<ICombatant*>
     SkillData* skill = &SkillTable[skillID];
 
     std::vector<SkillResult> results = handleSkill(skill, 0, src, affected);
-    size_t resultSize = results.back().size; // guaranteed to be the same for every item
+    if(results.empty()) return; // no effect; no need for confirmation packets
 
-    if (!validOutVarPacket(sizeof(sP_FE2CL_NPC_SKILL_HIT), results.size(), resultSize)) {
+    // lazy validation since skill results might be different sizes
+    if (!validOutVarPacket(sizeof(sP_FE2CL_NPC_SKILL_HIT), results.size(), MAX_SKILLRESULT_SIZE)) {
         std::cout << "[WARN] bad sP_FE2CL_NPC_SKILL_HIT packet size\n";
         return;
     }
 
     // initialize response struct
-    size_t resplen = sizeof(sP_FE2CL_NPC_SKILL_HIT) + results.size() * resultSize;
+    size_t resplen = sizeof(sP_FE2CL_NPC_SKILL_HIT);
+    for(SkillResult& sr : results)
+        resplen += sr.size;
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
     memset(respbuf, 0, resplen);
 
     sP_FE2CL_NPC_SKILL_HIT* pkt = (sP_FE2CL_NPC_SKILL_HIT*)respbuf;
     pkt->iNPC_ID = npc.id;
     pkt->iSkillID = skillID;
-    pkt->eST = skill->skillType;
+    pkt->eST = (int32_t)skill->skillType;
     pkt->iTargetCnt = (int32_t)results.size();
 
-    attachSkillResults(results, resultSize, (uint8_t*)(pkt + 1));
+    attachSkillResults(results, (uint8_t*)(pkt + 1));
     NPCManager::sendToViewable(entity, pkt, P_FE2CL_NPC_SKILL_HIT, resplen);
 }
 
-std::vector<EntityRef> Abilities::matchTargets(SkillData* skill, int count, int32_t *ids) {
+static std::vector<ICombatant*> entityRefsToCombatants(std::vector<EntityRef> refs) {
+    std::vector<ICombatant*> combatants;
+    for(EntityRef ref : refs) {
+        if(ref.kind == EntityKind::PLAYER)
+            combatants.push_back(dynamic_cast<ICombatant*>(PlayerManager::getPlayer(ref.sock)));
+        else if(ref.kind == EntityKind::COMBAT_NPC || ref.kind == EntityKind::MOB)
+            combatants.push_back(dynamic_cast<ICombatant*>(ref.getEntity()));
+    }
+    return combatants;
+}
 
-    std::vector<EntityRef> targets;
+std::vector<ICombatant*> Abilities::matchTargets(ICombatant* src, SkillData* skill, int count, int32_t *ids) {
 
+    if(skill->targetType == SkillTargetType::GROUP)
+        return entityRefsToCombatants(src->getGroupMembers());
+
+    // this check *has* to happen after the group check above due to cases like group recall that use both
+    if(skill->effectTarget == SkillEffectTarget::SELF)
+        return {src}; // client sends 0 targets for certain self-targeting skills (recall)
+
+    // individuals
+    std::vector<ICombatant*> targets;
     for (int i = 0; i < count; i++) {
         int32_t id = ids[i];
         if (skill->targetType == SkillTargetType::MOBS) {
-            // mob?
-            if (NPCManager::NPCs.find(id) != NPCManager::NPCs.end()) targets.push_back(id);
-            else std::cout << "[WARN] skill: id not found\n";
-        } else {
-            // player?
-            CNSocket* sock = PlayerManager::getSockFromID(id);
-            if (sock != nullptr) targets.push_back(sock);
-            else std::cout << "[WARN] skill: sock not found\n";
+            // mob
+            if (NPCManager::NPCs.find(id) != NPCManager::NPCs.end()) {
+                BaseNPC* npc = NPCManager::NPCs[id];
+                if (npc->kind == EntityKind::COMBAT_NPC || npc->kind == EntityKind::MOB) {
+                    targets.push_back(dynamic_cast<ICombatant*>(npc));
+                    continue;
+                }
+            }
+            std::cout << "[WARN] skill: invalid mob target (id " << id << ")\n";
+        } else if(skill->targetType == SkillTargetType::PLAYERS) {
+            // player
+            Player* plr = PlayerManager::getPlayerFromID(id);
+            if (plr != nullptr) {
+                targets.push_back(dynamic_cast<ICombatant*>(plr));
+                continue;
+            }
+            std::cout << "[WARN] skill: invalid player target (id " << id << ")\n";
         }
     }
 
@@ -279,63 +389,65 @@ std::vector<EntityRef> Abilities::matchTargets(SkillData* skill, int count, int3
 }
 
 /* ripped from client (enums emplaced) */
-int Abilities::getCSTBFromST(int eSkillType) {
+int Abilities::getCSTBFromST(SkillType skillType) {
     int result = 0;
-    switch (eSkillType)
+    switch (skillType)
     {
-    case EST_RUN:
+    case SkillType::RUN:
         result = ECSB_UP_MOVE_SPEED;
         break;
-    case EST_JUMP:
+    case SkillType::JUMP:
         result = ECSB_UP_JUMP_HEIGHT;
         break;
-    case EST_STEALTH:
+    case SkillType::STEALTH:
         result = ECSB_UP_STEALTH;
         break;
-    case EST_PHOENIX:
+    case SkillType::PHOENIX:
         result = ECSB_PHOENIX;
         break;
-    case EST_PROTECTBATTERY:
+    case SkillType::PROTECTBATTERY:
         result = ECSB_PROTECT_BATTERY;
         break;
-    case EST_PROTECTINFECTION:
+    case SkillType::PROTECTINFECTION:
         result = ECSB_PROTECT_INFECTION;
         break;
-    case EST_SNARE:
+    case SkillType::SNARE:
         result = ECSB_DN_MOVE_SPEED;
         break;
-    case EST_SLEEP:
+    case SkillType::SLEEP:
         result = ECSB_MEZ;
         break;
-    case EST_MINIMAPENEMY:
+    case SkillType::MINIMAPENEMY:
         result = ECSB_MINIMAP_ENEMY;
         break;
-    case EST_MINIMAPTRESURE:
+    case SkillType::MINIMAPTRESURE:
         result = ECSB_MINIMAP_TRESURE;
         break;
-    case EST_REWARDBLOB:
+    case SkillType::REWARDBLOB:
         result = ECSB_REWARD_BLOB;
         break;
-    case EST_REWARDCASH:
+    case SkillType::REWARDCASH:
         result = ECSB_REWARD_CASH;
         break;
-    case EST_INFECTIONDAMAGE:
+    case SkillType::INFECTIONDAMAGE:
         result = ECSB_INFECTION;
         break;
-    case EST_FREEDOM:
+    case SkillType::FREEDOM:
         result = ECSB_FREEDOM;
         break;
-    case EST_BOUNDINGBALL:
+    case SkillType::BOUNDINGBALL:
         result = ECSB_BOUNDINGBALL;
         break;
-    case EST_INVULNERABLE:
+    case SkillType::INVULNERABLE:
         result = ECSB_INVULNERABLE;
         break;
-    case EST_BUFFHEAL:
+    case SkillType::BUFFHEAL:
         result = ECSB_HEAL;
         break;
-    case EST_NANOSTIMPAK:
+    case SkillType::NANOSTIMPAK:
         result = ECSB_STIMPAKSLOT1;
+        break;
+    default:
         break;
     }
     return result;

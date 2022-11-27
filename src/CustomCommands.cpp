@@ -678,7 +678,6 @@ static void whoisCommand(std::string full, std::vector<std::string>& args, CNSoc
     Chat::sendServerMessage(sock, "[WHOIS] ID: " + std::to_string(npc->id));
     Chat::sendServerMessage(sock, "[WHOIS] Type: " + std::to_string(npc->type));
     Chat::sendServerMessage(sock, "[WHOIS] HP: " + std::to_string(npc->hp));
-    Chat::sendServerMessage(sock, "[WHOIS] CBF: " + std::to_string(npc->cbf));
     Chat::sendServerMessage(sock, "[WHOIS] EntityType: " + std::to_string((int)npc->kind));
     Chat::sendServerMessage(sock, "[WHOIS] X: " + std::to_string(npc->x));
     Chat::sendServerMessage(sock, "[WHOIS] Y: " + std::to_string(npc->y));

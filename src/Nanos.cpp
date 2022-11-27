@@ -69,52 +69,6 @@ void Nanos::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spendfm) 
     PlayerManager::sendToViewable(sock, resp2, P_FE2CL_REP_PC_CHANGE_LEVEL);
 }
 
-std::vector<ICombatant*> Nanos::applyNanoBuff(SkillData* skill, Player* plr) {
-    assert(skill->drainType == SkillDrainType::PASSIVE);
-
-    EntityRef self = PlayerManager::getSockFromID(plr->iID);
-    std::vector<ICombatant*> affected;
-    std::vector<EntityRef> targets;
-    if (skill->targetType == SkillTargetType::GROUP) {
-        targets = plr->getGroupMembers(); // group
-    }
-    else if(skill->targetType == SkillTargetType::SELF) {
-        targets.push_back(self); // self
-    } else {
-        std::cout << "[WARN] Passive skill with type " << skill->skillType << " has target type MOB" << std::endl;
-    }
-
-    int timeBuffId = Abilities::getCSTBFromST(skill->skillType);
-    int boost = Nanos::getNanoBoost(plr) ? 3 : 0;
-    int value = skill->values[0][boost];
-
-    BuffStack passiveBuff = {
-        1, // passive nano buffs refreshed every tick
-        value,
-        self,
-        BuffClass::NONE, // overwritten per target
-    };
-
-    for (EntityRef target : targets) {
-        Entity* entity = target.getEntity();
-        if (entity->kind != PLAYER && entity->kind != COMBAT_NPC && entity->kind != MOB)
-            continue; // not a combatant
-
-        passiveBuff.buffStackClass = target == self ? BuffClass::NANO : BuffClass::GROUP_NANO;
-        ICombatant* combatant = dynamic_cast<ICombatant*>(entity);
-        if(combatant->addBuff(timeBuffId,
-            [](EntityRef self, Buff* buff, int status, BuffStack* stack) {
-                Buffs::timeBuffUpdate(self, buff, status, stack);
-            },
-            [](EntityRef self, Buff* buff, time_t currTime) {
-                // no-op
-            },
-            &passiveBuff)) affected.push_back(combatant);
-    }
-
-    return affected;
-}
-
 void Nanos::summonNano(CNSocket *sock, int slot, bool silent) {
     INITSTRUCT(sP_FE2CL_REP_NANO_ACTIVE_SUCC, resp);
     resp.iActiveNanoSlotNum = slot;
@@ -139,8 +93,10 @@ void Nanos::summonNano(CNSocket *sock, int slot, bool silent) {
     if (slot != -1 && skill != nullptr && skill->drainType == SkillDrainType::PASSIVE) {
         // passive buff effect
         resp.eCSTB___Add = 1;
-        std::vector<ICombatant*> affectedCombatants = applyNanoBuff(skill, plr);
-        if(!affectedCombatants.empty()) Abilities::useNanoSkill(sock, nano, affectedCombatants);
+        ICombatant* src = dynamic_cast<ICombatant*>(plr);
+        int32_t targets[] = { plr->iID };
+        std::vector<ICombatant*> affectedCombatants = Abilities::matchTargets(src, skill, 1, targets);
+        Abilities::useNanoSkill(sock, skill, nano, affectedCombatants);
     }
 
     if (!silent) // silent nano death but only for the summoning player
@@ -309,28 +265,19 @@ static void nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    int16_t skillID = plr->Nanos[plr->activeNano].iSkillID;
+    sNano& nano = plr->Nanos[plr->activeNano];
+    int16_t skillID = nano.iSkillID;
     SkillData* skillData = &Abilities::SkillTable[skillID];
 
     DEBUGLOG(
         std::cout << PlayerManager::getPlayerName(plr) << " requested to summon nano skill " << std::endl;
     )
 
-    int boost = 0;
-    if (getNanoBoost(plr))
-        boost = 1;
+    ICombatant* plrCombatant = dynamic_cast<ICombatant*>(plr);
+    std::vector<ICombatant*> targetData = Abilities::matchTargets(plrCombatant, skillData, pkt->iTargetCnt, (int32_t*)(pkt + 1));
+    Abilities::useNanoSkill(sock, skillData, nano, targetData);
 
-    plr->Nanos[plr->activeNano].iStamina -= Abilities::SkillTable[skillID].batteryUse[boost*3];
-    if (plr->Nanos[plr->activeNano].iStamina < 0)
-        plr->Nanos[plr->activeNano].iStamina = 0;
-
-    // TODO ABILITIES
-    std::vector<EntityRef> targetData = Abilities::matchTargets(skillData, pkt->iTargetCnt, (int32_t*)(pkt + 1));
-    /*for (auto& pwr : Abilities::Powers)
-        if (pwr.skillType == Abilities::SkillTable[skillID].skillType)
-            pwr.handle(sock, targetData, nanoID, skillID, Abilities::SkillTable[skillID].durationTime[boost], Abilities::SkillTable[skillID].powerIntensity[boost]);*/
-
-    if (plr->Nanos[plr->activeNano].iStamina < 0)
+    if (plr->Nanos[plr->activeNano].iStamina <= 0)
         summonNano(sock, -1);
 }
 

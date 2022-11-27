@@ -21,6 +21,9 @@ std::map<int32_t, std::map<int8_t, Bullet>> Combat::Bullets;
 
 #pragma region Player
 bool Player::addBuff(int buffId, BuffCallback<int, BuffStack*> onUpdate, BuffCallback<time_t> onTick, BuffStack* stack) {
+    if(!isAlive())
+        return false;
+
     EntityRef self = PlayerManager::getSockFromID(iID);
 
     if(!hasBuff(buffId)) {
@@ -51,11 +54,23 @@ void Player::removeBuff(int buffId) {
 void Player::removeBuff(int buffId, int buffClass) {
     if(hasBuff(buffId)) {
         buffs[buffId]->clear((BuffClass)buffClass);
+        // buff might not be stale since another buff class might remain
         if(buffs[buffId]->isStale()) {
             delete buffs[buffId];
             buffs.erase(buffId);
         }
     }
+}
+
+void Player::clearBuffs(bool force) {
+    for(auto buff : buffs) {
+        if(!force) {
+            removeBuff(buff.first);
+        } else {
+            delete buff.second;
+        }
+    }
+    buffs.clear();
 }
 
 bool Player::hasBuff(int buffId) {
@@ -172,6 +187,8 @@ Buff* CombatNPC::getBuff(int buffId) { /* stubbed */
 void CombatNPC::removeBuff(int buffId) { /* stubbed */ }
 
 void CombatNPC::removeBuff(int buffId, int buffClass) { /* stubbed */ }
+
+void CombatNPC::clearBuffs(bool force) { /* stubbed */ }
 
 bool CombatNPC::hasBuff(int buffId) { /* stubbed */
     return false;
@@ -874,9 +891,12 @@ static void playerTick(CNServer *serv, time_t currTime) {
             if (Abilities::SkillTable.find(nano->iSkillID) != Abilities::SkillTable.end()) {
                 // nano has skill data
                 SkillData* skill = &Abilities::SkillTable[nano->iSkillID];
-                if (skill->drainType == SkillDrainType::PASSIVE)
-                    Nanos::applyNanoBuff(skill, plr);
-                // ^ composite condition calculation is separate from combat for responsiveness
+                if (skill->drainType == SkillDrainType::PASSIVE) {
+                    ICombatant* src = dynamic_cast<ICombatant*>(plr);
+                    int32_t targets[] = { plr->iID };
+                    std::vector<ICombatant*> affectedCombatants = Abilities::matchTargets(src, skill, 1, targets);
+                    Abilities::useNanoSkill(sock, skill, *nano, affectedCombatants);
+                }
             }
         }
 

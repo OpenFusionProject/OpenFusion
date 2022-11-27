@@ -338,6 +338,14 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
     delete lm;
 }
 
+void PlayerManager::sendToGroup(CNSocket* sock, void* buf, uint32_t type, size_t size) {
+    Player* plr = getPlayer(sock);
+    if (plr->group == nullptr)
+        return;
+    for(const EntityRef& ref : plr->group->filter(EntityKind::PLAYER))
+        ref.sock->sendPacket(buf, type, size);
+}
+
 void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size) {
     Player* plr = getPlayer(sock);
     for (auto it = plr->viewableChunks.begin(); it != plr->viewableChunks.end(); it++) {
@@ -401,12 +409,11 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
         if (!(plr->hasBuff(ECSB_PHOENIX)))
             return; // sanity check
         plr->Nanos[plr->activeNano].iStamina = 0;
-        // TODO ABILITIES
-        //Abilities::applyBuff(sock, plr->Nanos[plr->activeNano].iSkillID, 2, 1, 0);
         // fallthrough
     case ePCRegenType::HereByPhoenixGroup: // revived by group member's nano
         plr->HP = PC_MAXHEALTH(plr->level) / 2;
         break;
+
     default: // plain respawn
         plr->HP = PC_MAXHEALTH(plr->level) / 2;
         // fallthrough
