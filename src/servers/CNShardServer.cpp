@@ -115,6 +115,10 @@ void CNShardServer::kill() {
 void CNShardServer::onStep() {
     time_t currTime = getTime();
 
+    // do not evaluate timers if the server is shutting down
+    if (!active)
+        return;
+
     for (TimerEvent& event : Timers) {
         if (event.scheduledEvent == 0) {
             // event hasn't been queued yet, go ahead and do that
