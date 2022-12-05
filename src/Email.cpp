@@ -93,7 +93,7 @@ static void emailReceiveItemSingle(CNSocket* sock, CNPacketData* data) {
     auto pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
-    if (pkt->iSlotNum < 0 || pkt->iSlotNum >= AINVEN_COUNT || pkt->iSlotNum < 1 || pkt->iSlotNum > 4)
+    if (pkt->iSlotNum < 0 || pkt->iSlotNum >= AINVEN_COUNT || pkt->iEmailItemSlot < 1 || pkt->iEmailItemSlot > 4)
         return; // sanity check
 
     // get email item from db and delete it
