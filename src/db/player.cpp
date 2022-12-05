@@ -285,11 +285,13 @@ void Database::getPlayer(Player* plr, int id) {
     sqlite3_finalize(stmt);
 }
 
-void Database::updatePlayer(Player *player) {
-    std::lock_guard<std::mutex> lock(dbCrit);
-
-    sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
-
+/*
+ * Low-level function to save a player to DB.
+ * Must be run in a SQL transaction and with dbCrit locked.
+ * The caller manages the transacstion, so if this function returns false,
+ * the caller must roll it back.
+ */
+bool Database::_updatePlayer(Player *player) {
     const char* sql = R"(
         UPDATE Players
         SET
@@ -336,10 +338,8 @@ void Database::updatePlayer(Player *player) {
     sqlite3_bind_int(stmt, 21, player->iID);
 
     if (sqlite3_step(stmt) != SQLITE_DONE) {
-        std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
         sqlite3_finalize(stmt);
-        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-        return;
+        return false;
     }
 
     sqlite3_finalize(stmt);
@@ -375,10 +375,8 @@ void Database::updatePlayer(Player *player) {
         rc = sqlite3_step(stmt);
 
         if (rc != SQLITE_DONE) {
-            std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
-            sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
-            return;
+            return false;
         }
         sqlite3_reset(stmt);
     }
@@ -395,10 +393,8 @@ void Database::updatePlayer(Player *player) {
         sqlite3_bind_int(stmt, 6, player->Inven[i].iTimeLimit);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
-            std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
-            sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
-            return;
+            return false;
         }
         sqlite3_reset(stmt);
     }
@@ -415,10 +411,8 @@ void Database::updatePlayer(Player *player) {
         sqlite3_bind_int(stmt, 6, player->Bank[i].iTimeLimit);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
-            std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
-            sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
-            return;
+            return false;
         }
         sqlite3_reset(stmt);
     }
@@ -451,10 +445,8 @@ void Database::updatePlayer(Player *player) {
         sqlite3_bind_int(stmt, 4, player->QInven[i].iID);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
-            std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
-            sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
-            return;
+            return false;
         }
         sqlite3_reset(stmt);
     }
@@ -487,10 +479,8 @@ void Database::updatePlayer(Player *player) {
         sqlite3_bind_int(stmt, 4, player->Nanos[i].iStamina);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
-            std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
-            sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
-            return;
+            return false;
         }
         sqlite3_reset(stmt);
     }
@@ -524,14 +514,47 @@ void Database::updatePlayer(Player *player) {
         sqlite3_bind_int(stmt, 5, player->RemainingNPCCount[i][2]);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
-            std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
-            sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
             sqlite3_finalize(stmt);
-            return;
+            return false;
         }
         sqlite3_reset(stmt);
     }
 
-    sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
     sqlite3_finalize(stmt);
+
+    return true;
+}
+
+void Database::updatePlayer(Player *player) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
+
+    if (!_updatePlayer(player)) {
+        std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+        return;
+    }
+
+    sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
+}
+
+void Database::commitTrade(Player *plr1, Player *plr2) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
+
+    if (!_updatePlayer(plr1)) {
+        std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+        return;
+    }
+
+    if (!_updatePlayer(plr2)) {
+        std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+        return;
+    }
+
+    sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
 }

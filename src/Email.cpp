@@ -276,7 +276,7 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
         0 // DeleteTime (unimplemented)
     };
 
-    if (!Database::sendEmail(&email, attachments)) {
+    if (!Database::sendEmail(&email, attachments, plr)) {
         plr->money += cost; // give money back
         // give items back
         while (!attachments.empty()) {

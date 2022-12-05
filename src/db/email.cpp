@@ -152,7 +152,8 @@ void Database::updateEmailContent(EmailData* data) {
     sqlite3_step(stmt);
     int attachmentsCount = sqlite3_column_int(stmt, 0);
 
-    data->ItemFlag = (data->Taros > 0 || attachmentsCount > 0) ? 1 : 0; // set attachment flag dynamically
+    // set attachment flag dynamically
+    data->ItemFlag = (data->Taros > 0 || attachmentsCount > 0) ? 1 : 0;
 
     sqlite3_finalize(stmt);
 
@@ -265,7 +266,7 @@ int Database::getNextEmailIndex(int playerID) {
     return (index > 0 ? index + 1 : 1);
 }
 
-bool Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
+bool Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments, Player *sender) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
@@ -330,6 +331,13 @@ bool Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments) {
         sqlite3_reset(stmt);
     }
     sqlite3_finalize(stmt);
+
+    if (!_updatePlayer(sender)) {
+        std::cout << "[WARN] Database: Failed to save player to database: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+        return false;
+    }
+
     sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
     return true;
 }

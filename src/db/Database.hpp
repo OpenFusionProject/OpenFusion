@@ -78,7 +78,9 @@ namespace Database {
 
     // getting players
     void getPlayer(Player* plr, int id);
+    bool _updatePlayer(Player *player);
     void updatePlayer(Player *player);
+    void commitTrade(Player *plr1, Player *plr2);
     
     // buddies
     int getNumBuddies(Player* player);
@@ -98,7 +100,7 @@ namespace Database {
     void deleteEmailAttachments(int playerID, int index, int slot);
     void deleteEmails(int playerID, int64_t* indices);
     int getNextEmailIndex(int playerID);
-    bool sendEmail(EmailData* data, std::vector<sItemBase> attachments);
+    bool sendEmail(EmailData* data, std::vector<sItemBase> attachments, Player *sender);
 
     // racing
     RaceRanking getTopRaceRanking(int epID, int playerID);

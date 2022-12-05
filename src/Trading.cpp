@@ -1,5 +1,6 @@
 #include "Trading.hpp"
 #include "PlayerManager.hpp"
+#include "db/Database.hpp"
 
 using namespace Trading;
 
@@ -269,6 +270,8 @@ static void tradeConfirm(CNSocket* sock, CNPacketData* data) {
         otherSock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
         return;
     }
+
+    Database::commitTrade(plr, plr2);
 }
 
 static void tradeConfirmCancel(CNSocket* sock, CNPacketData* data) {
