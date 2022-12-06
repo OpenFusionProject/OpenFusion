@@ -28,17 +28,12 @@ using namespace PlayerManager;
 
 std::map<CNSocket*, Player*> PlayerManager::players;
 
-static void addPlayer(CNSocket* key, Player& plr) {
-    Player *p = new Player();
+static void addPlayer(CNSocket* key, Player *plr) {
+    players[key] = plr;
+    plr->chunkPos = Chunking::INVALID_CHUNK;
+    plr->lastHeartbeat = 0;
 
-    // copy object into heap memory
-    *p = plr;
-
-    players[key] = p;
-    p->chunkPos = Chunking::INVALID_CHUNK;
-    p->lastHeartbeat = 0;
-
-    std::cout << getPlayerName(p) << " has joined!" << std::endl;
+    std::cout << getPlayerName(plr) << " has joined!" << std::endl;
     std::cout << players.size() << " players" << std::endl;
 }
 
@@ -224,73 +219,73 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    Player plr = {};
-    Database::getPlayer(&plr, lm->playerId);
+    Player *plr = new Player();
+    Database::getPlayer(plr, lm->playerId);
 
     // check if account is already in use
-    if (isAccountInUse(plr.accountId)) {
+    if (isAccountInUse(plr->accountId)) {
         // kick the other player
-        exitDuplicate(plr.accountId);
+        exitDuplicate(plr->accountId);
 
         // re-read the player from disk, in case it was just flushed
-        plr = {};
-        Database::getPlayer(&plr, lm->playerId);
+        *plr = {};
+        Database::getPlayer(plr, lm->playerId);
     }
 
-    plr.groupCnt = 1;
-    plr.iIDGroup = plr.groupIDs[0] = plr.iID;
+    plr->groupCnt = 1;
+    plr->iIDGroup = plr->groupIDs[0] = plr->iID;
 
-    response.iID = plr.iID;
+    response.iID = plr->iID;
     response.uiSvrTime = getTime();
-    response.PCLoadData2CL.iUserLevel = plr.accountLevel;
-    response.PCLoadData2CL.iHP = plr.HP;
-    response.PCLoadData2CL.iLevel = plr.level;
-    response.PCLoadData2CL.iCandy = plr.money;
-    response.PCLoadData2CL.iFusionMatter = plr.fusionmatter;
-    response.PCLoadData2CL.iMentor = plr.mentor;
+    response.PCLoadData2CL.iUserLevel = plr->accountLevel;
+    response.PCLoadData2CL.iHP = plr->HP;
+    response.PCLoadData2CL.iLevel = plr->level;
+    response.PCLoadData2CL.iCandy = plr->money;
+    response.PCLoadData2CL.iFusionMatter = plr->fusionmatter;
+    response.PCLoadData2CL.iMentor = plr->mentor;
     response.PCLoadData2CL.iMentorCount = 1; // how many guides the player has had
-    response.PCLoadData2CL.iX = plr.x;
-    response.PCLoadData2CL.iY = plr.y;
-    response.PCLoadData2CL.iZ = plr.z;
-    response.PCLoadData2CL.iAngle = plr.angle;
-    response.PCLoadData2CL.iBatteryN = plr.batteryN;
-    response.PCLoadData2CL.iBatteryW = plr.batteryW;
+    response.PCLoadData2CL.iX = plr->x;
+    response.PCLoadData2CL.iY = plr->y;
+    response.PCLoadData2CL.iZ = plr->z;
+    response.PCLoadData2CL.iAngle = plr->angle;
+    response.PCLoadData2CL.iBatteryN = plr->batteryN;
+    response.PCLoadData2CL.iBatteryW = plr->batteryW;
     response.PCLoadData2CL.iBuddyWarpTime = 60; // sets 60s warp cooldown on login
 
-    response.PCLoadData2CL.iWarpLocationFlag = plr.iWarpLocationFlag;
-    response.PCLoadData2CL.aWyvernLocationFlag[0] = plr.aSkywayLocationFlag[0];
-    response.PCLoadData2CL.aWyvernLocationFlag[1] = plr.aSkywayLocationFlag[1];
+    response.PCLoadData2CL.iWarpLocationFlag = plr->iWarpLocationFlag;
+    response.PCLoadData2CL.aWyvernLocationFlag[0] = plr->aSkywayLocationFlag[0];
+    response.PCLoadData2CL.aWyvernLocationFlag[1] = plr->aSkywayLocationFlag[1];
 
     response.PCLoadData2CL.iActiveNanoSlotNum = -1;
     response.PCLoadData2CL.iFatigue = 50;
-    response.PCLoadData2CL.PCStyle = plr.PCStyle;
+    response.PCLoadData2CL.PCStyle = plr->PCStyle;
 
     // client doesnt read this, it gets it from charinfo
-    // response.PCLoadData2CL.PCStyle2 = plr.PCStyle2;
+    // response.PCLoadData2CL.PCStyle2 = plr->PCStyle2;
     // inventory
     for (int i = 0; i < AEQUIP_COUNT; i++)
-        response.PCLoadData2CL.aEquip[i] = plr.Equip[i];
+        response.PCLoadData2CL.aEquip[i] = plr->Equip[i];
     for (int i = 0; i < AINVEN_COUNT; i++)
-        response.PCLoadData2CL.aInven[i] = plr.Inven[i];
+        response.PCLoadData2CL.aInven[i] = plr->Inven[i];
     // quest inventory
     for (int i = 0; i < AQINVEN_COUNT; i++)
-        response.PCLoadData2CL.aQInven[i] = plr.QInven[i];
+        response.PCLoadData2CL.aQInven[i] = plr->QInven[i];
     // nanos
     for (int i = 1; i < SIZEOF_NANO_BANK_SLOT; i++) {
-        response.PCLoadData2CL.aNanoBank[i] = plr.Nanos[i];
+        response.PCLoadData2CL.aNanoBank[i] = plr->Nanos[i];
     }
     for (int i = 0; i < 3; i++) {
-        response.PCLoadData2CL.aNanoSlots[i] = plr.equippedNanos[i];
+        response.PCLoadData2CL.aNanoSlots[i] = plr->equippedNanos[i];
     }
     // missions in progress
     for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
-        if (plr.tasks[i] == 0)
+        if (plr->tasks[i] == 0)
             break;
-        response.PCLoadData2CL.aRunningQuest[i].m_aCurrTaskID = plr.tasks[i];
-        TaskData &task = *Missions::Tasks[plr.tasks[i]];
+        response.PCLoadData2CL.aRunningQuest[i].m_aCurrTaskID = plr->tasks[i];
+        TaskData &task = *Missions::Tasks[plr->tasks[i]];
         for (int j = 0; j < 3; j++) {
             response.PCLoadData2CL.aRunningQuest[i].m_aKillNPCID[j] = (int)task["m_iCSUEnemyID"][j];
-            response.PCLoadData2CL.aRunningQuest[i].m_aKillNPCCount[j] = plr.RemainingNPCCount[i][j];
+            response.PCLoadData2CL.aRunningQuest[i].m_aKillNPCCount[j] = plr->RemainingNPCCount[i][j];
             /*
              * client doesn't care about NeededItem ID and Count,
              * it gets Count from Quest Inventory
@@ -300,12 +295,12 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
             */
         }
     }
-    response.PCLoadData2CL.iCurrentMissionID = plr.CurrentMissionID;
+    response.PCLoadData2CL.iCurrentMissionID = plr->CurrentMissionID;
 
     // completed missions
     // the packet requires 32 items, but the client only checks the first 16 (shrug)
     for (int i = 0; i < 16; i++) {
-        response.PCLoadData2CL.aQuestFlag[i] = plr.aQuestFlag[i];
+        response.PCLoadData2CL.aQuestFlag[i] = plr->aQuestFlag[i];
     }
 
     // Computress tips
@@ -314,11 +309,11 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
         response.PCLoadData2CL.iFirstUseFlag2 = UINT64_MAX;
     }
     else {
-        response.PCLoadData2CL.iFirstUseFlag1 = plr.iFirstUseFlag[0];
-        response.PCLoadData2CL.iFirstUseFlag2 = plr.iFirstUseFlag[1];
+        response.PCLoadData2CL.iFirstUseFlag1 = plr->iFirstUseFlag[0];
+        response.PCLoadData2CL.iFirstUseFlag2 = plr->iFirstUseFlag[1];
     }
 
-    plr.instanceID = INSTANCE_OVERWORLD; // the player should never be in an instance on enter
+    plr->instanceID = INSTANCE_OVERWORLD; // the player should never be in an instance on enter
 
     sock->setEKey(CNSocketEncryption::createNewKey(response.uiSvrTime, response.iID + 1, response.PCLoadData2CL.iFusionMatter + 1));
     sock->setFEKey(lm->FEKey);
@@ -329,14 +324,14 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
     // transmit MOTD after entering the game, so the client hopefully changes modes on time
     Chat::sendServerMessage(sock, settings::MOTDSTRING);
 
-    // copy Player object into the shard
+    // transfer ownership of Player object into the shard (still valid in this function though)
     addPlayer(sock, plr);
 
     // check if there is an expiring vehicle
-    Items::checkItemExpire(sock, getPlayer(sock));
+    Items::checkItemExpire(sock, plr);
 
     // set player equip stats
-    Items::setItemStats(getPlayer(sock));
+    Items::setItemStats(plr);
 
     Missions::failInstancedMissions(sock);
 
@@ -347,7 +342,7 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     for (auto& pair : players)
         if (pair.second->notify)
-            Chat::sendServerMessage(pair.first, "[ADMIN]" + getPlayerName(&plr) + " has joined.");
+            Chat::sendServerMessage(pair.first, "[ADMIN]" + getPlayerName(plr) + " has joined.");
 
     // deallocate lm
     delete lm;
