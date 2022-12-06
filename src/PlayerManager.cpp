@@ -224,17 +224,21 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    // for convenience
-    Player& plr = lm->plr;
-
-    plr.groupCnt = 1;
-    plr.iIDGroup = plr.groupIDs[0] = plr.iID;
+    Player plr = {};
+    Database::getPlayer(&plr, lm->playerId);
 
     // check if account is already in use
     if (isAccountInUse(plr.accountId)) {
         // kick the other player
         exitDuplicate(plr.accountId);
+
+        // re-read the player from disk, in case it was just flushed
+        plr = {};
+        Database::getPlayer(&plr, lm->playerId);
     }
+
+    plr.groupCnt = 1;
+    plr.iIDGroup = plr.groupIDs[0] = plr.iID;
 
     response.iID = plr.iID;
     response.uiSvrTime = getTime();
@@ -345,7 +349,7 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
         if (pair.second->notify)
             Chat::sendServerMessage(pair.first, "[ADMIN]" + getPlayerName(&plr) + " has joined.");
 
-    // deallocate lm (and therefore the plr object)
+    // deallocate lm
     delete lm;
 }
 

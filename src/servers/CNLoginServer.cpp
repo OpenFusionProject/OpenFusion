@@ -471,11 +471,7 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
     LoginMetadata *lm = new LoginMetadata();
     lm->FEKey = sock->getFEKey();
     lm->timestamp = getTime();
-
-    Database::getPlayer(&lm->plr, selection->iPC_UID);
-    // this should never happen but for extra safety
-    if (lm->plr.iID == 0)
-        return invalidCharacter(sock);
+    lm->playerId = selection->iPC_UID;
 
     resp.iEnterSerialKey = Rand::cryptoRand();
 
@@ -485,7 +481,7 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket(resp, P_LS2CL_REP_SHARD_SELECT_SUCC);
 
     // update current slot in DB
-    Database::updateSelected(loginSessions[sock].userID, lm->plr.slot);
+    Database::updateSelectedByPlayerId(loginSessions[sock].userID, selection->iPC_UID);
 }
 
 void CNLoginServer::finishTutorial(CNSocket* sock, CNPacketData* data) {

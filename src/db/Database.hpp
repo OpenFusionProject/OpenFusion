@@ -52,7 +52,8 @@ namespace Database {
     bool banPlayer(int playerId, std::string& reason);
     bool unbanPlayer(int playerId);
 
-    void updateSelected(int accountId, int playerId);
+    void updateSelected(int accountId, int slot);
+    void updateSelectedByPlayerId(int accountId, int playerId);
     
     bool validateCharacter(int characterID, int userID);
     bool isNameFree(std::string firstName, std::string lastName);

@@ -18,7 +18,7 @@
 
 struct LoginMetadata {
     uint64_t FEKey;
-    Player plr;
+    int32_t playerId;
     time_t timestamp;
 };
 

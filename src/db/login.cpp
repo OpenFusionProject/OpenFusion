@@ -79,6 +79,29 @@ void Database::updateSelected(int accountId, int slot) {
         std::cout << "[WARN] Database fail on updateSelected(): " << sqlite3_errmsg(db) << std::endl;
 }
 
+void Database::updateSelectedByPlayerId(int accountId, int32_t playerId) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    const char* sql = R"(
+        UPDATE Accounts SET
+            Selected = p.Slot,
+            LastLogin = (strftime('%s', 'now'))
+        FROM (SELECT Slot From Players WHERE PlayerId = ?) AS p
+        WHERE AccountID = ?;
+        )";
+
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_bind_int(stmt, 1, playerId);
+    sqlite3_bind_int(stmt, 2, accountId);
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    if (rc != SQLITE_DONE)
+        std::cout << "[WARN] Database fail on updateSelectedByPlayerId(): " << sqlite3_errmsg(db) << std::endl;
+}
+
 bool Database::validateCharacter(int characterID, int userID) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
