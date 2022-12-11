@@ -11,9 +11,9 @@
 #include "Player.hpp"
 
 /*
- * Connecions time out after 15 minutes, checked every 30 seconds.
+ * Connecions time out after 5 minutes, checked every 30 seconds.
  */
-#define CNSHARED_TIMEOUT 900000
+#define CNSHARED_TIMEOUT 300000
 #define CNSHARED_PERIOD 30000
 
 struct LoginMetadata {

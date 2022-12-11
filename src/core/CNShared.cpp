@@ -32,7 +32,7 @@ void CNShared::pruneLoginMetadata(CNServer *serv, time_t currTime) {
         auto& sk = it->first;
         auto& lm = it->second;
 
-        if (lm->timestamp + CNSHARED_TIMEOUT > currTime) {
+        if (currTime > lm->timestamp + CNSHARED_TIMEOUT) {
             std::cout << "[WARN] Pruning hung connection attempt" << std::endl;
 
             // deallocate object and remove map entry
