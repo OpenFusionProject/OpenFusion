@@ -1,6 +1,9 @@
 #include "Vendors.hpp"
 #include "Rand.hpp"
 
+// 7 days
+#define VEHICLE_EXPIRY_DURATION 604800
+
 using namespace Vendors;
 
 std::map<int32_t, std::vector<VendorListing>> Vendors::VendorTables;
@@ -53,8 +56,8 @@ static void vendorBuy(CNSocket* sock, CNPacketData* data) {
 
     // if vehicle
     if (req->Item.iType == 10) {
-        // set time limit: current time + 7days
-        req->Item.iTimeLimit = getTimestamp() + 604800;
+        // set time limit: current time + expiry duration
+        req->Item.iTimeLimit = getTimestamp() + VEHICLE_EXPIRY_DURATION;
     }
 
     if (slot != req->iInvenSlotNum) {
@@ -224,11 +227,19 @@ static void vendorTable(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_TABLE_UPDATE_SUCC, resp);
 
     for (int i = 0; i < (int)listings.size() && i < 20; i++) { // 20 is the max
-        sItemBase base;
+        sItemBase base = {};
         base.iID = listings[i].id;
-        base.iOpt = 0;
-        base.iTimeLimit = 0;
         base.iType = listings[i].type;
+
+        /*
+         * Set vehicle expiry value.
+         *
+         * Note: sItemBase.iTimeLimit in the context of vendor listings contains
+         * a duration, unlike in most other contexts where it contains the
+         * expiration timestamp.
+         */
+        if (listings[i].type == 10)
+            base.iTimeLimit = VEHICLE_EXPIRY_DURATION;
 
         sItemVendor vItem;
         vItem.item = base;
