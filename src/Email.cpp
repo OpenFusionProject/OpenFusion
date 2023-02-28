@@ -252,11 +252,16 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
         if (attachment.ItemInven.iID == 0)
             continue;
 
+        sItemBase* item = &pkt->aItem[i].ItemInven;
+        sItemBase* real = &plr->Inven[attachment.iSlotNum];
+
         resp.aItem[i] = attachment;
         attachments.push_back(attachment.ItemInven);
         attSlots.push_back(attachment.iSlotNum);
-        // delete item
-        plr->Inven[attachment.iSlotNum] = { 0, 0, 0, 0 };
+        if (real->iOpt <= item->iOpt) // delete item (if they attached the whole stack)
+            *real = { 0, 0, 0, 0 };
+        else // otherwise, decrement the item TODO: 
+            real->iOpt -= item->iOpt;
     }
 
     int cost = pkt->iCash + 50 + 20 * attachments.size(); // attached taros + postage
