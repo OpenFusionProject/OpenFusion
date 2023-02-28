@@ -260,8 +260,18 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
         attSlots.push_back(attachment.iSlotNum);
         if (real->iOpt <= item->iOpt) // delete item (if they attached the whole stack)
             *real = { 0, 0, 0, 0 };
-        else // otherwise, decrement the item TODO: 
+        else // otherwise, decrement the item
             real->iOpt -= item->iOpt;
+
+        // HACK: update the slot
+        INITSTRUCT(sP_FE2CL_PC_ITEM_MOVE_SUCC, itemResp);
+        itemResp.iFromSlotNum = attachment.iSlotNum;
+        itemResp.iToSlotNum = attachment.iSlotNum;
+        itemResp.FromSlotItem = *real;
+        itemResp.ToSlotItem = *real;
+        itemResp.eFrom = (int32_t)Items::SlotType::INVENTORY;
+        itemResp.eTo = (int32_t)Items::SlotType::INVENTORY;
+        sock->sendPacket(itemResp, P_FE2CL_PC_ITEM_MOVE_SUCC);
     }
 
     int cost = pkt->iCash + 50 + 20 * attachments.size(); // attached taros + postage
