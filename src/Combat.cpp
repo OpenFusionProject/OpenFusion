@@ -69,7 +69,7 @@ static bool checkRapidFire(CNSocket *sock, int targetCount) {
 
     // 3+ targets should never be possible
     if (targetCount > 3)
-        plr->suspicionRating += 10000;
+        plr->suspicionRating += 10001;
 
     // kill the socket when the player is too suspicious
     if (plr->suspicionRating > 10000) {
