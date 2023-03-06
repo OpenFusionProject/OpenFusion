@@ -479,8 +479,9 @@ void CNServer::start() {
 
                 // player sockets
                 if (connections.find(fds[i].fd) == connections.end()) {
-                    std::cout << "[WARN] Event on non-existant socket?" << std::endl;
-                    continue; // just to be safe
+                    std::cout << "[FATAL] Event on non-existent socket: " << fds[i].fd << std::endl;
+                    assert(0);
+                    /* not reached */
                 }
 
                 CNSocket* cSock = connections[fds[i].fd];
