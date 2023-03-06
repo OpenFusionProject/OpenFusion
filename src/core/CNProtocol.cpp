@@ -473,6 +473,10 @@ void CNServer::start() {
             } else {
                 std::lock_guard<std::mutex> lock(activeCrit); // protect operations on connections
 
+                // halt packet handling if server is shutting down
+                if (!active)
+                    return;
+
                 // player sockets
                 if (connections.find(fds[i].fd) == connections.end()) {
                     std::cout << "[WARN] Event on non-existant socket?" << std::endl;
