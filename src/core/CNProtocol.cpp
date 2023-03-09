@@ -415,9 +415,9 @@ void CNServer::addPollFD(SOCKET s) {
     fds.push_back({s, POLLIN});
 }
 
-void CNServer::removePollFD(int i) {
+void CNServer::removePollFD(int fd) {
     auto it = fds.begin();
-    while (it != fds.end() && it->fd != fds[i].fd)
+    while (it != fds.end() && it->fd != fd)
         it++;
     assert(it != fds.end());
 
@@ -494,22 +494,29 @@ void CNServer::start() {
                 if (fds[i].revents & ~POLLIN)
                     cSock->kill();
 
-                if (cSock->isAlive()) {
+                if (cSock->isAlive())
                     cSock->step();
-                } else {
-                    killConnection(cSock);
-                    connections.erase(fds[i].fd);
-                    delete cSock;
-
-                    removePollFD(i);
-
-                    // a new entry was moved to this position, so we check it again
-                    i--;
-                }
             }
         }
 
         onStep();
+
+        // clean up dead connection sockets
+        auto it = connections.begin();
+        while (it != connections.end()) {
+            CNSocket *cSock = it->second;
+
+            if (!cSock->isAlive()) {
+                killConnection(cSock);
+                it = connections.erase(it);
+
+                removePollFD(cSock->sock);
+
+                delete cSock;
+            } else {
+                it++;
+            }
+        }
     }
 }
 
