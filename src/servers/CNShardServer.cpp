@@ -16,6 +16,7 @@ std::map<uint32_t, PacketHandler> CNShardServer::ShardPackets;
 std::list<TimerEvent> CNShardServer::Timers;
 
 CNShardServer::CNShardServer(uint16_t p) {
+    serverType = "shard";
     port = p;
     pHandler = &CNShardServer::handlePacket;
     REGISTER_SHARD_TIMER(keepAliveTimer, 4000);

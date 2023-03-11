@@ -230,6 +230,7 @@ protected:
     const size_t STARTFDSCOUNT = 8; // number of initial PollFD slots
     std::vector<PollFD> fds;
 
+    std::string serverType = "invalid";
     SOCKET sock;
     uint16_t port;
     socklen_t addressSize;

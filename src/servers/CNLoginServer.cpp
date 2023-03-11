@@ -11,6 +11,7 @@
 std::map<CNSocket*, CNLoginData> CNLoginServer::loginSessions;
 
 CNLoginServer::CNLoginServer(uint16_t p) {
+    serverType = "login";
     port = p;
     pHandler = &CNLoginServer::handlePacket;
     init();

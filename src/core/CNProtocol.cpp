@@ -462,7 +462,7 @@ void CNServer::start() {
                 if (!setSockNonblocking(sock, newConnectionSocket))
                     continue;
 
-                std::cout << "New connection! " << inet_ntoa(address.sin_addr) << std::endl;
+                std::cout << "New " << serverType << " connection! " << inet_ntoa(address.sin_addr) << std::endl;
 
                 addPollFD(newConnectionSocket);
 
