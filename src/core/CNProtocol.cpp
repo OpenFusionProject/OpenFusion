@@ -109,7 +109,11 @@ bool CNSocket::isAlive() {
 }
 
 void CNSocket::kill() {
+    if (!alive)
+        return;
+
     alive = false;
+
 #ifdef _WIN32
     shutdown(sock, SD_BOTH);
     closesocket(sock);
