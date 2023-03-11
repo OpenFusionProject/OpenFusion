@@ -41,7 +41,8 @@ int CNSocketEncryption::xorData(uint8_t* buffer, uint8_t* key, int size) {
 uint64_t CNSocketEncryption::createNewKey(uint64_t uTime, int32_t iv1, int32_t iv2) {
     uint64_t num = (uint64_t)(iv1 + 1);
     uint64_t num2 = (uint64_t)(iv2 + 1);
-    uint64_t dEKey = (uint64_t)(*(uint64_t*)&defaultKey[0]);
+    uint64_t dEKey;
+    memcpy(&dEKey, defaultKey, sizeof(dEKey));
     return dEKey * (uTime * num * num2);
 }
 
@@ -65,7 +66,7 @@ CNPacketData::CNPacketData(void *b, uint32_t t, int l, int trnum, void *trs):
 // ========================================================[[ CNSocket ]]========================================================
 
 CNSocket::CNSocket(SOCKET s, struct sockaddr_in &addr, PacketHandler ph): sock(s), sockaddr(addr), pHandler(ph) {
-    EKey = (uint64_t)(*(uint64_t*)&CNSocketEncryption::defaultKey[0]);
+    memcpy(&EKey, CNSocketEncryption::defaultKey, sizeof(EKey));
 }
 
 bool CNSocket::sendData(uint8_t* data, int size) {

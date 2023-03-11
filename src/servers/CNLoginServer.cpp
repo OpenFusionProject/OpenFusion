@@ -209,9 +209,12 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
     // send the resp in with original key
     sock->sendPacket(resp, P_LS2CL_REP_LOGIN_SUCC);
 
+    uint64_t defaultKey;
+    memcpy(&defaultKey, CNSocketEncryption::defaultKey, sizeof(defaultKey));
+
     // update keys
     sock->setEKey(CNSocketEncryption::createNewKey(resp.uiSvrTime, resp.iCharCount + 1, resp.iSlotNum + 1));
-    sock->setFEKey(CNSocketEncryption::createNewKey((uint64_t)(*(uint64_t*)&CNSocketEncryption::defaultKey[0]), login->iClientVerC, 1));
+    sock->setFEKey(CNSocketEncryption::createNewKey(defaultKey, login->iClientVerC, 1));
 
     DEBUGLOG(
         std::cout << "Login Server: Login success. Welcome " << userLogin << " [" << loginSessions[sock].userID << "]" << std::endl;
