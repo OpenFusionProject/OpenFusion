@@ -246,9 +246,10 @@ void CNSocket::step() {
     if (readSize <= 0) {
         // we aren't reading a packet yet, try to start looking for one
         int recved = recv(sock, (buffer_t*)readBuffer, sizeof(int32_t), 0);
-        if (recved == 0) {
-            // the socket was closed normally
+        if (recved >= 0 && recved < sizeof(int32_t)) {
+            // too little data for readSize or the socket was closed normally (when 0 bytes were read)
             kill();
+            return;
         } else if (!SOCKETERROR(recved)) {
             // we got our packet size!!!!
             readSize = *((int32_t*)readBuffer);
@@ -269,11 +270,12 @@ void CNSocket::step() {
     }
 
     if (readSize > 0 && readBufferIndex < readSize) {
-        // read until the end of the packet! (or at least try too)
+        // read until the end of the packet (or at least try to)
         int recved = recv(sock, (buffer_t*)(readBuffer + readBufferIndex), readSize - readBufferIndex, 0);
         if (recved == 0) {
             // the socket was closed normally
             kill();
+            return;
         } else if (!SOCKETERROR(recved))
             readBufferIndex += recved;
         else if (OF_ERRNO != OF_EWOULD) {
