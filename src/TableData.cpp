@@ -1072,21 +1072,39 @@ void TableData::init() {
     };
 
     // load JSON data into tables
-    std::ifstream fstream;
     for (int i = 0; i < 7; i++) {
         std::pair<json*, std::string>& table = tables[i];
-        fstream.open(settings::TDATADIR + "/" + table.second); // open file
-        if (!fstream.fail()) {
-            // tolerate empty gruntwork file
-            if (!(table.first == &gruntwork && fstream.peek() == std::ifstream::traits_type::eof()))
-                fstream >> *table.first; // load file contents into table
-        } else {
-            if (table.first != &gruntwork) { // gruntwork isn't critical
+
+        // scope for fstream
+        {
+            std::ifstream fstream;
+            fstream.open(settings::TDATADIR + "/" + table.second); // open file
+
+            // did we fail to open the file?
+            if (fstream.fail()) {
+                // gruntwork isn't critical
+                if (table.first == &gruntwork)
+                    continue;
+
                 std::cerr << "[FATAL] Critical tdata file missing: " << table.second << std::endl;
                 exit(1);
             }
+
+            // is the file empty?
+            if (fstream.peek() == std::ifstream::traits_type::eof()) {
+                // tolerate empty gruntwork file
+                if (table.first == &gruntwork) {
+                    std::cout << "[WARN] The gruntwork file is empty" << std::endl;
+                    continue;
+                }
+
+                std::cerr << "[FATAL] Critical tdata file is empty: " << table.second << std::endl;
+                exit(1);
+            }
+
+            // load file contents into table
+            fstream >> *table.first;
         }
-        fstream.close();
 
         // patching: load each patch directory specified in the config file
 
@@ -1101,11 +1119,11 @@ void TableData::init() {
             std::string patchModuleName = *it;
             std::string patchFile = settings::PATCHDIR + patchModuleName + "/" + table.second;
             try {
+                std::ifstream fstream;
                 fstream.open(patchFile);
                 fstream >> patch; // load into temporary json object
                 std::cout << "[INFO] Patching " << patchFile << std::endl;
                 patchJSON(table.first, &patch); // patch
-                fstream.close();
             } catch (const std::exception& err) {
                 // no-op
             }
