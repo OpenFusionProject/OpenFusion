@@ -662,6 +662,8 @@ static void loadEggs(json& eggData, int32_t* nextId) {
  * Load gruntwork output, if it exists
  */
 static void loadGruntworkPre(json& gruntwork, int32_t* nextId) {
+    if (gruntwork.is_null())
+        return;
 
     try {
         auto paths = gruntwork["paths"];
@@ -711,8 +713,8 @@ static void loadGruntworkPre(json& gruntwork, int32_t* nextId) {
 }
 
 static void loadGruntworkPost(json& gruntwork, int32_t* nextId) {
-
-    if (gruntwork.is_null()) return;
+    if (gruntwork.is_null())
+        return;
 
     try {
         // skyway paths
