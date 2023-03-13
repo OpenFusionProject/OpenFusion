@@ -1075,7 +1075,9 @@ void TableData::init() {
         std::pair<json*, std::string>& table = tables[i];
         fstream.open(settings::TDATADIR + "/" + table.second); // open file
         if (!fstream.fail()) {
-            fstream >> *table.first; // load file contents into table
+            // tolerate empty gruntwork file
+            if (!(table.first == &gruntwork && fstream.peek() == std::ifstream::traits_type::eof()))
+                fstream >> *table.first; // load file contents into table
         } else {
             if (table.first != &gruntwork) { // gruntwork isn't critical
                 std::cerr << "[FATAL] Critical tdata file missing: " << table.second << std::endl;
