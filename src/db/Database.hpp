@@ -41,6 +41,7 @@ namespace Database {
         uint64_t Timestamp;
     };
     
+    void init();
     void open();
     void close();
 

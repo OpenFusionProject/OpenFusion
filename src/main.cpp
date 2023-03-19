@@ -98,6 +98,9 @@ void initsignals() {
 }
 
 int main() {
+    std::cout << "[INFO] OpenFusion v" GIT_VERSION << std::endl;
+    std::cout << "[INFO] Protocol version: " << PROTOCOL_VERSION << std::endl;
+
 #ifdef _WIN32
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(1, 1), &wsaData) != 0) {
@@ -105,15 +108,15 @@ int main() {
         exit(EXIT_FAILURE);
     }
 #endif
+
     initsignals();
     settings::init();
-
-    std::cout << "[INFO] OpenFusion v" GIT_VERSION << std::endl;
-    std::cout << "[INFO] Protocol version: " << PROTOCOL_VERSION << std::endl;
-    std::cout << "[INFO] Intializing Packet Managers..." << std::endl;
-
+    Database::init();
     Rand::init(getTime());
     TableData::init();
+
+    std::cout << "[INFO] Intializing Packet Managers..." << std::endl;
+
     PlayerManager::init();
     PlayerMovement::init();
     BuiltinCommands::init();
@@ -132,8 +135,9 @@ int main() {
     Email::init();
     Groups::init();
     Racing::init();
-    Database::open();
     Trading::init();
+
+    Database::open();
 
     switch (settings::EVENTMODE) {
     case 0: break; // no event

@@ -83,7 +83,7 @@ This just works if you're all under the same LAN, but if you want to play over t
 
 ## Compiling 
 
-OpenFusion has one external dependency: SQLite. You can install it on Windows using `vcpkg`, and on Unix/Linux using your distribution's package manager. For a more indepth guide on how to set up vcpkg, [read this guide on the wiki](https://github.com/OpenFusionProject/OpenFusion/wiki/Installing-SQLite-on-Windows-using-vcpkg).
+OpenFusion has one external dependency: SQLite. The oldest compatible version is `3.33.0`. You can install it on Windows using `vcpkg`, and on Unix/Linux using your distribution's package manager. For a more indepth guide on how to set up vcpkg, [read this guide on the wiki](https://github.com/OpenFusionProject/OpenFusion/wiki/Installing-SQLite-on-Windows-using-vcpkg).
 
 You have two choices for compiling OpenFusion: the included Makefile and the included CMakeLists file.
 

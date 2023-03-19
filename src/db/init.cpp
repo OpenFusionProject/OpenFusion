@@ -236,7 +236,20 @@ static int getTableSize(std::string tableName) {
     return result;
 }
 
+void Database::init() {
+    std::cout << "[INFO] Built with libsqlite " SQLITE_VERSION << std::endl;
+
+    if (sqlite3_libversion_number() != SQLITE_VERSION_NUMBER)
+        std::cout << "[INFO] Using libsqlite " << std::string(sqlite3_libversion()) << std::endl;
+
+    if (sqlite3_libversion_number() < MIN_SUPPORTED_SQLITE_NUMBER) {
+        std::cerr << "[FATAL] Runtime sqlite version too old. Minimum compatible version: " MIN_SUPPORTED_SQLITE << std::endl;
+        exit(1);
+    }
+}
+
 void Database::open() {
+
     // XXX: move locks here
     int rc = sqlite3_open(settings::DBPATH.c_str(), &db);
     if (rc != SQLITE_OK) {
