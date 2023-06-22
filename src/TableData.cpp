@@ -38,6 +38,22 @@ public:
 };
 
 /*
+ * We must refuse to run if an invalid NPC type is found in the JSONs, especially
+ * the gruntwork file. If we were to just skip loading invalid NPCs, they would get
+ * silently dropped from the gruntwork file, which would be confusing in situations
+ * where a gruntwork file for the wrong game build was accidentally loaded.
+ */
+static void ensureValidNPCType(int type, std::string filename) {
+    // last known NPC type
+    int npcLimit = NPCManager::NPCData.back()["m_iNpcNumber"];
+
+    if (type > npcLimit) {
+        std::cout << "[FATAL] " << filename << " contains an invalid NPC type: " << type << std::endl;
+        exit(1);
+    }
+}
+
+/*
  * Create a full and properly-paced path by interpolating between keyframes.
  */
 static void constructPathSkyway(json& pathData) {
@@ -766,6 +782,8 @@ static void loadGruntworkPost(json& gruntwork, int32_t* nextId) {
             int id = (*nextId)--;
             uint64_t instanceID = mob.find("iMapNum") == mob.end() ? INSTANCE_OVERWORLD : (int)mob["iMapNum"];
 
+            ensureValidNPCType((int)mob["iNPCType"], settings::GRUNTWORKJSON);
+
             if (NPCManager::NPCData[(int)mob["iNPCType"]]["m_iTeam"] == 2) {
                 npc = new Mob(mob["iX"], mob["iY"], mob["iZ"], instanceID, mob["iNPCType"],
                     NPCManager::NPCData[(int)mob["iNPCType"]], id);
@@ -785,6 +803,9 @@ static void loadGruntworkPost(json& gruntwork, int32_t* nextId) {
         auto groups = gruntwork["groups"];
         for (auto _group = groups.begin(); _group != groups.end(); _group++) {
             auto leader = _group.value();
+
+            ensureValidNPCType((int)leader["iNPCType"], settings::GRUNTWORKJSON);
+
             auto td = NPCManager::NPCData[(int)leader["iNPCType"]];
             uint64_t instanceID = leader.find("iMapNum") == leader.end() ? INSTANCE_OVERWORLD : (int)leader["iMapNum"];
 
@@ -805,6 +826,9 @@ static void loadGruntworkPost(json& gruntwork, int32_t* nextId) {
                 int followerCount = 0;
                 for (json::iterator _fol = followers.begin(); _fol != followers.end(); _fol++) {
                     auto follower = _fol.value();
+
+                    ensureValidNPCType((int)follower["iNPCType"], settings::GRUNTWORKJSON);
+
                     auto tdFol = NPCManager::NPCData[(int)follower["iNPCType"]];
                     Mob* tmpFol = new Mob((int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], leader["iAngle"], instanceID, follower["iNPCType"], tdFol, *nextId);
 
@@ -861,10 +885,9 @@ static void loadNPCs(json& npcData) {
             npcID += NPC_ID_OFFSET;
             int instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
             int type = (int)npc["iNPCType"];
-            if (NPCManager::NPCData[type].is_null()) {
-                std::cout << "[WARN] NPC type " << type << " not found; skipping (json#" << _npc.key() << ")" << std::endl;
-                continue;
-            }
+
+            ensureValidNPCType(type, settings::NPCJSON);
+
 #ifdef ACADEMY
             // do not spawn NPCs in the future
             if (npc["iX"] > 512000 && npc["iY"] < 256000)
@@ -906,10 +929,9 @@ static void loadMobs(json& npcData, int32_t* nextId) {
             int npcID = std::strtol(_npc.key().c_str(), nullptr, 10); // parse ID string to integer
             npcID += MOB_ID_OFFSET;
             int type = (int)npc["iNPCType"];
-            if (NPCManager::NPCData[type].is_null()) {
-                std::cout << "[WARN] NPC type " << type << " not found; skipping (json#" << _npc.key() << ")" << std::endl;
-                continue;
-            }
+
+            ensureValidNPCType(type, settings::MOBJSON);
+
             auto td = NPCManager::NPCData[type];
             uint64_t instanceID = npc.find("iMapNum") == npc.end() ? INSTANCE_OVERWORLD : (int)npc["iMapNum"];
 
@@ -937,7 +959,10 @@ static void loadMobs(json& npcData, int32_t* nextId) {
         for (json::iterator _group = groupData.begin(); _group != groupData.end(); _group++) {
             auto leader = _group.value();
             int leadID = std::strtol(_group.key().c_str(), nullptr, 10); // parse ID string to integer
+
             leadID += MOB_GROUP_ID_OFFSET;
+            ensureValidNPCType(leader["iNPCType"], settings::MOBJSON);
+
             auto td = NPCManager::NPCData[(int)leader["iNPCType"]];
             uint64_t instanceID = leader.find("iMapNum") == leader.end() ? INSTANCE_OVERWORLD : (int)leader["iMapNum"];
             auto followers = leader["aFollowers"];
@@ -967,6 +992,9 @@ static void loadMobs(json& npcData, int32_t* nextId) {
                 int followerCount = 0;
                 for (json::iterator _fol = followers.begin(); _fol != followers.end(); _fol++) {
                     auto follower = _fol.value();
+
+                    ensureValidNPCType(follower["iNPCType"], settings::MOBJSON);
+
                     auto tdFol = NPCManager::NPCData[(int)follower["iNPCType"]];
                     Mob* tmpFol = new Mob((int)leader["iX"] + (int)follower["iOffsetX"], (int)leader["iY"] + (int)follower["iOffsetY"], leader["iZ"], leader["iAngle"], instanceID, follower["iNPCType"], tdFol, *nextId);
 
