@@ -1,0 +1,12 @@
+version: '3.4'
+
+services:
+  openfusion:
+    image: openfusion
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    ports:
+      - "23000:23000"
+      - "23001:23001"
+      - "8003:8003"
