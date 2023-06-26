@@ -1107,6 +1107,13 @@ void TableData::init() {
         fstream.close();
     }
 
+    // ensure that there is a patch list for the current build
+    if (patchmap["patchmap"].find(settings::BUILDNAME) == patchmap["patchmap"].end()) {
+        std::cerr << "[FATAL] Build name " << settings::BUILDNAME << " not found in " <<
+            settings::PATCHMAPJSON << std::endl;
+        exit(1);
+    }
+
     // base JSON tables
     json xdt, paths, drops, eggs, npcs, mobs, gruntwork;
     std::pair<json*, std::string> tables[7] = {
