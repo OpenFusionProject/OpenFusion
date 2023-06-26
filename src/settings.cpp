@@ -47,12 +47,13 @@ std::string settings::GRUNTWORKJSON = "gruntwork.json";
 std::string settings::MOTDSTRING = "Welcome to OpenFusion!";
 std::string settings::DROPSJSON = "drops.json";
 std::string settings::PATHJSON = "paths.json";
+std::string settings::PATCHMAPJSON = "patchmap.json";
 #ifdef ACADEMY
 std::string settings::XDTJSON = "xdt1013.json";
-std::string settings::ENABLEDPATCHES = "1013";
+std::string settings::BUILDNAME = "beta-20111013";
 #else
 std::string settings::XDTJSON = "xdt.json";
-std::string settings::ENABLEDPATCHES = "";
+std::string settings::BUILDNAME = "beta-20100104";
 #endif // ACADEMY
 
 int settings::ACCLEVEL = 1;
@@ -78,6 +79,7 @@ void settings::init() {
         return;
     }
 
+    BUILDNAME = reader.Get("", "buildname", BUILDNAME);
     VERBOSITY = reader.GetInteger("", "verbosity", VERBOSITY);
     SANDBOX = reader.GetBoolean("", "sandbox", SANDBOX);
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);
@@ -105,7 +107,7 @@ void settings::init() {
     DBPATH = reader.Get("shard", "dbpath", DBPATH);
     TDATADIR = reader.Get("shard", "tdatadir", TDATADIR);
     PATCHDIR = reader.Get("shard", "patchdir", PATCHDIR);
-    ENABLEDPATCHES = reader.Get("shard", "enabledpatches", ENABLEDPATCHES);
+    PATCHMAPJSON = reader.Get("shard", "patchmapdata", PATCHMAPJSON);
     ACCLEVEL = reader.GetInteger("shard", "accountlevel", ACCLEVEL);
     EVENTMODE = reader.GetInteger("shard", "eventmode", EVENTMODE);
     DISABLEFIRSTUSEFLAG = reader.GetBoolean("shard", "disablefirstuseflag", DISABLEFIRSTUSEFLAG);

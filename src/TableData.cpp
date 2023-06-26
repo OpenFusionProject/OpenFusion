@@ -1086,6 +1086,26 @@ static void patchJSON(json* base, json* patch) {
 
 void TableData::init() {
     int32_t nextId = INT32_MAX; // next dynamic ID to hand out
+    json patchmap;
+
+    // load patch map
+    {
+        std::fstream fstream;
+        fstream.open(settings::TDATADIR + "/" + settings::PATCHMAPJSON);
+
+        if (fstream.fail()) {
+            std::cerr << "[FATAL] Critical tdata file missing: " << settings::PATCHMAPJSON << std::endl;
+            exit(1);
+        }
+
+        if (fstream.peek() == std::ifstream::traits_type::eof()) {
+            std::cerr << "[FATAL] Critical tdata file is empty: " << settings::PATCHMAPJSON << std::endl;
+            exit(1);
+        }
+
+        fstream >> patchmap;
+        fstream.close();
+    }
 
     // base JSON tables
     json xdt, paths, drops, eggs, npcs, mobs, gruntwork;
@@ -1134,15 +1154,13 @@ void TableData::init() {
             fstream >> *table.first;
         }
 
-        // patching: load each patch directory specified in the config file
+        // patching: load each patch directory specified in patchmap.json
 
-        // split config field into individual patch entries
-        std::stringstream ss(settings::ENABLEDPATCHES);
-        std::istream_iterator<std::string> begin(ss);
-        std::istream_iterator<std::string> end;
-
+        // fetch list of patches that need to be applied for the current build
         json patch;
-        for (auto it = begin; it != end; it++) {
+        json patchlist = patchmap["patchmap"][settings::BUILDNAME];
+
+        for (auto it = patchlist.begin(); it != patchlist.end(); it++) {
             // this is the theoretical path of a corresponding patch for this file
             std::string patchModuleName = *it;
             std::string patchFile = settings::PATCHDIR + patchModuleName + "/" + table.second;
