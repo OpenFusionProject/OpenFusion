@@ -44,7 +44,7 @@ add_executable(openfusion ${SOURCES})
 set_target_properties(openfusion PROPERTIES OUTPUT_NAME ${BIN_NAME})
 
 # find sqlite3 and use it
-find_package(sqlite3 REQUIRED)
+find_package(SQLite3 REQUIRED)
 target_include_directories(openfusion PRIVATE ${SQLite3_INCLUDE_DIRS})
 target_link_libraries(openfusion PRIVATE ${SQLite3_LIBRARIES})
 
@@ -56,5 +56,5 @@ set_property(TARGET openfusion PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_S
 # It's not something you should do, but it's there if you need it...
 if (NOT CMAKE_GENERATOR MATCHES "Visual Studio" AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND NOT CMAKE_GENERATOR MATCHES "MinGW Makefiles")
 	find_package(Threads REQUIRED)
-	target_link_libraries(openfusion pthread)
+	target_link_libraries(openfusion PRIVATE pthread)
 endif()
