@@ -12,7 +12,14 @@
             "name": "Debug (Windows)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/winfusion.exe",
+            "program": "${workspaceFolder}/bin/Debug/winfusion.exe",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Release (Windows)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/Release/winfusion.exe",
             "cwd": "${workspaceFolder}"
         }
     ]
