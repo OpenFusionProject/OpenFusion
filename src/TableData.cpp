@@ -363,7 +363,7 @@ static void loadPaths(json& pathData, int32_t* nextId) {
             Transport::NPCPaths.push_back(pathTemplate);
         }
         std::cout << "[INFO] Loaded " << Transport::NPCPaths.size() << " NPC paths" << std::endl;
-        
+
     }
     catch (const std::exception& err) {
         std::cerr << "[FATAL] Malformed paths.json file! Reason:" << err.what() << std::endl;
@@ -572,8 +572,35 @@ static void loadDrops(json& dropData) {
                 continue;
             }
 
+            EPInfo& epInfo = Racing::EPData[EPMap];
+
             // time limit isn't stored in the XDT, so we include it in the reward table instead
-            Racing::EPData[EPMap].maxTime = race["TimeLimit"];
+            epInfo.maxTime = (int)race["TimeLimit"];
+
+            // update max score (if present)
+            if (race.find("ScoreCap") != race.end()) {
+                epInfo.maxScore = (int)race["ScoreCap"];
+            }
+
+            // update max pods (if present)
+            if (race.find("TotalPods") != race.end()) {
+                epInfo.maxPods = (int)race["TotalPods"];
+            }
+
+            // update scale factor (if present)
+            if (race.find("ScaleFactor") != race.end()) {
+                epInfo.scaleFactor = (double)race["ScaleFactor"];
+            }
+
+            // update pod factor (if present)
+            if (race.find("PodFactor") != race.end()) {
+                epInfo.podFactor = (double)race["PodFactor"];
+            }
+
+            // update time factor (if present)
+            if (race.find("TimeFactor") != race.end()) {
+                epInfo.timeFactor = (double)race["TimeFactor"];
+            }
 
             // score cutoffs
             std::vector<int> rankScores;
@@ -674,7 +701,7 @@ static void loadEggs(json& eggData, int32_t* nextId) {
     }
 }
 
-/* 
+/*
  * Load gruntwork output, if it exists
  */
 static void loadGruntworkPre(json& gruntwork, int32_t* nextId) {
@@ -1349,7 +1376,7 @@ void TableData::flush() {
             targetIDs.push_back(tID);
         for (int32_t tType : path.targetTypes)
             targetTypes.push_back(tType);
-        
+
         pathObj["iBaseSpeed"] = path.speed;
         pathObj["iTaskID"] = path.escortTaskID;
         pathObj["bRelative"] = path.isRelative;
