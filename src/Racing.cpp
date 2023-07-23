@@ -66,7 +66,7 @@ static void racingCancel(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_EP_RACE_CANCEL_SUCC, resp);
     sock->sendPacket(resp, P_FE2CL_REP_EP_RACE_CANCEL_SUCC);
 
-    /* 
+    /*
      * This request packet is used for both cancelling the race via the
      * NPC at the start, *and* failing the race by running out of time.
      * If the latter is to happen, the client disables movement until it
@@ -99,31 +99,37 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
     if (EPData.find(mapNum) == EPData.end() || EPData[mapNum].EPID == 0)
         return; // IZ not found
 
-    uint64_t now = getTime() / 1000;
+    EPInfo& epInfo = EPData[mapNum];
+    EPRace& epRace = EPRaces[sock];
 
-    int timeDiff = now - EPRaces[sock].startTime;
-    int score = 500 * EPRaces[sock].collectedRings.size() - 10 * timeDiff;
-    if (score < 0) score = 0; // lol
-    int fm = score * plr->level * (1.0f / 36) * 0.3f;
+    uint64_t now = getTime() / 1000;
+    int timeDiff = now - epRace.startTime;
+    int podsCollected = epRace.collectedRings.size();
+
+    int score = std::min(epInfo.maxScore, (int)std::exp(
+        (epInfo.podFactor * podsCollected) / epInfo.maxPods
+        - (epInfo.timeFactor * timeDiff) / epInfo.maxTime
+        + epInfo.scaleFactor));
+    int fm = (1.0 + std::exp(epInfo.scaleFactor - 1.0) * epInfo.podFactor * podsCollected) / epInfo.maxPods;
 
     // we submit the ranking first...
     Database::RaceRanking postRanking = {};
-    postRanking.EPID = EPData[mapNum].EPID;
+    postRanking.EPID = epInfo.EPID;
     postRanking.PlayerID = plr->iID;
-    postRanking.RingCount = EPRaces[sock].collectedRings.size();
+    postRanking.RingCount = podsCollected;
     postRanking.Score = score;
     postRanking.Time = timeDiff;
     postRanking.Timestamp = getTimestamp();
     Database::postRaceRanking(postRanking);
 
     // ...then we get the top ranking, which may or may not be what we just submitted
-    Database::RaceRanking topRankingPlayer = Database::getTopRaceRanking(EPData[mapNum].EPID, plr->iID);
+    Database::RaceRanking topRankingPlayer = Database::getTopRaceRanking(epInfo.EPID, plr->iID);
 
     INITSTRUCT(sP_FE2CL_REP_EP_RACE_END_SUCC, resp);
 
     // get rank scores and rewards
-    std::vector<int>* rankScores = &EPRewards[EPData[mapNum].EPID].first;
-    std::vector<int>* rankRewards = &EPRewards[EPData[mapNum].EPID].second;
+    std::vector<int>* rankScores = &EPRewards[epInfo.EPID].first;
+    std::vector<int>* rankRewards = &EPRewards[epInfo.EPID].second;
 
     // top ranking
     int topRank = 0;

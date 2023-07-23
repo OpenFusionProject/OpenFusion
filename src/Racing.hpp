@@ -7,7 +7,11 @@
 #include <set>
 
 struct EPInfo {
-    int zoneX, zoneY, EPID, maxScore, maxTime;
+    // available through XDT (maxScore may be updated by drops)
+    int zoneX, zoneY, EPID, maxScore;
+    // available through drops
+    int maxTime, maxPods;
+    double scaleFactor, podFactor, timeFactor;
 };
 
 struct EPRace {
