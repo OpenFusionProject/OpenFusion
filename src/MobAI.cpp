@@ -295,11 +295,13 @@ static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, i
             if (plr->Nanos[plr->activeNano].iStamina > 150)
                 respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina = 150;
             // fire damage power disguised as a corruption attack back at the enemy
-            // TODO ABILITIES
-            /*std::vector<int> targetData2 = {1, mob->id, 0, 0, 0};
-            for (auto& pwr : Abilities::Powers)
-                if (pwr.skillType == EST_DAMAGE)
-                    pwr.handle(sock, targetData2, plr->activeNano, skillID, 0, 200);*/
+            SkillData skill = Abilities::SkillTable[skillID];
+            skill.durationTime[0] = 0;
+            skill.values[0][0] = 200; // have to set
+            skill.values[0][1] = 200; // all of these
+            skill.values[0][2] = 200; // because the player might
+            skill.values[0][3] = 200; // have a boost
+            Abilities::useNanoSkill(sock, &skill, *plr->getActiveNano(), { mob });
         } else {
             respdata[i].iHitFlag = HF_BIT_STYLE_LOSE;
             respdata[i].iDamage = Abilities::SkillTable[skillID].values[0][0] * PC_MAXHEALTH((int)mob->data["m_iNpcLevel"]) / 1500;
@@ -326,12 +328,6 @@ static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, i
 }
 
 static void useAbilities(Mob *mob, time_t currTime) {
-    /*
-     * targetData approach
-     * first integer is the count
-     * second to fifth integers are IDs, these can be either player iID or mob's iID
-     * whether the skill targets players or mobs is determined by the skill packet being fired
-     */
     Player *plr = PlayerManager::getPlayer(mob->target);
 
     if (mob->skillStyle >= 0) { // corruption hit
@@ -346,7 +342,7 @@ static void useAbilities(Mob *mob, time_t currTime) {
 
     if (mob->skillStyle == -2) { // eruption hit
         int skillID = (int)mob->data["m_iMegaType"];
-        std::vector<int> targetData = {0, 0, 0, 0, 0};
+        std::vector<ICombatant*> targets{};
 
         // find the players within range of eruption
         for (auto it = mob->viewableChunks.begin(); it != mob->viewableChunks.end(); it++) {
@@ -356,26 +352,22 @@ static void useAbilities(Mob *mob, time_t currTime) {
                 if (ref.kind != EntityKind::PLAYER)
                     continue;
 
-                CNSocket *s= ref.sock;
+                CNSocket *s = ref.sock;
                 Player *plr = PlayerManager::getPlayer(s);
 
-                if (plr->HP <= 0)
+                if (!plr->isAlive())
                     continue;
 
                 int distance = hypot(mob->hitX - plr->x, mob->hitY - plr->y);
                 if (distance < Abilities::SkillTable[skillID].effectArea) {
-                    targetData[0] += 1;
-                    targetData[targetData[0]] = plr->iID;
-                    if (targetData[0] > 3) // make sure not to have more than 4
+                    targets.push_back(plr);
+                    if (targets.size() > 3) // make sure not to have more than 4
                         break;
                 }
             }
         }
 
-        // TODO ABILITIES
-        /*for (auto& pwr : Abilities::Powers)
-            if (pwr.skillType == Abilities::SkillTable[skillID].skillType)
-                pwr.handle(mob->id, targetData, skillID, Abilities::SkillTable[skillID].durationTime[0], Abilities::SkillTable[skillID].powerIntensity[0]);*/
+        Abilities::useNPCSkill(mob->id, skillID, targets);
         mob->skillStyle = -3; // eruption cooldown
         mob->nextAttack = currTime + 1000;
         return;
@@ -393,14 +385,11 @@ static void useAbilities(Mob *mob, time_t currTime) {
 
     if (random < prob1) { // active skill hit
         int skillID = (int)mob->data["m_iActiveSkill1"];
-        // TODO ABILITIES
-        //std::vector<int> targetData = {1, plr->iID, 0, 0, 0};
-        //for (auto& pwr : Abilities::Powers)
-        //    if (pwr.skillType == Abilities::SkillTable[skillID].skillType) {
-        //        if (pwr.bitFlag != 0 && (plr->iConditionBitFlag & pwr.bitFlag))
-        //            return; // prevent debuffing a player twice
-        //        pwr.handle(mob->id, targetData, skillID, Abilities::SkillTable[skillID].durationTime[0], Abilities::SkillTable[skillID].powerIntensity[0]);
-        //    }
+        SkillData* skill = &Abilities::SkillTable[skillID];
+        int debuffID = Abilities::getCSTBFromST(skill->skillType);
+        if(plr->hasBuff(debuffID))
+            return; // prevent debuffing a player twice
+        Abilities::useNPCSkill(mob->getRef(), skillID, { plr });
         mob->nextAttack = currTime + (int)mob->data["m_iDelayTime"] * 100;
         return;
     }
@@ -439,32 +428,6 @@ static void useAbilities(Mob *mob, time_t currTime) {
     }
 
     return;
-}
-
-// TODO abiilities
-static void drainMobHP(Mob *mob, int amount) {
-    size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_Damage);
-    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-
-    memset(respbuf, 0, resplen);
-
-    sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK *pkt = (sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK*)respbuf;
-    sSkillResult_Damage *drain = (sSkillResult_Damage*)(respbuf + sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
-
-    pkt->iID = mob->id;
-    pkt->eCT = 4; // mob
-    pkt->iTB_ID = ECSB_BOUNDINGBALL;
-
-    drain->eCT = 4;
-    drain->iID = mob->id;
-    drain->iDamage = amount;
-    drain->iHP = mob->hp -= amount;
-
-    NPCManager::sendToViewable(mob, (void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
-
-    if (mob->hp <= 0)
-        mob->transition(AIState::DEAD, mob->target);
 }
 
 void MobAI::incNextMovement(Mob* mob, time_t currTime) {
@@ -553,20 +516,23 @@ void MobAI::combatStep(CombatNPC* npc, time_t currTime) {
         return;
     }
 
-    // drain TODO abilities
-    if (self->skillStyle < 0 && (self->lastDrainTime == 0 || currTime - self->lastDrainTime >= 1000)
-        && self->hasBuff(ECSB_BOUNDINGBALL)) {
-        drainMobHP(self, self->maxHealth / 20); // lose 5% every second
-        self->lastDrainTime = currTime;
-    }
-
-    // if drain killed the mob, return early
-    if (self->hp <= 0)
-        return;
-
     // tick buffs
-    for(auto buffEntry : self->buffs) {
-        buffEntry.second->combatTick(currTime);
+    auto it = npc->buffs.begin();
+    while(it != npc->buffs.end()) {
+        Buff* buff = (*it).second;
+        buff->combatTick(currTime);
+
+        // if mob state changed, end the step
+        if(self->state != AIState::COMBAT)
+            return;
+
+        buff->tick(currTime);
+        if(buff->isStale()) {
+            // garbage collect
+            it = npc->buffs.erase(it);
+            delete buff;
+        }
+        else it++;
     }
 
     // skip attack if stunned or asleep
@@ -586,6 +552,7 @@ void MobAI::combatStep(CombatNPC* npc, time_t currTime) {
     }
 
     int distanceToTravel = INT_MAX;
+    int speed = self->speed;
     // movement logic: move when out of range but don't move while casting a skill
     if (distance > mobRange && self->skillStyle == -1) {
         if (self->nextMovement != 0 && currTime < self->nextMovement)
@@ -596,7 +563,7 @@ void MobAI::combatStep(CombatNPC* npc, time_t currTime) {
 
         // halve movement speed if snared
         if (self->hasBuff(ECSB_DN_MOVE_SPEED))
-            self->speed /= 2;
+            speed /= 2;
 
         int targetX = plr->x;
         int targetY = plr->y;
@@ -605,9 +572,9 @@ void MobAI::combatStep(CombatNPC* npc, time_t currTime) {
             targetY += self->offsetY*distance/(self->idleRange + 1);
         }
 
-        distanceToTravel = std::min(distance-mobRange+1, self->speed*2/5);
+        distanceToTravel = std::min(distance-mobRange+1, speed*2/5);
         auto targ = lerp(self->x, self->y, targetX, targetY, distanceToTravel);
-        if (distanceToTravel < self->speed*2/5 && currTime >= self->nextAttack)
+        if (distanceToTravel < speed*2/5 && currTime >= self->nextAttack)
             self->nextAttack = 0;
 
         NPCManager::updateNPCPosition(self->id, targ.first, targ.second, self->z, self->instanceID, self->angle);
@@ -615,7 +582,7 @@ void MobAI::combatStep(CombatNPC* npc, time_t currTime) {
         INITSTRUCT(sP_FE2CL_NPC_MOVE, pkt);
 
         pkt.iNPC_ID = self->id;
-        pkt.iSpeed = self->speed;
+        pkt.iSpeed = speed;
         pkt.iToX = self->x = targ.first;
         pkt.iToY = self->y = targ.second;
         pkt.iToZ = plr->z;
@@ -776,11 +743,8 @@ void MobAI::onRoamStart(CombatNPC* npc, EntityRef src) {
     self->nextAttack = 0;
 
     // cast a return home heal spell, this is the right way(tm)
-    // TODO ABILITIES
-    /*std::vector<int> targetData = { 1, 0, 0, 0, 0 };
-    for (auto& pwr : Abilities::Powers)
-        if (pwr.skillType == Abilities::SkillTable[110].skillType)
-            pwr.handle(self->id, targetData, 110, Abilities::SkillTable[110].durationTime[0], Abilities::SkillTable[110].powerIntensity[0]);*/
+    Abilities::useNPCSkill(npc->getRef(), 110, { npc });
+
     // clear outlying debuffs
     clearDebuff(self);
 }
@@ -797,12 +761,9 @@ void MobAI::onCombatStart(CombatNPC* npc, EntityRef src) {
     self->roamY = self->y;
     self->roamZ = self->z;
 
-    int skillID = (int)self->data["m_iPassiveBuff"]; // cast passive
-    // TODO ABILITIES
-    /*std::vector<int> targetData = { 1, self->id, 0, 0, 0 };
-    for (auto& pwr : Abilities::Powers)
-        if (pwr.skillType == Abilities::SkillTable[skillID].skillType)
-            pwr.handle(self->id, targetData, skillID, Abilities::SkillTable[skillID].durationTime[0], Abilities::SkillTable[skillID].powerIntensity[0]);*/
+    int skillID = (int)self->data["m_iPassiveBuff"];
+    if(skillID != 0) // cast passive
+        Abilities::useNPCSkill(npc->getRef(), skillID, { npc });
 }
 
 void MobAI::onRetreat(CombatNPC* npc, EntityRef src) {

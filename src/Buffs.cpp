@@ -95,6 +95,12 @@ int Buff::getValue(BuffValueSelector selector) {
     return value;
 }
 
+EntityRef Buff::getLastSource() {
+    if(stacks.empty())
+        return self;
+    return stacks.back().source;
+}
+
 bool Buff::isStale() {
     return stacks.empty();
 }
@@ -137,15 +143,55 @@ void Buffs::timeBuffUpdate(EntityRef self, Buff* buff, int status, BuffStack* st
     self.sock->sendPacket((void*)&pkt, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
 }
 
+void Buffs::timeBuffTick(EntityRef self, Buff* buff) {
+    if(self.kind != EntityKind::COMBAT_NPC && self.kind != EntityKind::MOB)
+        return; // not implemented
+    Entity* entity = self.getEntity();
+    ICombatant* combatant = dynamic_cast<ICombatant*>(entity);
+
+    INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK, pkt);
+    pkt.eCT = combatant->getCharType();
+    pkt.iID = combatant->getID();
+    pkt.iTB_ID = buff->id;
+    NPCManager::sendToViewable(entity, &pkt, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
+}
+
 void Buffs::timeBuffTimeout(EntityRef self) {
     if(self.kind != EntityKind::PLAYER && self.kind != EntityKind::COMBAT_NPC && self.kind != EntityKind::MOB)
         return; // not a combatant
     Entity* entity = self.getEntity();
     ICombatant* combatant = dynamic_cast<ICombatant*>(entity);
     INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt); // send a buff timeout to other players
-    pkt.eCT = combatant->getCharType();
+    int32_t eCharType = combatant->getCharType();
+    pkt.eCT = eCharType == 4 ? 2 : eCharType; // convention not followed by client here
     pkt.iID = combatant->getID();
     pkt.iConditionBitFlag = combatant->getCompositeCondition();
     NPCManager::sendToViewable(entity, &pkt, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
+}
+
+void Buffs::tickDrain(EntityRef self, Buff* buff) {
+    if(self.kind != EntityKind::COMBAT_NPC && self.kind != EntityKind::MOB)
+        return; // not implemented
+    Entity* entity = self.getEntity();
+    ICombatant* combatant = dynamic_cast<ICombatant*>(entity);
+    int damage = combatant->takeDamage(buff->getLastSource(), combatant->getMaxHP() / 100);
+
+    size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_Damage);
+    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    memset(respbuf, 0, resplen);
+
+    sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK *pkt = (sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK*)respbuf;
+    pkt->iID = self.id;
+    pkt->eCT = combatant->getCharType();
+    pkt->iTB_ID = ECSB_BOUNDINGBALL;
+
+    sSkillResult_Damage *drain = (sSkillResult_Damage*)(respbuf + sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
+    drain->iDamage = damage;
+    drain->iHP = combatant->getCurrentHP();
+    drain->eCT = pkt->eCT;
+    drain->iID = pkt->iID;
+
+    NPCManager::sendToViewable(self.getEntity(), (void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
 }
 #pragma endregion

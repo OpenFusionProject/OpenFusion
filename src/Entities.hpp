@@ -47,7 +47,7 @@ public:
     virtual bool addBuff(int, BuffCallback<int, BuffStack*>, BuffCallback<time_t>, BuffStack*) = 0;
     virtual Buff* getBuff(int) = 0;
     virtual void removeBuff(int) = 0;
-    virtual void removeBuff(int, int) = 0;
+    virtual void removeBuff(int, BuffClass) = 0;
     virtual void clearBuffs(bool) = 0;
     virtual bool hasBuff(int) = 0;
     virtual int getCompositeCondition() = 0;
@@ -125,7 +125,7 @@ struct CombatNPC : public BaseNPC, public ICombatant {
     virtual bool addBuff(int buffId, BuffCallback<int, BuffStack*> onUpdate, BuffCallback<time_t> onTick, BuffStack* stack) override;
     virtual Buff* getBuff(int buffId) override;
     virtual void removeBuff(int buffId) override;
-    virtual void removeBuff(int buffId, int buffClass) override;
+    virtual void removeBuff(int buffId, BuffClass buffClass) override;
     virtual void clearBuffs(bool force) override;
     virtual bool hasBuff(int buffId) override;
     virtual int getCompositeCondition() override;

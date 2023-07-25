@@ -24,13 +24,11 @@ bool Player::addBuff(int buffId, BuffCallback<int, BuffStack*> onUpdate, BuffCal
     if(!isAlive())
         return false;
 
-    EntityRef self = PlayerManager::getSockFromID(iID);
-
     if(!hasBuff(buffId)) {
-        buffs[buffId] = new Buff(buffId, self, onUpdate, onTick, stack);
+        buffs[buffId] = new Buff(buffId, getRef(), onUpdate, onTick, stack);
         return true;
     }
-    
+
     buffs[buffId]->updateCallbacks(onUpdate, onTick);
     buffs[buffId]->addStack(stack);
     return false;
@@ -51,9 +49,9 @@ void Player::removeBuff(int buffId) {
     }
 }
 
-void Player::removeBuff(int buffId, int buffClass) {
+void Player::removeBuff(int buffId, BuffClass buffClass) {
     if(hasBuff(buffId)) {
-        buffs[buffId]->clear((BuffClass)buffClass);
+        buffs[buffId]->clear(buffClass);
         // buff might not be stale since another buff class might remain
         if(buffs[buffId]->isStale()) {
             delete buffs[buffId];
@@ -63,14 +61,13 @@ void Player::removeBuff(int buffId, int buffClass) {
 }
 
 void Player::clearBuffs(bool force) {
-    for(auto buff : buffs) {
-        if(!force) {
-            removeBuff(buff.first);
-        } else {
-            delete buff.second;
-        }
+    auto it = buffs.begin();
+    while(it != buffs.end()) {
+        Buff* buff = (*it).second;
+        if(!force) buff->clear();
+        delete buff;
+        it = buffs.erase(it);
     }
-    buffs.clear();
 }
 
 bool Player::hasBuff(int buffId) {
@@ -171,31 +168,75 @@ void Player::step(time_t currTime) {
     // buffs
     for(auto buffEntry : buffs) {
         buffEntry.second->combatTick(currTime);
+        if(!isAlive())
+            break; // unsafe to keep ticking if we're dead
     }
 }
 #pragma endregion
 
 #pragma region CombatNPC
 bool CombatNPC::addBuff(int buffId, BuffCallback<int, BuffStack*> onUpdate, BuffCallback<time_t> onTick, BuffStack* stack) { /* stubbed */
+    if(!isAlive())
+        return false;
+
+    if(!hasBuff(buffId)) {
+        buffs[buffId] = new Buff(buffId, getRef(), onUpdate, onTick, stack);
+        return true;
+    }
+
+    buffs[buffId]->updateCallbacks(onUpdate, onTick);
+    buffs[buffId]->addStack(stack);
     return false;
 }
 
 Buff* CombatNPC::getBuff(int buffId) { /* stubbed */
+    if(hasBuff(buffId)) {
+        return buffs[buffId];
+    }
     return nullptr;
 }
 
-void CombatNPC::removeBuff(int buffId) { /* stubbed */ }
-
-void CombatNPC::removeBuff(int buffId, int buffClass) { /* stubbed */ }
-
-void CombatNPC::clearBuffs(bool force) { /* stubbed */ }
-
-bool CombatNPC::hasBuff(int buffId) { /* stubbed */
-    return false;
+void CombatNPC::removeBuff(int buffId) {
+    if(hasBuff(buffId)) {
+        buffs[buffId]->clear();
+        delete buffs[buffId];
+        buffs.erase(buffId);
+    }
 }
 
-int CombatNPC::getCompositeCondition() { /* stubbed */
-    return 0;
+void CombatNPC::removeBuff(int buffId, BuffClass buffClass) {
+    if(hasBuff(buffId)) {
+        buffs[buffId]->clear(buffClass);
+        // buff might not be stale since another buff class might remain
+        if(buffs[buffId]->isStale()) {
+            delete buffs[buffId];
+            buffs.erase(buffId);
+        }
+    }
+}
+
+void CombatNPC::clearBuffs(bool force) {
+    auto it = buffs.begin();
+    while(it != buffs.end()) {
+        Buff* buff = (*it).second;
+        if(!force) buff->clear();
+        delete buff;
+        it = buffs.erase(it);
+    }
+}
+
+bool CombatNPC::hasBuff(int buffId) {
+    auto buff = buffs.find(buffId);
+    return buff != buffs.end() && !buff->second->isStale();
+}
+
+int CombatNPC::getCompositeCondition() {
+    int conditionBitFlag = 0;
+    for(auto buff : buffs) {
+        if(!buff.second->isStale() && buff.second->id > 0)
+            conditionBitFlag |= CSB_FROM_ECSB(buff.first);
+    }
+    return conditionBitFlag;
 }
 
 int CombatNPC::takeDamage(EntityRef src, int amt) {
@@ -916,6 +957,7 @@ static void playerTick(CNServer *serv, time_t currTime) {
         auto it = plr->buffs.begin();
         while(it != plr->buffs.end()) {
             Buff* buff = (*it).second;
+            //buff->combatTick() gets called in Player::step
             buff->tick(currTime);
             if(buff->isStale()) {
                 // garbage collect

@@ -1,9 +1,12 @@
 #include "Abilities.hpp"
 
+#include "servers/CNShardServer.hpp"
+
 #include "NPCManager.hpp"
 #include "PlayerManager.hpp"
 #include "Buffs.hpp"
 #include "Nanos.hpp"
+#include "MobAI.hpp"
 
 using namespace Abilities;
 
@@ -55,7 +58,7 @@ static SkillResult handleSkillDamageNDebuff(SkillData* skill, int power, ICombat
         duration = skill->durationTime[power];
         strength = skill->values[0][power];
         BuffStack debuff = {
-            duration, // ticks
+            (duration * 100) / MS_PER_COMBAT_TICK, // ticks
             strength, // value
             source->getRef(), // source
             BuffClass::NANO, // buff class
@@ -64,9 +67,10 @@ static SkillResult handleSkillDamageNDebuff(SkillData* skill, int power, ICombat
         target->addBuff(timeBuffId,
             [](EntityRef self, Buff* buff, int status, BuffStack* stack) {
                 Buffs::timeBuffUpdate(self, buff, status, stack);
+                if(status == ETBU_DEL) Buffs::timeBuffTimeout(self);
             },
             [](EntityRef self, Buff* buff, time_t currTime) {
-                // no-op
+                Buffs::timeBuffTick(self, buff);
             },
             &debuff);
     }
@@ -82,27 +86,53 @@ static SkillResult handleSkillDamageNDebuff(SkillData* skill, int power, ICombat
 }
 
 static SkillResult handleSkillLeech(SkillData* skill, int power, ICombatant* source, ICombatant* target) {
-    // TODO abilities
-    return SkillResult();
+    EntityRef sourceRef = source->getRef();
+    int heal = skill->values[0][power];
+    int healed = source->heal(sourceRef, heal);
+    int damage = heal * 2;
+    int dealt = target->takeDamage(sourceRef, damage);
+
+    sSkillResult_Leech result{};
+
+    result.Damage.eCT = target->getCharType();
+    result.Damage.iID = target->getID();
+    result.Damage.bProtected = dealt <= 0;
+    result.Damage.iDamage = dealt;
+    result.Damage.iHP = target->getCurrentHP();
+
+    result.Heal.eCT = result.Damage.eCT;
+    result.Heal.iID = result.Damage.iID;
+    result.Heal.iHealHP = healed;
+    result.Heal.iHP = source->getCurrentHP();
+
+    return SkillResult(sizeof(sSkillResult_Leech), &result);
 }
 
 static SkillResult handleSkillBuff(SkillData* skill, int power, ICombatant* source, ICombatant* target) {
     int duration = skill->durationTime[power];
     int strength = skill->values[0][power];
     BuffStack passiveBuff = {
-        skill->drainType == SkillDrainType::PASSIVE ? 1 : duration, // ticks
+        skill->drainType == SkillDrainType::PASSIVE ? 1 : (duration * 100) / MS_PER_COMBAT_TICK, // ticks
         strength, // value
         source->getRef(), // source
         source == target ? BuffClass::NANO : BuffClass::GROUP_NANO, // buff class
     };
 
     int timeBuffId = Abilities::getCSTBFromST(skill->skillType);
+    SkillDrainType drainType = skill->drainType;
     if(!target->addBuff(timeBuffId,
-        [](EntityRef self, Buff* buff, int status, BuffStack* stack) {
-            Buffs::timeBuffUpdate(self, buff, status, stack);
+        [drainType](EntityRef self, Buff* buff, int status, BuffStack* stack) {
+            if(buff->id == ECSB_BOUNDINGBALL) {
+                // drain
+                ICombatant* combatant = dynamic_cast<ICombatant*>(self.getEntity());
+                combatant->takeDamage(buff->getLastSource(), 0); // aggro
+            }
+            if(drainType == SkillDrainType::ACTIVE && status == ETBU_DEL)
+                Buffs::timeBuffTimeout(self);
         },
         [](EntityRef self, Buff* buff, time_t currTime) {
-            // no-op
+            if(buff->id == ECSB_BOUNDINGBALL)
+                Buffs::tickDrain(self, buff); // drain
         },
         &passiveBuff)) return SkillResult(); // no result if already buffed
 
@@ -335,6 +365,12 @@ void Abilities::useNPCSkill(EntityRef npc, int skillID, std::vector<ICombatant*>
     pkt->iSkillID = skillID;
     pkt->eST = (int32_t)skill->skillType;
     pkt->iTargetCnt = (int32_t)results.size();
+    if(npc.kind == EntityKind::MOB) {
+        Mob* mob = dynamic_cast<Mob*>(entity);
+        pkt->iValue1 = mob->hitX;
+        pkt->iValue2 = mob->hitY;
+        pkt->iValue3 = mob->hitZ;
+    }
 
     attachSkillResults(results, (uint8_t*)(pkt + 1));
     NPCManager::sendToViewable(entity, pkt, P_FE2CL_NPC_SKILL_HIT, resplen);
@@ -411,12 +447,6 @@ int Abilities::getCSTBFromST(SkillType skillType) {
     case SkillType::PROTECTINFECTION:
         result = ECSB_PROTECT_INFECTION;
         break;
-    case SkillType::SNARE:
-        result = ECSB_DN_MOVE_SPEED;
-        break;
-    case SkillType::SLEEP:
-        result = ECSB_MEZ;
-        break;
     case SkillType::MINIMAPENEMY:
         result = ECSB_MINIMAP_ENEMY;
         break;
@@ -429,14 +459,8 @@ int Abilities::getCSTBFromST(SkillType skillType) {
     case SkillType::REWARDCASH:
         result = ECSB_REWARD_CASH;
         break;
-    case SkillType::INFECTIONDAMAGE:
-        result = ECSB_INFECTION;
-        break;
     case SkillType::FREEDOM:
         result = ECSB_FREEDOM;
-        break;
-    case SkillType::BOUNDINGBALL:
-        result = ECSB_BOUNDINGBALL;
         break;
     case SkillType::INVULNERABLE:
         result = ECSB_INVULNERABLE;
@@ -446,6 +470,22 @@ int Abilities::getCSTBFromST(SkillType skillType) {
         break;
     case SkillType::NANOSTIMPAK:
         result = ECSB_STIMPAKSLOT1;
+        // shift as necessary
+        break;
+    case SkillType::SNARE:
+        result = ECSB_DN_MOVE_SPEED;
+        break;
+    case SkillType::STUN:
+        result = ECSB_STUN;
+        break;
+    case SkillType::SLEEP:
+        result = ECSB_MEZ;
+        break;
+    case SkillType::INFECTIONDAMAGE:
+        result = ECSB_INFECTION;
+        break;
+    case SkillType::BOUNDINGBALL:
+        result = ECSB_BOUNDINGBALL;
         break;
     default:
         break;
