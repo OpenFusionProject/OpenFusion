@@ -132,24 +132,6 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
         sock->sendPacket(resp, P_FE2CL_REP_PC_WARP_USE_NPC_SUCC);
     }
 
-    if (I != INSTANCE_OVERWORLD) {
-        INITSTRUCT(sP_FE2CL_INSTANCE_MAP_INFO, pkt);
-        pkt.iInstanceMapNum = (int32_t)MAPNUM(I); // lower 32 bits are mapnum
-        if (I != fromInstance // do not retransmit MAP_INFO on recall
-        && Racing::EPData.find(pkt.iInstanceMapNum) != Racing::EPData.end()) {
-            EPInfo* ep = &Racing::EPData[pkt.iInstanceMapNum];
-            pkt.iEP_ID = ep->EPID;
-            pkt.iMapCoordX_Min = ep->zoneX * 51200;
-            pkt.iMapCoordX_Max = (ep->zoneX + 1) * 51200;
-            pkt.iMapCoordY_Min = ep->zoneY * 51200;
-            pkt.iMapCoordY_Max = (ep->zoneY + 1) * 51200;
-            pkt.iMapCoordZ_Min = INT32_MIN;
-            pkt.iMapCoordZ_Max = INT32_MAX;
-        }
-
-        sock->sendPacket(pkt, P_FE2CL_INSTANCE_MAP_INFO);
-    }
-
     INITSTRUCT(sP_FE2CL_REP_PC_GOTO_SUCC, pkt2);
     pkt2.iX = X;
     pkt2.iY = Y;
@@ -376,6 +358,24 @@ static void loadPlayer(CNSocket* sock, CNPacketData* data) {
     updatePlayerPosition(sock, plr->x, plr->y, plr->z, plr->instanceID, plr->angle);
 
     sock->sendPacket(response, P_FE2CL_REP_PC_LOADING_COMPLETE_SUCC);
+
+    if (plr->instanceID != INSTANCE_OVERWORLD) {
+        INITSTRUCT(sP_FE2CL_INSTANCE_MAP_INFO, pkt);
+        pkt.iInstanceMapNum = (int32_t)MAPNUM(plr->instanceID); // lower 32 bits are mapnum
+        if (pkt.iInstanceMapNum != plr->recallInstance // do not retransmit MAP_INFO on recall
+        && Racing::EPData.find(pkt.iInstanceMapNum) != Racing::EPData.end()) {
+            EPInfo* ep = &Racing::EPData[pkt.iInstanceMapNum];
+            pkt.iEP_ID = ep->EPID;
+            pkt.iMapCoordX_Min = ep->zoneX * 51200;
+            pkt.iMapCoordX_Max = (ep->zoneX + 1) * 51200;
+            pkt.iMapCoordY_Min = ep->zoneY * 51200;
+            pkt.iMapCoordY_Max = (ep->zoneY + 1) * 51200;
+            pkt.iMapCoordZ_Min = INT32_MIN;
+            pkt.iMapCoordZ_Max = INT32_MAX;
+        }
+
+        sock->sendPacket(pkt, P_FE2CL_INSTANCE_MAP_INFO);
+    }
 }
 
 static void heartbeatPlayer(CNSocket* sock, CNPacketData* data) {
@@ -579,7 +579,7 @@ static void setFirstUseFlag(CNSocket* sock, CNPacketData* data) {
         std::cout << "[WARN] Client submitted invalid first use flag number?!" << std::endl;
         return;
     }
-    
+
     if (flag->iFlagCode <= 64)
         plr->iFirstUseFlag[0] |= (1ULL << (flag->iFlagCode - 1));
     else
