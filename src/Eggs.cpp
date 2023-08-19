@@ -26,6 +26,7 @@ void Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
         return;
     }
 
+    SkillResult result = SkillResult();
     SkillData* skill = &Abilities::SkillTable[skillId];
     if(skill->drainType == SkillDrainType::PASSIVE) {
         // apply buff
@@ -50,12 +51,57 @@ void Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
                 // no-op
             },
             &eggBuff);
+
+        sSkillResult_Buff resultBuff{};
+        resultBuff.eCT = plr->getCharType();
+        resultBuff.iID = plr->getID();
+        resultBuff.bProtected = false;
+        resultBuff.iConditionBitFlag = plr->getCompositeCondition();
+        result = SkillResult(sizeof(sSkillResult_Buff), &resultBuff);
+    } else {
+        int value = plr->getMaxHP() * skill->values[0][0] / 1000;
+        sSkillResult_Damage resultDamage{};
+        sSkillResult_Heal_HP resultHeal{};
+        switch(skill->skillType)
+        {
+            case SkillType::DAMAGE:
+                resultDamage.bProtected = false;
+                resultDamage.eCT = plr->getCharType();
+                resultDamage.iID = plr->getID();
+                resultDamage.iDamage = plr->takeDamage(src, value);
+                resultDamage.iHP = plr->getCurrentHP();
+                result = SkillResult(sizeof(sSkillResult_Damage), &resultDamage);
+                break;
+            case SkillType::HEAL_HP:
+                resultHeal.eCT = plr->getCharType();
+                resultHeal.iID = plr->getID();
+                resultHeal.iHealHP = plr->heal(src, value);
+                resultHeal.iHP = plr->getCurrentHP();
+                result = SkillResult(sizeof(sSkillResult_Heal_HP), &resultHeal);
+                break;
+            default:
+                std::cout << "[WARN] oops, egg with active skill type " << (int)skill->skillType << " unhandled";
+                return;
+        }
     }
 
-    // use skill
-    std::vector<ICombatant*> targets;
-    targets.push_back(dynamic_cast<ICombatant*>(plr));
-    Abilities::useNPCSkill(src, skillId, targets);
+    // initialize response struct
+    size_t resplen = sizeof(sP_FE2CL_NPC_SKILL_HIT) + result.size;
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    memset(respbuf, 0, resplen);
+
+    sP_FE2CL_NPC_SKILL_HIT* pkt = (sP_FE2CL_NPC_SKILL_HIT*)respbuf;
+    pkt->iNPC_ID = eggId;
+    pkt->iSkillID = skillId;
+    pkt->eST = (int32_t)skill->skillType;
+    pkt->iTargetCnt = 1;
+
+    if(result.size > 0) {
+        void* attached = (void*)(pkt + 1);
+        memcpy(attached, result.payload, result.size);
+    }
+    
+    NPCManager::sendToViewable(src.getEntity(), pkt, P_FE2CL_NPC_SKILL_HIT, resplen);
 }
 
 static void eggStep(CNServer* serv, time_t currTime) {

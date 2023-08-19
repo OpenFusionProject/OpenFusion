@@ -227,7 +227,7 @@ bool MobAI::aggroCheck(Mob *mob, time_t currTime) {
     return false;
 }
 
-static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, int style) {
+static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, int mobStyle) {
     Player *plr = PlayerManager::getPlayer(mob->target);
 
     size_t resplen = sizeof(sP_FE2CL_NPC_SKILL_CORRUPTION_HIT) + targetData[0] * sizeof(sCAttackResult);
@@ -246,7 +246,7 @@ static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, i
 
     resp->iNPC_ID = mob->id;
     resp->iSkillID = skillID;
-    resp->iStyle = style;
+    resp->iStyle = mobStyle;
     resp->iValue1 = plr->x;
     resp->iValue2 = plr->y;
     resp->iValue3 = plr->z;
@@ -280,27 +280,37 @@ static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, i
                 respdata[i].iActiveNanoSlotNum = n;
         respdata[i].iNanoID = plr->activeNano;
 
-        int style2 = Nanos::nanoStyle(plr->activeNano);
-        if (style2 == -1) { // no nano
+        int nanoStyle = Nanos::nanoStyle(plr->activeNano);
+        if (nanoStyle == -1) { // no nano
             respdata[i].iHitFlag = HF_BIT_STYLE_TIE;
             respdata[i].iDamage = Abilities::SkillTable[skillID].values[0][0] * PC_MAXHEALTH((int)mob->data["m_iNpcLevel"]) / 1500;
-        } else if (style == style2) {
+        } else if (mobStyle == nanoStyle) {
             respdata[i].iHitFlag = HF_BIT_STYLE_TIE;
             respdata[i].iDamage = 0;
             respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina;
-        } else if (style - style2 == 1 || style2 - style == 2) {
+        } else if (mobStyle - nanoStyle == 1 || nanoStyle - mobStyle == 2) {
             respdata[i].iHitFlag = HF_BIT_STYLE_WIN;
             respdata[i].iDamage = 0;
             respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina += 45;
             if (plr->Nanos[plr->activeNano].iStamina > 150)
                 respdata[i].iNanoStamina = plr->Nanos[plr->activeNano].iStamina = 150;
             // fire damage power disguised as a corruption attack back at the enemy
-            SkillData skill = Abilities::SkillTable[skillID];
-            skill.durationTime[0] = 0;
-            skill.values[0][0] = 200; // have to set
-            skill.values[0][1] = 200; // all of these
-            skill.values[0][2] = 200; // because the player might
-            skill.values[0][3] = 200; // have a boost
+            SkillData skill = {
+                SkillType::DAMAGE, // skillType
+                SkillEffectTarget::POINT, // effectTarget
+                1, // effectType
+                SkillTargetType::MOBS, // targetType
+                SkillDrainType::ACTIVE, // drainType
+                0, // effectArea
+                {0, 0, 0, 0}, // batteryUse
+                {0, 0, 0, 0}, // durationTime
+                {0, 0, 0}, // valueTypes (unused)
+                {
+                    {200, 200, 200, 200},
+                    {200, 200, 200, 200},
+                    {200, 200, 200, 200},
+                }
+            };
             Abilities::useNanoSkill(sock, &skill, *plr->getActiveNano(), { mob });
         } else {
             respdata[i].iHitFlag = HF_BIT_STYLE_LOSE;

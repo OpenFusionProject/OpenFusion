@@ -127,6 +127,7 @@ static SkillResult handleSkillBuff(SkillData* skill, int power, ICombatant* sour
                 ICombatant* combatant = dynamic_cast<ICombatant*>(self.getEntity());
                 combatant->takeDamage(buff->getLastSource(), 0); // aggro
             }
+            Buffs::timeBuffUpdate(self, buff, status, stack);
             if(drainType == SkillDrainType::ACTIVE && status == ETBU_DEL)
                 Buffs::timeBuffTimeout(self);
         },
@@ -150,19 +151,24 @@ static SkillResult handleSkillBatteryDrain(SkillData* skill, int power, ICombata
     Player* plr = dynamic_cast<Player*>(target);
 
     const double scalingFactor = (18 + source->getLevel()) / 36.0;
+    const bool blocked = target->hasBuff(ECSB_PROTECT_BATTERY);
 
-    int boostDrain = (int)(skill->values[0][power] * scalingFactor);
-    if(boostDrain > plr->batteryW) boostDrain = plr->batteryW;
-    plr->batteryW -= boostDrain;
+    int boostDrain = 0;
+    int potionDrain = 0;
+    if(!blocked) {
+        boostDrain = (int)(skill->values[0][power] * scalingFactor);
+        if(boostDrain > plr->batteryW) boostDrain = plr->batteryW;
+        plr->batteryW -= boostDrain;
 
-    int potionDrain = (int)(skill->values[1][power] * scalingFactor);
-    if(potionDrain > plr->batteryN) potionDrain = plr->batteryN;
-    plr->batteryN -= potionDrain;
+        potionDrain = (int)(skill->values[1][power] * scalingFactor);
+        if(potionDrain > plr->batteryN) potionDrain = plr->batteryN;
+        plr->batteryN -= potionDrain;
+    }
 
     sSkillResult_BatteryDrain result{};
     result.eCT = target->getCharType();
     result.iID = target->getID();
-    result.bProtected = target->hasBuff(ECSB_PROTECT_BATTERY);
+    result.bProtected = blocked;
     result.iDrainW = boostDrain;
     result.iBatteryW = plr->batteryW;
     result.iDrainN = potionDrain;
@@ -209,6 +215,11 @@ static std::vector<SkillResult> handleSkill(SkillData* skill, int power, ICombat
 
     switch(skill->skillType)
     {
+        case SkillType::CORRUPTIONATTACK:
+        case SkillType::CORRUPTIONATTACKLOSE:
+        case SkillType::CORRUPTIONATTACKWIN:
+        //  skillHandler = handleSkillCorruptionReflect;
+        //  break;
         case SkillType::DAMAGE:
             skillHandler = handleSkillDamage;
             break;
