@@ -26,7 +26,7 @@ Both are pretty short reads and following them will get you up to speed with bra
 
 I will now cover a few examples of the complications people have encountered contributing to this project, how to understand them, overcome them and henceforth avoid them.
 
-## Dirty pull requests
+### Dirty pull requests
 
 Many Pull Requests OpenFusion receives fail to present a clean set of commits to merge.
 These are generally either:
@@ -44,7 +44,7 @@ If you read the above links, you'll note that this isn't exactly a perfect solut
 The obvious issue, then, is that the people submitting dirty PRs are the exact people who don't *know* how to rebase their fork to continue submitting their work cleanly.
 So they end up creating countless merge commits when pulling upstream on top of their own incompatible histories, and then submitting those merge commits in their PRs and the cycle continues.
 
-## The details
+### The details
 
 A git commit is uniquely identified by its SHA1 hash.
 Its hash is generated from its contents, as well as the hash(es) of its parent commit(s).
@@ -52,7 +52,7 @@ Its hash is generated from its contents, as well as the hash(es) of its parent c
 That means that even if two commits are exactly the same in terms of content, they're not the same commit if their parent commits differ (ex. if they've been rebased).
 So if you keep issuing `git pull`s after upstream has merged a rebased version of your PR, you will never re-synchronize with it, and will instead construct an alternate history polluted by pointless merge commits.
 
-## The solution
+### The solution
 
 If you already have a messed-up fork and you have no changes on it that you're afraid to lose, the solution is simple:
 
@@ -67,7 +67,7 @@ If you do have some committed changes that haven't yet been merged upstream, you
 If you do end up messing something up, don't worry, it most likely isn't really lost and `git reflog` is your friend.
 (You can checkout an arbitrary commit, and make it into its own branch with `git checkout -b BRANCH` or set a pre-exisitng branch to it with `git reset --hard COMMIT`)
 
-## Avoiding the problem
+### Avoiding the problem
 
 When working on a changeset you want to submit back upstream, don't do it on the main branch.
 Create a work branch just for your changeset with `git checkout -b work`.
@@ -81,3 +81,34 @@ That way you can always keep master in sync with upstream with `git pull --ff-on
 Creating new branches for the rebase isn't strictly necessary since you can always return a branch to its previous state with `git reflog`.
 
 For moving uncommited changes around between branches, `git stash` is a real blessing.
+
+## Code guidelines
+
+Alright, you're up to speed on Git and ready to go. Here are a few specific code guidelines to try and follow:
+
+### Match the styling
+
+Pretty straightforward, make sure your code looks similar to the code around it. Match whitespacing, bracket styling, variable naming conventions, etc.
+
+### Prefer short-circuiting
+
+To minimize branching complexity (as this makes the code hard to read), we prefer to keep the number of `if-else` statements as low as possible. One easy way to achieve this is by doing an early return after branching into an `if` block and then writing the code for the other path outside the block entirely. You can find examples of this in practically every source file. Note that in a few select situations, this might actually make your code less elegant, which is why this isn't a strict rule. Lean towards short-circuiting and use your better judgement.
+
+### Follow the include convention
+
+This one matters a lot as it can cause cyclic dependencies and other code-breaking issues.
+
+FOR HEADER FILES (.hpp):
+- everything you use IN THE HEADER must be EXPLICITLY INCLUDED with the exception of things that fall under Core.hpp
+- you may NOT include ANYTHING ELSE
+
+FOR SOURCE FILES (.cpp):
+- you can #include whatever you want as long as the partner header is included first
+- anything that gets included by another include is fair game
+- redundant includes are ok because they'll be harmless AS LONG AS our header files stay lean.
+
+The point of this is NOT to optimize the number of includes used all around or make things more efficient necessarily. it's to improve readability & coherence and make it easier to avoid cyclical issues.
+
+## When in doubt, ask
+
+If you still have questions that were not answered here, feel free to ping a dev in the Discord server or on GitHub.
