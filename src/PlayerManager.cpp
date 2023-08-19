@@ -86,7 +86,10 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, ui
     plr->x = X;
     plr->y = Y;
     plr->z = Z;
-    plr->instanceID = I;
+    if (plr->instanceID != I) {
+        plr->instanceID = I;
+        plr->recallInstance = INSTANCE_OVERWORLD;
+    }
     if (oldChunk == newChunk)
         return; // didn't change chunks
     Chunking::updateEntityChunk({sock}, oldChunk, newChunk);
