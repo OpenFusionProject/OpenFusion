@@ -358,23 +358,19 @@ static void npcRotateCommand(std::string full, std::vector<std::string>& args, C
     int angle = (plr->angle + 180) % 360;
     NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->x, npc->y, npc->z, npc->instanceID, angle);
 
-    // if it's a gruntwork NPC, rotate in-place
-    if (TableData::RunningMobs.find(npc->appearanceData.iNPC_ID) != TableData::RunningMobs.end()) {
-        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->x, npc->y, npc->z, npc->instanceID, angle);
+    bool isGruntworkNpc = true;
 
-        Chat::sendServerMessage(sock, "[NPCR] Successfully set angle to " + std::to_string(angle) + " for gruntwork NPC "
-            + std::to_string(npc->appearanceData.iNPC_ID));
-    } else {
+    // add a rotation entry to the gruntwork file, unless it's already a gruntwork NPC
+    if (TableData::RunningMobs.find(npc->appearanceData.iNPC_ID) == TableData::RunningMobs.end()) {
         TableData::RunningNPCRotations[npc->appearanceData.iNPC_ID] = angle;
-
-        Chat::sendServerMessage(sock, "[NPCR] Successfully set angle to " + std::to_string(angle) + " for NPC "
-            + std::to_string(npc->appearanceData.iNPC_ID));
+        isGruntworkNpc = false;
     }
 
-    // update rotation clientside
-    INITSTRUCT(sP_FE2CL_NPC_ENTER, pkt);
-    pkt.NPCAppearanceData = npc->appearanceData;
-    sock->sendPacket(pkt, P_FE2CL_NPC_ENTER);
+    Chat::sendServerMessage(sock, "[NPCR] Successfully set angle to " + std::to_string(angle) +
+        " for " + (isGruntworkNpc ? "gruntwork " : "") + "NPC " + std::to_string(npc->appearanceData.iNPC_ID));
+
+    // update rotation clientside by refreshing the player's chunks (same as the /refresh command)
+    PlayerManager::updatePlayerPositionForWarp(sock, plr->x, plr->y, plr->z, plr->instanceID);
 }
 
 static void refreshCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
