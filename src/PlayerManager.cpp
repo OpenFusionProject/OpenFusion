@@ -416,6 +416,7 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
 
     default: // plain respawn
         plr->HP = PC_MAXHEALTH(plr->level) / 2;
+        plr->clearBuffs(false);
         // fallthrough
     case ePCRegenType::Unstick: // warp away
         move = true;
