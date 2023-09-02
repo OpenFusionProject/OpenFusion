@@ -70,30 +70,36 @@ static void setValuePlayer(CNSocket* sock, CNPacketData* data) {
     // Handle serverside value-changes
     switch (setData->iSetValueType) {
     case 1:
-        plr->HP = setData->iSetValue;
+        response.iSetValue = plr->HP = setData->iSetValue;
         break;
     case 2:
         plr->batteryW = setData->iSetValue;
+
         // caps
         if (plr->batteryW > 9999)
             plr->batteryW = 9999;
+
+        response.iSetValue = plr->batteryW;
         break;
     case 3:
         plr->batteryN = setData->iSetValue;
+
         // caps
         if (plr->batteryN > 9999)
             plr->batteryN = 9999;
+
+        response.iSetValue = plr->batteryN;
         break;
     case 4:
         Missions::updateFusionMatter(sock, setData->iSetValue - plr->fusionmatter);
+        response.iSetValue = plr->fusionmatter;
         break;
     case 5:
-        plr->money = setData->iSetValue;
+        response.iSetValue = plr->money = setData->iSetValue;
         break;
     }
 
     response.iPC_ID = setData->iPC_ID;
-    response.iSetValue = setData->iSetValue;
     response.iSetValueType = setData->iSetValueType;
 
     sock->sendPacket(response, P_FE2CL_GM_REP_PC_SET_VALUE);
