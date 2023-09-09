@@ -120,6 +120,7 @@ static SkillResult handleSkillBuff(SkillData* skill, int power, ICombatant* sour
 
     int timeBuffId = Abilities::getCSTBFromST(skill->skillType);
     SkillDrainType drainType = skill->drainType;
+    int combatLifetime = 0;
     if(!target->addBuff(timeBuffId,
         [drainType](EntityRef self, Buff* buff, int status, BuffStack* stack) {
             if(buff->id == ECSB_BOUNDINGBALL) {
@@ -131,9 +132,11 @@ static SkillResult handleSkillBuff(SkillData* skill, int power, ICombatant* sour
             if(drainType == SkillDrainType::ACTIVE && status == ETBU_DEL)
                 Buffs::timeBuffTimeout(self);
         },
-        [](EntityRef self, Buff* buff, time_t currTime) {
-            if(buff->id == ECSB_BOUNDINGBALL)
-                Buffs::tickDrain(self, buff); // drain
+        [combatLifetime](EntityRef self, Buff* buff, time_t currTime) mutable {
+            if(buff->id == ECSB_BOUNDINGBALL &&
+                combatLifetime % COMBAT_TICKS_PER_DRAIN_PROC == 0)
+                Buffs::tickDrain(self, buff, COMBAT_TICKS_PER_DRAIN_PROC); // drain
+            combatLifetime++;
         },
         &passiveBuff)) return SkillResult(); // no result if already buffed
 

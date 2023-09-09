@@ -9,6 +9,7 @@
 #include <vector>
 #include <assert.h>
 
+const int COMBAT_TICKS_PER_DRAIN_PROC = 2;
 constexpr size_t MAX_SKILLRESULT_SIZE = sizeof(sSkillResult_BatteryDrain);
 
 enum class SkillType {

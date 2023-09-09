@@ -169,12 +169,13 @@ void Buffs::timeBuffTimeout(EntityRef self) {
     NPCManager::sendToViewable(entity, &pkt, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
 }
 
-void Buffs::tickDrain(EntityRef self, Buff* buff) {
+void Buffs::tickDrain(EntityRef self, Buff* buff, int mult) {
     if(self.kind != EntityKind::COMBAT_NPC && self.kind != EntityKind::MOB)
         return; // not implemented
     Entity* entity = self.getEntity();
     ICombatant* combatant = dynamic_cast<ICombatant*>(entity);
-    int damage = combatant->takeDamage(buff->getLastSource(), combatant->getMaxHP() / 100);
+    int damage = combatant->getMaxHP() / 100 * mult;
+    int dealt = combatant->takeDamage(buff->getLastSource(), damage);
 
     size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_Damage);
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
@@ -187,7 +188,7 @@ void Buffs::tickDrain(EntityRef self, Buff* buff) {
     pkt->iTB_ID = ECSB_BOUNDINGBALL;
 
     sSkillResult_Damage *drain = (sSkillResult_Damage*)(respbuf + sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
-    drain->iDamage = damage;
+    drain->iDamage = dealt;
     drain->iHP = combatant->getCurrentHP();
     drain->eCT = pkt->eCT;
     drain->iID = pkt->iID;
