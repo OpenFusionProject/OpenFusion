@@ -307,19 +307,21 @@ void CombatNPC::step(time_t currTime) {
 }
 
 void CombatNPC::transition(AIState newState, EntityRef src) {
-
     state = newState;
+
     if (transitionHandlers.find(newState) != transitionHandlers.end())
         transitionHandlers[newState](this, src);
     else {
         std::cout << "[WARN] Transition to " << (int)state << " has no handler; going inactive" << std::endl;
         transition(AIState::INACTIVE, id);
     }
-    /* TODO: fire any triggered events
-    for (NPCEvent& event : NPCManager::NPCEvents)
-        if (event.trigger == ON_KILLED && event.npcType == type)
-            event.handler(src, this);
-    */
+
+    // TODO: Properly refactor this
+    if (newState == AIState::DEAD && src.kind == EntityKind::PLAYER) {
+        for (NPCEvent& event : NPCManager::NPCEvents)
+            if (event.trigger == ON_KILLED && event.npcType == type)
+                event.handler(src.sock, this);
+    }
 }
 #pragma endregion
 
