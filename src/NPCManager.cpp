@@ -122,16 +122,15 @@ static void npcUnsummonHandler(CNSocket* sock, CNPacketData* data) {
 }
 
 // type must already be checked and updateNPCPosition() must be called on the result
-BaseNPC *NPCManager::summonNPC(int x, int y, int z, uint64_t instance, int type, bool respawn, bool baseInstance) {
+BaseNPC *NPCManager::summonNPC(int spawnX, int spawnY, int spawnZ, uint64_t instance, int type, bool respawn, bool baseInstance) {
     uint64_t inst = baseInstance ? MAPNUM(instance) : instance;
 
-    //assert(nextId < INT32_MAX);
     int id = nextId--;
     int team = NPCData[type]["m_iTeam"];
     BaseNPC *npc = nullptr;
 
     if (team == 2) {
-        npc = new Mob(x, y, z, inst, type, NPCData[type], id);
+        npc = new Mob(spawnX, spawnY, spawnZ, inst, type, NPCData[type], id);
 
         // re-enable respawning, if desired
         ((Mob*)npc)->summoned = !respawn;

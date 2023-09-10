@@ -50,8 +50,8 @@ struct Mob : public CombatNPC {
     // temporary; until we're sure what's what
     nlohmann::json data = {};
 
-    Mob(int x, int y, int z, int angle, uint64_t iID, int t, nlohmann::json d, int32_t id)
-        : CombatNPC(x, y, z, angle, iID, t, id, d["m_iHP"]),
+    Mob(int spawnX, int spawnY, int spawnZ, int angle, uint64_t iID, int t, nlohmann::json d, int32_t id)
+        : CombatNPC(spawnX, spawnY, spawnZ, angle, iID, t, id, d["m_iHP"]),
           sightRange(d["m_iSightRange"]) {
         state = AIState::ROAMING;
 
@@ -62,9 +62,9 @@ struct Mob : public CombatNPC {
         idleRange = (int)data["m_iIdleRange"];
         level = data["m_iNpcLevel"];
 
-        roamX = x;
-        roamY = y;
-        roamZ = z;
+        roamX = spawnX;
+        roamY = spawnY;
+        roamZ = spawnZ;
 
         offsetX = 0;
         offsetY = 0;

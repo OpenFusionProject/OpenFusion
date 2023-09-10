@@ -106,11 +106,11 @@ struct CombatNPC : public BaseNPC, public ICombatant {
 
     std::unordered_map<int, Buff*> buffs = {};
 
-    CombatNPC(int x, int y, int z, int angle, uint64_t iID, int t, int id, int maxHP)
+    CombatNPC(int spawnX, int spawnY, int spawnZ, int angle, uint64_t iID, int t, int id, int maxHP)
         : BaseNPC(angle, iID, t, id), maxHealth(maxHP) {
-        spawnX = x;
-        spawnY = y;
-        spawnZ = z;
+        this->spawnX = spawnX;
+        this->spawnY = spawnY;
+        this->spawnZ = spawnZ;
 
         kind = EntityKind::COMBAT_NPC;
 
