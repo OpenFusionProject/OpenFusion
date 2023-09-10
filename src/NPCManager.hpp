@@ -14,20 +14,15 @@
 
 #define RESURRECT_HEIGHT 400
 
-enum Trigger {
-    ON_KILLED,
-    ON_COMBAT
-};
-
-typedef void (*NPCEventHandler)(CNSocket*, BaseNPC*);
+typedef void (*NPCEventHandler)(CombatNPC*);
 
 struct NPCEvent {
     int32_t npcType;
-    int trigger;
+    AIState triggerState;
     NPCEventHandler handler;
 
-    NPCEvent(int32_t t, int tr, NPCEventHandler hndlr)
-        : npcType(t), trigger(tr), handler(hndlr) {}
+    NPCEvent(int32_t t, AIState tr, NPCEventHandler hndlr)
+        : npcType(t), triggerState(tr), handler(hndlr) {}
 };
 
 namespace NPCManager {

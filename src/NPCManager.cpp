@@ -293,13 +293,12 @@ BaseNPC* NPCManager::getNearestNPC(std::set<Chunk*>* chunks, int X, int Y, int Z
     return npc;
 }
 
-// TODO: Move this to MobAI, possibly
+// TODO: Move this to separate file in ai/ subdir when implementing more events
 #pragma region NPCEvents
 
 // summon right arm and stage 2 body
-static void lordFuseStageTwo(CNSocket *sock, BaseNPC *npc) {
+static void lordFuseStageTwo(CombatNPC *npc) {
     Mob *oldbody = (Mob*)npc; // adaptium, stun
-    Player *plr = PlayerManager::getPlayer(sock);
 
     std::cout << "Lord Fuse stage two" << std::endl;
 
@@ -320,9 +319,8 @@ static void lordFuseStageTwo(CNSocket *sock, BaseNPC *npc) {
 }
 
 // summon left arm and stage 3 body
-static void lordFuseStageThree(CNSocket *sock, BaseNPC *npc) {
+static void lordFuseStageThree(CombatNPC *npc) {
     Mob *oldbody = (Mob*)npc;
-    Player *plr = PlayerManager::getPlayer(sock);
 
     std::cout << "Lord Fuse stage three" << std::endl;
 
@@ -342,8 +340,8 @@ static void lordFuseStageThree(CNSocket *sock, BaseNPC *npc) {
 }
 
 std::vector<NPCEvent> NPCManager::NPCEvents = {
-    NPCEvent(2466, ON_KILLED, lordFuseStageTwo),
-    NPCEvent(2467, ON_KILLED, lordFuseStageThree),
+    NPCEvent(2466, AIState::DEAD, lordFuseStageTwo),
+    NPCEvent(2467, AIState::DEAD, lordFuseStageThree),
 };
 
 #pragma endregion NPCEvents

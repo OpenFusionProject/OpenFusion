@@ -316,12 +316,10 @@ void CombatNPC::transition(AIState newState, EntityRef src) {
         transition(AIState::INACTIVE, id);
     }
 
-    // TODO: Properly refactor this
-    if (newState == AIState::DEAD && src.kind == EntityKind::PLAYER) {
-        for (NPCEvent& event : NPCManager::NPCEvents)
-            if (event.trigger == ON_KILLED && event.npcType == type)
-                event.handler(src.sock, this);
-    }
+    // trigger special NPCEvents, if applicable
+    for (NPCEvent& event : NPCManager::NPCEvents)
+        if (event.triggerState == newState && event.npcType == type)
+            event.handler(this);
 }
 #pragma endregion
 
