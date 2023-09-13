@@ -69,10 +69,10 @@ static void setValuePlayer(CNSocket* sock, CNPacketData* data) {
 
     // Handle serverside value-changes
     switch (setData->iSetValueType) {
-    case 1:
+    case CN_GM_SET_VALUE_TYPE__HP:
         response.iSetValue = plr->HP = setData->iSetValue;
         break;
-    case 2:
+    case CN_GM_SET_VALUE_TYPE__WEAPON_BATTERY :
         plr->batteryW = setData->iSetValue;
 
         // caps
@@ -81,7 +81,7 @@ static void setValuePlayer(CNSocket* sock, CNPacketData* data) {
 
         response.iSetValue = plr->batteryW;
         break;
-    case 3:
+    case CN_GM_SET_VALUE_TYPE__NANO_BATTERY:
         plr->batteryN = setData->iSetValue;
 
         // caps
@@ -90,12 +90,16 @@ static void setValuePlayer(CNSocket* sock, CNPacketData* data) {
 
         response.iSetValue = plr->batteryN;
         break;
-    case 4:
+    case CN_GM_SET_VALUE_TYPE__FUSION_MATTER:
         Missions::updateFusionMatter(sock, setData->iSetValue - plr->fusionmatter);
         response.iSetValue = plr->fusionmatter;
         break;
-    case 5:
+    case CN_GM_SET_VALUE_TYPE__CANDY:
         response.iSetValue = plr->money = setData->iSetValue;
+        break;
+    case CN_GM_SET_VALUE_TYPE__SPEED:
+    case CN_GM_SET_VALUE_TYPE__JUMP:
+        response.iSetValue = setData->iSetValue;
         break;
     }
 
