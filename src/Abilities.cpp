@@ -76,12 +76,20 @@ static SkillResult handleSkillDamageNDebuff(SkillData* skill, int power, ICombat
     }
 
     sSkillResult_Damage_N_Debuff result{};
+
     result.iDamage = duration / 10; // we use the duration as the damage number (why?)
     result.iHP = target->getCurrentHP();
     result.eCT = target->getCharType();
     result.iID = target->getID();
     result.bProtected = blocked;
     result.iConditionBitFlag = target->getCompositeCondition();
+
+    // for player targets, make sure to update Nano stamina
+    if (target->getCharType() == 1) {
+        Player *plr = dynamic_cast<Player*>(target);
+        result.iStamina = plr->getActiveNano()->iStamina;
+    }
+
     return SkillResult(sizeof(sSkillResult_Damage_N_Debuff), &result);
 }
 
@@ -112,7 +120,8 @@ static SkillResult handleSkillBuff(SkillData* skill, int power, ICombatant* sour
     int duration = skill->durationTime[power];
     int strength = skill->values[0][power];
     BuffStack passiveBuff = {
-        skill->drainType == SkillDrainType::PASSIVE ? 1 : (duration * 100) / MS_PER_COMBAT_TICK, // ticks
+        // if the duration is 0, it needs to be recast every tick
+        duration == 0 ? 1 : (duration * 100) / MS_PER_COMBAT_TICK, // ticks
         strength, // value
         source->getRef(), // source
         source == target ? BuffClass::NANO : BuffClass::GROUP_NANO, // buff class
@@ -123,7 +132,7 @@ static SkillResult handleSkillBuff(SkillData* skill, int power, ICombatant* sour
     int combatLifetime = 0;
     if(!target->addBuff(timeBuffId,
         [drainType](EntityRef self, Buff* buff, int status, BuffStack* stack) {
-            if(buff->id == ECSB_BOUNDINGBALL) {
+            if(buff->id == ECSB_BOUNDINGBALL && status == ETBU_ADD) {
                 // drain
                 ICombatant* combatant = dynamic_cast<ICombatant*>(self.getEntity());
                 combatant->takeDamage(buff->getLastSource(), 0); // aggro
@@ -138,7 +147,7 @@ static SkillResult handleSkillBuff(SkillData* skill, int power, ICombatant* sour
                 Buffs::tickDrain(self, buff, COMBAT_TICKS_PER_DRAIN_PROC); // drain
             combatLifetime++;
         },
-        &passiveBuff)) return SkillResult(); // no result if already buffed
+        &passiveBuff)) return SkillResult();
 
     sSkillResult_Buff result{};
     result.eCT = target->getCharType();

@@ -175,8 +175,11 @@ void Player::step(time_t currTime) {
 #pragma endregion
 
 #pragma region CombatNPC
-bool CombatNPC::addBuff(int buffId, BuffCallback<int, BuffStack*> onUpdate, BuffCallback<time_t> onTick, BuffStack* stack) { /* stubbed */
+bool CombatNPC::addBuff(int buffId, BuffCallback<int, BuffStack*> onUpdate, BuffCallback<time_t> onTick, BuffStack* stack) {
     if(!isAlive())
+        return false;
+
+    if (this->state != AIState::COMBAT && this->state != AIState::ROAMING)
         return false;
 
     if(!hasBuff(buffId)) {
@@ -189,7 +192,7 @@ bool CombatNPC::addBuff(int buffId, BuffCallback<int, BuffStack*> onUpdate, Buff
     return false;
 }
 
-Buff* CombatNPC::getBuff(int buffId) { /* stubbed */
+Buff* CombatNPC::getBuff(int buffId) {
     if(hasBuff(buffId)) {
         return buffs[buffId];
     }
