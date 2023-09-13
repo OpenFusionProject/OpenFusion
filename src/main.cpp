@@ -64,7 +64,7 @@ void terminate(int arg) {
 }
 
 #ifdef _WIN32
-static BOOL winTerminate(DWORD arg) {
+static BOOL WINAPI winTerminate(DWORD arg) {
     terminate(0);
     return FALSE;
 }

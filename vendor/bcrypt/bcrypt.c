@@ -24,7 +24,7 @@
 
 #ifdef _WIN32 || _WIN64
 // On windows we need to generate random bytes differently.
-typedef __int64 ssize_t;
+//typedef __int64 ssize_t;
 #define BCRYPT_HASHSIZE 60
 
 #include "bcrypt.h"
