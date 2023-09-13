@@ -24,7 +24,6 @@
 
 #ifdef _WIN32 || _WIN64
 // On windows we need to generate random bytes differently.
-//typedef __int64 ssize_t;
 #define BCRYPT_HASHSIZE 60
 
 #include "bcrypt.h"
@@ -51,10 +50,11 @@ static int try_close(int fd)
 	return ret;
 }
 
+#ifndef _WIN32
 static int try_read(int fd, char *out, size_t count)
 {
 	size_t total;
-	__int64 partial;
+	ssize_t partial;
 
 	total = 0;
 	while (total < count)
@@ -75,6 +75,7 @@ static int try_read(int fd, char *out, size_t count)
 
 	return 0;
 }
+#endif
 
 /*
  * This is a best effort implementation. Nothing prevents a compiler from
