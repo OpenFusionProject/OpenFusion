@@ -7,7 +7,7 @@
 
 struct CNLoginData {
     int userID;
-    time_t lastHeartbeat;
+    int64_t lastHeartbeat;
 };
 
 enum class LoginError {

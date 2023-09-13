@@ -13,32 +13,32 @@ enum class MobState {
 
 namespace MobAI {
     // needs to be declared before Mob's constructor
-    void step(CombatNPC*, time_t);
+    void step(CombatNPC*, int64_t);
 };
 
 struct Mob : public CombatNPC {
     // general
     MobState state = MobState::INACTIVE;
 
-    std::unordered_map<int32_t,time_t> unbuffTimes = {};
+    std::unordered_map<int32_t,int64_t> unbuffTimes = {};
 
     // dead
-    time_t killedTime = 0;
-    time_t regenTime = 0;
+    int64_t killedTime = 0;
+    int64_t regenTime = 0;
     bool summoned = false;
     bool despawned = false; // for the sake of death animations
 
     // roaming
     int idleRange = 0;
     const int sightRange = 0;
-    time_t nextMovement = 0;
+    int64_t nextMovement = 0;
     bool staticPath = false;
     int roamX = 0, roamY = 0, roamZ = 0;
 
     // combat
     CNSocket *target = nullptr;
-    time_t nextAttack = 0;
-    time_t lastDrainTime = 0;
+    int64_t nextAttack = 0;
+    int64_t lastDrainTime = 0;
     int skillStyle = -1; // -1 for nothing, 0-2 for corruption, -2 for eruption
     int hitX = 0, hitY = 0, hitZ = 0; // for use in ability targeting
 
@@ -98,8 +98,8 @@ namespace MobAI {
     extern bool simulateMobs;
 
     // TODO: make this internal later
-    void incNextMovement(Mob *mob, time_t currTime=0);
-    bool aggroCheck(Mob *mob, time_t currTime);
+    void incNextMovement(Mob *mob, int64_t currTime=0);
+    bool aggroCheck(Mob *mob, int64_t currTime);
     void clearDebuff(Mob *mob);
     void followToCombat(Mob *mob);
     void groupRetreat(Mob *mob);

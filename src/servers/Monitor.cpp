@@ -72,7 +72,7 @@ static int process_email(char *buff, std::string email) {
     return i;
 }
 
-static void tick(CNServer *serv, time_t delta) {
+static void tick(CNServer *serv, int64_t delta) {
     std::lock_guard<std::mutex> lock(sockLock);
     char buff[BUFSIZE];
     int n;

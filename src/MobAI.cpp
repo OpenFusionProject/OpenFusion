@@ -14,7 +14,7 @@ using namespace MobAI;
 
 bool MobAI::simulateMobs = settings::SIMULATEMOBS;
 
-static void roamingStep(Mob *mob, time_t currTime);
+static void roamingStep(Mob *mob, int64_t currTime);
 
 /*
  * Dynamic lerp; distinct from Transport::lerp(). This one doesn't care about height and
@@ -119,7 +119,7 @@ void MobAI::groupRetreat(Mob *mob) {
  * Even if they're in range, we can't assume they're all in the same one chunk
  * as the mob, since it might be near a chunk boundary.
  */
-bool MobAI::aggroCheck(Mob *mob, time_t currTime) {
+bool MobAI::aggroCheck(Mob *mob, int64_t currTime) {
     CNSocket *closest = nullptr;
     int closestDistance = INT_MAX;
 
@@ -281,7 +281,7 @@ static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, i
     NPCManager::sendToViewable(mob, (void*)&respbuf, P_FE2CL_NPC_SKILL_CORRUPTION_HIT, resplen);
 }
 
-static void useAbilities(Mob *mob, time_t currTime) {
+static void useAbilities(Mob *mob, int64_t currTime) {
     /*
      * targetData approach
      * first integer is the count
@@ -441,7 +441,7 @@ static void drainMobHP(Mob *mob, int amount) {
         Combat::killMob(mob->target, mob);
 }
 
-static void deadStep(Mob *mob, time_t currTime) {
+static void deadStep(Mob *mob, int64_t currTime) {
     // despawn the mob after a short delay
     if (mob->killedTime != 0 && !mob->despawned && currTime - mob->killedTime > 2000) {
         mob->despawned = true;
@@ -500,7 +500,7 @@ static void deadStep(Mob *mob, time_t currTime) {
     NPCManager::sendToViewable(mob, &pkt, P_FE2CL_NPC_NEW, sizeof(sP_FE2CL_NPC_NEW));
 }
 
-static void combatStep(Mob *mob, time_t currTime) {
+static void combatStep(Mob *mob, int64_t currTime) {
     assert(mob->target != nullptr);
 
     // lose aggro if the player lost connection
@@ -542,7 +542,7 @@ static void combatStep(Mob *mob, time_t currTime) {
         return;
 
     // unbuffing
-    std::unordered_map<int32_t, time_t>::iterator it = mob->unbuffTimes.begin();
+    std::unordered_map<int32_t, int64_t>::iterator it = mob->unbuffTimes.begin();
     while (it != mob->unbuffTimes.end()) {
 
         if (currTime >= it->second) {
@@ -640,7 +640,7 @@ static void combatStep(Mob *mob, time_t currTime) {
     }
 }
 
-void MobAI::incNextMovement(Mob *mob, time_t currTime) {
+void MobAI::incNextMovement(Mob *mob, int64_t currTime) {
     if (currTime == 0)
         currTime = getTime();
 
@@ -648,7 +648,7 @@ void MobAI::incNextMovement(Mob *mob, time_t currTime) {
     mob->nextMovement = currTime + delay/2 + Rand::rand(delay/2);
 }
 
-static void roamingStep(Mob *mob, time_t currTime) {
+static void roamingStep(Mob *mob, int64_t currTime) {
     /*
      * We reuse nextAttack to avoid scanning for players all the time, but to still
      * do so more often than if we waited for nextMovement (which is way too slow).
@@ -736,7 +736,7 @@ static void roamingStep(Mob *mob, time_t currTime) {
     }
 }
 
-static void retreatStep(Mob *mob, time_t currTime) {
+static void retreatStep(Mob *mob, int64_t currTime) {
     if (mob->nextMovement != 0 && currTime < mob->nextMovement)
         return;
 
@@ -781,7 +781,7 @@ static void retreatStep(Mob *mob, time_t currTime) {
     }
 }
 
-void MobAI::step(CombatNPC *npc, time_t currTime) {
+void MobAI::step(CombatNPC *npc, int64_t currTime) {
     assert(npc->type == EntityType::MOB);
     auto mob = (Mob*)npc;
 

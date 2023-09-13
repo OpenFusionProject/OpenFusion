@@ -574,8 +574,8 @@ void CNLoginServer::killConnection(CNSocket* cns) {
 }
 
 void CNLoginServer::onStep() {
-    time_t currTime = getTime();
-    static time_t lastCheck = 0;
+    int64_t currTime = getTime();
+    static int64_t lastCheck = 0;
 
     if (currTime - lastCheck < 16000)
         return;

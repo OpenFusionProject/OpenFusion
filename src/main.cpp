@@ -201,21 +201,21 @@ size_t U8toU16(std::string src, char16_t* des, size_t max) {
     return tmp.length();
 }
 
-time_t getTime() {
+int64_t getTime() {
     using namespace std::chrono;
 
     milliseconds value = duration_cast<milliseconds>((time_point_cast<milliseconds>(steady_clock::now())).time_since_epoch());
 
-    return (time_t)value.count();
+    return (int64_t)value.count();
 }
 
 // returns system time in seconds
-time_t getTimestamp() {
+int64_t getTimestamp() {
     using namespace std::chrono;
 
     seconds value = duration_cast<seconds>((time_point_cast<seconds>(system_clock::now())).time_since_epoch());
 
-    return (time_t)value.count();
+    return (int64_t)value.count();
 }
 
 // convert integer timestamp (in s) to FF systime struct

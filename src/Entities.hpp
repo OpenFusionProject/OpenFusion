@@ -103,14 +103,14 @@ struct CombatNPC : public BaseNPC {
     int level = 0;
     int speed = 300;
 
-    void (*_stepAI)(CombatNPC*, time_t) = nullptr;
+    void (*_stepAI)(CombatNPC*, int64_t) = nullptr;
 
     // XXX
     CombatNPC(int x, int y, int z, int angle, uint64_t iID, int t, int id, int maxHP) :
         BaseNPC(x, y, z, angle, iID, t, id),
         maxHealth(maxHP) {}
 
-    virtual void stepAI(time_t currTime) {
+    virtual void stepAI(int64_t currTime) {
         if (_stepAI != nullptr)
             _stepAI(this, currTime);
     }
@@ -124,7 +124,7 @@ struct CombatNPC : public BaseNPC {
 struct Egg : public BaseNPC {
     bool summoned = false;
     bool dead = false;
-    time_t deadUntil;
+    int64_t deadUntil;
 
     Egg(int x, int y, int z, uint64_t iID, int t, int32_t id, bool summon)
         : BaseNPC(x, y, z, 0, iID, t, id) {

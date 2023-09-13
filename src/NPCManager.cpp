@@ -350,7 +350,7 @@ void NPCManager::queueNPCRemoval(int32_t id) {
     RemovalQueue.push(id);
 }
 
-static void step(CNServer *serv, time_t currTime) {
+static void step(CNServer *serv, int64_t currTime) {
     for (auto& pair : NPCs) {
         if (pair.second->type != EntityType::COMBAT_NPC && pair.second->type != EntityType::MOB)
             continue;

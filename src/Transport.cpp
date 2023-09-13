@@ -319,7 +319,7 @@ static void stepNPCPathing() {
     }
 }
 
-static void tickTransportationSystem(CNServer* serv, time_t currTime) {
+static void tickTransportationSystem(CNServer* serv, int64_t currTime) {
     stepNPCPathing();
     stepSkywaySystem();
 }

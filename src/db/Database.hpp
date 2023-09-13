@@ -13,7 +13,7 @@ namespace Database {
         int AccountID;
         std::string Password;
         int Selected;
-        time_t BannedUntil;
+        int64_t BannedUntil;
         std::string BanReason;
     };
 

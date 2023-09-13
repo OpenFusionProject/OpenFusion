@@ -546,7 +546,7 @@ bool doDamageNDebuff(Mob *mob, sSkillResult_Damage_N_Debuff *respdata, int i, in
 
         respdata[i].bProtected = 0;
         std::pair<CNSocket*, int32_t> key = std::make_pair(sock, bitFlag);
-        time_t until = getTime() + (time_t)duration * 100;
+        int64_t until = getTime() + (int64_t)duration * 100;
         Eggs::EggBuffs[key] = until;
     }
     respdata[i].iConditionBitFlag = plr->iConditionBitFlag;

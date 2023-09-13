@@ -24,7 +24,7 @@ LoginMetadata* CNShared::getLoginMetadata(int64_t sk) {
     return lm;
 }
 
-void CNShared::pruneLoginMetadata(CNServer *serv, time_t currTime) {
+void CNShared::pruneLoginMetadata(CNServer *serv, int64_t currTime) {
     std::lock_guard<std::mutex> lock(mtx);
 
     auto it = logins.begin();

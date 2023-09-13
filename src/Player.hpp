@@ -79,10 +79,10 @@ struct Player : public Entity {
     bool isBuddyBlocked[50] = {};
 
     uint64_t iFirstUseFlag[2] = {};
-    time_t lastHeartbeat = 0;
+    int64_t lastHeartbeat = 0;
 
     int suspicionRating = 0;
-    time_t lastShot = 0;
+    int64_t lastShot = 0;
     std::vector<sItemBase> buyback = {};
 
     Player() { type = EntityType::PLAYER; }

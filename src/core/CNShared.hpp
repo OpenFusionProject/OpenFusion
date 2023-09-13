@@ -19,11 +19,11 @@
 struct LoginMetadata {
     uint64_t FEKey;
     int32_t playerId;
-    time_t timestamp;
+    int64_t timestamp;
 };
 
 namespace CNShared {
     void storeLoginMetadata(int64_t sk, LoginMetadata *lm);
     LoginMetadata* getLoginMetadata(int64_t sk);
-    void pruneLoginMetadata(CNServer *serv, time_t currTime);
+    void pruneLoginMetadata(CNServer *serv, int64_t currTime);
 }

@@ -11,8 +11,8 @@ class CNShardServer : public CNServer {
 private:
     static void handlePacket(CNSocket* sock, CNPacketData* data);
 
-    static void keepAliveTimer(CNServer*, time_t);
-    static void periodicSaveTimer(CNServer* serv, time_t currTime);
+    static void keepAliveTimer(CNServer*, int64_t);
+    static void periodicSaveTimer(CNServer* serv, int64_t currTime);
 
 public:
     static std::map<uint32_t, PacketHandler> ShardPackets;

@@ -11,7 +11,7 @@ struct EggType {
 };
 
 namespace Eggs {
-    extern std::map<std::pair<CNSocket*, int32_t>, time_t> EggBuffs;
+    extern std::map<std::pair<CNSocket*, int32_t>, int64_t> EggBuffs;
     extern std::unordered_map<int, EggType> EggTypes;
 
     void init();

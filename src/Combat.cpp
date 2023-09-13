@@ -58,7 +58,7 @@ static std::pair<int,int> getDamage(int attackPower, int defensePower, bool shou
 
 static bool checkRapidFire(CNSocket *sock, int targetCount) {
     Player *plr = PlayerManager::getPlayer(sock);
-    time_t currTime = getTime();
+    int64_t currTime = getTime();
 
     if (currTime - plr->lastShot < plr->fireRate * 80)
         plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // gain suspicion for rapid firing
@@ -158,7 +158,7 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     PlayerManager::sendToViewable(sock, respbuf, P_FE2CL_PC_ATTACK_NPCs);
 }
 
-void Combat::npcAttackPc(Mob *mob, time_t currTime) {
+void Combat::npcAttackPc(Mob *mob, int64_t currTime) {
     Player *plr = PlayerManager::getPlayer(mob->target);
 
     INITVARPACKET(respbuf, sP_FE2CL_NPC_ATTACK_PCs, pkt, sAttackResult, atk);
@@ -654,7 +654,7 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
     }
 
     // rapid fire anti-cheat
-    time_t currTime = getTime();
+    int64_t currTime = getTime();
     if (currTime - plr->lastShot < plr->fireRate * 80)
         plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // gain suspicion for rapid firing
     else if (currTime - plr->lastShot < plr->fireRate * 180 && plr->suspicionRating > 0)
@@ -726,8 +726,8 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
     Bullets[plr->iID].erase(resp->iBulletID);
 }
 
-static void playerTick(CNServer *serv, time_t currTime) {
-    static time_t lastHealTime = 0;
+static void playerTick(CNServer *serv, int64_t currTime) {
+    static int64_t lastHealTime = 0;
 
     for (auto& pair : PlayerManager::players) {
         CNSocket *sock = pair.first;
