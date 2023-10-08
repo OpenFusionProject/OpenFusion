@@ -1,8 +1,10 @@
+#include "servers/Monitor.hpp"
+
 #include "servers/CNShardServer.hpp"
+
 #include "PlayerManager.hpp"
 #include "Chat.hpp"
 #include "Email.hpp"
-#include "servers/Monitor.hpp"
 #include "settings.hpp"
 
 #include <cstdio>

@@ -3,7 +3,8 @@ project(OpenFusion)
 
 set(CMAKE_CXX_STANDARD 17)
 
-execute_process(COMMAND git describe --tags OUTPUT_VARIABLE GIT_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND git describe --tags OUTPUT_VARIABLE GIT_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE
+				WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 # OpenFusion supports multiple packet/struct versions
 # 104 is the default version to build which can be changed

@@ -2,6 +2,8 @@
 
 #include "core/Core.hpp"
 
+#include <string>
+
 namespace CustomCommands {
     void init();
 

@@ -1,10 +1,12 @@
+#include "servers/CNShardServer.hpp"
+
 #include "core/Core.hpp"
+#include "core/CNShared.hpp"
 #include "db/Database.hpp"
 #include "servers/Monitor.hpp"
-#include "servers/CNShardServer.hpp"
+
 #include "PlayerManager.hpp"
 #include "MobAI.hpp"
-#include "core/CNShared.hpp"
 #include "settings.hpp"
 #include "TableData.hpp" // for flush()
 

@@ -50,6 +50,7 @@ CXXSRC=\
 	src/db/email.cpp\
 	src/sandbox/seccomp.cpp\
 	src/sandbox/openbsd.cpp\
+	src/Buffs.cpp\
 	src/Chat.cpp\
 	src/CustomCommands.cpp\
 	src/Entities.cpp\
@@ -96,6 +97,7 @@ CXXHDR=\
 	vendor/JSON.hpp\
 	vendor/INIReader.hpp\
 	vendor/JSON.hpp\
+	src/Buffs.hpp\
 	src/Chat.hpp\
 	src/CustomCommands.hpp\
 	src/Entities.hpp\

@@ -1,8 +1,13 @@
 #pragma once
 
-#include <map>
+#include "JSON.hpp"
 
-#include "NPCManager.hpp"
+#include "Entities.hpp"
+#include "Transport.hpp"
+
+#include <map>
+#include <unordered_map>
+#include <vector>
 
 // these are added to the NPC's static key to avoid collisions
 const int NPC_ID_OFFSET = 1;

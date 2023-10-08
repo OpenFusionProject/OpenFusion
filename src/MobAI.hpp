@@ -1,26 +1,26 @@
 #pragma once
 
 #include "core/Core.hpp"
-#include "NPCManager.hpp"
+#include "JSON.hpp"
 
-enum class MobState {
-    INACTIVE,
-    ROAMING,
-    COMBAT,
-    RETREAT,
-    DEAD
-};
+#include "Entities.hpp"
+
+#include <unordered_map>
+#include <string>
 
 namespace MobAI {
-    // needs to be declared before Mob's constructor
-    void step(CombatNPC*, time_t);
-};
+    void deadStep(CombatNPC* self, time_t currTime);
+    void combatStep(CombatNPC* self, time_t currTime);
+    void roamingStep(CombatNPC* self, time_t currTime);
+    void retreatStep(CombatNPC* self, time_t currTime);
+
+    void onRoamStart(CombatNPC* self, EntityRef src);
+    void onCombatStart(CombatNPC* self, EntityRef src);
+    void onRetreat(CombatNPC* self, EntityRef src);
+    void onDeath(CombatNPC* self, EntityRef src);
+}
 
 struct Mob : public CombatNPC {
-    // general
-    MobState state = MobState::INACTIVE;
-
-    std::unordered_map<int32_t,time_t> unbuffTimes = {};
 
     // dead
     time_t killedTime = 0;
@@ -47,16 +47,13 @@ struct Mob : public CombatNPC {
     int offsetX = 0, offsetY = 0;
     int groupMember[4] = {};
 
-    // for optimizing away AI in empty chunks
-    int playersInView = 0;
-
     // temporary; until we're sure what's what
     nlohmann::json data = {};
 
-    Mob(int x, int y, int z, int angle, uint64_t iID, int t, nlohmann::json d, int32_t id)
-        : CombatNPC(x, y, z, angle, iID, t, id, d["m_iHP"]),
+    Mob(int spawnX, int spawnY, int spawnZ, int angle, uint64_t iID, int t, nlohmann::json d, int32_t id)
+        : CombatNPC(spawnX, spawnY, spawnZ, angle, iID, t, id, d["m_iHP"]),
           sightRange(d["m_iSightRange"]) {
-        state = MobState::ROAMING;
+        state = AIState::ROAMING;
 
         data = d;
 
@@ -65,20 +62,28 @@ struct Mob : public CombatNPC {
         idleRange = (int)data["m_iIdleRange"];
         level = data["m_iNpcLevel"];
 
-        roamX = spawnX = x;
-        roamY = spawnY = y;
-        roamZ = spawnZ = z;
+        roamX = spawnX;
+        roamY = spawnY;
+        roamZ = spawnZ;
 
         offsetX = 0;
         offsetY = 0;
 
-        appearanceData.iConditionBitFlag = 0;
-
         // NOTE: there appear to be discrepancies in the dump
-        appearanceData.iHP = maxHealth;
+        hp = maxHealth;
 
-        type = EntityType::MOB;
-        _stepAI = MobAI::step;
+        kind = EntityKind::MOB;
+
+        // AI
+        stateHandlers[AIState::DEAD] = MobAI::deadStep;
+        stateHandlers[AIState::COMBAT] = MobAI::combatStep;
+        stateHandlers[AIState::ROAMING] = MobAI::roamingStep;
+        stateHandlers[AIState::RETREAT] = MobAI::retreatStep;
+
+        transitionHandlers[AIState::DEAD] = MobAI::onDeath;
+        transitionHandlers[AIState::COMBAT] = MobAI::onCombatStart;
+        transitionHandlers[AIState::ROAMING] = MobAI::onRoamStart;
+        transitionHandlers[AIState::RETREAT] = MobAI::onRetreat;
     }
 
     // constructor for /summon
@@ -88,6 +93,9 @@ struct Mob : public CombatNPC {
     }
 
     ~Mob() {}
+
+    virtual int takeDamage(EntityRef src, int amt) override;
+    virtual void step(time_t currTime) override;
 
     auto operator[](std::string s) {
         return data[s];
@@ -103,5 +111,4 @@ namespace MobAI {
     void clearDebuff(Mob *mob);
     void followToCombat(Mob *mob);
     void groupRetreat(Mob *mob);
-    void enterCombat(CNSocket *sock, Mob *mob);
 }

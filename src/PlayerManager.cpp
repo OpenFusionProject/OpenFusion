@@ -1,25 +1,20 @@
-#include "core/Core.hpp"
+#include "PlayerManager.hpp"
+
+#include "db/Database.hpp"
 #include "core/CNShared.hpp"
 #include "servers/CNShardServer.hpp"
-#include "db/Database.hpp"
-#include "PlayerManager.hpp"
+
 #include "NPCManager.hpp"
-#include "Missions.hpp"
-#include "Items.hpp"
-#include "Nanos.hpp"
-#include "Groups.hpp"
-#include "Chat.hpp"
-#include "Buddies.hpp"
 #include "Combat.hpp"
 #include "Racing.hpp"
-#include "BuiltinCommands.hpp"
-#include "Abilities.hpp"
 #include "Eggs.hpp"
-
-#include "settings.hpp"
+#include "Missions.hpp"
+#include "Chat.hpp"
+#include "Items.hpp"
+#include "Buddies.hpp"
+#include "BuiltinCommands.hpp"
 
 #include <assert.h>
-
 #include <algorithm>
 #include <vector>
 #include <cmath>
@@ -41,7 +36,13 @@ void PlayerManager::removePlayer(CNSocket* key) {
     Player* plr = getPlayer(key);
     uint64_t fromInstance = plr->instanceID;
 
-    Groups::groupKickPlayer(plr);
+    // free buff memory
+    for(auto buffEntry : plr->buffs)
+        delete buffEntry.second;
+
+    // leave group
+    if(plr->group != nullptr)
+        Groups::groupKick(plr->group, key);
 
     // remove player's bullets
     Combat::Bullets.erase(plr->iID);
@@ -64,16 +65,6 @@ void PlayerManager::removePlayer(CNSocket* key) {
 
     // if the player was in a lair, clean it up
     Chunking::destroyInstanceIfEmpty(fromInstance);
-
-    // remove player's buffs from the server
-    auto it = Eggs::EggBuffs.begin();
-    while (it != Eggs::EggBuffs.end()) {
-        if (it->first.first == key) {
-            it = Eggs::EggBuffs.erase(it);
-        }
-        else
-            it++;
-    }
 
     std::cout << players.size() << " players" << std::endl;
 }
@@ -232,8 +223,7 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
         Database::getPlayer(plr, lm->playerId);
     }
 
-    plr->groupCnt = 1;
-    plr->iIDGroup = plr->groupIDs[0] = plr->iID;
+    plr->group = nullptr;
 
     response.iID = plr->iID;
     response.uiSvrTime = getTime();
@@ -348,12 +338,20 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
     delete lm;
 }
 
+void PlayerManager::sendToGroup(CNSocket* sock, void* buf, uint32_t type, size_t size) {
+    Player* plr = getPlayer(sock);
+    if (plr->group == nullptr)
+        return;
+    for(const EntityRef& ref : plr->group->filter(EntityKind::PLAYER))
+        ref.sock->sendPacket(buf, type, size);
+}
+
 void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size) {
     Player* plr = getPlayer(sock);
     for (auto it = plr->viewableChunks.begin(); it != plr->viewableChunks.end(); it++) {
         Chunk* chunk = *it;
         for (const EntityRef& ref : chunk->entities) {
-            if (ref.type != EntityType::PLAYER || ref.sock == sock)
+            if (ref.kind != EntityKind::PLAYER || ref.sock == sock)
                 continue;
 
             ref.sock->sendPacket(buf, type, size);
@@ -406,21 +404,23 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
     int activeSlot = -1;
     bool move = false;
 
-    if (reviveData->iRegenType == 3 && plr->iConditionBitFlag & CSB_BIT_PHOENIX) {
-        // nano revive
+    switch ((ePCRegenType)reviveData->iRegenType) {
+    case ePCRegenType::HereByPhoenix: // nano revive
+        if (!(plr->hasBuff(ECSB_PHOENIX)))
+            return; // sanity check
         plr->Nanos[plr->activeNano].iStamina = 0;
+        // fallthrough
+    case ePCRegenType::HereByPhoenixGroup: // revived by group member's nano
         plr->HP = PC_MAXHEALTH(plr->level) / 2;
-        Nanos::applyBuff(sock, plr->Nanos[plr->activeNano].iSkillID, 2, 1, 0);
-    } else if (reviveData->iRegenType == 4) {
-        // revived by group member's nano
+        break;
+
+    default: // plain respawn
         plr->HP = PC_MAXHEALTH(plr->level) / 2;
-    } else if (reviveData->iRegenType == 5) {
-        // warp away
+        plr->clearBuffs(false);
+        // fallthrough
+    case ePCRegenType::Unstick: // warp away
         move = true;
-    } else {
-        // plain respawn
-        move = true;
-        plr->HP = PC_MAXHEALTH(plr->level) / 2;
+        break;
     }
 
     for (int i = 0; i < 3; i++) {
@@ -472,11 +472,9 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
     resp2.PCRegenDataForOtherPC.iHP = plr->HP;
     resp2.PCRegenDataForOtherPC.iAngle = plr->angle;
 
-    Player *otherPlr = getPlayerFromID(plr->iIDGroup);
-    if (otherPlr != nullptr) {
-        int bitFlag = Groups::getGroupFlags(otherPlr);
-        resp2.PCRegenDataForOtherPC.iConditionBitFlag = plr->iConditionBitFlag = plr->iSelfConditionBitFlag | bitFlag;
-
+    if (plr->group != nullptr) {
+        
+        resp2.PCRegenDataForOtherPC.iConditionBitFlag = plr->getCompositeCondition();
         resp2.PCRegenDataForOtherPC.iPCState = plr->iPCState;
         resp2.PCRegenDataForOtherPC.iSpecialState = plr->iSpecialState;
         resp2.PCRegenDataForOtherPC.Nano = plr->Nanos[plr->activeNano];
@@ -667,16 +665,16 @@ CNSocket *PlayerManager::getSockFromName(std::string firstname, std::string last
 }
 
 CNSocket *PlayerManager::getSockFromAny(int by, int id, int uid, std::string firstname, std::string lastname) {
-    switch (by) {
-    case eCN_GM_TargetSearchBy__PC_ID:
+    switch ((eCN_GM_TargetSearchBy)by) {
+    case eCN_GM_TargetSearchBy::PC_ID:
         assert(id != 0);
         return getSockFromID(id);
-    case eCN_GM_TargetSearchBy__PC_UID: // account id; not player id
+    case eCN_GM_TargetSearchBy::PC_UID: // account id; not player id
         assert(uid != 0);
         for (auto& pair : players)
             if (pair.second->accountId == uid)
                 return pair.first;
-    case eCN_GM_TargetSearchBy__PC_Name:
+    case eCN_GM_TargetSearchBy::PC_Name:
         assert(firstname != "" && lastname != ""); // XXX: remove this if we start messing around with edited names?
         return getSockFromName(firstname, lastname);
     }

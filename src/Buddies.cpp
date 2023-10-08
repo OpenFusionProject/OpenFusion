@@ -1,15 +1,10 @@
-#include "servers/CNShardServer.hpp"
 #include "Buddies.hpp"
-#include "PlayerManager.hpp"
-#include "Buddies.hpp"
-#include "db/Database.hpp"
-#include "Items.hpp"
-#include "db/Database.hpp"
 
-#include <iostream>
-#include <chrono>
-#include <algorithm>
-#include <thread>
+#include "db/Database.hpp"
+#include "servers/CNShardServer.hpp"
+
+#include "Player.hpp"
+#include "PlayerManager.hpp"
 
 using namespace Buddies;
 

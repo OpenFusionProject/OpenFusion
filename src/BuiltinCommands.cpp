@@ -1,10 +1,13 @@
 #include "BuiltinCommands.hpp"
+
+#include "servers/CNShardServer.hpp"
+
+#include "Player.hpp"
 #include "PlayerManager.hpp"
-#include "Chat.hpp"
 #include "Items.hpp"
 #include "Missions.hpp"
+#include "Chat.hpp"
 #include "Nanos.hpp"
-#include "Rand.hpp"
 
 // helper function, not a packet handler
 void BuiltinCommands::setSpecialState(CNSocket* sock, CNPacketData* data) {
@@ -257,17 +260,17 @@ static void teleportPlayer(CNSocket *sock, CNPacketData *data) {
     uint64_t instance = plr->instanceID;
     const int unstickRange = 400;
 
-    switch (req->eTeleportType) {
-    case eCN_GM_TeleportMapType__MyLocation:
+    switch ((eCN_GM_TeleportType)req->eTeleportType) {
+    case eCN_GM_TeleportType::MyLocation:
         PlayerManager::sendPlayerTo(targetSock, plr->x, plr->y, plr->z, instance);
         break;
-    case eCN_GM_TeleportMapType__MapXYZ:
+    case eCN_GM_TeleportType::MapXYZ:
         instance = req->iToMap;
         // fallthrough
-    case eCN_GM_TeleportMapType__XYZ:
+    case eCN_GM_TeleportType::XYZ:
         PlayerManager::sendPlayerTo(targetSock, req->iToX, req->iToY, req->iToZ, instance);
         break;
-    case eCN_GM_TeleportMapType__SomeoneLocation:
+    case eCN_GM_TeleportType::SomeoneLocation:
         // player to teleport to
         goalSock = PlayerManager::getSockFromAny(req->eGoalPCSearchBy, req->iGoalPC_ID, req->iGoalPC_UID,
             AUTOU16TOU8(req->szGoalPC_FirstName), AUTOU16TOU8(req->szGoalPC_LastName));
@@ -279,7 +282,7 @@ static void teleportPlayer(CNSocket *sock, CNPacketData *data) {
 
         PlayerManager::sendPlayerTo(targetSock, goalPlr->x, goalPlr->y, goalPlr->z, goalPlr->instanceID);
         break;
-    case eCN_GM_TeleportMapType__Unstick:
+    case eCN_GM_TeleportType::Unstick:
         targetPlr = PlayerManager::getPlayer(targetSock);
 
         PlayerManager::sendPlayerTo(targetSock, targetPlr->x - unstickRange/2 + Rand::rand(unstickRange),

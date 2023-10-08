@@ -1,4 +1,9 @@
 #include "Vendors.hpp"
+
+#include "servers/CNShardServer.hpp"
+
+#include "PlayerManager.hpp"
+#include "Items.hpp"
 #include "Rand.hpp"
 
 // 7 days

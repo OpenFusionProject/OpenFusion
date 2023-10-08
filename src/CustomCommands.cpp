@@ -1,18 +1,19 @@
 #include "CustomCommands.hpp"
-#include "Chat.hpp"
+
+#include "db/Database.hpp"
+
+#include "Player.hpp"
 #include "PlayerManager.hpp"
+#include "Chat.hpp"
 #include "TableData.hpp"
 #include "NPCManager.hpp"
-#include "Eggs.hpp"
 #include "MobAI.hpp"
-#include "Items.hpp"
-#include "db/Database.hpp"
-#include "Transport.hpp"
 #include "Missions.hpp"
+#include "Eggs.hpp"
+#include "Items.hpp"
+#include "Abilities.hpp"
 
 #include <sstream>
-#include <iterator>
-#include <math.h>
 #include <limits.h>
 
 typedef void (*CommandHandler)(std::string fullString, std::vector<std::string>& args, CNSocket* sock);
@@ -243,20 +244,20 @@ static void summonWCommand(std::string full, std::vector<std::string>& args, CNS
     BaseNPC *npc = NPCManager::summonNPC(plr->x, plr->y, plr->z, plr->instanceID, type, true);
 
     // update angle
-    npc->appearanceData.iAngle = (plr->angle + 180) % 360;
-    NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z, plr->instanceID, npc->appearanceData.iAngle);
+    npc->angle = (plr->angle + 180) % 360;
+    NPCManager::updateNPCPosition(npc->id, plr->x, plr->y, plr->z, plr->instanceID, npc->angle);
 
     // if we're in a lair, we need to spawn the NPC in both the private instance and the template
     if (PLAYERID(plr->instanceID) != 0) {
         npc = NPCManager::summonNPC(plr->x, plr->y, plr->z, plr->instanceID, type, true, true);
 
-        npc->appearanceData.iAngle = (plr->angle + 180) % 360;
-        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z, npc->instanceID, npc->appearanceData.iAngle);
+        npc->angle = (plr->angle + 180) % 360;
+        NPCManager::updateNPCPosition(npc->id, plr->x, plr->y, plr->z, npc->instanceID, npc->angle);
     }
 
     Chat::sendServerMessage(sock, "/summonW: placed mob with type: " + std::to_string(type) +
-        ", id: " + std::to_string(npc->appearanceData.iNPC_ID));
-    TableData::RunningMobs[npc->appearanceData.iNPC_ID] = npc; // only record the one in the template
+        ", id: " + std::to_string(npc->id));
+    TableData::RunningMobs[npc->id] = npc; // only record the one in the template
 }
 
 static void unsummonWCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
@@ -269,24 +270,24 @@ static void unsummonWCommand(std::string full, std::vector<std::string>& args, C
         return;
     }
 
-    if (TableData::RunningEggs.find(npc->appearanceData.iNPC_ID) != TableData::RunningEggs.end()) {
-        Chat::sendServerMessage(sock, "/unsummonW: removed egg with type: " + std::to_string(npc->appearanceData.iNPCType) +
-            ", id: " + std::to_string(npc->appearanceData.iNPC_ID));
-        TableData::RunningEggs.erase(npc->appearanceData.iNPC_ID);
-        NPCManager::destroyNPC(npc->appearanceData.iNPC_ID);
+    if (TableData::RunningEggs.find(npc->id) != TableData::RunningEggs.end()) {
+        Chat::sendServerMessage(sock, "/unsummonW: removed egg with type: " + std::to_string(npc->type) +
+            ", id: " + std::to_string(npc->id));
+        TableData::RunningEggs.erase(npc->id);
+        NPCManager::destroyNPC(npc->id);
         return;
     }
 
-    if (TableData::RunningMobs.find(npc->appearanceData.iNPC_ID) == TableData::RunningMobs.end()
-        && TableData::RunningGroups.find(npc->appearanceData.iNPC_ID) == TableData::RunningGroups.end()) {
+    if (TableData::RunningMobs.find(npc->id) == TableData::RunningMobs.end()
+        && TableData::RunningGroups.find(npc->id) == TableData::RunningGroups.end()) {
         Chat::sendServerMessage(sock, "/unsummonW: Closest NPC is not a gruntwork mob.");
         return;
     }
 
-    if (NPCManager::NPCs.find(npc->appearanceData.iNPC_ID) != NPCManager::NPCs.end() && NPCManager::NPCs[npc->appearanceData.iNPC_ID]->type == EntityType::MOB) {
+    if (NPCManager::NPCs.find(npc->id) != NPCManager::NPCs.end() && NPCManager::NPCs[npc->id]->kind == EntityKind::MOB) {
         int leadId = ((Mob*)npc)->groupLeader;
         if (leadId != 0) {
-            if (NPCManager::NPCs.find(leadId) == NPCManager::NPCs.end() || NPCManager::NPCs[leadId]->type != EntityType::MOB) {
+            if (NPCManager::NPCs.find(leadId) == NPCManager::NPCs.end() || NPCManager::NPCs[leadId]->kind != EntityKind::MOB) {
                 std::cout << "[WARN] unsummonW: leader not found!" << std::endl;
             }
             Mob* leadNpc = (Mob*)NPCManager::NPCs[leadId];
@@ -294,7 +295,7 @@ static void unsummonWCommand(std::string full, std::vector<std::string>& args, C
                 if (leadNpc->groupMember[i] == 0)
                     break;
 
-                if (NPCManager::NPCs.find(leadNpc->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[leadNpc->groupMember[i]]->type != EntityType::MOB) {
+                if (NPCManager::NPCs.find(leadNpc->groupMember[i]) == NPCManager::NPCs.end() || NPCManager::NPCs[leadNpc->groupMember[i]]->kind != EntityKind::MOB) {
                     std::cout << "[WARN] unsommonW: leader can't find a group member!" << std::endl;
                     continue;
                 }
@@ -308,12 +309,12 @@ static void unsummonWCommand(std::string full, std::vector<std::string>& args, C
         }
     }
 
-    Chat::sendServerMessage(sock, "/unsummonW: removed mob with type: " + std::to_string(npc->appearanceData.iNPCType) +
-        ", id: " + std::to_string(npc->appearanceData.iNPC_ID));
+    Chat::sendServerMessage(sock, "/unsummonW: removed mob with type: " + std::to_string(npc->type) +
+        ", id: " + std::to_string(npc->id));
 
-    TableData::RunningMobs.erase(npc->appearanceData.iNPC_ID);
+    TableData::RunningMobs.erase(npc->id);
 
-    NPCManager::destroyNPC(npc->appearanceData.iNPC_ID);
+    NPCManager::destroyNPC(npc->id);
 }
 
 static void toggleAiCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
@@ -324,11 +325,11 @@ static void toggleAiCommand(std::string full, std::vector<std::string>& args, CN
 
     // return all mobs to their spawn points
     for (auto& pair : NPCManager::NPCs) {
-        if (pair.second->type != EntityType::MOB)
+        if (pair.second->kind != EntityKind::MOB)
             continue;
 
         Mob* mob = (Mob*)pair.second;
-        mob->state = MobState::RETREAT;
+        mob->state = AIState::RETREAT;
         mob->target = nullptr;
         mob->nextMovement = getTime();
 
@@ -356,18 +357,18 @@ static void npcRotateCommand(std::string full, std::vector<std::string>& args, C
     }
 
     int angle = (plr->angle + 180) % 360;
-    NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->x, npc->y, npc->z, npc->instanceID, angle);
+    NPCManager::updateNPCPosition(npc->id, npc->x, npc->y, npc->z, npc->instanceID, angle);
 
     bool isGruntworkNpc = true;
 
     // add a rotation entry to the gruntwork file, unless it's already a gruntwork NPC
-    if (TableData::RunningMobs.find(npc->appearanceData.iNPC_ID) == TableData::RunningMobs.end()) {
-        TableData::RunningNPCRotations[npc->appearanceData.iNPC_ID] = angle;
+    if (TableData::RunningMobs.find(npc->id) == TableData::RunningMobs.end()) {
+        TableData::RunningNPCRotations[npc->id] = angle;
         isGruntworkNpc = false;
     }
 
     Chat::sendServerMessage(sock, "[NPCR] Successfully set angle to " + std::to_string(angle) +
-        " for " + (isGruntworkNpc ? "gruntwork " : "") + "NPC " + std::to_string(npc->appearanceData.iNPC_ID));
+        " for " + (isGruntworkNpc ? "gruntwork " : "") + "NPC " + std::to_string(npc->id));
 
     // update rotation clientside by refreshing the player's chunks (same as the /refresh command)
     PlayerManager::updatePlayerPositionForWarp(sock, plr->x, plr->y, plr->z, plr->instanceID);
@@ -439,9 +440,9 @@ static void npcInstanceCommand(std::string full, std::vector<std::string>& args,
         return;
     }
 
-    Chat::sendServerMessage(sock, "[NPCI] Moving NPC with ID " + std::to_string(npc->appearanceData.iNPC_ID) + " to instance " + std::to_string(instance));
-    TableData::RunningNPCMapNumbers[npc->appearanceData.iNPC_ID] = instance;
-    NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, npc->x, npc->y, npc->z, instance, npc->appearanceData.iAngle);
+    Chat::sendServerMessage(sock, "[NPCI] Moving NPC with ID " + std::to_string(npc->id) + " to instance " + std::to_string(instance));
+    TableData::RunningNPCMapNumbers[npc->id] = instance;
+    NPCManager::updateNPCPosition(npc->id, npc->x, npc->y, npc->z, instance, npc->angle);
 }
 
 static void minfoCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
@@ -497,9 +498,12 @@ static void buffCommand(std::string full, std::vector<std::string>& args, CNSock
     if (*tmp)
         return;
 
-    if (Eggs::eggBuffPlayer(sock, skillId, 0, duration)<0)
+    if (Abilities::SkillTable.count(skillId) == 0) {
         Chat::sendServerMessage(sock, "/buff: unknown skill Id");
-    
+        return;
+    }
+
+    Eggs::eggBuffPlayer(sock, skillId, 0, duration);
 }
 
 static void eggCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
@@ -528,7 +532,7 @@ static void eggCommand(std::string full, std::vector<std::string>& args, CNSocke
     int addX = 0; //-500.0f * sin(plr->angle / 180.0f * M_PI);
     int addY = 0;  //-500.0f * cos(plr->angle / 180.0f * M_PI);
 
-    Egg* egg = new Egg(plr->x + addX, plr->y + addY, plr->z, plr->instanceID, eggType, id, false); // change last arg to true after gruntwork
+    Egg* egg = new Egg(plr->instanceID, eggType, id, false); // change last arg to true after gruntwork
     NPCManager::NPCs[id] = egg;
     NPCManager::updateNPCPosition(id, plr->x + addX, plr->y + addY, plr->z, plr->instanceID, plr->angle);
 
@@ -605,40 +609,40 @@ static void summonGroupCommand(std::string full, std::vector<std::string>& args,
         }
 
         BaseNPC *npc = NPCManager::summonNPC(x, y, z, plr->instanceID, type, wCommand);
-        if (team == 2 && i > 0 && npc->type == EntityType::MOB) {
-            leadNpc->groupMember[i-1] = npc->appearanceData.iNPC_ID;
-            Mob* mob = (Mob*)NPCManager::NPCs[npc->appearanceData.iNPC_ID];
-            mob->groupLeader = leadNpc->appearanceData.iNPC_ID;
+        if (team == 2 && i > 0 && npc->kind == EntityKind::MOB) {
+            leadNpc->groupMember[i-1] = npc->id;
+            Mob* mob = (Mob*)NPCManager::NPCs[npc->id];
+            mob->groupLeader = leadNpc->id;
             mob->offsetX = x - plr->x;
             mob->offsetY = y - plr->y;
         }
 
-        npc->appearanceData.iAngle = (plr->angle + 180) % 360;
-        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, x, y, z, plr->instanceID, npc->appearanceData.iAngle);
+        npc->angle = (plr->angle + 180) % 360;
+        NPCManager::updateNPCPosition(npc->id, x, y, z, plr->instanceID, npc->angle);
 
         // if we're in a lair, we need to spawn the NPC in both the private instance and the template
         if (PLAYERID(plr->instanceID) != 0) {
             npc = NPCManager::summonNPC(plr->x, plr->y, plr->z, plr->instanceID, type, wCommand, true);
 
-            if (team == 2 && i > 0 && npc->type == EntityType::MOB) {
-                leadNpc->groupMember[i-1] = npc->appearanceData.iNPC_ID;
-                Mob* mob = (Mob*)NPCManager::NPCs[npc->appearanceData.iNPC_ID];
-                mob->groupLeader = leadNpc->appearanceData.iNPC_ID;
+            if (team == 2 && i > 0 && npc->kind == EntityKind::MOB) {
+                leadNpc->groupMember[i-1] = npc->id;
+                Mob* mob = (Mob*)NPCManager::NPCs[npc->id];
+                mob->groupLeader = leadNpc->id;
                 mob->offsetX = x - plr->x;
                 mob->offsetY = y - plr->y;
             }
 
-            npc->appearanceData.iAngle = (plr->angle + 180) % 360;
-            NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, x, y, z, plr->instanceID, npc->appearanceData.iAngle);
+            npc->angle = (plr->angle + 180) % 360;
+            NPCManager::updateNPCPosition(npc->id, x, y, z, plr->instanceID, npc->angle);
         }
 
         Chat::sendServerMessage(sock, "/summonGroup(W): placed mob with type: " + std::to_string(type) +
-            ", id: " + std::to_string(npc->appearanceData.iNPC_ID));
+            ", id: " + std::to_string(npc->id));
 
-        if (i == 0 && team == 2 && npc->type == EntityType::MOB) {
+        if (i == 0 && team == 2 && npc->kind == EntityKind::MOB) {
             type = type2;
-            leadNpc = (Mob*)NPCManager::NPCs[npc->appearanceData.iNPC_ID];
-            leadNpc->groupLeader = leadNpc->appearanceData.iNPC_ID;
+            leadNpc = (Mob*)NPCManager::NPCs[npc->id];
+            leadNpc->groupLeader = leadNpc->id;
         }
     }
 
@@ -650,7 +654,7 @@ static void summonGroupCommand(std::string full, std::vector<std::string>& args,
         return;
     }
 
-    TableData::RunningGroups[leadNpc->appearanceData.iNPC_ID] = leadNpc; // only record the leader
+    TableData::RunningGroups[leadNpc->id] = leadNpc; // only record the leader
 }
 
 static void flushCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
@@ -667,15 +671,14 @@ static void whoisCommand(std::string full, std::vector<std::string>& args, CNSoc
         return;
     }
 
-    Chat::sendServerMessage(sock, "[WHOIS] ID: " + std::to_string(npc->appearanceData.iNPC_ID));
-    Chat::sendServerMessage(sock, "[WHOIS] Type: " + std::to_string(npc->appearanceData.iNPCType));
-    Chat::sendServerMessage(sock, "[WHOIS] HP: " + std::to_string(npc->appearanceData.iHP));
-    Chat::sendServerMessage(sock, "[WHOIS] CBF: " + std::to_string(npc->appearanceData.iConditionBitFlag));
-    Chat::sendServerMessage(sock, "[WHOIS] EntityType: " + std::to_string((int)npc->type));
+    Chat::sendServerMessage(sock, "[WHOIS] ID: " + std::to_string(npc->id));
+    Chat::sendServerMessage(sock, "[WHOIS] Type: " + std::to_string(npc->type));
+    Chat::sendServerMessage(sock, "[WHOIS] HP: " + std::to_string(npc->hp));
+    Chat::sendServerMessage(sock, "[WHOIS] EntityType: " + std::to_string((int)npc->kind));
     Chat::sendServerMessage(sock, "[WHOIS] X: " + std::to_string(npc->x));
     Chat::sendServerMessage(sock, "[WHOIS] Y: " + std::to_string(npc->y));
     Chat::sendServerMessage(sock, "[WHOIS] Z: " + std::to_string(npc->z));
-    Chat::sendServerMessage(sock, "[WHOIS] Angle: " + std::to_string(npc->appearanceData.iAngle));
+    Chat::sendServerMessage(sock, "[WHOIS] Angle: " + std::to_string(npc->angle));
     std::string chunkPosition = std::to_string(std::get<0>(npc->chunkPos)) + ", " + std::to_string(std::get<1>(npc->chunkPos)) + ", " + std::to_string(std::get<2>(npc->chunkPos));
     Chat::sendServerMessage(sock, "[WHOIS] Chunk: {" + chunkPosition + "}");
     Chat::sendServerMessage(sock, "[WHOIS] MapNum: " + std::to_string(MAPNUM(npc->instanceID)));
@@ -690,7 +693,7 @@ static void lairUnlockCommand(std::string full, std::vector<std::string>& args, 
     int lastDist = INT_MAX;
     for (Chunk *chnk : Chunking::getViewableChunks(plr->chunkPos)) {
         for (const EntityRef& ref : chnk->entities) {
-            if (ref.type == EntityType::PLAYER)
+            if (ref.kind == EntityKind::PLAYER)
                 continue;
 
             BaseNPC* npc = (BaseNPC*)ref.getEntity();
@@ -701,7 +704,7 @@ static void lairUnlockCommand(std::string full, std::vector<std::string>& args, 
                 continue;
 
             for (auto it = NPCManager::Warps.begin(); it != NPCManager::Warps.end(); it++) {
-                if (it->second.npcID == npc->appearanceData.iNPCType) {
+                if (it->second.npcID == npc->type) {
                     taskID = it->second.limitTaskID;
                     missionID = Missions::Tasks[taskID]->task["m_iHMissionID"];
                     lastDist = dist;
@@ -973,11 +976,17 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
 
         // add first point at NPC's current location
         std::vector<BaseNPC*> pathPoints;
-        BaseNPC* marker = new BaseNPC(npc->x, npc->y, npc->z, 0, plr->instanceID, 1386, NPCManager::nextId--);
+        BaseNPC* marker = new BaseNPC(0, plr->instanceID, 1386, NPCManager::nextId--);
+
+        // assign coords manually, since we aren't actually adding markers to the world
+        marker->x = npc->x;
+        marker->y = npc->y;
+        marker->z = npc->z;
+
         pathPoints.push_back(marker);
         // map from player
         TableData::RunningNPCPaths[plr->iID] = std::make_pair(npc, pathPoints);
-        Chat::sendServerMessage(sock, "[PATH] NPC " + std::to_string(npc->appearanceData.iNPC_ID) + " is now following you");
+        Chat::sendServerMessage(sock, "[PATH] NPC " + std::to_string(npc->id) + " is now following you");
         updatePathMarkers(sock);
         return;
     }
@@ -994,7 +1003,12 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
 
     // /path kf
     if (args[1] == "kf") {
-        BaseNPC* marker = new BaseNPC(npc->x, npc->y, npc->z, 0, plr->instanceID, 1386, NPCManager::nextId--);
+        BaseNPC* marker = new BaseNPC(0, plr->instanceID, 1386, NPCManager::nextId--);
+
+        marker->x = npc->x;
+        marker->y = npc->y;
+        marker->z = npc->z;
+
         entry->second.push_back(marker);
         Chat::sendServerMessage(sock, "[PATH] Added keyframe");
         updatePathMarkers(sock);
@@ -1004,8 +1018,8 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
     // /path here
     if (args[1] == "here") {
         // bring the NPC to where the player is standing
-        Transport::NPCQueues.erase(npc->appearanceData.iNPC_ID); // delete transport queue
-        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, plr->x, plr->y, plr->z, npc->instanceID, 0);
+        Transport::NPCQueues.erase(npc->id); // delete transport queue
+        NPCManager::updateNPCPosition(npc->id, plr->x, plr->y, plr->z, npc->instanceID, 0);
         npc->disappearFromViewOf(sock);
         npc->enterIntoViewOf(sock);
         Chat::sendServerMessage(sock, "[PATH] Come here");
@@ -1043,9 +1057,9 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
             speed = speedArg;
         }
         // return NPC to home
-        Transport::NPCQueues.erase(npc->appearanceData.iNPC_ID); // delete transport queue
+        Transport::NPCQueues.erase(npc->id); // delete transport queue
         BaseNPC* home = entry->second[0];
-        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, home->x, home->y, home->z, npc->instanceID, 0);
+        NPCManager::updateNPCPosition(npc->id, home->x, home->y, home->z, npc->instanceID, 0);
         npc->disappearFromViewOf(sock);
         npc->enterIntoViewOf(sock);
 
@@ -1061,7 +1075,7 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
             Transport::lerp(&keyframes, from, to, speed); // lerp from A to B
             from = to; // update point A
         }
-        Transport::NPCQueues[npc->appearanceData.iNPC_ID] = keyframes;
+        Transport::NPCQueues[npc->id] = keyframes;
         entry->second.pop_back(); // remove temp end point
 
         Chat::sendServerMessage(sock, "[PATH] Testing NPC path");
@@ -1071,9 +1085,9 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
     // /path cancel
     if (args[1] == "cancel") {
         // return NPC to home
-        Transport::NPCQueues.erase(npc->appearanceData.iNPC_ID); // delete transport queue
+        Transport::NPCQueues.erase(npc->id); // delete transport queue
         BaseNPC* home = entry->second[0];
-        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, home->x, home->y, home->z, npc->instanceID, 0);
+        NPCManager::updateNPCPosition(npc->id, home->x, home->y, home->z, npc->instanceID, 0);
         npc->disappearFromViewOf(sock);
         npc->enterIntoViewOf(sock);
         // deallocate markers
@@ -1083,7 +1097,7 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
         }
         // unmap
         TableData::RunningNPCPaths.erase(plr->iID);
-        Chat::sendServerMessage(sock, "[PATH] NPC " + std::to_string(npc->appearanceData.iNPC_ID) + " is no longer following you");
+        Chat::sendServerMessage(sock, "[PATH] NPC " + std::to_string(npc->id) + " is no longer following you");
         return;
     }
 
@@ -1111,9 +1125,9 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
         }
 
         // return NPC to home and set path to repeat
-        Transport::NPCQueues.erase(npc->appearanceData.iNPC_ID); // delete transport queue
+        Transport::NPCQueues.erase(npc->id); // delete transport queue
         BaseNPC* home = entry->second[0];
-        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, home->x, home->y, home->z, npc->instanceID, 0);
+        NPCManager::updateNPCPosition(npc->id, home->x, home->y, home->z, npc->instanceID, 0);
         npc->disappearFromViewOf(sock);
         npc->enterIntoViewOf(sock);
         npc->loopingPath = true;
@@ -1130,7 +1144,7 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
             Transport::lerp(&keyframes, from, to, speed); // lerp from A to B
             from = to; // update point A
         }
-        Transport::NPCQueues[npc->appearanceData.iNPC_ID] = keyframes;
+        Transport::NPCQueues[npc->id] = keyframes;
         entry->second.pop_back(); // remove temp end point
 
         // save to gruntwork
@@ -1157,7 +1171,7 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
         finishedPath.isLoop = true;
         finishedPath.speed = speed;
         finishedPath.points = finalPoints;
-        finishedPath.targetIDs.push_back(npc->appearanceData.iNPC_ID);
+        finishedPath.targetIDs.push_back(npc->id);
 
         TableData::FinishedNPCPaths.push_back(finishedPath);
 
@@ -1169,7 +1183,7 @@ static void pathCommand(std::string full, std::vector<std::string>& args, CNSock
         // unmap
         TableData::RunningNPCPaths.erase(plr->iID);
 
-        Chat::sendServerMessage(sock, "[PATH] NPC " + std::to_string(npc->appearanceData.iNPC_ID) + " is no longer following you");
+        Chat::sendServerMessage(sock, "[PATH] NPC " + std::to_string(npc->id) + " is no longer following you");
 
         TableData::flush();
         Chat::sendServerMessage(sock, "[PATH] Path saved to gruntwork");

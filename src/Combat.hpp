@@ -1,15 +1,10 @@
 #pragma once
 
-#include "core/Core.hpp"
-#include "servers/CNShardServer.hpp"
-#include "NPC.hpp"
+#include "Player.hpp"
 #include "MobAI.hpp"
 
-#include "JSON.hpp"
-
 #include <map>
-#include <unordered_map>
-#include <queue>
+#include <vector>
 
 struct Bullet {
     int pointDamage;
@@ -24,6 +19,5 @@ namespace Combat {
     void init();
 
     void npcAttackPc(Mob *mob, time_t currTime);
-    int hitMob(CNSocket *sock, Mob *mob, int damage);
-    void killMob(CNSocket *sock, Mob *mob);
+    void genQItemRolls(std::vector<Player*> players, std::map<int, int>& rolls);
 }

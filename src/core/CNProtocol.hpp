@@ -93,7 +93,7 @@ inline constexpr bool isOutboundPacketID(uint32_t id) {
 
 // overflow-safe validation of variable-length packets
 // for outbound packets
-inline constexpr bool validOutVarPacket(size_t base, int32_t npayloads, size_t plsize) {
+inline constexpr bool validOutVarPacket(size_t base, size_t npayloads, size_t plsize) {
     // check for multiplication overflow
     if (npayloads > 0 && (CN_PACKET_BUFFER_SIZE - 8) / (size_t)npayloads < plsize)
         return false;
@@ -110,7 +110,7 @@ inline constexpr bool validOutVarPacket(size_t base, int32_t npayloads, size_t p
 }
 
 // for inbound packets
-inline constexpr bool validInVarPacket(size_t base, int32_t npayloads, size_t plsize, size_t datasize) {
+inline constexpr bool validInVarPacket(size_t base, size_t npayloads, size_t plsize, size_t datasize) {
     // check for multiplication overflow
     if (npayloads > 0 && (CN_PACKET_BUFFER_SIZE - 8) / (size_t)npayloads < plsize)
         return false;

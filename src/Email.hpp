@@ -5,6 +5,6 @@
 
 namespace Email {
     extern std::vector<std::string> dump;
-
+    
     void init();
 }

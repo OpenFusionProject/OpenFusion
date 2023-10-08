@@ -3,9 +3,12 @@
 #include "core/Core.hpp"
 
 #include <map>
+#include <list>
 
 #define REGISTER_SHARD_PACKET(pactype, handlr) CNShardServer::ShardPackets[pactype] = handlr;
 #define REGISTER_SHARD_TIMER(handlr, delta) CNShardServer::Timers.push_back(TimerEvent(handlr, delta));
+#define MS_PER_PLAYER_TICK 500
+#define MS_PER_COMBAT_TICK 200
 
 class CNShardServer : public CNServer {
 private:

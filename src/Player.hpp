@@ -1,17 +1,21 @@
 #pragma once
 
-#include <string>
-#include <cstring>
-
 #include "core/Core.hpp"
-#include "Chunking.hpp"
+
 #include "Entities.hpp"
+#include "Groups.hpp"
+
+#include <vector>
+
+/* forward declaration(s) */
+class Buff;
+struct BuffStack;
 
 #define ACTIVE_MISSION_COUNT 6
 
 #define PC_MAXHEALTH(level) (925 + 75 * (level))
 
-struct Player : public Entity {
+struct Player : public Entity, public ICombatant {
     int accountId = 0;
     int accountLevel = 0; // permission level (see CN_ACCOUNT_LEVEL enums)
     int32_t iID = 0;
@@ -32,9 +36,8 @@ struct Player : public Entity {
     int8_t iPCState = 0;
     int32_t iWarpLocationFlag = 0;
     int64_t aSkywayLocationFlag[2] = {};
-    int32_t iConditionBitFlag = 0;
-    int32_t iSelfConditionBitFlag = 0;
     int8_t iSpecialState = 0;
+    std::unordered_map<int, Buff*> buffs = {};
 
     int angle = 0;
     int lastX = 0, lastY = 0, lastZ = 0, lastAngle = 0;
@@ -49,7 +52,6 @@ struct Player : public Entity {
 
     bool inCombat = false;
     bool onMonkey = false;
-    int nanoDrainRate = 0;
     int healCooldown = 0;
 
     int pointDamage = 0;
@@ -65,10 +67,7 @@ struct Player : public Entity {
 
     sTimeLimitItemDeleteInfo2CL toRemoveVehicle = {};
 
-    int32_t iIDGroup = 0;
-    int groupCnt = 0;
-    int32_t groupIDs[4] = {};
-    int32_t iGroupConditionBitFlag = 0;
+    Group* group = nullptr;
 
     bool notify = false;
     bool hidden = false;
@@ -85,8 +84,31 @@ struct Player : public Entity {
     time_t lastShot = 0;
     std::vector<sItemBase> buyback = {};
 
-    Player() { type = EntityType::PLAYER; }
+    Player() { kind = EntityKind::PLAYER; }
 
     virtual void enterIntoViewOf(CNSocket *sock) override;
     virtual void disappearFromViewOf(CNSocket *sock) override;
+
+    virtual bool addBuff(int buffId, BuffCallback<int, BuffStack*> onUpdate, BuffCallback<time_t> onTick, BuffStack* stack) override;
+    virtual Buff* getBuff(int buffId) override;
+    virtual void removeBuff(int buffId) override;
+    virtual void removeBuff(int buffId, BuffClass buffClass) override;
+    virtual void clearBuffs(bool force) override;
+    virtual bool hasBuff(int buffId) override;
+    virtual int getCompositeCondition() override;
+    virtual int takeDamage(EntityRef src, int amt) override;
+    virtual int heal(EntityRef src, int amt) override;
+    virtual bool isAlive() override;
+    virtual int getCurrentHP() override;
+    virtual int getMaxHP() override;
+    virtual int getLevel() override;
+    virtual std::vector<EntityRef> getGroupMembers() override;
+    virtual int32_t getCharType() override;
+    virtual int32_t getID() override;
+    virtual EntityRef getRef() override;
+
+    virtual void step(time_t currTime) override;
+
+    sNano* getActiveNano();
+    sPCAppearanceData getAppearanceData();
 };

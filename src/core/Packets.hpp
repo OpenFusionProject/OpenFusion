@@ -47,8 +47,8 @@ struct PacketDesc {
  * really should.
  */
 struct sGM_PVPTarget {
-    uint32_t eCT;
     uint32_t iID;
+    uint32_t eCT;
 };
 
 struct sSkillResult_Leech {

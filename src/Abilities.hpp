@@ -1,64 +1,112 @@
 #pragma once
 
 #include "core/Core.hpp"
-#include "Combat.hpp"
 
-typedef void (*PowerHandler)(CNSocket*, std::vector<int>, int16_t, int16_t, int16_t, int16_t, int16_t, int32_t, int16_t);
+#include "Entities.hpp"
+#include "Player.hpp"
 
-struct NanoPower {
-    int16_t skillType;
-    int32_t bitFlag;
-    int16_t timeBuffID;
-    PowerHandler handler;
+#include <map>
+#include <vector>
+#include <assert.h>
 
-    NanoPower(int16_t s, int32_t b, int16_t t, PowerHandler h) : skillType(s), bitFlag(b), timeBuffID(t), handler(h) {}
+const int COMBAT_TICKS_PER_DRAIN_PROC = 2;
+constexpr size_t MAX_SKILLRESULT_SIZE = sizeof(sSkillResult_BatteryDrain);
 
-    void handle(CNSocket *sock, std::vector<int> targetData, int16_t nanoID, int16_t skillID, int16_t duration, int16_t amount) {
-        if (handler == nullptr)
-            return;
-
-        handler(sock, targetData, nanoID, skillID, duration, amount, skillType, bitFlag, timeBuffID);
-    }
+enum class SkillType {
+    DAMAGE = 1,
+    HEAL_HP = 2,
+    KNOCKDOWN = 3, // uses DamageNDebuff
+    SLEEP = 4, // uses DamageNDebuff
+    SNARE = 5, // uses DamageNDebuff
+    HEAL_STAMINA = 6,
+    STAMINA_SELF = 7,
+    STUN = 8, // uses DamageNDebuff
+    WEAPONSLOW = 9,
+    JUMP = 10,
+    RUN = 11,
+    STEALTH = 12,
+    SWIM = 13,
+    MINIMAPENEMY = 14,
+    MINIMAPTRESURE = 15,
+    PHOENIX = 16,
+    PROTECTBATTERY = 17,
+    PROTECTINFECTION = 18,
+    REWARDBLOB = 19,
+    REWARDCASH = 20,
+    BATTERYDRAIN = 21,
+    CORRUPTIONATTACK = 22,
+    INFECTIONDAMAGE = 23,
+    KNOCKBACK = 24,
+    FREEDOM = 25,
+    PHOENIX_GROUP = 26,
+    RECALL = 27,
+    RECALL_GROUP = 28,
+    RETROROCKET_SELF = 29,
+    BLOODSUCKING = 30,
+    BOUNDINGBALL = 31,
+    INVULNERABLE = 32,
+    NANOSTIMPAK = 33,
+    RETURNHOMEHEAL = 34,
+    BUFFHEAL = 35,
+    EXTRABANK = 36,
+    CORRUPTIONATTACKWIN = 38,
+    CORRUPTIONATTACKLOSE = 39,
 };
 
-typedef void (*MobPowerHandler)(Mob*, std::vector<int>, int16_t, int16_t, int16_t, int16_t, int32_t, int16_t);
+enum class SkillEffectTarget {
+    POINT = 1,
+    SELF = 2,
+    CONE = 3,
+    WEAPON = 4,
+    AREA_SELF = 5,
+    AREA_TARGET = 6
+};
 
-struct MobPower {
-    int16_t skillType;
-    int32_t bitFlag;
-    int16_t timeBuffID;
-    MobPowerHandler handler;
+enum class SkillTargetType {
+    MOBS = 1,
+    PLAYERS = 2,
+    GROUP = 3
+};
 
-    MobPower(int16_t s, int32_t b, int16_t t, MobPowerHandler h) : skillType(s), bitFlag(b), timeBuffID(t), handler(h) {}
+enum class SkillDrainType {
+    ACTIVE = 1,
+    PASSIVE = 2
+};
 
-    void handle(Mob *mob, std::vector<int> targetData, int16_t skillID, int16_t duration, int16_t amount) {
-        if (handler == nullptr)
-            return;
-
-        handler(mob, targetData, skillID, duration, amount, skillType, bitFlag, timeBuffID);
+struct SkillResult {
+    size_t size;
+    uint8_t payload[MAX_SKILLRESULT_SIZE];
+    SkillResult(size_t len, void* dat) {
+        assert(len <= MAX_SKILLRESULT_SIZE);
+        size = len;
+        memcpy(payload, dat, len);
+    }
+    SkillResult() {
+        size = 0;
     }
 };
 
 struct SkillData {
-    int skillType;
-    int targetType;
-    int drainType;
+    SkillType skillType; // eST
+    SkillEffectTarget effectTarget;
+    int effectType; // always 1?
+    SkillTargetType targetType;
+    SkillDrainType drainType;
     int effectArea;
+
     int batteryUse[4];
     int durationTime[4];
-    int powerIntensity[4];
+
+    int valueTypes[3];
+    int values[3][4];
 };
 
-namespace Nanos {
-    extern std::vector<NanoPower> NanoPowers;
+namespace Abilities {
     extern std::map<int32_t, SkillData> SkillTable;
 
-    void nanoUnbuff(CNSocket* sock, std::vector<int> targetData, int32_t bitFlag, int16_t timeBuffID, int16_t amount, bool groupPower);
-    int applyBuff(CNSocket* sock, int skillID, int eTBU, int eTBT, int32_t groupFlags);
+    void useNanoSkill(CNSocket*, SkillData*, sNano&, std::vector<ICombatant*>);
+    void useNPCSkill(EntityRef, int skillID, std::vector<ICombatant*>);
 
-    std::vector<int> findTargets(Player* plr, int skillID, CNPacketData* data = nullptr);
-}
-
-namespace Combat {
-    extern std::vector<MobPower> MobPowers;
+    std::vector<ICombatant*> matchTargets(ICombatant*, SkillData*, int, int32_t*);
+    int getCSTBFromST(SkillType skillType);
 }

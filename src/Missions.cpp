@@ -1,11 +1,10 @@
-#include "servers/CNShardServer.hpp"
 #include "Missions.hpp"
-#include "PlayerManager.hpp"
-#include "Nanos.hpp"
-#include "Items.hpp"
-#include "Transport.hpp"
 
-#include "string.h"
+#include "servers/CNShardServer.hpp"
+
+#include "PlayerManager.hpp"
+#include "Items.hpp"
+#include "Nanos.hpp"
 
 using namespace Missions;
 
@@ -164,14 +163,14 @@ static int giveMissionReward(CNSocket *sock, int task, int choice=0) {
 
     // update player
     plr->money += reward->money;
-    if (plr->iConditionBitFlag & CSB_BIT_REWARD_CASH) { // nano boost for taros
+    if (plr->hasBuff(ECSB_REWARD_CASH)) { // nano boost for taros
         int boost = 0;
         if (Nanos::getNanoBoost(plr)) // for gumballs
             boost = 1;
         plr->money += reward->money * (5 + boost) / 25;
     }
 
-    if (plr->iConditionBitFlag & CSB_BIT_REWARD_BLOB) { // nano boost for fm
+    if (plr->hasBuff(ECSB_REWARD_BLOB)) { // nano boost for fm
         int boost = 0;
         if (Nanos::getNanoBoost(plr)) // for gumballs
             boost = 1;
@@ -367,15 +366,15 @@ static void taskStart(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
 
     // if escort task, assign matching paths to all nearby NPCs
-    if (task["m_iHTaskType"] == 6) {
+    if (task["m_iHTaskType"] == (int)eTaskTypeProperty::EscortDefence) {
         for (ChunkPos& chunkPos : Chunking::getChunksInMap(plr->instanceID)) { // check all NPCs in the instance
             Chunk* chunk = Chunking::chunks[chunkPos];
             for (EntityRef ref : chunk->entities) {
-                if (ref.type != EntityType::PLAYER) {
+                if (ref.kind != EntityKind::PLAYER) {
                     BaseNPC* npc = (BaseNPC*)ref.getEntity();
-                    NPCPath* path = Transport::findApplicablePath(npc->appearanceData.iNPC_ID, npc->appearanceData.iNPCType, missionData->iTaskNum);
+                    NPCPath* path = Transport::findApplicablePath(npc->id, npc->type, missionData->iTaskNum);
                     if (path != nullptr) {
-                        Transport::constructPathNPC(npc->appearanceData.iNPC_ID, path);
+                        Transport::constructPathNPC(npc->id, path);
                         return;
                     }
                 }
@@ -399,7 +398,7 @@ static void taskEnd(CNSocket* sock, CNPacketData* data) {
          * once we comb over mission logic more throughly
          */
         bool mobsAreKilled = false;
-        if (task->task["m_iHTaskType"] == 5) {
+        if (task->task["m_iHTaskType"] == (int)eTaskTypeProperty::Defeat) {
             mobsAreKilled = true;
             for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
                 if (plr->tasks[i] == missionData->iTaskNum) {

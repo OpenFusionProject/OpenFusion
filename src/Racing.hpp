@@ -1,8 +1,10 @@
 #pragma once
 
-#include <set>
+#include "core/Core.hpp"
 
-#include "servers/CNShardServer.hpp"
+#include <map>
+#include <vector>
+#include <set>
 
 struct EPInfo {
     int zoneX, zoneY, EPID, maxScore, maxTime;

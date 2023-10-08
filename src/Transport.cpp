@@ -1,9 +1,12 @@
+#include "Transport.hpp"
+
 #include "servers/CNShardServer.hpp"
+
 #include "PlayerManager.hpp"
 #include "Nanos.hpp"
-#include "Transport.hpp"
 #include "TableData.hpp"
-#include "Combat.hpp"
+#include "Entities.hpp"
+#include "NPCManager.hpp"
 #include "MobAI.hpp"
 
 #include <unordered_map>
@@ -257,13 +260,13 @@ static void stepNPCPathing() {
         }
 
         // skip if not simulating mobs
-        if (npc->type == EntityType::MOB && !MobAI::simulateMobs) {
+        if (npc->kind == EntityKind::MOB && !MobAI::simulateMobs) {
             it++;
             continue;
         }
 
         // do not roam if not roaming
-        if (npc->type == EntityType::MOB && ((Mob*)npc)->state != MobState::ROAMING) {
+        if (npc->kind == EntityKind::MOB && ((Mob*)npc)->state != AIState::ROAMING) {
             it++;
             continue;
         }
@@ -276,15 +279,15 @@ static void stepNPCPathing() {
         int distanceBetween = hypot(dXY, point.z - npc->z); // total distance
 
         // update NPC location to update viewables
-        NPCManager::updateNPCPosition(npc->appearanceData.iNPC_ID, point.x, point.y, point.z, npc->instanceID, npc->appearanceData.iAngle);
+        NPCManager::updateNPCPosition(npc->id, point.x, point.y, point.z, npc->instanceID, npc->angle);
 
         // TODO: move walking logic into Entity stack
-        switch (npc->type) {
-        case EntityType::BUS:
+        switch (npc->kind) {
+        case EntityKind::BUS:
             INITSTRUCT(sP_FE2CL_TRANSPORTATION_MOVE, busMove);
 
             busMove.eTT = 3;
-            busMove.iT_ID = npc->appearanceData.iNPC_ID;
+            busMove.iT_ID = npc->id;
             busMove.iMoveStyle = 0; // ???
             busMove.iToX = point.x;
             busMove.iToY = point.y;
@@ -293,12 +296,12 @@ static void stepNPCPathing() {
 
             NPCManager::sendToViewable(npc, &busMove, P_FE2CL_TRANSPORTATION_MOVE, sizeof(sP_FE2CL_TRANSPORTATION_MOVE));
             break;
-        case EntityType::MOB:
+        case EntityKind::MOB:
             MobAI::incNextMovement((Mob*)npc);
             /* fallthrough */
         default:
             INITSTRUCT(sP_FE2CL_NPC_MOVE, move);
-            move.iNPC_ID = npc->appearanceData.iNPC_ID;
+            move.iNPC_ID = npc->id;
             move.iMoveStyle = 0; // ???
             move.iToX = point.x;
             move.iToY = point.y;
@@ -385,7 +388,7 @@ NPCPath* Transport::findApplicablePath(int32_t id, int32_t type, int taskID) {
 
 void Transport::constructPathNPC(int32_t id, NPCPath* path) {
     BaseNPC* npc = NPCManager::NPCs[id];
-    if (npc->type == EntityType::MOB)
+    if (npc->kind == EntityKind::MOB)
         ((Mob*)(npc))->staticPath = true;
     npc->loopingPath = path->isLoop;
 

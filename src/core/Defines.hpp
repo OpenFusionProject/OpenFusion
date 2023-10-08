@@ -10,63 +10,44 @@ const float CN_EP_RANK_4 = 0.3f;
 const float CN_EP_RANK_5 = 0.29f;
 
 // methods of finding players for GM commands
-enum eCN_GM_TargetSearchBy {
-    eCN_GM_TargetSearchBy__PC_ID, // player id
-    eCN_GM_TargetSearchBy__PC_Name, // firstname, lastname
-    eCN_GM_TargetSearchBy__PC_UID // account id
+enum class eCN_GM_TargetSearchBy {
+    PC_ID, // player id
+    PC_Name, // firstname, lastname
+    PC_UID // account id
 };
 
-enum eCN_GM_TeleportType {
-    eCN_GM_TeleportMapType__XYZ,
-    eCN_GM_TeleportMapType__MapXYZ,
-    eCN_GM_TeleportMapType__MyLocation,
-    eCN_GM_TeleportMapType__SomeoneLocation,
-    eCN_GM_TeleportMapType__Unstick
+enum class eCN_GM_TeleportType {
+    XYZ,
+    MapXYZ,
+    MyLocation,
+    SomeoneLocation,
+    Unstick
 };
 
-// nano powers
+enum class eTaskTypeProperty {
+    None = -1,
+    Talk = 1,
+    GotoLocation = 2,
+    UseItems = 3,
+    Delivery = 4,
+    Defeat = 5,
+    EscortDefence = 6,
+    Max = 7
+};
+
+enum class ePCRegenType {
+    None,
+    Xcom,
+    Here,
+    HereByPhoenix,
+    HereByPhoenixGroup,
+    Unstick,
+    HereByPhoenixItem,
+    End
+};
+
+// nano power flags
 enum {
-    EST_NONE = 0,
-    EST_DAMAGE = 1,
-    EST_HEAL_HP = 2,
-    EST_KNOCKDOWN = 3,
-    EST_SLEEP = 4,
-    EST_SNARE = 5,
-    EST_HEAL_STAMINA = 6,
-    EST_STAMINA_SELF = 7,
-    EST_STUN = 8,
-    EST_WEAPONSLOW = 9,
-    EST_JUMP = 10,
-    EST_RUN = 11,
-    EST_STEALTH = 12,
-    EST_SWIM = 13,
-    EST_MINIMAPENEMY = 14,
-    EST_MINIMAPTRESURE = 15,
-    EST_PHOENIX = 16,
-    EST_PROTECTBATTERY = 17,
-    EST_PROTECTINFECTION = 18,
-    EST_REWARDBLOB = 19,
-    EST_REWARDCASH = 20,
-    EST_BATTERYDRAIN = 21,
-    EST_CORRUPTIONATTACK = 22,
-    EST_INFECTIONDAMAGE = 23,
-    EST_KNOCKBACK = 24,
-    EST_FREEDOM = 25,
-    EST_PHOENIX_GROUP = 26,
-    EST_RECALL = 27,
-    EST_RECALL_GROUP = 28,
-    EST_RETROROCKET_SELF = 29,
-    EST_BLOODSUCKING = 30,
-    EST_BOUNDINGBALL = 31,
-    EST_INVULNERABLE = 32,
-    EST_NANOSTIMPAK = 33,
-    EST_RETURNHOMEHEAL = 34,
-    EST_BUFFHEAL = 35,
-    EST_EXTRABANK = 36,
-    EST__END = 37,
-    EST_CORRUPTIONATTACKWIN = 38,
-    EST_CORRUPTIONATTACKLOSE = 39,
-
     ECSB_NONE = 0,
     ECSB_UP_MOVE_SPEED = 1,
     ECSB_UP_SWIM_SPEED = 2,
@@ -94,6 +75,27 @@ enum {
     ECSB_HEAL = 24,
     ECSB_EXTRABANK = 25,
     ECSTB__END = 26,
+};
+
+enum {
+	ETBU_NONE = 0,
+	ETBU_ADD = 1,
+	ETBU_DEL = 2,
+	ETBU_CHANGE = 3,
+    ETBU__END = 4,
+};
+
+enum  {
+	ETBT_NONE = 0,
+	ETBT_NANO = 1,
+	ETBT_GROUPNANO = 2,
+	ETBT_SHINY = 3,
+	ETBT_LANDEFFECT = 4,
+	ETBT_ITEM = 5,
+	ETBT_CASHITEM = 6,
+	ETBT__END = 7,
+	ETBT_SKILL = 1,
+	ETBT_GROUPSKILL = 2
 };
 
 enum {

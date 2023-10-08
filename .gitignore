@@ -16,3 +16,5 @@ build/
 version.h
 infer-out
 gmon.out
+*.bak
+

@@ -1,9 +1,9 @@
 #include "Chunking.hpp"
-#include "PlayerManager.hpp"
+
+#include "MobAI.hpp"
 #include "NPCManager.hpp"
-#include "settings.hpp"
-#include "Combat.hpp"
-#include "Eggs.hpp"
+
+#include <assert.h>
 
 using namespace Chunking;
 
@@ -26,7 +26,7 @@ static void newChunk(ChunkPos pos) {
     // add the chunk to the cache of all players and NPCs in the surrounding chunks
     std::set<Chunk*> surroundings = getViewableChunks(pos);
     for (Chunk* c : surroundings)
-        for (const EntityRef& ref : c->entities)
+        for (const EntityRef ref : c->entities)
             ref.getEntity()->viewableChunks.insert(chunk);
 }
 
@@ -41,24 +41,24 @@ static void deleteChunk(ChunkPos pos) {
     // remove the chunk from the cache of all players and NPCs in the surrounding chunks
     std::set<Chunk*> surroundings = getViewableChunks(pos);
     for(Chunk* c : surroundings)
-        for (const EntityRef& ref : c->entities)
+        for (const EntityRef ref : c->entities)
             ref.getEntity()->viewableChunks.erase(chunk);
 
     chunks.erase(pos); // remove from map
     delete chunk; // free from memory
 }
 
-void Chunking::trackEntity(ChunkPos chunkPos, const EntityRef& ref) {
+void Chunking::trackEntity(ChunkPos chunkPos, const EntityRef ref) {
     if (!chunkExists(chunkPos))
         return; // shouldn't happen
 
     chunks[chunkPos]->entities.insert(ref);
 
-    if (ref.type == EntityType::PLAYER)
+    if (ref.kind == EntityKind::PLAYER)
         chunks[chunkPos]->nplayers++;
 }
 
-void Chunking::untrackEntity(ChunkPos chunkPos, const EntityRef& ref) {
+void Chunking::untrackEntity(ChunkPos chunkPos, const EntityRef ref) {
     if (!chunkExists(chunkPos))
         return; // do nothing if chunk doesn't even exist
 
@@ -66,7 +66,7 @@ void Chunking::untrackEntity(ChunkPos chunkPos, const EntityRef& ref) {
 
     chunk->entities.erase(ref); // gone
 
-    if (ref.type == EntityType::PLAYER)
+    if (ref.kind == EntityKind::PLAYER)
         chunks[chunkPos]->nplayers--;
     assert(chunks[chunkPos]->nplayers >= 0);
 
@@ -75,13 +75,13 @@ void Chunking::untrackEntity(ChunkPos chunkPos, const EntityRef& ref) {
         deleteChunk(chunkPos);
 }
 
-void Chunking::addEntityToChunks(std::set<Chunk*> chnks, const EntityRef& ref) {
+void Chunking::addEntityToChunks(std::set<Chunk*> chnks, const EntityRef ref) {
     Entity *ent = ref.getEntity();
-    bool alive = ent->isAlive();
+    bool alive = ent->isExtant();
 
     // TODO: maybe optimize this, potentially using AROUND packets?
     for (Chunk *chunk : chnks) {
-        for (const EntityRef& otherRef : chunk->entities) {
+        for (const EntityRef otherRef : chunk->entities) {
             // skip oneself
             if (ref == otherRef)
                 continue;
@@ -89,31 +89,31 @@ void Chunking::addEntityToChunks(std::set<Chunk*> chnks, const EntityRef& ref) {
             Entity *other = otherRef.getEntity();
 
             // notify all visible players of the existence of this Entity
-            if (alive && otherRef.type == EntityType::PLAYER) {
+            if (alive && otherRef.kind == EntityKind::PLAYER) {
                 ent->enterIntoViewOf(otherRef.sock);
             }
 
             // notify this *player* of the existence of all visible Entities
-            if (ref.type == EntityType::PLAYER && other->isAlive()) {
+            if (ref.kind == EntityKind::PLAYER && other->isExtant()) {
                 other->enterIntoViewOf(ref.sock);
             }
 
             // for mobs, increment playersInView
-            if (ref.type == EntityType::MOB && otherRef.type == EntityType::PLAYER)
+            if (ref.kind == EntityKind::MOB && otherRef.kind == EntityKind::PLAYER)
                 ((Mob*)ent)->playersInView++;
-            if (otherRef.type == EntityType::MOB && ref.type == EntityType::PLAYER)
+            if (otherRef.kind == EntityKind::MOB && ref.kind == EntityKind::PLAYER)
                 ((Mob*)other)->playersInView++;
         }
     }
 }
 
-void Chunking::removeEntityFromChunks(std::set<Chunk*> chnks, const EntityRef& ref) {
+void Chunking::removeEntityFromChunks(std::set<Chunk*> chnks, const EntityRef ref) {
     Entity *ent = ref.getEntity();
-    bool alive = ent->isAlive();
+    bool alive = ent->isExtant();
 
     // TODO: same as above
     for (Chunk *chunk : chnks) {
-        for (const EntityRef& otherRef : chunk->entities) {
+        for (const EntityRef otherRef : chunk->entities) {
             // skip oneself
             if (ref == otherRef)
                 continue;
@@ -121,19 +121,19 @@ void Chunking::removeEntityFromChunks(std::set<Chunk*> chnks, const EntityRef& r
             Entity *other = otherRef.getEntity();
 
             // notify all visible players of the departure of this Entity
-            if (alive && otherRef.type == EntityType::PLAYER) {
+            if (alive && otherRef.kind == EntityKind::PLAYER) {
                 ent->disappearFromViewOf(otherRef.sock);
             }
 
             // notify this *player* of the departure of all visible Entities
-            if (ref.type == EntityType::PLAYER && other->isAlive()) {
+            if (ref.kind == EntityKind::PLAYER && other->isExtant()) {
                 other->disappearFromViewOf(ref.sock);
             }
 
             // for mobs, decrement playersInView
-            if (ref.type == EntityType::MOB && otherRef.type == EntityType::PLAYER)
+            if (ref.kind == EntityKind::MOB && otherRef.kind == EntityKind::PLAYER)
                 ((Mob*)ent)->playersInView--;
-            if (otherRef.type == EntityType::MOB && ref.type == EntityType::PLAYER)
+            if (otherRef.kind == EntityKind::MOB && ref.kind == EntityKind::PLAYER)
                 ((Mob*)other)->playersInView--;
         }
     }
@@ -154,8 +154,8 @@ static void emptyChunk(ChunkPos chunkPos) {
 
     // unspawn all of the mobs/npcs
     std::set refs(chunk->entities);
-    for (const EntityRef& ref : refs) {
-        if (ref.type == EntityType::PLAYER)
+    for (const EntityRef ref : refs) {
+        if (ref.kind == EntityKind::PLAYER)
             assert(0);
 
         // every call of this will check if the chunk is empty and delete it if so
@@ -163,7 +163,7 @@ static void emptyChunk(ChunkPos chunkPos) {
     }
 }
 
-void Chunking::updateEntityChunk(const EntityRef& ref, ChunkPos from, ChunkPos to) {
+void Chunking::updateEntityChunk(const EntityRef ref, ChunkPos from, ChunkPos to) {
     Entity* ent = ref.getEntity();
 
     // move to other chunk's player set
@@ -267,54 +267,53 @@ void Chunking::createInstance(uint64_t instanceID) {
 
     std::cout << "Creating instance " << instanceID << std::endl;
     for (ChunkPos &coords : templateChunks) {
-        for (const EntityRef& ref : chunks[coords]->entities) {
-            if (ref.type == EntityType::PLAYER)
+        for (const EntityRef ref : chunks[coords]->entities) {
+            if (ref.kind == EntityKind::PLAYER)
                 continue;
 
             int npcID = ref.id;
             BaseNPC* baseNPC = (BaseNPC*)ref.getEntity();
 
             // make a copy of each NPC in the template chunks and put them in the new instance
-            if (baseNPC->type == EntityType::MOB) {
+            if (baseNPC->kind == EntityKind::MOB) {
                 if (((Mob*)baseNPC)->groupLeader != 0 && ((Mob*)baseNPC)->groupLeader != npcID)
                     continue; // follower; don't copy individually
 
-                Mob* newMob = new Mob(baseNPC->x, baseNPC->y, baseNPC->z, baseNPC->appearanceData.iAngle,
-                    instanceID, baseNPC->appearanceData.iNPCType, NPCManager::NPCData[baseNPC->appearanceData.iNPCType], NPCManager::nextId--);
-                NPCManager::NPCs[newMob->appearanceData.iNPC_ID] = newMob;
+                Mob* newMob = new Mob(baseNPC->x, baseNPC->y, baseNPC->z, baseNPC->angle,
+                    instanceID, baseNPC->type, NPCManager::NPCData[baseNPC->type], NPCManager::nextId--);
+                NPCManager::NPCs[newMob->id] = newMob;
 
                 // if in a group, copy over group members as well
                 if (((Mob*)baseNPC)->groupLeader != 0) {
-                    newMob->groupLeader = newMob->appearanceData.iNPC_ID; // set leader ID for new leader
+                    newMob->groupLeader = newMob->id; // set leader ID for new leader
                     Mob* mobData = (Mob*)baseNPC;
                     for (int i = 0; i < 4; i++) {
                         if (mobData->groupMember[i] != 0) {
                             int followerID = NPCManager::nextId--; // id for follower
                             BaseNPC* baseFollower = NPCManager::NPCs[mobData->groupMember[i]]; // follower from template
                             // new follower instance
-                            Mob* newMobFollower = new Mob(baseFollower->x, baseFollower->y, baseFollower->z, baseFollower->appearanceData.iAngle,
-                                instanceID, baseFollower->appearanceData.iNPCType, NPCManager::NPCData[baseFollower->appearanceData.iNPCType], followerID);
+                            Mob* newMobFollower = new Mob(baseFollower->x, baseFollower->y, baseFollower->z, baseFollower->angle,
+                                instanceID, baseFollower->type, NPCManager::NPCData[baseFollower->type], followerID);
                             // add follower to NPC maps
                             NPCManager::NPCs[followerID] = newMobFollower;
                             // set follower-specific properties
-                            newMobFollower->groupLeader = newMob->appearanceData.iNPC_ID;
+                            newMobFollower->groupLeader = newMob->id;
                             newMobFollower->offsetX = ((Mob*)baseFollower)->offsetX;
                             newMobFollower->offsetY = ((Mob*)baseFollower)->offsetY;
                             // add follower copy to leader copy
                             newMob->groupMember[i] = followerID;
                             NPCManager::updateNPCPosition(followerID, baseFollower->x, baseFollower->y, baseFollower->z,
-                                instanceID, baseFollower->appearanceData.iAngle);
+                                instanceID, baseFollower->angle);
                         }
                     }
                 }
-                NPCManager::updateNPCPosition(newMob->appearanceData.iNPC_ID, baseNPC->x, baseNPC->y, baseNPC->z,
-                    instanceID, baseNPC->appearanceData.iAngle);
+                NPCManager::updateNPCPosition(newMob->id, baseNPC->x, baseNPC->y, baseNPC->z,
+                    instanceID, baseNPC->angle);
             } else {
-                BaseNPC* newNPC = new BaseNPC(baseNPC->x, baseNPC->y, baseNPC->z, baseNPC->appearanceData.iAngle,
-                    instanceID, baseNPC->appearanceData.iNPCType, NPCManager::nextId--);
-                NPCManager::NPCs[newNPC->appearanceData.iNPC_ID] = newNPC;
-                NPCManager::updateNPCPosition(newNPC->appearanceData.iNPC_ID, baseNPC->x, baseNPC->y, baseNPC->z,
-                    instanceID, baseNPC->appearanceData.iAngle);
+                BaseNPC* newNPC = new BaseNPC(baseNPC->angle, instanceID, baseNPC->type, NPCManager::nextId--);
+                NPCManager::NPCs[newNPC->id] = newNPC;
+                NPCManager::updateNPCPosition(newNPC->id, baseNPC->x, baseNPC->y, baseNPC->z,
+                    instanceID, baseNPC->angle);
             }
         }
     }

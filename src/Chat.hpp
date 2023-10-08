@@ -2,7 +2,10 @@
 
 #define CMD_PREFIX '/'
 
-#include "servers/CNShardServer.hpp"
+#include "core/Core.hpp"
+
+#include <string>
+#include <vector>
 
 namespace Chat {
     extern std::vector<std::string> dump;

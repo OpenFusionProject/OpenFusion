@@ -1,14 +1,10 @@
 #pragma once
 
-#include "core/Core.hpp"
+#include "EntityRef.hpp"
 
-#include <utility>
 #include <set>
 #include <map>
-#include <tuple>
-#include <algorithm>
-
-struct EntityRef;
+#include <vector>
 
 class Chunk {
 public:
@@ -36,13 +32,13 @@ namespace Chunking {
 
     extern const ChunkPos INVALID_CHUNK;
 
-    void updateEntityChunk(const EntityRef& ref, ChunkPos from, ChunkPos to);
+    void updateEntityChunk(const EntityRef ref, ChunkPos from, ChunkPos to);
 
-    void trackEntity(ChunkPos chunkPos, const EntityRef& ref);
-    void untrackEntity(ChunkPos chunkPos, const EntityRef& ref);
+    void trackEntity(ChunkPos chunkPos, const EntityRef ref);
+    void untrackEntity(ChunkPos chunkPos, const EntityRef ref);
 
-    void addEntityToChunks(std::set<Chunk*> chnks, const EntityRef& ref);
-    void removeEntityFromChunks(std::set<Chunk*> chnks, const EntityRef& ref);
+    void addEntityToChunks(std::set<Chunk*> chnks, const EntityRef ref);
+    void removeEntityFromChunks(std::set<Chunk*> chnks, const EntityRef ref);
 
     bool chunkExists(ChunkPos chunk);
     ChunkPos chunkPosAt(int posX, int posY, uint64_t instanceID);

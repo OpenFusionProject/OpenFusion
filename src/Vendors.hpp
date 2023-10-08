@@ -1,10 +1,9 @@
 #pragma once
 
 #include "core/Core.hpp"
-#include "servers/CNShardServer.hpp"
 
-#include "Items.hpp"
-#include "PlayerManager.hpp"
+#include <vector>
+#include <map>
 
 struct VendorListing {
     int sort, type, id;

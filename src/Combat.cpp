@@ -1,21 +1,330 @@
 #include "Combat.hpp"
-#include "PlayerManager.hpp"
-#include "Nanos.hpp"
-#include "NPCManager.hpp"
-#include "Items.hpp"
-#include "Missions.hpp"
-#include "Groups.hpp"
-#include "Transport.hpp"
-#include "Racing.hpp"
-#include "Abilities.hpp"
+
+#include "servers/CNShardServer.hpp"
+
 #include "Rand.hpp"
+#include "Player.hpp"
+#include "PlayerManager.hpp"
+#include "NPCManager.hpp"
+#include "Nanos.hpp"
+#include "Abilities.hpp"
+#include "Buffs.hpp"
 
 #include <assert.h>
+#include <iostream>
+#include <functional>
 
 using namespace Combat;
 
 /// Player Id -> Bullet Id -> Bullet
 std::map<int32_t, std::map<int8_t, Bullet>> Combat::Bullets;
+
+#pragma region Player
+bool Player::addBuff(int buffId, BuffCallback<int, BuffStack*> onUpdate, BuffCallback<time_t> onTick, BuffStack* stack) {
+    if(!isAlive())
+        return false;
+
+    if(!hasBuff(buffId)) {
+        buffs[buffId] = new Buff(buffId, getRef(), onUpdate, onTick, stack);
+        return true;
+    }
+
+    buffs[buffId]->updateCallbacks(onUpdate, onTick);
+    buffs[buffId]->addStack(stack);
+    return false;
+}
+
+Buff* Player::getBuff(int buffId) {
+    if(hasBuff(buffId)) {
+        return buffs[buffId];
+    }
+    return nullptr;
+}
+
+void Player::removeBuff(int buffId) {
+    if(hasBuff(buffId)) {
+        buffs[buffId]->clear();
+        delete buffs[buffId];
+        buffs.erase(buffId);
+    }
+}
+
+void Player::removeBuff(int buffId, BuffClass buffClass) {
+    if(hasBuff(buffId)) {
+        buffs[buffId]->clear(buffClass);
+        // buff might not be stale since another buff class might remain
+        if(buffs[buffId]->isStale()) {
+            delete buffs[buffId];
+            buffs.erase(buffId);
+        }
+    }
+}
+
+void Player::clearBuffs(bool force) {
+    auto it = buffs.begin();
+    while(it != buffs.end()) {
+        Buff* buff = (*it).second;
+        if(!force) buff->clear();
+        delete buff;
+        it = buffs.erase(it);
+    }
+}
+
+bool Player::hasBuff(int buffId) {
+    auto buff = buffs.find(buffId);
+    return buff != buffs.end() && !buff->second->isStale();
+}
+
+int Player::getCompositeCondition() {
+    int conditionBitFlag = 0;
+    for(auto buff : buffs) {
+        if(!buff.second->isStale() && buff.second->id > 0)
+            conditionBitFlag |= CSB_FROM_ECSB(buff.first);
+    }
+    return conditionBitFlag;
+}
+
+int Player::takeDamage(EntityRef src, int amt) {
+    int dmg = amt;
+    if(HP - dmg < 0) dmg = HP;
+    HP -= dmg;
+
+    return dmg;
+}
+
+int Player::heal(EntityRef src, int amt) {
+    int heal = amt;
+    if(HP + heal > getMaxHP()) heal = getMaxHP() - HP;
+    HP += heal;
+
+    return heal;
+}
+
+bool Player::isAlive() {
+    return HP > 0;
+}
+
+int Player::getCurrentHP() {
+    return HP;
+}
+
+int Player::getMaxHP() {
+    return PC_MAXHEALTH(level);
+}
+
+int Player::getLevel() {
+    return level;
+}
+
+std::vector<EntityRef> Player::getGroupMembers() {
+    std::vector<EntityRef> members;
+    if(group != nullptr)
+        members = group->members;
+    else
+        members.push_back(PlayerManager::getSockFromID(iID));
+    return members;
+}
+
+int32_t Player::getCharType() {
+    return 1; // eCharType (eCT_PC)
+}
+
+int32_t Player::getID() {
+    return iID;
+}
+
+EntityRef Player::getRef() {
+    return EntityRef(PlayerManager::getSockFromID(iID));
+}
+
+void Player::step(time_t currTime) {
+    CNSocket* sock = getRef().sock;
+
+    // nanos
+    for (int i = 0; i < 3; i++) {
+        if (activeNano != 0 && equippedNanos[i] == activeNano) { // tick active nano
+            sNano& nano = Nanos[activeNano];
+            int drainRate = 0;
+
+            if (Abilities::SkillTable.find(nano.iSkillID) != Abilities::SkillTable.end()) {
+                // nano has skill data
+                SkillData* skill = &Abilities::SkillTable[nano.iSkillID];
+                int boost = Nanos::getNanoBoost(this);
+                if (skill->drainType == SkillDrainType::PASSIVE)
+                    drainRate = skill->batteryUse[boost * 3];
+            }
+
+            nano.iStamina -= 1 + drainRate / 5;
+            if (nano.iStamina <= 0)
+                Nanos::summonNano(sock, -1, true); // unsummon nano silently
+
+        } else if (Nanos[equippedNanos[i]].iStamina < 150) { // tick resting nano
+            sNano& nano = Nanos[equippedNanos[i]];
+            if (nano.iStamina < 150)
+                nano.iStamina += 1;
+        }
+    }
+
+    // buffs
+    for(auto buffEntry : buffs) {
+        buffEntry.second->combatTick(currTime);
+        if(!isAlive())
+            break; // unsafe to keep ticking if we're dead
+    }
+}
+#pragma endregion
+
+#pragma region CombatNPC
+bool CombatNPC::addBuff(int buffId, BuffCallback<int, BuffStack*> onUpdate, BuffCallback<time_t> onTick, BuffStack* stack) {
+    if(!isAlive())
+        return false;
+
+    if (this->state != AIState::COMBAT && this->state != AIState::ROAMING)
+        return false;
+
+    if(!hasBuff(buffId)) {
+        buffs[buffId] = new Buff(buffId, getRef(), onUpdate, onTick, stack);
+        return true;
+    }
+
+    buffs[buffId]->updateCallbacks(onUpdate, onTick);
+    buffs[buffId]->addStack(stack);
+    return false;
+}
+
+Buff* CombatNPC::getBuff(int buffId) {
+    if(hasBuff(buffId)) {
+        return buffs[buffId];
+    }
+    return nullptr;
+}
+
+void CombatNPC::removeBuff(int buffId) {
+    if(hasBuff(buffId)) {
+        buffs[buffId]->clear();
+        delete buffs[buffId];
+        buffs.erase(buffId);
+    }
+}
+
+void CombatNPC::removeBuff(int buffId, BuffClass buffClass) {
+    if(hasBuff(buffId)) {
+        buffs[buffId]->clear(buffClass);
+        // buff might not be stale since another buff class might remain
+        if(buffs[buffId]->isStale()) {
+            delete buffs[buffId];
+            buffs.erase(buffId);
+        }
+    }
+}
+
+void CombatNPC::clearBuffs(bool force) {
+    auto it = buffs.begin();
+    while(it != buffs.end()) {
+        Buff* buff = (*it).second;
+        if(!force) buff->clear();
+        delete buff;
+        it = buffs.erase(it);
+    }
+}
+
+bool CombatNPC::hasBuff(int buffId) {
+    auto buff = buffs.find(buffId);
+    return buff != buffs.end() && !buff->second->isStale();
+}
+
+int CombatNPC::getCompositeCondition() {
+    int conditionBitFlag = 0;
+    for(auto buff : buffs) {
+        if(!buff.second->isStale() && buff.second->id > 0)
+            conditionBitFlag |= CSB_FROM_ECSB(buff.first);
+    }
+    return conditionBitFlag;
+}
+
+int CombatNPC::takeDamage(EntityRef src, int amt) {
+    int dmg = amt;
+    if(hp - dmg < 0) dmg = hp;
+    hp -= dmg;
+
+    if(hp <= 0) transition(AIState::DEAD, src);
+
+    return dmg;
+}
+
+int CombatNPC::heal(EntityRef src, int amt) {
+    int heal = amt;
+    if(hp + heal > getMaxHP()) heal = getMaxHP() - hp;
+    hp += heal;
+
+    return heal;
+}
+
+bool CombatNPC::isAlive() {
+    return hp > 0;
+}
+
+int CombatNPC::getCurrentHP() {
+    return hp;
+}
+
+int CombatNPC::getMaxHP() {
+    return maxHealth;
+}
+
+int CombatNPC::getLevel() {
+    return level;
+}
+
+std::vector<EntityRef> CombatNPC::getGroupMembers() {
+    std::vector<EntityRef> members;
+    if(group != nullptr)
+        members = group->members;
+    else
+        members.push_back(id);
+    return members;
+}
+
+int32_t CombatNPC::getCharType() {
+    if(kind == EntityKind::MOB)
+        return 4; // eCharType (eCT_MOB)
+    return 2; // eCharType (eCT_NPC)
+}
+
+int32_t CombatNPC::getID() {
+    return id;
+}
+
+EntityRef CombatNPC::getRef() {
+    return EntityRef(id);
+}
+
+void CombatNPC::step(time_t currTime) {
+    
+    if(stateHandlers.find(state) != stateHandlers.end())
+        stateHandlers[state](this, currTime);
+    else {
+        std::cout << "[WARN] State " << (int)state << " has no handler; going inactive" << std::endl;
+        transition(AIState::INACTIVE, id);
+    }
+}
+
+void CombatNPC::transition(AIState newState, EntityRef src) {
+    state = newState;
+
+    if (transitionHandlers.find(newState) != transitionHandlers.end())
+        transitionHandlers[newState](this, src);
+    else {
+        std::cout << "[WARN] Transition to " << (int)state << " has no handler; going inactive" << std::endl;
+        transition(AIState::INACTIVE, id);
+    }
+
+    // trigger special NPCEvents, if applicable
+    for (NPCEvent& event : NPCManager::NPCEvents)
+        if (event.triggerState == newState && event.npcType == type)
+            event.handler(this);
+}
+#pragma endregion
 
 static std::pair<int,int> getDamage(int attackPower, int defensePower, bool shouldCrit,
                                          bool batteryBoost, int attackerStyle,
@@ -114,7 +423,7 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
 
 
         BaseNPC* npc = NPCManager::NPCs[targets[i]];
-        if (npc->type != EntityType::MOB) {
+        if (npc->kind != EntityKind::MOB) {
             std::cout << "[WARN] pcAttackNpcs: NPC is not a mob" << std::endl;
             return;
         }
@@ -137,11 +446,11 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         else
             plr->batteryW = 0;
 
-        damage.first = hitMob(sock, mob, damage.first);
+        damage.first = mob->takeDamage(sock, damage.first);
 
-        respdata[i].iID = mob->appearanceData.iNPC_ID;
+        respdata[i].iID = mob->id;
         respdata[i].iDamage = damage.first;
-        respdata[i].iHP = mob->appearanceData.iHP;
+        respdata[i].iHP = mob->hp;
         respdata[i].iHitFlag = damage.second; // hitscan, not a rocket or a grenade
     }
 
@@ -168,7 +477,7 @@ void Combat::npcAttackPc(Mob *mob, time_t currTime) {
     if (!(plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE))
         plr->HP -= damage.first;
 
-    pkt->iNPC_ID = mob->appearanceData.iNPC_ID;
+    pkt->iNPC_ID = mob->id;
     pkt->iPCCnt = 1;
 
     atk->iID = plr->iID;
@@ -180,50 +489,9 @@ void Combat::npcAttackPc(Mob *mob, time_t currTime) {
     PlayerManager::sendToViewable(mob->target, respbuf, P_FE2CL_NPC_ATTACK_PCs);
 
     if (plr->HP <= 0) {
-        mob->target = nullptr;
-        mob->state = MobState::RETREAT;
-        if (!MobAI::aggroCheck(mob, currTime)) {
-            MobAI::clearDebuff(mob);
-            if (mob->groupLeader != 0)
-                MobAI::groupRetreat(mob);
-        }
+        if (!MobAI::aggroCheck(mob, getTime()))
+            mob->transition(AIState::RETREAT, mob->target);
     }
-}
-
-int Combat::hitMob(CNSocket *sock, Mob *mob, int damage) {
-    // cannot kill mobs multiple times; cannot harm retreating mobs
-    if (mob->state != MobState::ROAMING && mob->state != MobState::COMBAT) {
-        return 0; // no damage
-    }
-
-    if (mob->skillStyle >= 0)
-        return 0; // don't hurt a mob casting corruption
-
-    if (mob->state == MobState::ROAMING) {
-        assert(mob->target == nullptr);
-        MobAI::enterCombat(sock, mob);
-
-        if (mob->groupLeader != 0)
-            MobAI::followToCombat(mob);
-    }
-
-    mob->appearanceData.iHP -= damage;
-
-    // wake up sleeping monster
-    if (mob->appearanceData.iConditionBitFlag & CSB_BIT_MEZ) {
-        mob->appearanceData.iConditionBitFlag &= ~CSB_BIT_MEZ;
-
-        INITSTRUCT(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT, pkt1);
-        pkt1.eCT = 2;
-        pkt1.iID = mob->appearanceData.iNPC_ID;
-        pkt1.iConditionBitFlag = mob->appearanceData.iConditionBitFlag;
-        NPCManager::sendToViewable(mob, &pkt1, P_FE2CL_CHAR_TIME_BUFF_TIME_OUT, sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_OUT));
-    }
-
-    if (mob->appearanceData.iHP <= 0)
-        killMob(mob->target, mob);
-
-    return damage;
 }
 
 /*
@@ -233,93 +501,13 @@ int Combat::hitMob(CNSocket *sock, Mob *mob, int damage) {
  * single RNG roll per mission task, and every group member shares that same
  * set of rolls.
  */
-static void genQItemRolls(Player *leader, std::map<int, int>& rolls) {
-    for (int i = 0; i < leader->groupCnt; i++) {
-        if (leader->groupIDs[i] == 0)
-            continue;
+void Combat::genQItemRolls(std::vector<Player*> players, std::map<int, int>& rolls) {
+    for (int i = 0; i < players.size(); i++) {
 
-        CNSocket *otherSock = PlayerManager::getSockFromID(leader->groupIDs[i]);
-        if (otherSock == nullptr)
-            continue;
-
-        Player *member = PlayerManager::getPlayer(otherSock);
-
+        Player* member = players[i];
         for (int j = 0; j < ACTIVE_MISSION_COUNT; j++)
             if (member->tasks[j] != 0)
                 rolls[member->tasks[j]] = Rand::rand();
-    }
-}
-
-void Combat::killMob(CNSocket *sock, Mob *mob) {
-    mob->state = MobState::DEAD;
-    mob->target = nullptr;
-    mob->appearanceData.iConditionBitFlag = 0;
-    mob->skillStyle = -1;
-    mob->unbuffTimes.clear();
-    mob->killedTime = getTime(); // XXX: maybe introduce a shard-global time for each step?
-
-    // check for the edge case where hitting the mob did not aggro it
-    if (sock != nullptr) {
-        Player* plr = PlayerManager::getPlayer(sock);
-
-        Items::DropRoll rolled;
-        Items::DropRoll eventRolled;
-        std::map<int, int> qitemRolls;
-
-        Player *leader = PlayerManager::getPlayerFromID(plr->iIDGroup);
-        assert(leader != nullptr); // should never happen
-
-        genQItemRolls(leader, qitemRolls);
-
-        if (plr->groupCnt == 1 && plr->iIDGroup == plr->iID) {
-            Items::giveMobDrop(sock, mob, rolled, eventRolled);
-            Missions::mobKilled(sock, mob->appearanceData.iNPCType, qitemRolls);
-        } else {
-            for (int i = 0; i < leader->groupCnt; i++) {
-                CNSocket* sockTo = PlayerManager::getSockFromID(leader->groupIDs[i]);
-                if (sockTo == nullptr)
-                    continue;
-
-                Player *otherPlr = PlayerManager::getPlayer(sockTo);
-
-                // only contribute to group members' kills if they're close enough
-                int dist = std::hypot(plr->x - otherPlr->x + 1, plr->y - otherPlr->y + 1);
-                if (dist > 5000)
-                    continue;
-
-                Items::giveMobDrop(sockTo, mob, rolled, eventRolled);
-                Missions::mobKilled(sockTo, mob->appearanceData.iNPCType, qitemRolls);
-            }
-        }
-    }
-
-    // delay the despawn animation
-    mob->despawned = false;
-
-    // fire any triggered events
-    for (NPCEvent& event : NPCManager::NPCEvents)
-        if (event.trigger == ON_KILLED && event.npcType == mob->appearanceData.iNPCType)
-            event.handler(sock, mob);
-
-    auto it = Transport::NPCQueues.find(mob->appearanceData.iNPC_ID);
-    if (it == Transport::NPCQueues.end() || it->second.empty())
-        return;
-
-    // rewind or empty the movement queue
-    if (mob->staticPath) {
-        /*
-         * This is inelegant, but we wind forward in the path until we find the point that
-         * corresponds with the Mob's spawn point.
-         *
-         * IMPORTANT: The check in TableData::loadPaths() must pass or else this will loop forever.
-         */
-        auto& queue = it->second;
-        for (auto point = queue.front(); point.x != mob->spawnX || point.y != mob->spawnY; point = queue.front()) {
-            queue.pop();
-            queue.push(point);
-        }
-    } else {
-        Transport::NPCQueues.erase(mob->appearanceData.iNPC_ID);
     }
 }
 
@@ -345,40 +533,27 @@ static void combatEnd(CNSocket *sock, CNPacketData *data) {
     plr->healCooldown = 4000;
 }
 
-static void dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
-    sP_CL2FE_DOT_DAMAGE_ONOFF *pkt = (sP_CL2FE_DOT_DAMAGE_ONOFF*)data->buf;
+static void dealGooDamage(CNSocket *sock) {
     Player *plr = PlayerManager::getPlayer(sock);
+    if(plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE)
+        return; // ignore completely
 
-    if ((plr->iConditionBitFlag & CSB_BIT_INFECTION) != (bool)pkt->iFlag)
-        plr->iConditionBitFlag ^= CSB_BIT_INFECTION;
-
-    INITSTRUCT(sP_FE2CL_PC_BUFF_UPDATE, pkt1);
-
-    pkt1.eCSTB = ECSB_INFECTION; // eCharStatusTimeBuffID
-    pkt1.eTBU = 1; // eTimeBuffUpdate
-    pkt1.eTBT = 0; // eTimeBuffType 1 means nano
-    pkt1.iConditionBitFlag = plr->iConditionBitFlag;
-
-    sock->sendPacket((void*)&pkt1, P_FE2CL_PC_BUFF_UPDATE, sizeof(sP_FE2CL_PC_BUFF_UPDATE));
-}
-
-static void dealGooDamage(CNSocket *sock, int amount) {
     size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_DotDamage);
     assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
     uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-    Player *plr = PlayerManager::getPlayer(sock);
-
     memset(respbuf, 0, resplen);
 
     sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK *pkt = (sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK*)respbuf;
     sSkillResult_DotDamage *dmg = (sSkillResult_DotDamage*)(respbuf + sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
 
-    if (plr->iConditionBitFlag & CSB_BIT_PROTECT_INFECTION) {
+    int amount = PC_MAXHEALTH(plr->level) * 3 / 20;
+    Buff* protectionBuff = plr->getBuff(ECSB_PROTECT_INFECTION);
+    if (protectionBuff != nullptr) {
         amount = -2; // -2 is the magic number for "Protected" to appear as the damage number
         dmg->bProtected = 1;
 
         // eggs allow protection without nanos
-        if (plr->activeNano != -1 && (plr->iSelfConditionBitFlag & CSB_BIT_PROTECT_INFECTION))
+        if (protectionBuff->maxClass() <= BuffClass::NANO && plr->activeNano != -1)
             plr->Nanos[plr->activeNano].iStamina -= 3;
     } else {
         plr->HP -= amount;
@@ -402,10 +577,37 @@ static void dealGooDamage(CNSocket *sock, int amount) {
     dmg->iID = plr->iID;
     dmg->iDamage = amount;
     dmg->iHP = plr->HP;
-    dmg->iConditionBitFlag = plr->iConditionBitFlag;
+    dmg->iConditionBitFlag = plr->getCompositeCondition();
 
     sock->sendPacket((void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
     PlayerManager::sendToViewable(sock, (void*)&respbuf, P_FE2CL_CHAR_TIME_BUFF_TIME_TICK, resplen);
+}
+
+static void dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
+    sP_CL2FE_DOT_DAMAGE_ONOFF *pkt = (sP_CL2FE_DOT_DAMAGE_ONOFF*)data->buf;
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    // infection debuff toggles as the client asks it to,
+    // so we add and remove a permanent debuff
+    if (pkt->iFlag && !plr->hasBuff(ECSB_INFECTION)) {
+        BuffStack infection = {
+            -1, // infinite
+            0, // no value
+            sock, // self-inflicted
+            BuffClass::ENVIRONMENT
+        };
+        plr->addBuff(ECSB_INFECTION,
+            [](EntityRef self, Buff* buff, int status, BuffStack* stack) {
+                Buffs::timeBuffUpdate(self, buff, status, stack);
+            },
+            [](EntityRef self, Buff* buff, time_t currTime) {
+                if(self.kind == EntityKind::PLAYER)
+                    dealGooDamage(self.sock);
+            },
+            &infection);
+    } else if(!pkt->iFlag && plr->hasBuff(ECSB_INFECTION)) {
+        plr->removeBuff(ECSB_INFECTION);
+    }
 }
 
 static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
@@ -417,12 +619,12 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
         return;
 
     // Unlike the attack mob packet, attacking players packet has an 8-byte trail (Instead of 4 bytes).
-    if (!validInVarPacket(sizeof(sP_CL2FE_REQ_PC_ATTACK_CHARs), pkt->iTargetCnt, sizeof(int32_t) * 2, data->size)) {
+    if (!validInVarPacket(sizeof(sP_CL2FE_REQ_PC_ATTACK_CHARs), pkt->iTargetCnt, sizeof(sGM_PVPTarget), data->size)) {
         std::cout << "[WARN] bad sP_CL2FE_REQ_PC_ATTACK_CHARs packet size\n";
         return;
     }
 
-    int32_t *pktdata = (int32_t*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_PC_ATTACK_CHARs));
+    sGM_PVPTarget* pktdata = (sGM_PVPTarget*)((uint8_t*)data->buf + sizeof(sP_CL2FE_REQ_PC_ATTACK_CHARs));
 
     if (!validOutVarPacket(sizeof(sP_FE2CL_PC_ATTACK_CHARs_SUCC), pkt->iTargetCnt, sizeof(sAttackResult))) {
         std::cout << "[WARN] bad sP_FE2CL_PC_ATTACK_CHARs_SUCC packet size\n";
@@ -441,11 +643,19 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
     resp->iTargetCnt = pkt->iTargetCnt;
 
     for (int i = 0; i < pkt->iTargetCnt; i++) {
-        if (pktdata[i*2+1] == 1) { // eCT == 1; attack player
-            Player *target = nullptr;
+
+        ICombatant* target = nullptr;
+        std::pair<int, int> damage;
+
+        if (pkt->iTargetCnt > 1)
+            damage.first = plr->groupDamage;
+        else
+            damage.first = plr->pointDamage;
+
+        if (pktdata[i].eCT == 1) { // eCT == 1; attack player
 
             for (auto& pair : PlayerManager::players) {
-                if (pair.second->iID == pktdata[i*2]) {
+                if (pair.second->iID == pktdata[i].iID) {
                     target = pair.second;
                     break;
                 }
@@ -457,67 +667,41 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
                 return;
             }
 
-            std::pair<int,int> damage;
+            damage = getDamage(damage.first, ((Player*)target)->defense, true, (plr->batteryW > 6 + plr->level), -1, -1, 0);
 
-            if (pkt->iTargetCnt > 1)
-                damage.first = plr->groupDamage;
-            else
-                damage.first = plr->pointDamage;
-
-            damage = getDamage(damage.first, target->defense, true, (plr->batteryW > 6 + plr->level), -1, -1, 0);
-
-            if (plr->batteryW >= 6 + plr->level)
-                plr->batteryW -= 6 + plr->level;
-            else
-                plr->batteryW = 0;
-
-            target->HP -= damage.first;
-
-            respdata[i].eCT = pktdata[i*2+1];
-            respdata[i].iID = target->iID;
-            respdata[i].iDamage = damage.first;
-            respdata[i].iHP = target->HP;
-            respdata[i].iHitFlag = damage.second; // hitscan, not a rocket or a grenade
         } else { // eCT == 4; attack mob
-            if (NPCManager::NPCs.find(pktdata[i*2]) == NPCManager::NPCs.end()) {
+
+            if (NPCManager::NPCs.find(pktdata[i].iID) == NPCManager::NPCs.end()) {
                 // not sure how to best handle this
                 std::cout << "[WARN] pcAttackChars: NPC ID not found" << std::endl;
                 return;
             }
 
-            BaseNPC* npc = NPCManager::NPCs[pktdata[i * 2]];
-            if (npc->type != EntityType::MOB) {
+            BaseNPC* npc = NPCManager::NPCs[pktdata[i].iID];
+            if (npc->kind != EntityKind::MOB) {
                 std::cout << "[WARN] pcAttackChars: NPC is not a mob" << std::endl;
                 return;
             }
 
             Mob* mob = (Mob*)npc;
-
-            std::pair<int,int> damage;
-
-            if (pkt->iTargetCnt > 1)
-                damage.first = plr->groupDamage;
-            else
-                damage.first = plr->pointDamage;
-
+            target = mob;
             int difficulty = (int)mob->data["m_iNpcLevel"];
-
             damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW > 6 + difficulty),
                 Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
-
-            if (plr->batteryW >= 6 + difficulty)
-                plr->batteryW -= 6 + difficulty;
-            else
-                plr->batteryW = 0;
-
-            damage.first = hitMob(sock, mob, damage.first);
-
-            respdata[i].eCT = pktdata[i*2+1];
-            respdata[i].iID = mob->appearanceData.iNPC_ID;
-            respdata[i].iDamage = damage.first;
-            respdata[i].iHP = mob->appearanceData.iHP;
-            respdata[i].iHitFlag = damage.second; // hitscan, not a rocket or a grenade
         }
+
+        if (plr->batteryW >= 6 + plr->level)
+            plr->batteryW -= 6 + plr->level;
+        else
+            plr->batteryW = 0;
+
+        damage.first = target->takeDamage(sock, damage.first);
+
+        respdata[i].eCT = pktdata[i].eCT;
+        respdata[i].iID = target->getID();
+        respdata[i].iDamage = damage.first;
+        respdata[i].iHP = target->getCurrentHP();
+        respdata[i].iHitFlag = damage.second; // hitscan, not a rocket or a grenade
     }
 
     sock->sendPacket((void*)respbuf, P_FE2CL_PC_ATTACK_CHARs_SUCC, resplen);
@@ -653,21 +837,6 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    // rapid fire anti-cheat
-    time_t currTime = getTime();
-    if (currTime - plr->lastShot < plr->fireRate * 80)
-        plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // gain suspicion for rapid firing
-    else if (currTime - plr->lastShot < plr->fireRate * 180 && plr->suspicionRating > 0)
-        plr->suspicionRating += plr->fireRate * 100 + plr->lastShot - currTime; // lose suspicion for delayed firing
-
-    plr->lastShot = currTime;
-
-    if (plr->suspicionRating > 10000) { // kill the socket when the player is too suspicious
-        sock->kill();
-        CNShardServer::_killConnection(sock);
-        return;
-    }
-
     /*
      * initialize response struct
      * rocket style hit doesn't work properly, so we're always sending this one
@@ -696,7 +865,7 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
         }
 
         BaseNPC* npc = NPCManager::NPCs[pktdata[i]];
-        if (npc->type != EntityType::MOB) {
+        if (npc->kind != EntityKind::MOB) {
             std::cout << "[WARN] projectileHit: NPC is not a mob" << std::endl;
             return;
         }
@@ -709,11 +878,11 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
         int difficulty = (int)mob->data["m_iNpcLevel"];
         damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, bullet->weaponBoost, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
 
-        damage.first = hitMob(sock, mob, damage.first);
+        damage.first = mob->takeDamage(sock, damage.first);
 
-        respdata[i].iID = mob->appearanceData.iNPC_ID;
+        respdata[i].iID = mob->id;
         respdata[i].iDamage = damage.first;
-        respdata[i].iHP = mob->appearanceData.iHP;
+        respdata[i].iHP = mob->hp;
         respdata[i].iHitFlag = damage.second;
     }
 
@@ -728,6 +897,7 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
 
 static void playerTick(CNServer *serv, time_t currTime) {
     static time_t lastHealTime = 0;
+    static time_t lastCombatTIme = 0;
 
     for (auto& pair : PlayerManager::players) {
         CNSocket *sock = pair.first;
@@ -735,17 +905,12 @@ static void playerTick(CNServer *serv, time_t currTime) {
         bool transmit = false;
 
         // group ticks
-        if (plr->groupCnt > 1)
-            Groups::groupTickInfo(plr);
+        if (plr->group != nullptr)
+            Groups::groupTickInfo(sock);
 
         // do not tick dead players
         if (plr->HP <= 0)
             continue;
-
-        // fm patch/lake damage
-        if ((plr->iConditionBitFlag & CSB_BIT_INFECTION)
-            && !(plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE))
-            dealGooDamage(sock, PC_MAXHEALTH(plr->level) * 3 / 20);
 
         // heal
         if (currTime - lastHealTime >= 4000 && !plr->inCombat && plr->HP < PC_MAXHEALTH(plr->level)) {
@@ -758,22 +923,24 @@ static void playerTick(CNServer *serv, time_t currTime) {
                 plr->healCooldown -= 4000;
         }
 
-        for (int i = 0; i < 3; i++) {
-            if (plr->activeNano != 0 && plr->equippedNanos[i] == plr->activeNano) { // spend stamina
-                plr->Nanos[plr->activeNano].iStamina -= 1 + plr->nanoDrainRate / 5;
+        // combat tick
+        if(currTime - lastCombatTIme >= 2000) {
+            plr->step(currTime);
+            transmit = true;
+        }
 
-                if (plr->Nanos[plr->activeNano].iStamina <= 0)
-                    Nanos::summonNano(sock, -1, true); // unsummon nano silently
-
-                transmit = true;
-            } else if (plr->Nanos[plr->equippedNanos[i]].iStamina < 150) { // regain stamina
-                sNano& nano = plr->Nanos[plr->equippedNanos[i]];
-                nano.iStamina += 1;
-
-                if (nano.iStamina > 150)
-                    nano.iStamina = 150;
-
-                transmit = true;
+        // nanos
+        if (plr->activeNano != 0) { // tick active nano
+            sNano* nano = plr->getActiveNano();
+            if (Abilities::SkillTable.find(nano->iSkillID) != Abilities::SkillTable.end()) {
+                // nano has skill data
+                SkillData* skill = &Abilities::SkillTable[nano->iSkillID];
+                if (skill->drainType == SkillDrainType::PASSIVE) {
+                    ICombatant* src = dynamic_cast<ICombatant*>(plr);
+                    int32_t targets[] = { plr->iID };
+                    std::vector<ICombatant*> affectedCombatants = Abilities::matchTargets(src, skill, 1, targets);
+                    Abilities::useNanoSkill(sock, skill, *nano, affectedCombatants);
+                }
             }
         }
 
@@ -787,6 +954,20 @@ static void playerTick(CNServer *serv, time_t currTime) {
 
             sock->sendPacket((void*)&dead, P_FE2CL_PC_SUDDEN_DEAD, sizeof(sP_FE2CL_PC_SUDDEN_DEAD));
             PlayerManager::sendToViewable(sock, (void*)&dead, P_FE2CL_PC_SUDDEN_DEAD, sizeof(sP_FE2CL_PC_SUDDEN_DEAD));
+        }
+
+        // process buffsets
+        auto it = plr->buffs.begin();
+        while(it != plr->buffs.end()) {
+            Buff* buff = (*it).second;
+            //buff->combatTick() gets called in Player::step
+            buff->tick(currTime);
+            if(buff->isStale()) {
+                // garbage collect
+                it = plr->buffs.erase(it);
+                delete buff;
+            }
+            else it++;
         }
 
         if (transmit) {
@@ -803,13 +984,15 @@ static void playerTick(CNServer *serv, time_t currTime) {
         }
     }
 
-    // if this was a heal tick, update the counter outside of the loop
+    // if this was a heal/combat tick, update the counters outside of the loop
     if (currTime - lastHealTime >= 4000)
         lastHealTime = currTime;
+    if(currTime - lastCombatTIme >= 2000)
+        lastCombatTIme = currTime;
 }
 
 void Combat::init() {
-    REGISTER_SHARD_TIMER(playerTick, 2000);
+    REGISTER_SHARD_TIMER(playerTick, MS_PER_PLAYER_TICK);
 
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ATTACK_NPCs, pcAttackNpcs);
 

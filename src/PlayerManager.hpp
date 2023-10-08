@@ -1,15 +1,14 @@
 #pragma once
 
-#include "Player.hpp"
 #include "core/Core.hpp"
-#include "servers/CNShardServer.hpp"
-#include "Chunking.hpp"
 
-#include <utility>
+#include "Player.hpp"
+#include "Chunking.hpp"
+#include "Transport.hpp"
+#include "Entities.hpp"
+
 #include <map>
 #include <list>
-
-struct WarpLocation;
 
 namespace PlayerManager {
     extern std::map<CNSocket*, Player*> players;
@@ -34,6 +33,7 @@ namespace PlayerManager {
     CNSocket *getSockFromAny(int by, int id, int uid, std::string firstname, std::string lastname);
     WarpLocation *getRespawnPoint(Player *plr);
 
+    void sendToGroup(CNSocket *sock, void* buf, uint32_t type, size_t size);
     void sendToViewable(CNSocket *sock, void* buf, uint32_t type, size_t size);
 
     // TODO: unify this under the new Entity system
@@ -43,7 +43,7 @@ namespace PlayerManager {
         for (auto it = plr->viewableChunks.begin(); it != plr->viewableChunks.end(); it++) {
             Chunk* chunk = *it;
             for (const EntityRef& ref : chunk->entities) {
-                if (ref.type != EntityType::PLAYER || ref.sock == sock)
+                if (ref.kind != EntityKind::PLAYER || ref.sock == sock)
                     continue;
 
                 ref.sock->sendPacket(pkt, type);

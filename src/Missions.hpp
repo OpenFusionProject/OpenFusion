@@ -1,9 +1,11 @@
 #pragma once
 
-#include "servers/CNShardServer.hpp"
+#include "core/Core.hpp"
+#include "JSON.hpp"
+
 #include "Player.hpp"
 
-#include "JSON.hpp"
+#include <map>
 
 struct Reward {
     int32_t id;
