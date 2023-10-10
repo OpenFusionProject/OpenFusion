@@ -9,12 +9,13 @@ on:
         - CMakeLists.txt
         - Makefile
   pull_request:
-    types: ready_for_review
+    types: [opened, reopened, synchronize, ready_for_review]
     paths:
         - src/**
         - vendor/**
         - CMakeLists.txt
         - Makefile
+  workflow_dispatch:
 
 jobs:
   ubuntu-build:
