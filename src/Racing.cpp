@@ -99,17 +99,13 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
 
     EPInfo& epInfo = EPData[mapNum];
     EPRace& epRace = EPRaces[sock];
-    // if there are no divide-by-zero dangers, and at least one factor has been specified
-    // we switch over to OG scoring
-    bool useOGScoring = (epInfo.maxPods > 0) && (epInfo.maxTime > 0) && (
-        (epInfo.scaleFactor > 0.0) || (epInfo.podFactor > 0.0) || (epInfo.timeFactor > 0.0));
 
     uint64_t now = getTime() / 1000;
     int timeDiff = now - epRace.startTime;
     int podsCollected = epRace.collectedRings.size();
     int score = 0, fm = 0;
 
-    if (useOGScoring) {
+    if (settings::OGRACINGSCORES) {
         score = std::min(epInfo.maxScore, (int)std::exp(
             (epInfo.podFactor * podsCollected) / epInfo.maxPods
             - (epInfo.timeFactor * timeDiff) / epInfo.maxTime

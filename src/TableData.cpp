@@ -577,28 +577,12 @@ static void loadDrops(json& dropData) {
             // time limit isn't stored in the XDT, so we include it in the reward table instead
             epInfo.maxTime = (int)race["TimeLimit"];
 
-            // update max score (if present)
-            if (race.find("ScoreCap") != race.end()) {
+            // the following has to be present based on the score calculation method
+            if (settings::OGRACINGSCORES) {
                 epInfo.maxScore = (int)race["ScoreCap"];
-            }
-
-            // update max pods (if present)
-            if (race.find("TotalPods") != race.end()) {
                 epInfo.maxPods = (int)race["TotalPods"];
-            }
-
-            // update scale factor (if present)
-            if (race.find("ScaleFactor") != race.end()) {
                 epInfo.scaleFactor = (double)race["ScaleFactor"];
-            }
-
-            // update pod factor (if present)
-            if (race.find("PodFactor") != race.end()) {
                 epInfo.podFactor = (double)race["PodFactor"];
-            }
-
-            // update time factor (if present)
-            if (race.find("TimeFactor") != race.end()) {
                 epInfo.timeFactor = (double)race["TimeFactor"];
             }
 

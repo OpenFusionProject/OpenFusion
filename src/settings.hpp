@@ -36,6 +36,7 @@ namespace settings {
     extern int MONITORPORT;
     extern int MONITORINTERVAL;
     extern bool DISABLEFIRSTUSEFLAG;
+    extern bool OGRACINGSCORES;
 
     void init();
 }
