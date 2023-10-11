@@ -365,7 +365,7 @@ static std::pair<int,int> getDamage(int attackPower, int defensePower, bool shou
     return ret;
 }
 
-static bool checkRapidFire(CNSocket *sock, int targetCount) {
+static bool checkRapidFire(CNSocket *sock, int targetCount, bool allowManyTargets) {
     Player *plr = PlayerManager::getPlayer(sock);
     time_t currTime = getTime();
 
@@ -377,7 +377,7 @@ static bool checkRapidFire(CNSocket *sock, int targetCount) {
     plr->lastShot = currTime;
 
     // 3+ targets should never be possible
-    if (targetCount > 3)
+    if (!allowManyTargets && targetCount > 3)
         plr->suspicionRating += 10001;
 
     // kill the socket when the player is too suspicious
@@ -396,7 +396,7 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     auto targets = (int32_t*)data->trailers;
 
     // kick the player if firing too rapidly
-    if (settings::ANTICHEAT && checkRapidFire(sock, pkt->iNPCCnt))
+    if (settings::ANTICHEAT && checkRapidFire(sock, pkt->iNPCCnt, false))
         return;
 
     /*
@@ -836,6 +836,10 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
         std::cout << "[WARN] bad sP_FE2CL_PC_GRENADE_STYLE_HIT packet size\n";
         return;
     }
+
+    // kick the player if firing too rapidly
+    if (settings::ANTICHEAT && checkRapidFire(sock, pkt->iTargetCnt, true))
+        return;
 
     /*
      * initialize response struct
