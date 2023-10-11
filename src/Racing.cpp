@@ -103,18 +103,12 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
     uint64_t now = getTime() / 1000;
     int timeDiff = now - epRace.startTime;
     int podsCollected = epRace.collectedRings.size();
-    int score = 0, fm = 0;
 
-    if (settings::OGRACINGSCORES) {
-        score = std::min(epInfo.maxScore, (int)std::exp(
-            (epInfo.podFactor * podsCollected) / epInfo.maxPods
-            - (epInfo.timeFactor * timeDiff) / epInfo.maxTime
-            + epInfo.scaleFactor));
-        fm = (1.0 + std::exp(epInfo.scaleFactor - 1.0) * epInfo.podFactor * podsCollected) / epInfo.maxPods;
-    } else {
-        score = std::max(0, 500 * podsCollected - 10 * timeDiff);
-        fm = score * plr->level * (1.0f / 36) * 0.3f;
-    }
+    int score = std::min(epInfo.maxScore, (int)std::exp(
+        (epInfo.podFactor * podsCollected) / epInfo.maxPods
+        - (epInfo.timeFactor * timeDiff) / epInfo.maxTime
+        + epInfo.scaleFactor));
+    int fm = (1.0 + std::exp(epInfo.scaleFactor - 1.0) * epInfo.podFactor * podsCollected) / epInfo.maxPods;
 
     // we submit the ranking first...
     Database::RaceRanking postRanking = {};

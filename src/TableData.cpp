@@ -576,15 +576,11 @@ static void loadDrops(json& dropData) {
 
             // time limit isn't stored in the XDT, so we include it in the reward table instead
             epInfo.maxTime = (int)race["TimeLimit"];
-
-            // the following has to be present based on the score calculation method
-            if (settings::OGRACINGSCORES) {
-                epInfo.maxScore = (int)race["ScoreCap"];
-                epInfo.maxPods = (int)race["TotalPods"];
-                epInfo.scaleFactor = (double)race["ScaleFactor"];
-                epInfo.podFactor = (double)race["PodFactor"];
-                epInfo.timeFactor = (double)race["TimeFactor"];
-            }
+            epInfo.maxScore = (int)race["ScoreCap"];
+            epInfo.maxPods = (int)race["TotalPods"];
+            epInfo.scaleFactor = (double)race["ScaleFactor"];
+            epInfo.podFactor = (double)race["PodFactor"];
+            epInfo.timeFactor = (double)race["TimeFactor"];
 
             // score cutoffs
             std::vector<int> rankScores;
