@@ -574,10 +574,12 @@ static void loadDrops(json& dropData) {
 
             EPInfo& epInfo = Racing::EPData[EPMap];
 
-            // time limit isn't stored in the XDT, so we include it in the reward table instead
-            epInfo.maxTime = (int)race["TimeLimit"];
+            // max score is specified in the XDT, but can be updated if specified in the drops JSON
             epInfo.maxScore = (int)race["ScoreCap"];
+            // time limit and total pods are not stored in the XDT, so we include it in the drops JSON
+            epInfo.maxTime = (int)race["TimeLimit"];
             epInfo.maxPods = (int)race["TotalPods"];
+            // IZ-specific calculated constants included in the drops JSON
             epInfo.scaleFactor = (double)race["ScaleFactor"];
             epInfo.podFactor = (double)race["PodFactor"];
             epInfo.timeFactor = (double)race["TimeFactor"];
