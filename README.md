@@ -28,8 +28,7 @@ OpenFusion is a reverse-engineered server for FusionFall. It primarily targets v
 Instructions for getting the client to run on Linux through Wine can be found [here](https://github.com/OpenFusionProject/OpenFusion/wiki/Running-the-game-client-on-Linux).
 
 ### Hosting a server
-
-1. Grab `OpenFusionServer-1.5-original.zip` or `OpenFusionServer-1.5-academy.zip` from [here](https://github.com/OpenFusionProject/OpenFusion/releases/tag/1.5).
+1. Grab `OpenFusionServer-1.5-Original.zip` or `OpenFusionServer-1.5-Academy.zip` from [here](https://github.com/OpenFusionProject/OpenFusion/releases/tag/1.5).
 2. Extract it to a folder of your choice, then run `winfusion.exe` (Windows) or `fusion` (Linux) to start the server.
 3. Add a new server to the client's list:
     1. For Description, enter anything you want. This is what will show up in the server list.
@@ -54,10 +53,7 @@ FusionFall consists of the following components:
 
 The original game made use of the player's actual web browser to launch the game, but since then the NPAPI plugin interface the game relied on has been deprecated and is no longer available in most modern browsers. Both Retro and OpenFusion get around this issue by distributing an older version of Electron, a software package that is essentially a specialized web browser.
 
-The browser/Electron client opens a web page with an `<embed>` tag of MIME type `application/vnd.unity`, where the `src` param is the address of the game's `.unity3d` entrypoint.
-
-This triggers the browser to load an NPAPI plugin that handles this MIME type, the Unity Web Player, which the browser looks for in `C:\Users\%USERNAME%\AppData\LocalLow\Unity\WebPlayer`.
-The Web Player was previously copied there by `installUnity.bat`.
+The browser/Electron client opens a web page with an `<embed>` tag of the appropriate MIME type, where the `src` param is the address of the game's `.unity3d` entrypoint. This triggers the browser to load an NPAPI plugin that handles said MIME type, in this case the Unity Web Player.
 
 Note that the version of the web player distributed with OpenFusion expects a standard `UnityWeb` magic number for all assets, instead of Retro's modified `streamed` magic number.
 This will potentially become relevant later, as people start experimenting and mixing and matching versions.
@@ -66,7 +62,7 @@ The web player will execute the game code, which will request the following file
 
 `/assetInfo.php` contains the address from which to fetch the rest of the game's assets (the "dongresources").
 Normally those would be hosted on the same web server as the gateway, but the OpenFusion distribution (in it's default configuration) doesn't use a web server at all!
-It loads the web pages locally using the `file://` schema, and fetches the game's assets from Turner's CDN (which is still hosting them to this day!).
+It instead loads the web pages locally using the `file://` schema, and fetches the game's assets from a standard web server.
 
 `/loginInfo.php` contains the IP:port pair of the FusionFall login server, which the client will connect to. This login server drives the client while it's in the Character Selection menu, as well as Character Creation and the Tutorial.
 
@@ -102,26 +98,13 @@ If you'd like to contribute to this project, please read [CONTRIBUTING.md](CONTR
 ## Gameplay
 
 The goal of the project is to faithfully recreate the game as it was at the time of the targeted build.
-The server is not yet complete, however, and some functionality is still missing.
+While most features are implemented and the game is playable start to finish, there may be missing functionality or bugs present.
 
-Because the server is still in development, ordinary players are allowed access to a few admin commands:
+Depending on the server configuration, you'll have access to certain commands.
 
-![](res/sane_upsell.png)
+For the public servers: Original has item spawning, the ability to set player speed/jump height, and teleportation enabled (default account level 50).
+Meanwhile the Academy server is more meant for legitimate playthroughs (default account level 99).
 
-### Movement commands
-* A `/speed` of around 2400 or 3000 is nice.
-* A `/jump` of about 50 will send you soaring
-* [This map](res/dong_number_map.png) (credit to Danny O) is useful for `/warp` coordinates.
-* `/goto` is useful for more precise teleportation (ie. for getting into Infected Zones, etc.).
+When hosting a local server, you will have access to all commands by default (account level 1).
 
-### Item commands
-* `/itemN [type] [itemId] [amount]`
-  (Refer to the [item list](https://docs.google.com/spreadsheets/d/1mpoJ9iTHl_xLI4wQ_9UvIDYNcsDYscdkyaGizs43TCg/))
-
-### Nano commands
-* `/nano [id] (1-36)`
-* `/nano_equip [id] (1-36) [slot] (0-2)`
-* `/nano_unequip [slot] (0-2)`
-* `/nano_active [slot] (0-2)`
-
-### A full list of commands can be found [here](https://github.com/OpenFusionProject/OpenFusion/wiki/Ingame-Command-list).
+For a list of available commands, see [this wiki page](https://github.com/OpenFusionProject/OpenFusion/wiki/Ingame-Command-list).
