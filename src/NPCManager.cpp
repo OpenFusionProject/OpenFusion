@@ -94,20 +94,34 @@ void NPCManager::sendToViewable(Entity *npc, void *buf, uint32_t type, size_t si
 static void npcBarkHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_BARKER* req = (sP_CL2FE_REQ_BARKER*)data->buf;
 
-    // get bark IDs from task data
-    TaskData* td = Missions::Tasks[req->iMissionTaskID];
-    std::vector<int> barks;
-    for (int i = 0; i < 4; i++) {
-        if (td->task["m_iHBarkerTextID"][i] != 0) // non-zeroes only
-            barks.push_back(td->task["m_iHBarkerTextID"][i]);
+    int taskID = req->iMissionTaskID;
+    int npcID = req->iNPC_ID;
+
+    if (Missions::Tasks.find(taskID) == Missions::Tasks.end()) {
+        std::cout << "mission task not found: " << taskID << std::endl;
+        return;
     }
 
-    if (barks.empty())
+    if (npcID < 0 || npcID >= NPCData.size()) {
+        std::cout << "npc not found: " << npcID << std::endl;
+        return;
+    }
+
+    // get bark IDs from task data
+    TaskData* td = Missions::Tasks[taskID];
+    auto& barks = td->task["m_iHBarkerTextID"];
+
+    int barkType = NPCData[npcID]["m_iBarkerType"];
+    if (barkType < 1 || barkType > 4)
+        return; // no barks
+
+    int barkID = barks[barkType - 1];
+    if (barkID == 0)
         return; // no barks
 
     INITSTRUCT(sP_FE2CL_REP_BARKER, resp);
-    resp.iNPC_ID = req->iNPC_ID;
-    resp.iMissionStringID = barks[Rand::rand(barks.size())];
+    resp.iNPC_ID = npcID;
+    resp.iMissionStringID = barkID;
     sock->sendPacket(resp, P_FE2CL_REP_BARKER);
 }
 
