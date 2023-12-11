@@ -95,33 +95,48 @@ static void npcBarkHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_BARKER* req = (sP_CL2FE_REQ_BARKER*)data->buf;
 
     int taskID = req->iMissionTaskID;
-    int npcID = req->iNPC_ID;
+    // ignore req->iNPC_ID as it is often fixated on a single npc in the region
 
     if (Missions::Tasks.find(taskID) == Missions::Tasks.end()) {
         std::cout << "mission task not found: " << taskID << std::endl;
         return;
     }
 
-    if (npcID < 0 || npcID >= NPCData.size()) {
-        std::cout << "npc not found: " << npcID << std::endl;
-        return;
-    }
-
-    // get bark IDs from task data
     TaskData* td = Missions::Tasks[taskID];
     auto& barks = td->task["m_iHBarkerTextID"];
 
-    int barkType = NPCData[npcID]["m_iBarkerType"];
-    if (barkType < 1 || barkType > 4)
-        return; // no barks
+    Player* plr = PlayerManager::getPlayer(sock);
+    std::vector<std::pair<int32_t, int32_t>> npcLines;
 
-    int barkID = barks[barkType - 1];
-    if (barkID == 0)
-        return; // no barks
+    for (Chunk* chunk : plr->viewableChunks) {
+        for (auto ent = chunk->entities.begin(); ent != chunk->entities.end(); ent++) {
+            if (ent->kind == EntityKind::PLAYER)
+                continue;
+
+            BaseNPC* npc = (BaseNPC*)ent->getEntity();
+            if (npc->type < 0 || npc->type >= NPCData.size())
+                continue; // npc unknown ?!
+
+            int barkType = NPCData[npc->type]["m_iBarkerType"];
+            if (barkType < 1 || barkType > 4)
+                continue; // no barks
+
+            int barkID = barks[barkType - 1];
+            if (barkID == 0)
+                continue; // no barks
+
+            npcLines.push_back(std::make_pair(npc->id, barkID));
+        }
+    }
+
+    if (npcLines.size() == 0)
+        return; // totally no barks
+
+    auto& [npcID, missionStringID] = npcLines[Rand::rand(npcLines.size())];
 
     INITSTRUCT(sP_FE2CL_REP_BARKER, resp);
     resp.iNPC_ID = npcID;
-    resp.iMissionStringID = barkID;
+    resp.iMissionStringID = missionStringID;
     sock->sendPacket(resp, P_FE2CL_REP_BARKER);
 }
 
