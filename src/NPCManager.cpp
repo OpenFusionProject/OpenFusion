@@ -110,7 +110,7 @@ static void npcBarkHandler(CNSocket* sock, CNPacketData* data) {
 
     for (Chunk* chunk : plr->viewableChunks) {
         for (auto ent = chunk->entities.begin(); ent != chunk->entities.end(); ent++) {
-            if (ent->kind == EntityKind::PLAYER)
+            if (ent->kind != EntityKind::SIMPLE_NPC)
                 continue;
 
             BaseNPC* npc = (BaseNPC*)ent->getEntity();
