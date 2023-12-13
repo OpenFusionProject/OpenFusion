@@ -24,6 +24,8 @@
 #include "Eggs.hpp"
 #include "Rand.hpp"
 
+#include "lua/Manager.hpp"
+
 #include "settings.hpp"
 #include "sandbox/Sandbox.hpp"
 
@@ -138,6 +140,7 @@ int main() {
     Trading::init();
 
     Database::open();
+    LuaManager::init();
 
     switch (settings::EVENTMODE) {
     case 0: break; // no event
