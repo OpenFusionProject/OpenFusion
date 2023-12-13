@@ -34,20 +34,28 @@ else()
 	set(BIN_NAME fusion)
 endif()
 
+# add lua
+option(LUA_BUILD_COMPILER OFF)
+option(LUA_ENABLE_SHARED OFF)
+option(LUA_ENABLE_TESTING OFF)
+add_subdirectory(vendor/Lua)
+
 include_directories(src vendor)
 
-file(GLOB_RECURSE SOURCES src/**.[ch]pp vendor/**.[ch]pp vendor/**.[ch] version.h)
+file(GLOB_RECURSE VENDOR_SOURCES vendor/bcrypt/**.[ch] vendor/mingw/**.h vendor/INIReader.hpp vendor/JSON.hpp)
+
+file(GLOB_RECURSE SOURCES src/**.[ch]pp version.h)
 
 configure_file(version.h.in ${CMAKE_SOURCE_DIR}/version.h @ONLY)
 
-add_executable(openfusion ${SOURCES})
+add_executable(openfusion ${SOURCES} ${VENDOR_SOURCES})
 
 set_target_properties(openfusion PROPERTIES OUTPUT_NAME ${BIN_NAME})
 
 # find sqlite3 and use it
 find_package(SQLite3 REQUIRED)
 target_include_directories(openfusion PRIVATE ${SQLite3_INCLUDE_DIRS})
-target_link_libraries(openfusion PRIVATE ${SQLite3_LIBRARIES})
+target_link_libraries(openfusion PRIVATE lua_static ${SQLite3_LIBRARIES})
 
 # Makes it so config, tdata, etc. get picked up when starting via the debugger in VS
 set_property(TARGET openfusion PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

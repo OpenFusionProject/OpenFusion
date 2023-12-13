@@ -1,3 +1,6 @@
 [submodule "tdata"]
 	path = tdata
 	url = https://github.com/OpenFusionProject/tabledata.git
+[submodule "vendor/Lua"]
+	path = vendor/Lua
+	url = https://github.com/walterschell/Lua.git
