@@ -64,6 +64,9 @@ static void attachGroupData(std::vector<EntityRef>& pcs, std::vector<EntityRef>&
 }
 
 void Groups::addToGroup(Group* group, EntityRef member) {
+    if (group == nullptr)
+        return;
+
     if (member.kind == EntityKind::PLAYER) {
         Player* plr = PlayerManager::getPlayer(member.sock);
         plr->group = group;
@@ -109,6 +112,9 @@ void Groups::addToGroup(Group* group, EntityRef member) {
 }
 
 bool Groups::removeFromGroup(Group* group, EntityRef member) {
+    if (group == nullptr)
+        return false;
+
     if (member.kind == EntityKind::PLAYER) {
         Player* plr = PlayerManager::getPlayer(member.sock);
         plr->group = nullptr; // no dangling pointers here muahaahahah
@@ -168,6 +174,9 @@ bool Groups::removeFromGroup(Group* group, EntityRef member) {
 }
 
 void Groups::disbandGroup(Group* group) {
+    if (group == nullptr)
+        return;
+
     // remove everyone from the group!!
     bool done = false;
     while(!done) {
@@ -252,6 +261,9 @@ static void leaveGroup(CNSocket* sock, CNPacketData* data) {
 }
 
 void Groups::sendToGroup(Group* group, void* buf, uint32_t type, size_t size) {
+    if (group == nullptr)
+        return;
+
     auto players = group->filter(EntityKind::PLAYER);
     for (EntityRef ref : players) {
         ref.sock->sendPacket(buf, type, size);
@@ -259,6 +271,9 @@ void Groups::sendToGroup(Group* group, void* buf, uint32_t type, size_t size) {
 }
 
 void Groups::sendToGroup(Group* group, EntityRef excluded, void* buf, uint32_t type, size_t size) {
+    if (group == nullptr)
+        return;
+
     auto players = group->filter(EntityKind::PLAYER);
     for (EntityRef ref : players) {
         if(ref != excluded) ref.sock->sendPacket(buf, type, size);
@@ -293,6 +308,9 @@ void Groups::groupTickInfo(CNSocket* sock) {
 }
 
 void Groups::groupKick(Group* group, EntityRef ref) {
+
+    if (group == nullptr)
+        return;
 
     // if you are the group leader, destroy your own group and kick everybody
     if (group->members[0] == ref) {

@@ -386,6 +386,9 @@ static void taskStart(CNSocket* sock, CNPacketData* data) {
 static void taskEnd(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_TASK_END* missionData = (sP_CL2FE_REQ_PC_TASK_END*)data->buf;
 
+    if (Missions::Tasks.find(missionData->iTaskNum) == Missions::Tasks.end())
+        return;
+
     TaskData* task = Missions::Tasks[missionData->iTaskNum];
 
     // handle timed mission failure

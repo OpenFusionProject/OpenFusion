@@ -16,8 +16,9 @@ EntityRef::EntityRef(CNSocket *s) {
 EntityRef::EntityRef(int32_t i) {
     id = i;
 
-    assert(NPCManager::NPCs.find(id) != NPCManager::NPCs.end());
-    kind = NPCManager::NPCs[id]->kind;
+    kind = EntityKind::INVALID;
+    if (NPCManager::NPCs.find(id) != NPCManager::NPCs.end())
+        kind = NPCManager::NPCs[id]->kind;
 }
 
 bool EntityRef::isValid() const {

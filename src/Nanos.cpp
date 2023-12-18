@@ -110,7 +110,7 @@ void Nanos::summonNano(CNSocket *sock, int slot, bool silent) {
 }
 
 static void setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
-    if (skill->iNanoID >= NANO_COUNT)
+    if (skill == nullptr || skill->iNanoID >= NANO_COUNT || skill->iNanoID < 0)
         return;
 
     Player *plr = PlayerManager::getPlayer(sock);
