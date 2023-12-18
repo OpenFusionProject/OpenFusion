@@ -416,6 +416,9 @@ static void itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
 
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (itemdel->iSlotNum < 0 || itemdel->iSlotNum >= AINVEN_COUNT)
+        return; // sanity check
+
     resp.eIL = itemdel->eIL;
     resp.iSlotNum = itemdel->iSlotNum;
 
