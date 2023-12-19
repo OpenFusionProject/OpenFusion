@@ -106,10 +106,11 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
     int timeDiff = now - epRace.startTime;
     int podsCollected = epRace.collectedRings.size();
 
-    int score = std::min(epInfo.maxScore, (int)std::exp(
+    int score = std::exp(
         (epInfo.podFactor * podsCollected) / epInfo.maxPods
         - (epInfo.timeFactor * timeDiff) / epInfo.maxTime
-        + epInfo.scaleFactor));
+        + epInfo.scaleFactor);
+    score = (settings::IZRACESCORECAPPED && score > epInfo.maxScore) ? epInfo.maxScore : score;
     int fm = (1.0 + std::exp(epInfo.scaleFactor - 1.0) * epInfo.podFactor * podsCollected) / epInfo.maxPods;
 
     // we submit the ranking first...

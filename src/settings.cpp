@@ -67,6 +67,9 @@ int settings::MONITORINTERVAL = 5000;
 // event mode settings
 int settings::EVENTMODE = 0;
 
+// race settings
+bool settings::IZRACESCORECAPPED = true;
+
 void settings::init() {
     INIReader reader("config.ini");
 
@@ -111,6 +114,7 @@ void settings::init() {
     EVENTMODE = reader.GetInteger("shard", "eventmode", EVENTMODE);
     DISABLEFIRSTUSEFLAG = reader.GetBoolean("shard", "disablefirstuseflag", DISABLEFIRSTUSEFLAG);
     ANTICHEAT = reader.GetBoolean("shard", "anticheat", ANTICHEAT);
+    IZRACESCORECAPPED = reader.GetBoolean("shard", "izracescorecapped", IZRACESCORECAPPED);
     MONITORENABLED = reader.GetBoolean("monitor", "enabled", MONITORENABLED);
     MONITORPORT = reader.GetInteger("monitor", "port", MONITORPORT);
     MONITORINTERVAL = reader.GetInteger("monitor", "interval", MONITORINTERVAL);
