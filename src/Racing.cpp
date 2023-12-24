@@ -133,8 +133,9 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
     std::vector<int>* rankRewards = &EPRewards[epInfo.EPID].second;
 
     // top ranking
+    int maxRank = rankScores->size() - 1;
     int topRank = 0;
-    while (rankScores->at(topRank) > topRankingPlayer.Score)
+    while (topRank < maxRank && rankScores->at(topRank) > topRankingPlayer.Score)
         topRank++;
 
     resp.iEPTopRank = topRank + 1;
@@ -144,7 +145,7 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
 
     // this ranking
     int rank = 0;
-    while (rankScores->at(rank) > postRanking.Score)
+    while (rank < maxRank && rankScores->at(rank) > postRanking.Score)
         rank++;
 
     resp.iEPRank = rank + 1;
