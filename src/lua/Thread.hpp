@@ -11,4 +11,7 @@ struct LuaThread {
     int ref;
 
     LuaThread(lua_State *L, int ref) : L(L), ref(ref) {}
+    ~LuaThread() {
+        luaL_unref(L, LUA_REGISTRYINDEX, ref);
+    }
 };
