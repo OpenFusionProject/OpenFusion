@@ -6,7 +6,7 @@ using namespace LuaManager;
 
 static lua_State *globalState = nullptr;
 
-void init() {
+void LuaManager::init() {
     lua_State *L = luaL_newstate();
     luaL_openlibs(L);
 
