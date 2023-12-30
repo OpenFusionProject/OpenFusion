@@ -7,8 +7,8 @@ extern "C" {
 }
 
 struct LuaThread {
-  lua_State *L;
-  int ref;
+    lua_State *L;
+    int ref;
 
-  LuaThread(lua_State *L, int ref) : L(L), ref(ref) {}
+    LuaThread(lua_State *L, int ref) : L(L), ref(ref) {}
 };
