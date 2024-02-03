@@ -208,6 +208,8 @@ void Database::addBlock(int playerId, int blockedPlayerId) {
 }
 
 void Database::removeBlock(int playerId, int blockedPlayerId) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
     const char* sql = R"(
         DELETE FROM Blocks
         WHERE PlayerID = ? AND BlockedPlayerID = ?;
