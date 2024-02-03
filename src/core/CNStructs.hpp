@@ -50,13 +50,15 @@ time_t getTime();
 time_t getTimestamp();
 void terminate(int);
 
-// The PROTOCOL_VERSION definition is defined by the build system.
+// The PROTOCOL_VERSION definition can be defined by the build system.
 #if !defined(PROTOCOL_VERSION)
+    #define PROTOCOL_VERSION 104
+#endif
+
+#if PROTOCOL_VERSION == 104
     #include "structs/0104.hpp"
 #elif PROTOCOL_VERSION == 728
     #include "structs/0728.hpp"
-#elif PROTOCOL_VERSION == 104
-    #include "structs/0104.hpp"
 #elif PROTOCOL_VERSION == 1013
     #include "structs/1013.hpp"
 #else
