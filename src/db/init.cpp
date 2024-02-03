@@ -226,10 +226,11 @@ static void createTables() {
 static int getTableSize(std::string tableName) {
     std::lock_guard<std::mutex> lock(dbCrit); // XXX
 
-    const char* sql = "SELECT COUNT(*) FROM ?";
+    // you aren't allowed to bind the table name
+    const char* sql = "SELECT COUNT(*) FROM ";
+    tableName.insert(0, sql);
     sqlite3_stmt* stmt;
-    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    sqlite3_bind_text(stmt, 1, tableName.c_str(), -1, NULL);
+    sqlite3_prepare_v2(db, tableName.c_str(), -1, &stmt, NULL);
     sqlite3_step(stmt);
     int result = sqlite3_column_int(stmt, 0);
     sqlite3_finalize(stmt);
@@ -271,12 +272,12 @@ void Database::open() {
     int players = getTableSize("Players");
     std::string message = "";
     if (accounts > 0) {
-        message += ": Found " + std::to_string(accounts) + " Account";
+        message += ": Found " + std::to_string(accounts) + " account(s)";
         if (accounts > 1)
             message += "s";
     }
     if (players > 0) {
-        message += " and " + std::to_string(players) + " Player Character";
+        message += " and " + std::to_string(players) + " player(s)";
         if (players > 1)
             message += "s";
     }
