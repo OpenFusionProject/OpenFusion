@@ -610,7 +610,7 @@ static void loadDrops(json& dropData) {
 
             if (rankScores.size() != 5 || rankScores.size() != rankRewards.size()) {
                 char buff[255];
-                sprintf(buff, "Race in EP %d doesn't have exactly 5 score/reward pairs", raceEPID);
+                snprintf(buff, 255, "Race in EP %d doesn't have exactly 5 score/reward pairs", raceEPID);
                 throw TableException(std::string(buff));
             }
 

@@ -41,7 +41,7 @@
 #define __SKIP_GNU
 #endif
 
-#ifdef _WIN32 | _WIN64
+#if defined(_WIN32) || defined(_WIN64)
 #include "ow-crypt.h"
 
 #include "crypt_blowfish.h"
@@ -251,7 +251,7 @@ char *__crypt_gensalt_ra(const char *prefix, unsigned long count,
 		input, size, output, sizeof(output));
 
 	if (retval) {
-#ifdef _WIN32 | _WIN64
+#if defined(_WIN32) || defined(_WIN64)
 		retval = _strdup(retval);
 #else
 		retval = strdup(retval);

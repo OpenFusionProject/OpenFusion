@@ -22,9 +22,13 @@
 #endif
 #include <errno.h>
 
-#ifdef _WIN32 || _WIN64
+#if defined(_WIN32) || defined(_WIN64)
 // On windows we need to generate random bytes differently.
+#if defined(_WIN32) && !defined(_WIN64)
+typedef __int32 ssize_t;
+#elif defined(_WIN32) && defined(_WIN64)
 typedef __int64 ssize_t;
+#endif
 #define BCRYPT_HASHSIZE 60
 
 #include "bcrypt.h"
@@ -117,7 +121,7 @@ int bcrypt_gensalt(int factor, char salt[BCRYPT_HASHSIZE])
 	char *aux;
 
 	// Note: Windows does not have /dev/urandom sadly.
-#ifdef _WIN32 || _WIN64
+#if defined(_WIN32) || defined(_WIN64)
 	HCRYPTPROV p;
 	ULONG     i;
 
