@@ -267,17 +267,17 @@ void Database::open() {
     checkMetaTable();
     createTables();
 
-    std::cout << "[INFO] Database in operation ";
+    std::cout << "[INFO] Database in operation";
     int accounts = getTableSize("Accounts");
     int players = getTableSize("Players");
     std::string message = "";
     if (accounts > 0) {
-        message += ": Found " + std::to_string(accounts) + " account(s)";
+        message += ": Found " + std::to_string(accounts) + " account";
         if (accounts > 1)
             message += "s";
     }
     if (players > 0) {
-        message += " and " + std::to_string(players) + " player(s)";
+        message += " and " + std::to_string(players) + " player";
         if (players > 1)
             message += "s";
     }
