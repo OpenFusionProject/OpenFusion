@@ -95,8 +95,6 @@ CXXHDR=\
 	vendor/bcrypt/BCrypt.hpp\
 	vendor/INIReader.hpp\
 	vendor/JSON.hpp\
-	vendor/INIReader.hpp\
-	vendor/JSON.hpp\
 	src/Buffs.hpp\
 	src/Chat.hpp\
 	src/CustomCommands.hpp\
