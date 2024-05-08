@@ -8,7 +8,7 @@ services:
       dockerfile: ./Dockerfile
     volumes:
       - ./config.ini:/usr/src/app/config.ini
-      - ./database.db:/usr/src/app/config.ini
+      - ./database.db:/usr/src/app/database.db
       - ./tdata:/usr/src/app/tdata
     ports:
       - "23000:23000"
