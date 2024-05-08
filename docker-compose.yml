@@ -6,6 +6,10 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
+    volumes:
+      - ./config.ini:/usr/src/app/config.ini
+      - ./database.db:/usr/src/app/config.ini
+      - ./tdata:/usr/src/app/tdata
     ports:
       - "23000:23000"
       - "23001:23001"
