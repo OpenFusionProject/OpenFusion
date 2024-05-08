@@ -1,0 +1,32 @@
+name: Push Docker Image
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  push-docker-image:
+    name: Push Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve major version
+        uses: winterjung/split@v2
+        id: split
+        with:
+          msg: ${{ github.ref_name }}
+          separator: .
+      - name: Log in to registry
+        uses: docker/login-action@v3
+        with:
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+      - name: Build and push the Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_REPOSITORY }}:${{ github.ref_name }},${{ secrets.DOCKERHUB_REPOSITORY }}:${{ steps.split.outputs._0 }},${{ secrets.DOCKERHUB_REPOSITORY }}:latest
