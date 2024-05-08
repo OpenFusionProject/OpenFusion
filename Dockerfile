@@ -1,4 +1,5 @@
-FROM debian:latest
+# build
+FROM debian:latest as build
 
 WORKDIR /usr/src/app
 
@@ -8,14 +9,24 @@ clang \
 make \
 libsqlite3-dev
 
-COPY . ./
+COPY src ./src
+COPY vendor ./vendor
+COPY .git ./.git
+COPY Makefile CMakeLists.txt version.h.in ./
 
 RUN make -j8
 
-# tabledata should be copied from the host;
-# clone it there before building the container
-#RUN git submodule update --init --recursive
+# prod
+FROM debian:latest
 
-CMD ["./bin/fusion"]
+WORKDIR /usr/src/app
 
-LABEL Name=openfusion Version=0.0.1
+RUN apt-get -y update && apt-get install -y \
+libsqlite3-dev
+
+COPY --from=build /usr/src/app/bin/fusion /bin/fusion
+COPY sql ./sql
+
+CMD ["/bin/fusion"]
+
+LABEL Name=openfusion Version=0.0.2
