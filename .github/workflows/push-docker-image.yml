@@ -10,6 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    strategy:
+      matrix:
+        platforms:
+          - linux/amd64
+          - linux/arm64
     steps:
       - uses: actions/checkout@v4
       - name: Retrieve major version
@@ -28,5 +33,6 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          platforms: ${{ matrix.platforms }}
           push: true
           tags: ${{ secrets.DOCKERHUB_REPOSITORY }}:${{ github.ref_name }},${{ secrets.DOCKERHUB_REPOSITORY }}:${{ steps.split.outputs._0 }},${{ secrets.DOCKERHUB_REPOSITORY }}:latest
