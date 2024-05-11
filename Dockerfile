@@ -1,5 +1,5 @@
 # build
-FROM debian:latest as build
+FROM debian:stable-slim as build
 
 WORKDIR /usr/src/app
 
@@ -17,7 +17,7 @@ COPY Makefile CMakeLists.txt version.h.in ./
 RUN make -j8
 
 # prod
-FROM debian:latest
+FROM debian:stable-slim
 
 WORKDIR /usr/src/app
 
