@@ -186,6 +186,36 @@ static void tradeOfferRefusal(CNSocket* sock, CNPacketData* data) {
     otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER_REFUSAL, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER_REFUSAL));
 }
 
+static void tradeOfferCancel(CNSocket* sock, CNPacketData* data) {
+    sP_CL2FE_REQ_PC_TRADE_OFFER_CANCEL* pacdat = (sP_CL2FE_REQ_PC_TRADE_OFFER_CANCEL*)data->buf;
+
+    CNSocket* otherSock = PlayerManager::getSockFromID(pacdat->iID_From);
+
+    if (otherSock == nullptr)
+        return;
+
+    INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER_CANCEL, resp);
+    resp.iID_Request = pacdat->iID_Request;
+    resp.iID_From = pacdat->iID_From;
+    resp.iID_To = pacdat->iID_To;
+    otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER_CANCEL, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER_CANCEL));
+}
+
+static void tradeOfferAbort(CNSocket* sock, CNPacketData* data) {
+    sP_CL2FE_REQ_PC_TRADE_OFFER_ABORT* pacdat = (sP_CL2FE_REQ_PC_TRADE_OFFER_ABORT*)data->buf;
+
+    CNSocket* otherSock = PlayerManager::getSockFromID(pacdat->iID_From);
+
+    if (otherSock == nullptr)
+        return;
+
+    INITSTRUCT(sP_FE2CL_REP_PC_TRADE_OFFER_ABORT, resp);
+    resp.iID_Request = pacdat->iID_Request;
+    resp.iID_From = pacdat->iID_From;
+    resp.iID_To = pacdat->iID_To;
+    otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_OFFER_ABORT, sizeof(sP_FE2CL_REP_PC_TRADE_OFFER_ABORT));
+}
+
 static void tradeConfirm(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_TRADE_CONFIRM* pacdat = (sP_CL2FE_REQ_PC_TRADE_CONFIRM*)data->buf;
 
@@ -430,6 +460,8 @@ void Trading::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER, tradeOffer);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER_ACCEPT, tradeOfferAccept);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER_REFUSAL, tradeOfferRefusal);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER_CANCEL, tradeOfferCancel);
+    REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_OFFER_ABORT, tradeOfferAbort);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_CONFIRM, tradeConfirm);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_CONFIRM_CANCEL, tradeConfirmCancel);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_TRADE_ITEM_REGISTER, tradeRegisterItem);
