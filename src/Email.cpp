@@ -325,6 +325,13 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
     std::string logEmail = "[Email] " + PlayerManager::getPlayerName(plr, true) + " (to " + PlayerManager::getPlayerName(&otherPlr, true) + "): <" + email.SubjectLine + ">\n" + email.MsgBody;
     std::cout << logEmail << std::endl;
     dump.push_back(logEmail);
+
+    // notification to recipient if online
+    CNSocket* recipient = PlayerManager::getSockFromID(pkt->iTo_PCUID);
+    if (recipient != nullptr)
+    {
+        emailUpdateCheck(recipient, nullptr);
+    }
 }
 
 void Email::init() {
