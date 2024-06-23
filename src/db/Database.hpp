@@ -46,8 +46,12 @@ namespace Database {
     void close();
 
     void findAccount(Account* account, std::string login);
-    // returns ID, 0 if something failed
+
+    // return ID, 0 if something failed
+    int getAccountIdForPlayer(int playerId);
     int addAccount(std::string login, std::string password);
+
+    void updateAccountLevel(int accountId, int accountLevel);
 
     // interface for the /ban command
     bool banPlayer(int playerId, std::string& reason);
