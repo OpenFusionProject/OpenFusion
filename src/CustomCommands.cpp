@@ -150,7 +150,10 @@ static void accessCommand(std::string full, std::vector<std::string>& args, CNSo
     int accountId = Database::getAccountIdForPlayer(player->iID);
     Database::updateAccountLevel(accountId, newAccess);
 
-    Chat::sendServerMessage(sock, "Changed access level for " + playerName + " from " + std::to_string(currentAccess) + " to " + std::to_string(newAccess));
+    std::string msg = "Changed access level for " + playerName + " from " + std::to_string(currentAccess) + " to " + std::to_string(newAccess);
+    if (newAccess <= 50 && currentAccess > 50)
+        msg += " (they must log out and back in for some commands to be enabled)";
+    Chat::sendServerMessage(sock, msg);
 }
 
 static void populationCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
