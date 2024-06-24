@@ -6,5 +6,5 @@ namespace Buddies {
     void init();
 
     // Buddy list
-    void refreshBuddyList(CNSocket* sock);
+    void sendBuddyList(CNSocket* sock);
 }

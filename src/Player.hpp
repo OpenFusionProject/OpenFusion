@@ -72,8 +72,8 @@ struct Player : public Entity, public ICombatant {
     bool notify = false;
     bool hidden = false;
     bool unwarpable = false;
+    bool initialLoadDone = false;
 
-    bool buddiesSynced = false;
     int64_t buddyIDs[50] = {};
     bool isBuddyBlocked[50] = {};
 

@@ -908,6 +908,10 @@ static void playerTick(CNServer *serv, time_t currTime) {
         Player *plr = pair.second;
         bool transmit = false;
 
+        // don't tick players that haven't loaded in yet
+        if (!plr->initialLoadDone)
+            continue;
+
         // group ticks
         if (plr->group != nullptr)
             Groups::groupTickInfo(sock);
