@@ -91,9 +91,12 @@ static void accessCommand(std::string full, std::vector<std::string>& args, CNSo
 
     char *tmp;
 
+    Player* self = PlayerManager::getPlayer(sock);
+    int selfAccess = self->accountLevel;
+
     Player* player;
     if (args[1].compare(".") == 0) {
-        player = PlayerManager::getPlayer(sock);
+        player = self;
     } else {
         int id = std::strtol(args[1].c_str(), &tmp, 10);
         if (*tmp) {
@@ -104,6 +107,12 @@ static void accessCommand(std::string full, std::vector<std::string>& args, CNSo
         player = PlayerManager::getPlayerFromID(id);
         if (player == nullptr) {
             Chat::sendServerMessage(sock, "Could not find player with ID " + std::to_string(id));
+            return;
+        }
+
+        // Messing with other players requires a baseline access of 30
+        if (player != self && selfAccess > 30) {
+            Chat::sendServerMessage(sock, "Can't check or change other players access levels (insufficient privileges)");
             return;
         }
     }
@@ -118,8 +127,6 @@ static void accessCommand(std::string full, std::vector<std::string>& args, CNSo
 
     // Can't change the access level of someone with stronger privileges
     // N.B. lower value = stronger privileges
-    Player* self = PlayerManager::getPlayer(sock);
-    int selfAccess = self->accountLevel;
     if (currentAccess <= selfAccess) {
         Chat::sendServerMessage(sock, "Can't change this player's access level (insufficient privileges)");
         return;
@@ -133,7 +140,7 @@ static void accessCommand(std::string full, std::vector<std::string>& args, CNSo
 
     // Can only assign an access level weaker than yours
     if (newAccess <= selfAccess) {
-        Chat::sendServerMessage(sock, "Can't assign stronger privileges than your own");
+        Chat::sendServerMessage(sock, "Can only assign privileges weaker than your own");
         return;
     }
 
