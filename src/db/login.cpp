@@ -27,6 +27,32 @@ void Database::findAccount(Account* account, std::string login) {
     sqlite3_finalize(stmt);
 }
 
+int Database::getAccountIdForPlayer(int playerId) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    const char* sql = R"(
+        SELECT AccountID
+        FROM Players
+        WHERE PlayerID = ?
+        LIMIT 1;
+        )";
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_bind_int(stmt, 1, playerId);
+
+    int rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW) {
+        std::cout << "[WARN] Database: couldn't get account id for player " << playerId << std::endl;
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    int accountId = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+    return accountId;
+}
+
 int Database::addAccount(std::string login, std::string password) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
@@ -50,6 +76,26 @@ int Database::addAccount(std::string login, std::string password) {
     }
 
     return sqlite3_last_insert_rowid(db);
+}
+
+void Database::updateAccountLevel(int accountId, int accountLevel) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    const char* sql = R"(
+        UPDATE Accounts SET
+            AccountLevel = ?
+        WHERE AccountID = ?;
+        )";
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_bind_int(stmt, 1, accountLevel);
+    sqlite3_bind_int(stmt, 2, accountId);
+
+    int rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE)
+        std::cout << "[WARN] Database fail on updateAccountLevel(): " << sqlite3_errmsg(db) << std::endl;
+    sqlite3_finalize(stmt);
 }
 
 void Database::updateSelected(int accountId, int slot) {

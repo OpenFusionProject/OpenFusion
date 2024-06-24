@@ -212,7 +212,12 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     response.iID = plr->iID;
     response.uiSvrTime = getTime();
-    response.PCLoadData2CL.iUserLevel = plr->accountLevel;
+
+    // The only client-side use of the account level is to block
+    // the sending of GM packets. Since account level can be changed
+    // at runtime and we validate it serverside, we can leave this at 0.
+    response.PCLoadData2CL.iUserLevel = 0; // plr->accountLevel;
+
     response.PCLoadData2CL.iHP = plr->HP;
     response.PCLoadData2CL.iLevel = plr->level;
     response.PCLoadData2CL.iCandy = plr->money;

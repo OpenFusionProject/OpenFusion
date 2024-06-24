@@ -83,7 +83,74 @@ static void helpCommand(std::string full, std::vector<std::string>& args, CNSock
 }
 
 static void accessCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
-    Chat::sendServerMessage(sock, "Your access level is " + std::to_string(PlayerManager::getPlayer(sock)->accountLevel));
+    if (args.size() < 2) {
+        Chat::sendServerMessage(sock, "Usage: /access <id> [new_level]");
+        Chat::sendServerMessage(sock, "Use . for id to select yourself");
+        return;
+    }
+
+    char *tmp;
+
+    Player* self = PlayerManager::getPlayer(sock);
+    int selfAccess = self->accountLevel;
+
+    Player* player;
+    if (args[1].compare(".") == 0) {
+        player = self;
+    } else {
+        int id = std::strtol(args[1].c_str(), &tmp, 10);
+        if (*tmp) {
+            Chat::sendServerMessage(sock, "Invalid player ID " + args[1]);
+            return;
+        }
+
+        player = PlayerManager::getPlayerFromID(id);
+        if (player == nullptr) {
+            Chat::sendServerMessage(sock, "Could not find player with ID " + std::to_string(id));
+            return;
+        }
+
+        // Messing with other players requires a baseline access of 30
+        if (player != self && selfAccess > 30) {
+            Chat::sendServerMessage(sock, "Can't check or change other players access levels (insufficient privileges)");
+            return;
+        }
+    }
+
+    std::string playerName = PlayerManager::getPlayerName(player);
+    int currentAccess = player->accountLevel;
+    if (args.size() < 3) {
+        // just check
+        Chat::sendServerMessage(sock, playerName + " has access level " + std::to_string(currentAccess));
+        return;
+    }
+
+    // Can't change the access level of someone with stronger privileges
+    // N.B. lower value = stronger privileges
+    if (currentAccess <= selfAccess) {
+        Chat::sendServerMessage(sock, "Can't change this player's access level (insufficient privileges)");
+        return;
+    }
+
+    int newAccess = std::strtol(args[2].c_str(), &tmp, 10);
+    if (*tmp) {
+        Chat::sendServerMessage(sock, "Invalid access level " + args[2]);
+        return;
+    }
+
+    // Can only assign an access level weaker than yours
+    if (newAccess <= selfAccess) {
+        Chat::sendServerMessage(sock, "Can only assign privileges weaker than your own");
+        return;
+    }
+
+    player->accountLevel = newAccess;
+
+    // Save to database
+    int accountId = Database::getAccountIdForPlayer(player->iID);
+    Database::updateAccountLevel(accountId, newAccess);
+
+    Chat::sendServerMessage(sock, "Changed access level for " + playerName + " from " + std::to_string(currentAccess) + " to " + std::to_string(newAccess));
 }
 
 static void populationCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
@@ -1200,7 +1267,7 @@ static void registerCommand(std::string cmd, int requiredLevel, CommandHandler h
 
 void CustomCommands::init() {
     registerCommand("help", 100, helpCommand, "list all unlocked server-side commands");
-    registerCommand("access", 100, accessCommand, "print your access level");
+    registerCommand("access", 100, accessCommand, "check or change access levels");
     registerCommand("instance", 30, instanceCommand, "print or change your current instance");
     registerCommand("mss", 30, mssCommand, "edit Monkey Skyway routes");
     registerCommand("npcr", 30, npcRotateCommand, "rotate NPCs");
