@@ -299,10 +299,6 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     sock->sendPacket(response, P_FE2CL_REP_PC_ENTER_SUCC);
 
-    // Academy builds receive nanos separately. Need to send this ASAP after P_FE2CL_REP_PC_ENTER_SUCC
-    // because the client will fail to render equipped nanos if it's sent too late
-    
-
     // transfer ownership of Player object into the shard (still valid in this function though)
     addPlayer(sock, plr);
 
