@@ -155,13 +155,20 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z) {
  * Nanos the player hasn't unlocked will (and should) be greyed out. Thus, all nanos should be accounted
  * for in these packets, even if the player hasn't unlocked them.
  */
-static void sendNanoBookSubset(CNSocket *sock, Player *plr) {
+static void sendNanoBook(CNSocket *sock, Player *plr, bool resizeOnly) {
 #ifdef ACADEMY
     int16_t id = 0;
     INITSTRUCT(sP_FE2CL_REP_NANO_BOOK_SUBSET, pkt);
 
     pkt.PCUID = plr->iID;
     pkt.bookSize = NANO_COUNT;
+
+    if (resizeOnly) {
+        // triggers nano array resizing without
+        // actually sending nanos
+        sock->sendPacket(pkt, P_FE2CL_REP_NANO_BOOK_SUBSET);
+        return;
+    }
 
     while (id < NANO_COUNT) {
         pkt.elementOffset = id;
@@ -295,11 +302,11 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
     // Academy builds receive nanos in a separate packet. These need to be sent
     // before P_FE2CL_REP_PC_ENTER_SUCC as well as after
     // due to a race condition in the client :(
-    sendNanoBookSubset(sock, plr);
+    sendNanoBook(sock, plr, true);
 
     sock->sendPacket(response, P_FE2CL_REP_PC_ENTER_SUCC);
 
-    sendNanoBookSubset(sock, plr);
+    sendNanoBook(sock, plr, false);
 
     // transfer ownership of Player object into the shard (still valid in this function though)
     addPlayer(sock, plr);
