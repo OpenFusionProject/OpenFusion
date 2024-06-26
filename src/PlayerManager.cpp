@@ -299,9 +299,9 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
     sock->setFEKey(lm->FEKey);
     sock->setActiveKey(SOCKETKEY_FE); // send all packets using the FE key from now on
 
-    // Academy builds receive nanos in a separate packet. These need to be sent
-    // before P_FE2CL_REP_PC_ENTER_SUCC as well as after
-    // due to a race condition in the client :(
+    // Academy builds receive nanos in a separate packet. An initial one with the size of the
+    // nano book needs to be sent before PC_ENTER_SUCC so the client can resize its nano arrays,
+    // and then proper packets with the nanos included must be sent after, while the game is loading.
     sendNanoBook(sock, plr, true);
 
     sock->sendPacket(response, P_FE2CL_REP_PC_ENTER_SUCC);
