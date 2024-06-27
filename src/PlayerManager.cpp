@@ -155,15 +155,20 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z) {
  * Nanos the player hasn't unlocked will (and should) be greyed out. Thus, all nanos should be accounted
  * for in these packets, even if the player hasn't unlocked them.
  */
-static void sendNanoBookSubset(CNSocket *sock) {
+static void sendNanoBook(CNSocket *sock, Player *plr, bool resizeOnly) {
 #ifdef ACADEMY
-    Player *plr = getPlayer(sock);
-
     int16_t id = 0;
     INITSTRUCT(sP_FE2CL_REP_NANO_BOOK_SUBSET, pkt);
 
     pkt.PCUID = plr->iID;
     pkt.bookSize = NANO_COUNT;
+
+    if (resizeOnly) {
+        // triggers nano array resizing without
+        // actually sending nanos
+        sock->sendPacket(pkt, P_FE2CL_REP_NANO_BOOK_SUBSET);
+        return;
+    }
 
     while (id < NANO_COUNT) {
         pkt.elementOffset = id;
@@ -295,26 +300,20 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
     sock->setFEKey(lm->FEKey);
     sock->setActiveKey(SOCKETKEY_FE); // send all packets using the FE key from now on
 
+    // Academy builds receive nanos in a separate packet. An initial one with the size of the
+    // nano book needs to be sent before PC_ENTER_SUCC so the client can resize its nano arrays,
+    // and then proper packets with the nanos included must be sent after, while the game is loading.
+    sendNanoBook(sock, plr, true);
+
     sock->sendPacket(response, P_FE2CL_REP_PC_ENTER_SUCC);
 
-    // transmit MOTD after entering the game, so the client hopefully changes modes on time
-    Chat::sendServerMessage(sock, settings::MOTDSTRING);
+    sendNanoBook(sock, plr, false);
 
     // transfer ownership of Player object into the shard (still valid in this function though)
     addPlayer(sock, plr);
 
-    // check if there is an expiring vehicle
-    Items::checkItemExpire(sock, plr);
-
     // set player equip stats
     Items::setItemStats(plr);
-
-    Missions::failInstancedMissions(sock);
-
-    sendNanoBookSubset(sock);
-
-    // initial buddy sync
-    Buddies::refreshBuddyList(sock);
 
     for (auto& pair : players)
         if (pair.second->notify)
@@ -377,6 +376,17 @@ static void loadPlayer(CNSocket* sock, CNPacketData* data) {
         }
 
         sock->sendPacket(pkt, P_FE2CL_INSTANCE_MAP_INFO);
+    }
+
+    if (!plr->initialLoadDone) {
+        // these should be called only once, but not until after
+        // first load-in or else the client may ignore the packets
+        Chat::sendServerMessage(sock, settings::MOTDSTRING); // MOTD
+        Missions::failInstancedMissions(sock); // auto-fail missions
+        Buddies::sendBuddyList(sock); // buddy list
+        Items::checkItemExpire(sock, plr); // vehicle expiration
+
+        plr->initialLoadDone = true;
     }
 }
 

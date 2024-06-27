@@ -30,7 +30,7 @@ static bool playerHasBuddyWithID(Player* plr, int buddyID) {
 #pragma endregion
 
 // Refresh buddy list
-void Buddies::refreshBuddyList(CNSocket* sock) {
+void Buddies::sendBuddyList(CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
     int buddyCnt = Database::getNumBuddies(plr);
 
@@ -277,15 +277,6 @@ static void reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
 // Getting buddy state
 static void reqPktGetBuddyState(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
-
-    /*
-     * If the buddy list wasn't synced a second time yet, sync it.
-     * Not sure why we have to do it again for the client not to trip up.
-     */
-    if (!plr->buddiesSynced) {
-        refreshBuddyList(sock);
-        plr->buddiesSynced = true;
-    }
     
     INITSTRUCT(sP_FE2CL_REP_GET_BUDDY_STATE_SUCC, resp);
     
