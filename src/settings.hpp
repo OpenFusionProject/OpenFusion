@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdint.h>
 #include <string>
 
 namespace settings {
@@ -13,7 +14,7 @@ namespace settings {
     extern std::string SHARDSERVERIP;
     extern bool LOCALHOSTWORKAROUND;
     extern bool ANTICHEAT;
-    extern time_t TIMEOUT;
+    extern int64_t TIMEOUT;
     extern int VIEWDISTANCE;
     extern bool SIMULATEMOBS;
     extern int SPAWN_X;
