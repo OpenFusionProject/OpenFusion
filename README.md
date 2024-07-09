@@ -108,3 +108,7 @@ Meanwhile the Academy server is more meant for legitimate playthroughs (default 
 When hosting a local server, you will have access to all commands by default (account level 1).
 
 For a list of available commands, see [this wiki page](https://github.com/OpenFusionProject/OpenFusion/wiki/Ingame-Command-list).
+
+## Leaderboards
+
+You can track the racing leaderboards by following this [link](https://github.com/hichemfantar/dex-labs-leaderboards).
