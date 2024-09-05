@@ -98,6 +98,53 @@ void Database::updateAccountLevel(int accountId, int accountLevel) {
     sqlite3_finalize(stmt);
 }
 
+bool Database::checkCookie(int accountId, const char *tryCookie) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    const char* sql_get = R"(
+        SELECT Cookie
+        FROM Auth
+        WHERE AccountID = ? AND Valid = 1;
+        )";
+
+    const char* sql_invalidate = R"(
+        UPDATE Auth
+        SET Valid = 0
+        WHERE AccountID = ?;
+        )";
+
+    sqlite3_stmt* stmt;
+
+    sqlite3_prepare_v2(db, sql_get, -1, &stmt, NULL);
+    sqlite3_bind_int(stmt, 1, accountId);
+    int rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    const char *cookie = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+    if (strlen(cookie) != strlen(tryCookie)) {
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    /* since cookies are immediately invalidated, we don't need to be concerned about
+     * timing-related side channel attacks, so strcmp is fine here
+     */
+    bool match = (strcmp(cookie, tryCookie) == 0);
+    sqlite3_finalize(stmt);
+
+    sqlite3_prepare_v2(db, sql_invalidate, -1, &stmt, NULL);
+    sqlite3_bind_int(stmt, 1, accountId);
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE)
+        std::cout << "[WARN] Database fail on consumeCookie(): " << sqlite3_errmsg(db) << std::endl;
+
+    return match;
+}
+
 void Database::updateSelected(int accountId, int slot) {
     std::lock_guard<std::mutex> lock(dbCrit);
 

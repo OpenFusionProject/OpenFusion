@@ -39,7 +39,8 @@ private:
     static void changeName(CNSocket* sock, CNPacketData* data);
     static void duplicateExit(CNSocket* sock, CNPacketData* data);
 
-    static bool isLoginDataGood(std::string login, std::string password);
+    static bool isUsernameGood(std::string login);
+    static bool isPasswordGood(std::string password);
     static bool isPasswordCorrect(std::string actualPassword, std::string tryPassword);
     static bool isAccountInUse(int accountId);
     static bool isCharacterNameGood(std::string Firstname, std::string Lastname);

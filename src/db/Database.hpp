@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#define DATABASE_VERSION 4
+#define DATABASE_VERSION 5
 
 namespace Database {
 
@@ -52,6 +52,10 @@ namespace Database {
     int addAccount(std::string login, std::string password);
 
     void updateAccountLevel(int accountId, int accountLevel);
+
+    // return true iff cookie is valid for the account.
+    // invalidates the stored cookie afterwards
+    bool checkCookie(int accountId, const char *cookie);
 
     // interface for the /ban command
     bool banPlayer(int playerId, std::string& reason);
