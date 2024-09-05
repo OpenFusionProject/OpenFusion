@@ -13,6 +13,7 @@ bool settings::SANDBOX = true;
 int settings::LOGINPORT = 23000;
 bool settings::APPROVEALLNAMES = true;
 bool settings::AUTOCREATEACCOUNTS = true;
+bool settings::USEAUTHCOOKIES = false;
 int settings::DBSAVEINTERVAL = 240;
 
 int settings::SHARDPORT = 23001;
@@ -87,6 +88,7 @@ void settings::init() {
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);
     APPROVEALLNAMES = reader.GetBoolean("login", "acceptallcustomnames", APPROVEALLNAMES);
     AUTOCREATEACCOUNTS = reader.GetBoolean("login", "autocreateaccounts", AUTOCREATEACCOUNTS);
+    USEAUTHCOOKIES = reader.GetBoolean("login", "useauthcookies", USEAUTHCOOKIES);
     DBSAVEINTERVAL = reader.GetInteger("login", "dbsaveinterval", DBSAVEINTERVAL);
     SHARDPORT = reader.GetInteger("shard", "port", SHARDPORT);
     SHARDSERVERIP = reader.Get("shard", "ip", SHARDSERVERIP);
