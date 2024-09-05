@@ -52,7 +52,7 @@ jobs:
           Copy-Item -Path "config.ini" -Destination "bin"
         shell: pwsh
       - name: Upload build artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: 'ubuntu22_04-bin-x64-${{ env.SHORT_SHA }}'
           path: bin
@@ -106,7 +106,7 @@ jobs:
           }
         shell: pwsh
       - name: Upload build artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: 'windows-vs2019-bin-x64-${{ env.SHORT_SHA }}'
           path: bin
@@ -127,7 +127,7 @@ jobs:
           GITDESC=$(git describe --tags)
           mkdir $GITDESC
           echo "ARTDIR=$GITDESC" >> $GITHUB_ENV
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           path: ${{ env.ARTDIR }}
       - name: Upload artifacts
