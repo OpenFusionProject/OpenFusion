@@ -109,18 +109,19 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
 
     std::string userLogin;
     std::string userPassword;
+
+    /*
+     * The std::string -> char* -> std::string maneuver should remove any
+     * trailing garbage after the null terminator.
+     */
     if (isCookieAuth) {
         // username encoded in TEGid raw
-        userLogin = std::string((char*)login->szCookie_TEGid);
+        userLogin = std::string(AUTOU8((char*)login->szCookie_TEGid).c_str());
 
-        // clients that use web login but without proper cookies
-        // send their passwords instead, so store that
-        userPassword = std::string((char*)login->szCookie_authid);
+        // N.B. clients that use web login without proper cookies
+        // send their passwords in the cookie field
+        userPassword = std::string(AUTOU8((char*)login->szCookie_authid).c_str());
     } else {
-        /*
-         * The std::string -> char* -> std::string maneuver should remove any
-         * trailing garbage after the null terminator.
-         */
         userLogin = std::string(AUTOU16TOU8(login->szID).c_str());
         userPassword = std::string(AUTOU16TOU8(login->szPassword).c_str());
     }
@@ -171,7 +172,7 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
     }
 
     if (isCookieAuth) {
-        const char *cookie = reinterpret_cast<const char*>(login->szCookie_authid);
+        const char *cookie = userPassword.c_str();
         if (!Database::checkCookie(findUser.AccountID, cookie))
             return loginFail(LoginError::ID_AND_PASSWORD_DO_NOT_MATCH, userLogin, sock);
     } else {
