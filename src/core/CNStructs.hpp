@@ -40,7 +40,7 @@
 
 // wrapper for U16toU8
 #define ARRLEN(x) (sizeof(x)/sizeof(*x))
-#define AUTOU8(x) std::string(x, ARRLEN(x))
+#define AUTOU8(x) std::string((char*)x, ARRLEN(x))
 #define AUTOU16TOU8(x) U16toU8(x, ARRLEN(x)) 
 
 // TODO: rewrite U16toU8 & U8toU16 to not use codecvt

@@ -116,11 +116,11 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
      */
     if (isCookieAuth) {
         // username encoded in TEGid raw
-        userLogin = std::string(AUTOU8((char*)login->szCookie_TEGid).c_str());
+        userLogin = std::string(AUTOU8(login->szCookie_TEGid).c_str());
 
         // N.B. clients that use web login without proper cookies
         // send their passwords in the cookie field
-        userPassword = std::string(AUTOU8((char*)login->szCookie_authid).c_str());
+        userPassword = std::string(AUTOU8(login->szCookie_authid).c_str());
     } else {
         userLogin = std::string(AUTOU16TOU8(login->szID).c_str());
         userPassword = std::string(AUTOU16TOU8(login->szPassword).c_str());
