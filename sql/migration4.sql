@@ -8,7 +8,7 @@ BEGIN TRANSACTION;
 CREATE TABLE Auth (
     AccountID   INTEGER NOT NULL,
     Cookie      TEXT NOT NULL,
-    Valid       INTEGER NOT NULL,
+    Expires     INTEGER DEFAULT 0 NOT NULL,
     FOREIGN KEY(AccountID) REFERENCES Accounts(AccountID) ON DELETE CASCADE,
     UNIQUE (AccountID)
 );

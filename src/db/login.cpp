@@ -104,12 +104,12 @@ bool Database::checkCookie(int accountId, const char *tryCookie) {
     const char* sql_get = R"(
         SELECT Cookie
         FROM Auth
-        WHERE AccountID = ? AND Valid = 1;
+        WHERE AccountID = ? AND Expires > ?;
         )";
 
     const char* sql_invalidate = R"(
         UPDATE Auth
-        SET Valid = 0
+        SET Expires = 0
         WHERE AccountID = ?;
         )";
 
@@ -117,6 +117,7 @@ bool Database::checkCookie(int accountId, const char *tryCookie) {
 
     sqlite3_prepare_v2(db, sql_get, -1, &stmt, NULL);
     sqlite3_bind_int(stmt, 1, accountId);
+    sqlite3_bind_int(stmt, 2, getTimestamp());
     int rc = sqlite3_step(stmt);
     if (rc != SQLITE_ROW) {
         sqlite3_finalize(stmt);
