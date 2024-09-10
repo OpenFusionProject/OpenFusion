@@ -23,6 +23,11 @@ enum class LoginError {
     UPDATED_EUALA_REQUIRED = 9
 };
 
+enum class LoginType {
+    PASSWORD = 1,
+    COOKIE = 2
+};
+
 // WARNING: THERE CAN ONLY BE ONE OF THESE SERVERS AT A TIME!!!!!! TODO: change loginSessions & packet handlers to be non-static
 class CNLoginServer : public CNServer {
 private:
@@ -44,6 +49,7 @@ private:
     static bool isPasswordCorrect(std::string actualPassword, std::string tryPassword);
     static bool isAccountInUse(int accountId);
     static bool isCharacterNameGood(std::string Firstname, std::string Lastname);
+    static bool isLoginTypeAllowed(LoginType loginType);
     static void newAccount(CNSocket* sock, std::string userLogin, std::string userPassword, int32_t clientVerC);
     // returns true if success
     static bool exitDuplicate(int accountId);

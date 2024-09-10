@@ -8,7 +8,7 @@ namespace settings {
     extern int LOGINPORT;
     extern bool APPROVEALLNAMES;
     extern bool AUTOCREATEACCOUNTS;
-    extern bool USEAUTHCOOKIES;
+    extern std::string AUTHMETHODS;
     extern int DBSAVEINTERVAL;
     extern int SHARDPORT;
     extern std::string SHARDSERVERIP;
