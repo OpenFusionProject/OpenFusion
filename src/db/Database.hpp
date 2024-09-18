@@ -53,7 +53,7 @@ namespace Database {
 
     void updateAccountLevel(int accountId, int accountLevel);
 
-    // return true iff cookie is valid for the account.
+    // return true if cookie is valid for the account.
     // invalidates the stored cookie afterwards
     bool checkCookie(int accountId, const char *cookie);
 

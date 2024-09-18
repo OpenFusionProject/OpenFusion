@@ -682,8 +682,7 @@ bool CNLoginServer::isCharacterNameGood(std::string Firstname, std::string Lastn
 
 bool CNLoginServer::isLoginTypeAllowed(LoginType loginType) {
     // the config file specifies "comma-separated" but tbh we don't care
-    switch (loginType)
-    {
+    switch (loginType) {
     case LoginType::PASSWORD:
         return settings::AUTHMETHODS.find("password") != std::string::npos;
     case LoginType::COOKIE:

@@ -130,7 +130,8 @@ bool Database::checkCookie(int accountId, const char *tryCookie) {
         return false;
     }
 
-    /* since cookies are immediately invalidated, we don't need to be concerned about
+    /*
+     * since cookies are immediately invalidated, we don't need to be concerned about
      * timing-related side channel attacks, so strcmp is fine here
      */
     bool match = (strcmp(cookie, tryCookie) == 0);
@@ -141,7 +142,7 @@ bool Database::checkCookie(int accountId, const char *tryCookie) {
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
     if (rc != SQLITE_DONE)
-        std::cout << "[WARN] Database fail on consumeCookie(): " << sqlite3_errmsg(db) << std::endl;
+        std::cout << "[WARN] Database fail on checkCookie(): " << sqlite3_errmsg(db) << std::endl;
 
     return match;
 }
