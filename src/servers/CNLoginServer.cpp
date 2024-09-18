@@ -105,57 +105,95 @@ void loginFail(LoginError errorCode, std::string userLogin, CNSocket* sock) {
 
 void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
     auto login = (sP_CL2LS_REQ_LOGIN*)data->buf;
-    // TODO: implement better way of sending credentials
-    std::string userLogin((char*)login->szCookie_TEGid);
-    std::string userPassword((char*)login->szCookie_authid);
+
+    std::string userLogin;
+    std::string userToken; // could be password or auth cookie
 
     /*
-     * Sometimes the client sends garbage cookie data.
-     * Validate it as normal credentials instead of using a length check before falling back.
+     * The std::string -> char* -> std::string maneuver should remove any
+     * trailing garbage after the null terminator.
      */
-    if (!CNLoginServer::isLoginDataGood(userLogin, userPassword)) {
-        /*
-         * The std::string -> char* -> std::string maneuver should remove any
-         * trailing garbage after the null terminator.
-         */
+    if (login->iLoginType == (int32_t)LoginType::COOKIE) {
+        userLogin = std::string(AUTOU8(login->szCookie_TEGid).c_str());
+        userToken = std::string(AUTOU8(login->szCookie_authid).c_str());
+    } else {
         userLogin = std::string(AUTOU16TOU8(login->szID).c_str());
-        userPassword = std::string(AUTOU16TOU8(login->szPassword).c_str());
+        userToken = std::string(AUTOU16TOU8(login->szPassword).c_str());
     }
 
-    // the client inserts a "\n" in the password if you press enter key in the middle of the password
-    // (not at the start or the end of the password field)
-    if (int(userPassword.find("\n")) > 0)
-        userPassword.erase(userPassword.find("\n"), 1);
-
-    // check regex
-    if (!CNLoginServer::isLoginDataGood(userLogin, userPassword)) {
+    // check username regex
+    if (!CNLoginServer::isUsernameGood(userLogin)) {
         // send a custom error message
         INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
-        std::string text = "Invalid login or password\n";
-        text += "Login has to be 4 - 32 characters long and can't contain special characters other than dash and underscore\n";
-        text += "Password has to be 8 - 32 characters long";          
+        std::string text = "Invalid login\n";
+        text += "Login has to be 4 - 32 characters long and can't contain special characters other than dash and underscore";
         U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
-        msg.iDuringTime = 15;
+        msg.iDuringTime = 10;
         sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
 
         // we still have to send login fail to prevent softlock
         return loginFail(LoginError::LOGIN_ERROR, userLogin, sock);
     }
-        
+
+    // we only interpret the token as a cookie if cookie login was used and it's allowed.
+    // otherwise we interpret it as a password, and this maintains compatibility with
+    // the auto-login trick used on older clients
+    bool isCookieAuth = login->iLoginType == (int32_t)LoginType::COOKIE
+                        && CNLoginServer::isLoginTypeAllowed(LoginType::COOKIE);
+
+    // password login checks
+    if (!isCookieAuth) {
+        // bail if password auth isn't allowed
+        if (!CNLoginServer::isLoginTypeAllowed(LoginType::PASSWORD)) {
+            // send a custom error message
+            INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
+            std::string text = "Password login disabled\n";
+            text += "This server has disabled logging in with plaintext passwords.\n";
+            text += "Please contact an admin for assistance.";
+            U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
+            msg.iDuringTime = 12;
+            sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
+
+            // we still have to send login fail to prevent softlock
+            return loginFail(LoginError::LOGIN_ERROR, userLogin, sock);
+        }
+
+        // check regex
+        if (!CNLoginServer::isPasswordGood(userToken)) {
+            // send a custom error message
+            INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
+            std::string text = "Invalid password\n";
+            text += "Password has to be 8 - 32 characters long";
+            U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
+            msg.iDuringTime = 10;
+            sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
+
+            // we still have to send login fail to prevent softlock
+            return loginFail(LoginError::LOGIN_ERROR, userLogin, sock);
+        }
+    }
 
     Database::Account findUser = {};
     Database::findAccount(&findUser, userLogin);
     
     // account was not found
     if (findUser.AccountID == 0) {
-        if (settings::AUTOCREATEACCOUNTS)
-            return newAccount(sock, userLogin, userPassword, login->iClientVerC);
+        // don't auto-create an account if it's a cookie auth for whatever reason
+        if (settings::AUTOCREATEACCOUNTS && !isCookieAuth)
+            return newAccount(sock, userLogin, userToken, login->iClientVerC);
 
         return loginFail(LoginError::ID_DOESNT_EXIST, userLogin, sock);
     }
 
-    if (!CNLoginServer::isPasswordCorrect(findUser.Password, userPassword))
-        return loginFail(LoginError::ID_AND_PASSWORD_DO_NOT_MATCH, userLogin, sock);
+    if (isCookieAuth) {
+        const char *cookie = userToken.c_str();
+        if (!Database::checkCookie(findUser.AccountID, cookie))
+            return loginFail(LoginError::ID_AND_PASSWORD_DO_NOT_MATCH, userLogin, sock);
+    } else {
+        // simple password check
+        if (!CNLoginServer::isPasswordCorrect(findUser.Password, userToken))
+            return loginFail(LoginError::ID_AND_PASSWORD_DO_NOT_MATCH, userLogin, sock);
+    }
 
     // is the account banned
     if (findUser.BannedUntil > getTimestamp()) {
@@ -621,11 +659,14 @@ bool CNLoginServer::exitDuplicate(int accountId) {
     return false;
 }
 
-bool CNLoginServer::isLoginDataGood(std::string login, std::string password) {
-    std::regex loginRegex("[a-zA-Z0-9_-]{4,32}");
-    std::regex passwordRegex("[a-zA-Z0-9!@#$%^&*()_+]{8,32}");
+bool CNLoginServer::isUsernameGood(std::string login) {
+    const std::regex loginRegex("[a-zA-Z0-9_-]{4,32}");
+    return (std::regex_match(login, loginRegex));
+}
 
-    return (std::regex_match(login, loginRegex) && std::regex_match(password, passwordRegex));
+bool CNLoginServer::isPasswordGood(std::string password) {
+    const std::regex passwordRegex("[a-zA-Z0-9!@#$%^&*()_+]{8,32}");
+    return (std::regex_match(password, passwordRegex));
 }
 
 bool CNLoginServer::isPasswordCorrect(std::string actualPassword, std::string tryPassword) {
@@ -637,5 +678,18 @@ bool CNLoginServer::isCharacterNameGood(std::string Firstname, std::string Lastn
     std::regex firstnamecheck(R"(((?! )(?!\.)[a-zA-Z0-9]*\.{0,1}(?!\.+ +)[a-zA-Z0-9]* {0,1}(?! +))*$)");
     std::regex lastnamecheck(R"(((?! )(?!\.)[a-zA-Z0-9]*\.{0,1}(?!\.+ +)[a-zA-Z0-9]* {0,1}(?! +))*$)");
     return (std::regex_match(Firstname, firstnamecheck) && std::regex_match(Lastname, lastnamecheck));
+}
+
+bool CNLoginServer::isLoginTypeAllowed(LoginType loginType) {
+    // the config file specifies "comma-separated" but tbh we don't care
+    switch (loginType) {
+    case LoginType::PASSWORD:
+        return settings::AUTHMETHODS.find("password") != std::string::npos;
+    case LoginType::COOKIE:
+        return settings::AUTHMETHODS.find("cookie") != std::string::npos;
+    default:
+        break;
+    }
+    return false;
 }
 #pragma endregion

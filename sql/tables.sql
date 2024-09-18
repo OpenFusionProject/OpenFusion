@@ -143,7 +143,7 @@ CREATE TABLE IF NOT EXISTS EmailItems (
     UNIQUE (PlayerID, MsgIndex, Slot)
 );
 
-CREATE TABLE IF NOT EXISTS RaceResults(
+CREATE TABLE IF NOT EXISTS RaceResults (
     EPID      INTEGER NOT NULL,
     PlayerID  INTEGER NOT NULL,
     Score     INTEGER NOT NULL,
@@ -153,9 +153,17 @@ CREATE TABLE IF NOT EXISTS RaceResults(
     FOREIGN KEY(PlayerID) REFERENCES Players(PlayerID) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS RedeemedCodes(
+CREATE TABLE IF NOT EXISTS RedeemedCodes (
     PlayerID    INTEGER NOT NULL,
     Code        TEXT NOT NULL,
     FOREIGN KEY(PlayerID) REFERENCES Players(PlayerID) ON DELETE CASCADE,
     UNIQUE (PlayerID, Code)
-)
+);
+
+CREATE TABLE IF NOT EXISTS Auth (
+    AccountID   INTEGER NOT NULL,
+    Cookie      TEXT NOT NULL,
+    Expires     INTEGER DEFAULT 0 NOT NULL,
+    FOREIGN KEY(AccountID) REFERENCES Accounts(AccountID) ON DELETE CASCADE,
+    UNIQUE (AccountID)
+);
