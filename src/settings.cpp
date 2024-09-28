@@ -9,6 +9,7 @@
 // defaults :)
 int settings::VERBOSITY = 1;
 bool settings::SANDBOX = true;
+std::string settings::SANDBOXEXTRAPATH = "";
 
 int settings::LOGINPORT = 23000;
 bool settings::APPROVEALLNAMES = true;
@@ -85,6 +86,7 @@ void settings::init() {
 
     VERBOSITY = reader.GetInteger("", "verbosity", VERBOSITY);
     SANDBOX = reader.GetBoolean("", "sandbox", SANDBOX);
+    SANDBOXEXTRAPATH = reader.Get("", "sandboxextrapath", SANDBOXEXTRAPATH);
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);
     APPROVEALLNAMES = reader.GetBoolean("login", "acceptallcustomnames", APPROVEALLNAMES);
     AUTOCREATEACCOUNTS = reader.GetBoolean("login", "autocreateaccounts", AUTOCREATEACCOUNTS);

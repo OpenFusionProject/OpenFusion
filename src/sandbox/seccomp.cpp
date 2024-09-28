@@ -4,6 +4,9 @@
 #include "settings.hpp"
 
 #include <stdlib.h>
+#include <fcntl.h>
+
+#include <filesystem>
 
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
@@ -16,6 +19,10 @@
 #include <linux/filter.h>
 #include <linux/audit.h>
 #include <linux/net.h> // for socketcall() args
+
+#ifndef CONFIG_NOLANDLOCK
+#include <linux/landlock.h>
+#endif
 
 /*
  * Macros adapted from https://outflux.net/teach-seccomp/
@@ -297,25 +304,178 @@ static sock_fprog prog = {
     ARRLEN(filter), filter
 };
 
-// our own wrapper for the seccomp() syscall
+// Our own wrapper for the seccomp() syscall.
 int seccomp(unsigned int operation, unsigned int flags, void *args) {
     return syscall(__NR_seccomp, operation, flags, args);
 }
 
-void sandbox_start() {
+#ifndef CONFIG_NOLANDLOCK
+
+// Support compilation on systems that only have older Landlock headers.
+#ifndef LANDLOCK_ACCESS_FS_REFER
+#define LANDLOCK_ACCESS_FS_REFER 0
+#endif
+#ifndef LANDLOCK_ACCESS_FS_TRUNCATE
+#define LANDLOCK_ACCESS_FS_TRUNCATE 0
+#endif
+
+struct landlock_ruleset_attr ruleset_attr = {
+    .handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE
+        | LANDLOCK_ACCESS_FS_WRITE_FILE
+        | LANDLOCK_ACCESS_FS_READ_DIR
+        | LANDLOCK_ACCESS_FS_MAKE_REG
+        | LANDLOCK_ACCESS_FS_MAKE_DIR
+        | LANDLOCK_ACCESS_FS_MAKE_SYM
+        | LANDLOCK_ACCESS_FS_MAKE_SOCK
+        | LANDLOCK_ACCESS_FS_MAKE_FIFO
+        | LANDLOCK_ACCESS_FS_MAKE_BLOCK
+        | LANDLOCK_ACCESS_FS_REMOVE_FILE
+        | LANDLOCK_ACCESS_FS_REMOVE_DIR
+        | LANDLOCK_ACCESS_FS_TRUNCATE
+        | LANDLOCK_ACCESS_FS_REFER
+};
+
+uint64_t landlock_perms = LANDLOCK_ACCESS_FS_READ_FILE
+    | LANDLOCK_ACCESS_FS_WRITE_FILE
+    | LANDLOCK_ACCESS_FS_TRUNCATE
+    | LANDLOCK_ACCESS_FS_MAKE_REG
+    | LANDLOCK_ACCESS_FS_REMOVE_FILE;
+
+int landlock_fd;
+bool landlock_supported;
+
+/*
+ * Our own wrappers for Landlock syscalls.
+ */
+
+int landlock_create_ruleset(const struct landlock_ruleset_attr *attr, size_t size, uint32_t flags) {
+    return syscall(__NR_landlock_create_ruleset, attr, size, flags);
+}
+
+int landlock_add_rule(int ruleset_fd, enum landlock_rule_type rule_type, const void *rule_attr, uint32_t flags) {
+    return syscall(__NR_landlock_add_rule, ruleset_fd, rule_type, rule_attr, flags);
+}
+
+int landlock_restrict_self(int ruleset_fd, uint32_t flags) {
+    return syscall(__NR_landlock_restrict_self, ruleset_fd, flags);
+}
+
+static void landlock_path(std::string path, uint32_t perms) {
+    struct landlock_path_beneath_attr path_beneath = {
+        .allowed_access = perms
+    };
+
+    path_beneath.parent_fd = open(path.c_str(), O_PATH|O_CLOEXEC);
+    if (path_beneath.parent_fd < 0) {
+        perror(path.c_str());
+        exit(1);
+    }
+
+    if (landlock_add_rule(landlock_fd, LANDLOCK_RULE_PATH_BENEATH, &path_beneath, 0)) {
+        perror("landlock_add_rule");
+        exit(1);
+    }
+
+    close(path_beneath.parent_fd);
+}
+
+static bool landlock_detect() {
+    int abi = landlock_create_ruleset(NULL, 0, LANDLOCK_CREATE_RULESET_VERSION);
+
+    if (abi < 0) {
+        if (errno == ENOSYS || errno == EOPNOTSUPP) {
+            std::cout << "[WARN] No Landlock support on this system" << std::endl;
+            return false;
+        }
+        perror("landlock_create_ruleset");
+        exit(1);
+    }
+
+    std::cout << "[INFO] Detected Landlock ABI version: " << abi << std::endl;
+
+    switch (abi) {
+    case 1:
+        ruleset_attr.handled_access_fs &= ~LANDLOCK_ACCESS_FS_REFER;
+        landlock_perms &= ~LANDLOCK_ACCESS_FS_REFER;
+        // fallthrough
+    case 2:
+        ruleset_attr.handled_access_fs &= ~LANDLOCK_ACCESS_FS_TRUNCATE;
+        landlock_perms &= ~LANDLOCK_ACCESS_FS_TRUNCATE;
+    }
+
+    return true;
+}
+
+static void landlock_init() {
+    std::cout << "[INFO] Setting up Landlock sandbox..." << std::endl;
+
+    landlock_supported = landlock_detect();
+
+    if (!landlock_supported)
+        return;
+
+    landlock_fd = landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+    if (landlock_fd < 0) {
+        perror("landlock_create_ruleset");
+        exit(1);
+    }
+
+    std::string dbdir = std::filesystem::path(settings::DBPATH).parent_path();
+
+    // for the DB files (we can't rely on them being in the working directory)
+    landlock_path(dbdir == "" ? "." : dbdir, landlock_perms);
+    // for writing the gruntwork file
+    landlock_path(settings::TDATADIR, landlock_perms);
+    // for passowrd salting during account creation
+    landlock_path("/dev/urandom", LANDLOCK_ACCESS_FS_READ_FILE);
+    // for core dumps, optionally
+    if (settings::SANDBOXEXTRAPATH != "")
+        landlock_path(settings::SANDBOXEXTRAPATH, landlock_perms);
+}
+
+#endif // !CONFIG_NOLANDLOCK
+
+void sandbox_init() {
     if (!settings::SANDBOX) {
         std::cout << "[WARN] Running without a sandbox" << std::endl;
         return;
     }
 
+#ifndef CONFIG_NOLANDLOCK
+    landlock_init();
+#else
+    std::cout << "[WARN] Built without Landlock" << std::endl;
+#endif
+}
+
+void sandbox_start() {
+    if (!settings::SANDBOX)
+        return;
+
     std::cout << "[INFO] Starting seccomp-bpf sandbox..." << std::endl;
+
+    // Sandboxing starts in sandbox_thread_start().
+}
+
+void sandbox_thread_start() {
+    if (!settings::SANDBOX)
+        return;
 
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0) {
         perror("prctl");
         exit(1);
     }
 
-    if (seccomp(SECCOMP_SET_MODE_FILTER, SECCOMP_FILTER_FLAG_TSYNC, &prog) < 0) {
+#ifndef CONFIG_NOLANDLOCK
+    if (landlock_supported) {
+        if (landlock_restrict_self(landlock_fd, 0)) {
+            perror("landlock_restrict_self");
+            exit(1);
+        }
+    }
+#endif
+
+    if (seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog) < 0) {
         perror("seccomp");
         exit(1);
     }
