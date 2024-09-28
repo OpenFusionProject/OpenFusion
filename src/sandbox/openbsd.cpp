@@ -13,6 +13,9 @@ static void eunveil(const char *path, const char *permissions) {
         err(1, "unveil");
 }
 
+void sandbox_init() {}
+void sandbox_thread_start() {}
+
 void sandbox_start() {
     /*
      * There shouldn't ever be a reason to disable this one, but might as well

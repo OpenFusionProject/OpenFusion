@@ -49,6 +49,7 @@ CNShardServer *shardServer = nullptr;
 std::thread *shardThread = nullptr;
 
 void startShard(CNShardServer* server) {
+    sandbox_thread_start();
     server->start();
 }
 
@@ -150,6 +151,8 @@ int main() {
         /* not reached */
     }
 
+    sandbox_init();
+
     std::cout << "[INFO] Starting Server Threads..." << std::endl;
     CNLoginServer loginServer(settings::LOGINPORT);
     shardServer = new CNShardServer(settings::SHARDPORT);
@@ -157,6 +160,7 @@ int main() {
     shardThread = new std::thread(startShard, (CNShardServer*)shardServer);
 
     sandbox_start();
+    sandbox_thread_start();
 
     loginServer.start();
 

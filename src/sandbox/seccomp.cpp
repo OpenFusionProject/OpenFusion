@@ -4,6 +4,7 @@
 #include "settings.hpp"
 
 #include <stdlib.h>
+#include <fcntl.h>
 
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
@@ -16,6 +17,8 @@
 #include <linux/filter.h>
 #include <linux/audit.h>
 #include <linux/net.h> // for socketcall() args
+
+#include <linux/landlock.h>
 
 /*
  * Macros adapted from https://outflux.net/teach-seccomp/
@@ -297,19 +300,84 @@ static sock_fprog prog = {
     ARRLEN(filter), filter
 };
 
-// our own wrapper for the seccomp() syscall
+struct landlock_ruleset_attr ruleset_attr = {
+    .handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE
+        | LANDLOCK_ACCESS_FS_WRITE_FILE
+        | LANDLOCK_ACCESS_FS_READ_DIR
+        | LANDLOCK_ACCESS_FS_REMOVE_FILE
+        | LANDLOCK_ACCESS_FS_MAKE_REG
+        | LANDLOCK_ACCESS_FS_TRUNCATE
+};
+
+int landlock_fd;
+
+/*
+ * Our own wrappers for sandboxing syscalls.
+ */
+
 int seccomp(unsigned int operation, unsigned int flags, void *args) {
     return syscall(__NR_seccomp, operation, flags, args);
 }
 
-void sandbox_start() {
+int landlock_create_ruleset(const struct landlock_ruleset_attr *attr, size_t size, uint32_t flags) {
+    return syscall(__NR_landlock_create_ruleset, attr, size, flags);
+}
+
+int landlock_add_rule(int ruleset_fd, enum landlock_rule_type rule_type, const void *rule_attr, uint32_t flags) {
+    return syscall(__NR_landlock_add_rule, ruleset_fd, rule_type, rule_attr, flags);
+}
+
+int landlock_restrict_self(int ruleset_fd, uint32_t flags) {
+    return syscall(__NR_landlock_restrict_self, ruleset_fd, flags);
+}
+
+void landlock_path(std::string path, uint32_t perms) {
+    struct landlock_path_beneath_attr path_beneath = {
+        .allowed_access = perms
+    };
+
+    std::cout << "Landlock path: " << path << std::endl;
+
+    path_beneath.parent_fd = open(path.c_str(), O_PATH|O_CLOEXEC);
+    if (path_beneath.parent_fd < 0) {
+        perror("open");
+        exit(1);
+    }
+
+    if (landlock_add_rule(landlock_fd, LANDLOCK_RULE_PATH_BENEATH, &path_beneath, 0)) {
+        perror("landlock_add_rule");
+        exit(1);
+    }
+
+    close(path_beneath.parent_fd);
+}
+
+void sandbox_init() {
     if (!settings::SANDBOX) {
         std::cout << "[WARN] Running without a sandbox" << std::endl;
         return;
     }
 
+    std::cout << "[INFO] Setting up Landlock sandbox..." << std::endl;
+
+    landlock_fd = landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+    if (landlock_fd < 0) {
+        perror("landlock_create_ruleset");
+        exit(1);
+    }
+
+    landlock_path(".", ruleset_attr.handled_access_fs);
+    landlock_path("/dev/urandom", LANDLOCK_ACCESS_FS_READ_FILE);
+    //landlock_path("/tmp/coredumps", ruleset_attr.handled_access_fs);
+}
+
+void sandbox_start() {
+    if (!settings::SANDBOX)
+        return;
+
     std::cout << "[INFO] Starting seccomp-bpf sandbox..." << std::endl;
 
+#if 0
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0) {
         perror("prctl");
         exit(1);
@@ -319,6 +387,29 @@ void sandbox_start() {
         perror("seccomp");
         exit(1);
     }
+#endif
+}
+
+void sandbox_thread_start() {
+    if (!settings::SANDBOX)
+        return;
+
+    if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0) {
+        perror("prctl");
+        exit(1);
+    }
+
+    if (landlock_restrict_self(landlock_fd, 0)) {
+        perror("landlock_restrict_self");
+        exit(1);
+    }
+
+#if 0
+    if (seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog) < 0) {
+        perror("seccomp");
+        exit(1);
+    }
+#endif
 }
 
 #endif
