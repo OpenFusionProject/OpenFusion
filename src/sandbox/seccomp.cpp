@@ -307,7 +307,7 @@ void sig_sys_handler(int signo, siginfo_t *info, void *context)
     // report the unhandled syscall
     std::cout << "[FATAL] Unhandled syscall: " << info->si_syscall << std::endl;
 
-    std::cout << "If you're unsure why this is happening, please read https://github.com/OpenFusionProject/OpenFusion/wiki/The-Sandbox" << std::endl 
+    std::cout << "If you're unsure why this is happening, please read https://openfusion.dev/docs/development/the-sandbox/" << std::endl 
               << "for more information and possibly open an issue at https://github.com/OpenFusionProject/OpenFusion/issues to report"
               << " needed changes in our seccomp filter." << std::endl;
 
