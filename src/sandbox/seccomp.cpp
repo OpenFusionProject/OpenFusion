@@ -54,7 +54,7 @@
     BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ERRNO|(_errno))
 
 #define KILL_PROCESS \
-    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL_PROCESS)
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_TRAP)
 
 /*
  * Macros adapted from openssh's sandbox-seccomp-filter.c
@@ -302,6 +302,18 @@ int seccomp(unsigned int operation, unsigned int flags, void *args) {
     return syscall(__NR_seccomp, operation, flags, args);
 }
 
+void sig_sys_handler(int signo, siginfo_t *info, void *context)
+{
+    // report the unhandled syscall
+    std::cout << "[FATAL] Unhandled syscall: " << info->si_syscall << std::endl;
+
+    std::cout << "If you're unsure why this is happening, please read https://github.com/OpenFusionProject/OpenFusion/wiki/The-Sandbox" << std::endl 
+              << "for more information and possibly open an issue at https://github.com/OpenFusionProject/OpenFusion/issues to report"
+              << " needed changes in our seccomp filter." << std::endl;
+
+    exit(1);
+}
+
 void sandbox_start() {
     if (!settings::SANDBOX) {
         std::cout << "[WARN] Running without a sandbox" << std::endl;
@@ -309,6 +321,15 @@ void sandbox_start() {
     }
 
     std::cout << "[INFO] Starting seccomp-bpf sandbox..." << std::endl;
+
+    // we listen to SIGSYS to report unhandled syscalls
+    struct sigaction sa = {};
+    sa.sa_flags = SA_SIGINFO;
+    sa.sa_sigaction = sig_sys_handler;
+    if (sigaction(SIGSYS, &sa, NULL) < 0) {
+        perror("sigaction");
+        exit(1);
+    }
 
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0) {
         perror("prctl");
