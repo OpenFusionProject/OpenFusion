@@ -368,7 +368,6 @@ void Abilities::useNPCSkill(EntityRef npc, int skillID, std::vector<ICombatant*>
     SkillData* skill = &SkillTable[skillID];
 
     std::vector<SkillResult> results = handleSkill(skill, 0, src, affected);
-    if(results.empty()) return; // no effect; no need for confirmation packets
 
     // lazy validation since skill results might be different sizes
     if (!validOutVarPacket(sizeof(sP_FE2CL_NPC_SKILL_HIT), results.size(), MAX_SKILLRESULT_SIZE)) {
