@@ -22,13 +22,14 @@
 #endif
 #include <errno.h>
 
-#if defined(_WIN32) || defined(_WIN64)
-// On windows we need to generate random bytes differently.
 #if defined(_WIN32) && !defined(_WIN64)
 typedef __int32 ssize_t;
 #elif defined(_WIN32) && defined(_WIN64)
 typedef __int64 ssize_t;
 #endif
+
+#if defined(_WIN32) || defined(_WIN64)
+// On windows we need to generate random bytes differently.
 #define BCRYPT_HASHSIZE 60
 
 #include "bcrypt.h"
