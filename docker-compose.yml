@@ -1,11 +1,9 @@
-version: '3.4'
-
 services:
   openfusion:
-    image: openfusion
     build:
       context: .
       dockerfile: ./Dockerfile
+    image: openfusion/openfusion:latest
     volumes:
       - ./config.ini:/usr/src/app/config.ini
       - ./database.db:/usr/src/app/database.db

@@ -1,5 +1,5 @@
 # build
-FROM debian:stable-slim as build
+FROM debian:stable-slim AS build
 
 WORKDIR /usr/src/app
 
@@ -14,7 +14,7 @@ COPY vendor ./vendor
 COPY .git ./.git
 COPY Makefile CMakeLists.txt version.h.in ./
 
-RUN make -j8
+RUN make nosandbox -j$(nproc)
 
 # prod
 FROM debian:stable-slim
@@ -29,4 +29,8 @@ COPY sql ./sql
 
 CMD ["/bin/fusion"]
 
-LABEL Name=openfusion Version=0.0.2
+EXPOSE 23000/tcp
+EXPOSE 23001/tcp
+EXPOSE 8001/tcp
+
+LABEL Name=openfusion Version=1.6.0
