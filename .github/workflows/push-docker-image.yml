@@ -3,6 +3,7 @@ name: Push Docker Image
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   push-docker-image:
@@ -28,6 +29,8 @@ jobs:
         with:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
       - name: Build and push the Docker image
         uses: docker/build-push-action@v5
         with:
