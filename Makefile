@@ -134,6 +134,8 @@ all: $(SERVER)
 
 windows: $(SERVER)
 
+nosandbox: $(SERVER)
+
 # assign Windows-specific values if targeting Windows
 windows : CC=$(WIN_CC)
 windows : CXX=$(WIN_CXX)
@@ -141,6 +143,8 @@ windows : CFLAGS=$(WIN_CFLAGS)
 windows : CXXFLAGS=$(WIN_CXXFLAGS)
 windows : LDFLAGS=$(WIN_LDFLAGS)
 windows : SERVER=$(WIN_SERVER)
+
+nosandbox : CFLAGS+=-DCONFIG_NOSANDBOX=1
 
 .SUFFIXES: .o .c .cpp .h .hpp
 
@@ -163,7 +167,7 @@ version.h:
 
 src/main.o: version.h
 
-.PHONY: all windows clean nuke
+.PHONY: all windows nosandbox clean nuke
 
 # only gets rid of OpenFusion objects, so we don't need to
 # recompile the libs every time
