@@ -133,8 +133,8 @@ HDR=$(CHDR) $(CXXHDR)
 all: $(SERVER)
 
 windows: $(SERVER)
-
 nosandbox: $(SERVER)
+nolandlock: $(SERVER)
 
 # assign Windows-specific values if targeting Windows
 windows : CC=$(WIN_CC)
@@ -145,6 +145,7 @@ windows : LDFLAGS=$(WIN_LDFLAGS)
 windows : SERVER=$(WIN_SERVER)
 
 nosandbox : CFLAGS+=-DCONFIG_NOSANDBOX=1
+nolandlock : CFLAGS+=-DCONFIG_NOLANDLOCK=1
 
 .SUFFIXES: .o .c .cpp .h .hpp
 
@@ -167,7 +168,7 @@ version.h:
 
 src/main.o: version.h
 
-.PHONY: all windows nosandbox clean nuke
+.PHONY: all windows nosandbox nolandlock clean nuke
 
 # only gets rid of OpenFusion objects, so we don't need to
 # recompile the libs every time
