@@ -5,6 +5,7 @@
 namespace settings {
     extern int VERBOSITY;
     extern bool SANDBOX;
+    extern std::string SANDBOXEXTRAPATH;
     extern int LOGINPORT;
     extern bool APPROVEALLNAMES;
     extern bool AUTOCREATEACCOUNTS;
