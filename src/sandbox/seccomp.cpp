@@ -61,7 +61,7 @@
     BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ERRNO|(_errno))
 
 #define KILL_PROCESS \
-    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL_PROCESS)
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_TRAP)
 
 /*
  * Macros adapted from openssh's sandbox-seccomp-filter.c
@@ -435,10 +435,33 @@ static void landlock_init() {
 
 #endif // !CONFIG_NOLANDLOCK
 
+static void sigsys_handler(int signo, siginfo_t *info, void *context) {
+    // report the unhandled syscall
+    std::cout << "[FATAL] Unhandled syscall " << info->si_syscall
+       << " at " << std::hex << info->si_call_addr << " on arch " << info->si_arch << std::endl;
+
+    std::cout << "If you're unsure why this is happening, please read https://openfusion.dev/docs/development/the-sandbox/" << std::endl
+              << "for more information and possibly open an issue at https://github.com/OpenFusionProject/OpenFusion/issues to report"
+              << " needed changes in our seccomp filter." << std::endl;
+
+    exit(1);
+}
+
 void sandbox_init() {
     if (!settings::SANDBOX) {
         std::cout << "[WARN] Running without a sandbox" << std::endl;
         return;
+    }
+
+    // listen to SIGSYS to report unhandled syscalls
+    struct sigaction sa = {};
+
+    sa.sa_flags = SA_SIGINFO;
+    sa.sa_sigaction = sigsys_handler;
+
+    if (sigaction(SIGSYS, &sa, NULL) < 0) {
+        perror("sigaction");
+        exit(1);
     }
 
 #ifndef CONFIG_NOLANDLOCK
