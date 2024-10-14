@@ -11,11 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    strategy:
-      matrix:
-        platforms:
-          - linux/amd64
-          - linux/arm64
     steps:
       - uses: actions/checkout@v4
       - name: Retrieve major version
@@ -31,11 +26,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       - name: Build and push the Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          platforms: ${{ matrix.platforms }}
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ secrets.DOCKERHUB_REPOSITORY }}:${{ github.ref_name }},${{ secrets.DOCKERHUB_REPOSITORY }}:${{ steps.split.outputs._0 }},${{ secrets.DOCKERHUB_REPOSITORY }}:latest
