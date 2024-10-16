@@ -64,6 +64,7 @@ bool settings::DISABLEFIRSTUSEFLAG = true;
 // monitor settings
 bool settings::MONITORENABLED = false;
 int settings::MONITORPORT = 8003;
+std::string settings::MONITORLISTENIP = "127.0.0.1";
 int settings::MONITORINTERVAL = 5000;
 
 // event mode settings
@@ -121,5 +122,6 @@ void settings::init() {
     IZRACESCORECAPPED = reader.GetBoolean("shard", "izracescorecapped", IZRACESCORECAPPED);
     MONITORENABLED = reader.GetBoolean("monitor", "enabled", MONITORENABLED);
     MONITORPORT = reader.GetInteger("monitor", "port", MONITORPORT);
+    MONITORLISTENIP = reader.Get("monitor", "listenip", MONITORLISTENIP);
     MONITORINTERVAL = reader.GetInteger("monitor", "interval", MONITORINTERVAL);
 }

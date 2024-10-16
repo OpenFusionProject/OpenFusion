@@ -38,6 +38,7 @@ namespace settings {
     extern int EVENTMODE;
     extern bool MONITORENABLED;
     extern int MONITORPORT;
+    extern std::string MONITORLISTENIP;
     extern int MONITORINTERVAL;
     extern bool DISABLEFIRSTUSEFLAG;
     extern bool IZRACESCORECAPPED;

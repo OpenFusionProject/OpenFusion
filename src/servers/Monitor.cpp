@@ -180,8 +180,13 @@ SOCKET Monitor::init() {
     }
 
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(settings::MONITORPORT);
+
+    if (!inet_pton(AF_INET, settings::MONITORLISTENIP.c_str(), &address.sin_addr)) {
+        std::cout << "Failed to set monitor listen address" << std::endl;
+        printSocketError("inet_pton");
+        exit(1);
+    }
 
     if (SOCKETERROR(bind(listener, (struct sockaddr*)&address, sizeof(address)))) {
         std::cout << "Failed to bind to monitor port" << std::endl;
@@ -206,7 +211,7 @@ SOCKET Monitor::init() {
         exit(EXIT_FAILURE);
     }
 
-    std::cout << "Monitor listening on *:" << settings::MONITORPORT << std::endl;
+    std::cout << "Monitor listening on " << settings::MONITORLISTENIP << ":" << settings::MONITORPORT << std::endl;
 
     REGISTER_SHARD_TIMER(tick, settings::MONITORINTERVAL);
 
