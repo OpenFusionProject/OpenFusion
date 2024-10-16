@@ -428,7 +428,7 @@ void CNServer::removePollFD(int fd) {
 }
 
 void CNServer::start() {
-    std::cout << "Starting server at *:" << port << std::endl;
+    std::cout << "Starting " << serverType << " server at *:" << port << std::endl;
     while (active) {
         // the timeout is to ensure shard timers are ticking
         int n = poll(fds.data(), fds.size(), 50);
