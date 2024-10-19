@@ -388,8 +388,21 @@ NPCPath* Transport::findApplicablePath(int32_t id, int32_t type, int taskID) {
 
 void Transport::constructPathNPC(int32_t id, NPCPath* path) {
     BaseNPC* npc = NPCManager::NPCs[id];
-    if (npc->kind == EntityKind::MOB)
-        ((Mob*)(npc))->staticPath = true;
+
+    if (npc->kind == EntityKind::MOB) {
+        auto mob = (Mob*)npc;
+        mob->staticPath = true;
+
+        Vec3 firstPoint = path->points.front();
+
+        // Ensure that the first point coincides with the mob's spawn point.
+        if (mob->spawnX != firstPoint.x || mob->spawnY != firstPoint.y) {
+            std::cout << "[FATAL] The first point of the route for mob " << mob->id << " (type " << mob->type
+                << ") does not correspond with its spawn point." << std::endl;
+            exit(1);
+        }
+    }
+
     npc->loopingPath = path->isLoop;
 
     // Interpolate
