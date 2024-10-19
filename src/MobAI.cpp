@@ -478,6 +478,14 @@ void MobAI::deadStep(CombatNPC* npc, time_t currTime) {
     if (self->groupLeader == self->id)
         roamingStep(self, currTime);
 
+    /*
+     * If the mob hasn't fully despanwed yet, don't try to respawn it. This protects
+     * against the edge case where mobs with a very short regenTime would try to respawn
+     * before they've faded away; and would respawn even if they were meant to be removed.
+     */
+    if (!self->despawned)
+        return;
+
     if (self->killedTime != 0 && currTime - self->killedTime < self->regenTime * 100)
         return;
 
