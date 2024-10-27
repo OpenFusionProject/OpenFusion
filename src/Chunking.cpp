@@ -140,14 +140,13 @@ static void bufferAppearanceData(std::vector<std::vector<T>>& slices, const T& d
         slices.push_back(std::vector<T>());
 }
 
-template<class T>
-static void bufferIdForDisappearance(std::vector<std::vector<T>>& slices, int32_t id, size_t maxCnt) {
+static void bufferIdForDisappearance(std::vector<std::vector<int32_t>>& slices, int32_t id, size_t maxCnt) {
     if (slices.empty())
-        slices.push_back(std::vector<T>());
-    std::vector<T>& slice = slices[slices.size() - 1];
+        slices.push_back(std::vector<int32_t>());
+    std::vector<int32_t>& slice = slices[slices.size() - 1];
     slice.push_back(id);
     if (slice.size() == maxCnt)
-        slices.push_back(std::vector<T>());
+        slices.push_back(std::vector<int32_t>());
 }
 
 void Chunking::addEntityToChunks(std::set<Chunk*> chnks, const EntityRef ref) {
