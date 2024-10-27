@@ -95,12 +95,11 @@ static void sendAroundPacket(const EntityRef recipient, std::vector<std::vector<
         for (size_t i = 0; i < count; i++) {
             data[i] = slice[i];
         }
-        recipient.sock->sendPacket(pktBuf, packetId, 4 + (count * sizeof(T)));
+        recipient.sock->sendPacket(pktBuf, packetId, sizeof(int32_t) + (count * sizeof(T)));
     }
 }
 
-template<class T>
-static void sendAroundDelPacket(const EntityRef recipient, std::vector<std::vector<T>>& slices, bool isTransportation, uint32_t packetId) {
+static void sendAroundDelPacket(const EntityRef recipient, std::vector<std::vector<int32_t>>& slices, bool isTransportation, uint32_t packetId) {
     assert(recipient.kind == EntityKind::PLAYER);
 
     size_t maxCnt = MAX_IDS_PER_AROUND_DEL;
@@ -113,20 +112,22 @@ static void sendAroundDelPacket(const EntityRef recipient, std::vector<std::vect
         int count = slice.size();
         assert(count <= maxCnt);
 
-        T* data;
+        size_t baseSize;
         if (isTransportation) {
-            *((int32_t*)pktBuf) = 3; // eTT
-            *((int32_t*)pktBuf + sizeof(int32_t)) = count;
-            data = (T*)(pktBuf + sizeof(int32_t) + sizeof(int32_t));
+            sP_FE2CL_AROUND_DEL_TRANSPORTATION* pkt = (sP_FE2CL_AROUND_DEL_TRANSPORTATION*)pktBuf;
+            pkt->eTT = 3;
+            pkt->iCnt = count;
+            baseSize = sizeof(sP_FE2CL_AROUND_DEL_TRANSPORTATION);
         } else {
             *((int32_t*)pktBuf) = count;
-            data = (T*)(pktBuf + sizeof(int32_t));
+            baseSize = sizeof(int32_t);
         }
+        int32_t* ids = (int32_t*)(pktBuf + baseSize);
 
         for (size_t i = 0; i < count; i++) {
-            data[i] = slice[i];
+            ids[i] = slice[i];
         }
-        recipient.sock->sendPacket(pktBuf, packetId, isTransportation ? 8 : 4 + (count * sizeof(T)));
+        recipient.sock->sendPacket(pktBuf, packetId, baseSize + (count * sizeof(int32_t)));
     }
 }
 
