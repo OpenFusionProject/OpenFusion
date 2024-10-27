@@ -173,31 +173,37 @@ void Chunking::addEntityToChunks(std::set<Chunk*> chnks, const EntityRef ref) {
 
             // notify this *player* of the existence of all visible Entities
             if (ref.kind == EntityKind::PLAYER && other->isExtant()) {
+                sPCAppearanceData pcData;
+                sNPCAppearanceData npcData;
+                sShinyAppearanceData eggData;
+                sTransportationAppearanceData busData;
                 switch(otherRef.kind)
                 {
                 case EntityKind::PLAYER:
-                    sPCAppearanceData pcData = dynamic_cast<Player*>(other)->getAppearanceData();
+                    pcData = dynamic_cast<Player*>(other)->getAppearanceData();
                     bufferAppearanceData(pcAppearances, pcData, MAX_PC_PER_AROUND);
                     break;
                 case EntityKind::SIMPLE_NPC:
-                    sNPCAppearanceData npcData = dynamic_cast<BaseNPC*>(other)->getAppearanceData();
+                    npcData = dynamic_cast<BaseNPC*>(other)->getAppearanceData();
                     bufferAppearanceData(npcAppearances, npcData, MAX_NPC_PER_AROUND);
                     break;
                 case EntityKind::COMBAT_NPC:
-                    sNPCAppearanceData combatNpcData = dynamic_cast<CombatNPC*>(other)->getAppearanceData();
-                    bufferAppearanceData(npcAppearances, combatNpcData, MAX_NPC_PER_AROUND);
+                    npcData = dynamic_cast<CombatNPC*>(other)->getAppearanceData();
+                    bufferAppearanceData(npcAppearances, npcData, MAX_NPC_PER_AROUND);
                     break;
                 case EntityKind::MOB:
-                    sNPCAppearanceData mobData = dynamic_cast<Mob*>(other)->getAppearanceData();
-                    bufferAppearanceData(npcAppearances, mobData, MAX_NPC_PER_AROUND);
+                    npcData = dynamic_cast<Mob*>(other)->getAppearanceData();
+                    bufferAppearanceData(npcAppearances, npcData, MAX_NPC_PER_AROUND);
                     break;
                 case EntityKind::EGG:
-                    sShinyAppearanceData shinyData = dynamic_cast<Egg*>(other)->getShinyAppearanceData();
-                    bufferAppearanceData(shinyAppearances, shinyData, MAX_SHINY_PER_AROUND);
+                    eggData = dynamic_cast<Egg*>(other)->getShinyAppearanceData();
+                    bufferAppearanceData(shinyAppearances, eggData, MAX_SHINY_PER_AROUND);
                     break;
                 case EntityKind::BUS:
-                    sTransportationAppearanceData transportationData = dynamic_cast<Bus*>(other)->getTransportationAppearanceData();
-                    bufferAppearanceData(transportationAppearances, transportationData, MAX_TRANSPORTATION_PER_AROUND);
+                    busData = dynamic_cast<Bus*>(other)->getTransportationAppearanceData();
+                    bufferAppearanceData(transportationAppearances, busData, MAX_TRANSPORTATION_PER_AROUND);
+                    break;
+                default:
                     break;
                 }
             }
@@ -266,6 +272,8 @@ void Chunking::removeEntityFromChunks(std::set<Chunk*> chnks, const EntityRef re
                 case EntityKind::BUS:
                     id = dynamic_cast<Bus*>(other)->id;
                     bufferIdForDisappearance(transportationDisappearances, id, MAX_IDS_PER_AROUND_DEL - 1);
+                    break;
+                default:
                     break;
                 }
             }
