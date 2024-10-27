@@ -161,6 +161,8 @@ struct Egg : public BaseNPC {
 
     virtual void enterIntoViewOf(CNSocket *sock) override;
     virtual void disappearFromViewOf(CNSocket *sock) override;
+
+    sShinyAppearanceData getShinyAppearanceData();
 };
 
 struct Bus : public BaseNPC {
@@ -172,4 +174,6 @@ struct Bus : public BaseNPC {
 
     virtual void enterIntoViewOf(CNSocket *sock) override;
     virtual void disappearFromViewOf(CNSocket *sock) override;
+
+    sTransportationAppearanceData getTransportationAppearanceData();
 };

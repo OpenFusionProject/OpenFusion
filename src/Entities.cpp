@@ -70,11 +70,7 @@ void Bus::enterIntoViewOf(CNSocket *sock) {
     INITSTRUCT(sP_FE2CL_TRANSPORTATION_ENTER, pkt);
 
     // TODO: Potentially decouple this from BaseNPC?
-    pkt.AppearanceData = {
-        3, id, type,
-        x, y, z
-    };
-
+    pkt.AppearanceData = getTransportationAppearanceData();
     sock->sendPacket(pkt, P_FE2CL_TRANSPORTATION_ENTER);
 }
 
@@ -82,12 +78,22 @@ void Egg::enterIntoViewOf(CNSocket *sock) {
     INITSTRUCT(sP_FE2CL_SHINY_ENTER, pkt);
 
     // TODO: Potentially decouple this from BaseNPC?
-    pkt.ShinyAppearanceData = {
+    pkt.ShinyAppearanceData = getShinyAppearanceData();
+    sock->sendPacket(pkt, P_FE2CL_SHINY_ENTER);
+}
+
+sTransportationAppearanceData Bus::getTransportationAppearanceData() {
+    return sTransportationAppearanceData {
+        3, id, type,
+        x, y, z
+    };
+}
+
+sShinyAppearanceData Egg::getShinyAppearanceData() {
+    return sShinyAppearanceData {
         id, type, 0, // client doesn't care about map num
         x, y, z
     };
-
-    sock->sendPacket(pkt, P_FE2CL_SHINY_ENTER);
 }
 
 sNano* Player::getActiveNano() {
