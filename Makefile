@@ -115,6 +115,7 @@ CXXHDR=\
 	src/settings.hpp\
 	src/Transport.hpp\
 	src/TableData.hpp\
+	src/Bucket.hpp\
 	src/Chunking.hpp\
 	src/Buddies.hpp\
 	src/Groups.hpp\

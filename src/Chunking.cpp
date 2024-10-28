@@ -3,6 +3,7 @@
 #include "Player.hpp"
 #include "MobAI.hpp"
 #include "NPCManager.hpp"
+#include "Bucket.hpp"
 
 #include <assert.h>
 
@@ -12,11 +13,11 @@ using namespace Chunking;
  * The initial chunkPos value before a player is placed into the world.
  */
 const ChunkPos Chunking::INVALID_CHUNK = {};
-constexpr size_t MAX_PC_PER_AROUND = (CN_PACKET_BUFFER_SIZE - 4) / sizeof(sPCAppearanceData);
-constexpr size_t MAX_NPC_PER_AROUND = (CN_PACKET_BUFFER_SIZE - 4) / sizeof(sNPCAppearanceData);
-constexpr size_t MAX_SHINY_PER_AROUND = (CN_PACKET_BUFFER_SIZE - 4) / sizeof(sShinyAppearanceData);
-constexpr size_t MAX_TRANSPORTATION_PER_AROUND = (CN_PACKET_BUFFER_SIZE - 4) / sizeof(sTransportationAppearanceData);
-constexpr size_t MAX_IDS_PER_AROUND_DEL = (CN_PACKET_BUFFER_SIZE - 4) / sizeof(int32_t);
+constexpr size_t MAX_PC_PER_AROUND = (CN_PACKET_BUFFER_SIZE - sizeof(int32_t)) / sizeof(sPCAppearanceData);
+constexpr size_t MAX_NPC_PER_AROUND = (CN_PACKET_BUFFER_SIZE - sizeof(int32_t)) / sizeof(sNPCAppearanceData);
+constexpr size_t MAX_SHINY_PER_AROUND = (CN_PACKET_BUFFER_SIZE - sizeof(int32_t)) / sizeof(sShinyAppearanceData);
+constexpr size_t MAX_TRANSPORTATION_PER_AROUND = (CN_PACKET_BUFFER_SIZE - sizeof(int32_t)) / sizeof(sTransportationAppearanceData);
+constexpr size_t MAX_IDS_PER_AROUND_DEL = (CN_PACKET_BUFFER_SIZE - sizeof(int32_t)) / sizeof(int32_t);
 
 std::map<ChunkPos, Chunk*> Chunking::chunks;
 
@@ -81,36 +82,32 @@ void Chunking::untrackEntity(ChunkPos chunkPos, const EntityRef ref) {
         deleteChunk(chunkPos);
 }
 
-template<class T>
-static void sendAroundPacket(const EntityRef recipient, std::vector<std::vector<T>>& slices, size_t maxCnt, uint32_t packetId) {
+template<class T, size_t N>
+static void sendAroundPacket(const EntityRef recipient, std::vector<Bucket<T, N>>& buckets, uint32_t packetId) {
     assert(recipient.kind == EntityKind::PLAYER);
 
     uint8_t pktBuf[CN_PACKET_BUFFER_SIZE];
-    for (const auto& slice : slices) {
+    for (const auto& bucket : buckets) {
         memset(pktBuf, 0, CN_PACKET_BUFFER_SIZE);
-        int count = slice.size();
-        assert(count <= maxCnt);
+        int count = bucket.size();
         *((int32_t*)pktBuf) = count;
         T* data = (T*)(pktBuf + sizeof(int32_t));
         for (size_t i = 0; i < count; i++) {
-            data[i] = slice[i];
+            data[i] = bucket.get(i).value();
         }
         recipient.sock->sendPacket(pktBuf, packetId, sizeof(int32_t) + (count * sizeof(T)));
     }
 }
 
-static void sendAroundDelPacket(const EntityRef recipient, std::vector<std::vector<int32_t>>& slices, bool isTransportation, uint32_t packetId) {
+template<size_t N>
+static void sendAroundDelPacket(const EntityRef recipient, std::vector<Bucket<int32_t, N>>& buckets, bool isTransportation, uint32_t packetId) {
     assert(recipient.kind == EntityKind::PLAYER);
 
-    size_t maxCnt = MAX_IDS_PER_AROUND_DEL;
-    if (isTransportation)
-        maxCnt -= 1; // account for eTT. sad.
-
     uint8_t pktBuf[CN_PACKET_BUFFER_SIZE];
-    for (const auto& slice : slices) {
+    for (const auto& bucket : buckets) {
         memset(pktBuf, 0, CN_PACKET_BUFFER_SIZE);
-        int count = slice.size();
-        assert(count <= maxCnt);
+        int count = bucket.size();
+        assert(count <= N);
 
         size_t baseSize;
         if (isTransportation) {
@@ -125,39 +122,42 @@ static void sendAroundDelPacket(const EntityRef recipient, std::vector<std::vect
         int32_t* ids = (int32_t*)(pktBuf + baseSize);
 
         for (size_t i = 0; i < count; i++) {
-            ids[i] = slice[i];
+            ids[i] = bucket.get(i).value();
         }
         recipient.sock->sendPacket(pktBuf, packetId, baseSize + (count * sizeof(int32_t)));
     }
 }
 
-template<class T>
-static void bufferAppearanceData(std::vector<std::vector<T>>& slices, const T& data, size_t maxCnt) {
-    if (slices.empty())
-        slices.push_back(std::vector<T>());
-    std::vector<T>& slice = slices[slices.size() - 1];
-    slice.push_back(data);
-    if (slice.size() == maxCnt)
-        slices.push_back(std::vector<T>());
+template<class T, size_t N>
+static void bufferAppearanceData(std::vector<Bucket<T, N>>& buckets, const T& data) {
+    if (buckets.empty())
+        buckets.push_back(Bucket<T, N>());
+    Bucket<T, N>& bucket = buckets[buckets.size() - 1];
+    assert(!bucket.isFull());
+    bucket.add(data);
+    if (bucket.isFull())
+        buckets.push_back(Bucket<T, N>());
 }
 
-static void bufferIdForDisappearance(std::vector<std::vector<int32_t>>& slices, int32_t id, size_t maxCnt) {
-    if (slices.empty())
-        slices.push_back(std::vector<int32_t>());
-    std::vector<int32_t>& slice = slices[slices.size() - 1];
-    slice.push_back(id);
-    if (slice.size() == maxCnt)
-        slices.push_back(std::vector<int32_t>());
+template<size_t N>
+static void bufferIdForDisappearance(std::vector<Bucket<int32_t, N>>& buckets, int32_t id) {
+    if (buckets.empty())
+        buckets.push_back(Bucket<int32_t, N>());
+    Bucket<int32_t, N>& bucket = buckets[buckets.size() - 1];
+    assert(!bucket.isFull());
+    bucket.add(id);
+    if (bucket.isFull())
+        buckets.push_back(Bucket<int32_t, N>());
 }
 
 void Chunking::addEntityToChunks(std::set<Chunk*> chnks, const EntityRef ref) {
     Entity *ent = ref.getEntity();
     bool alive = ent->isExtant();
 
-    std::vector<std::vector<sPCAppearanceData>> pcAppearances;
-    std::vector<std::vector<sNPCAppearanceData>> npcAppearances;
-    std::vector<std::vector<sShinyAppearanceData>> shinyAppearances;
-    std::vector<std::vector<sTransportationAppearanceData>> transportationAppearances;
+    std::vector<Bucket<sPCAppearanceData, MAX_PC_PER_AROUND>> pcAppearances;
+    std::vector<Bucket<sNPCAppearanceData, MAX_NPC_PER_AROUND>> npcAppearances;
+    std::vector<Bucket<sShinyAppearanceData, MAX_SHINY_PER_AROUND>> shinyAppearances;
+    std::vector<Bucket<sTransportationAppearanceData, MAX_TRANSPORTATION_PER_AROUND>> transportationAppearances;
     for (Chunk *chunk : chnks) {
         for (const EntityRef otherRef : chunk->entities) {
             // skip oneself
@@ -181,27 +181,27 @@ void Chunking::addEntityToChunks(std::set<Chunk*> chnks, const EntityRef ref) {
                 {
                 case EntityKind::PLAYER:
                     pcData = dynamic_cast<Player*>(other)->getAppearanceData();
-                    bufferAppearanceData(pcAppearances, pcData, MAX_PC_PER_AROUND);
+                    bufferAppearanceData(pcAppearances, pcData);
                     break;
                 case EntityKind::SIMPLE_NPC:
                     npcData = dynamic_cast<BaseNPC*>(other)->getAppearanceData();
-                    bufferAppearanceData(npcAppearances, npcData, MAX_NPC_PER_AROUND);
+                    bufferAppearanceData(npcAppearances, npcData);
                     break;
                 case EntityKind::COMBAT_NPC:
                     npcData = dynamic_cast<CombatNPC*>(other)->getAppearanceData();
-                    bufferAppearanceData(npcAppearances, npcData, MAX_NPC_PER_AROUND);
+                    bufferAppearanceData(npcAppearances, npcData);
                     break;
                 case EntityKind::MOB:
                     npcData = dynamic_cast<Mob*>(other)->getAppearanceData();
-                    bufferAppearanceData(npcAppearances, npcData, MAX_NPC_PER_AROUND);
+                    bufferAppearanceData(npcAppearances, npcData);
                     break;
                 case EntityKind::EGG:
                     eggData = dynamic_cast<Egg*>(other)->getShinyAppearanceData();
-                    bufferAppearanceData(shinyAppearances, eggData, MAX_SHINY_PER_AROUND);
+                    bufferAppearanceData(shinyAppearances, eggData);
                     break;
                 case EntityKind::BUS:
                     busData = dynamic_cast<Bus*>(other)->getTransportationAppearanceData();
-                    bufferAppearanceData(transportationAppearances, busData, MAX_TRANSPORTATION_PER_AROUND);
+                    bufferAppearanceData(transportationAppearances, busData);
                     break;
                 default:
                     break;
@@ -220,23 +220,23 @@ void Chunking::addEntityToChunks(std::set<Chunk*> chnks, const EntityRef ref) {
         return; // nothing to send
 
     if (!pcAppearances.empty())
-        sendAroundPacket(ref, pcAppearances, MAX_PC_PER_AROUND, P_FE2CL_PC_AROUND);
+        sendAroundPacket(ref, pcAppearances, P_FE2CL_PC_AROUND);
     if (!npcAppearances.empty())
-        sendAroundPacket(ref, npcAppearances, MAX_NPC_PER_AROUND, P_FE2CL_NPC_AROUND);
+        sendAroundPacket(ref, npcAppearances, P_FE2CL_NPC_AROUND);
     if (!shinyAppearances.empty())
-        sendAroundPacket(ref, shinyAppearances, MAX_SHINY_PER_AROUND, P_FE2CL_SHINY_AROUND);
+        sendAroundPacket(ref, shinyAppearances, P_FE2CL_SHINY_AROUND);
     if (!transportationAppearances.empty())
-        sendAroundPacket(ref, transportationAppearances, MAX_TRANSPORTATION_PER_AROUND, P_FE2CL_TRANSPORTATION_AROUND);
+        sendAroundPacket(ref, transportationAppearances, P_FE2CL_TRANSPORTATION_AROUND);
 }
 
 void Chunking::removeEntityFromChunks(std::set<Chunk*> chnks, const EntityRef ref) {
     Entity *ent = ref.getEntity();
     bool alive = ent->isExtant();
 
-    std::vector<std::vector<int32_t>> pcDisappearances;
-    std::vector<std::vector<int32_t>> npcDisappearances;
-    std::vector<std::vector<int32_t>> shinyDisappearances;
-    std::vector<std::vector<int32_t>> transportationDisappearances;
+    std::vector<Bucket<int32_t, MAX_IDS_PER_AROUND_DEL>> pcDisappearances;
+    std::vector<Bucket<int32_t, MAX_IDS_PER_AROUND_DEL>> npcDisappearances;
+    std::vector<Bucket<int32_t, MAX_IDS_PER_AROUND_DEL>> shinyDisappearances;
+    std::vector<Bucket<int32_t, MAX_IDS_PER_AROUND_DEL - 1>> transportationDisappearances;
     for (Chunk *chunk : chnks) {
         for (const EntityRef otherRef : chunk->entities) {
             // skip oneself
@@ -257,21 +257,21 @@ void Chunking::removeEntityFromChunks(std::set<Chunk*> chnks, const EntityRef re
                 {
                 case EntityKind::PLAYER:
                     id = dynamic_cast<Player*>(other)->iID;
-                    bufferIdForDisappearance(pcDisappearances, id, MAX_IDS_PER_AROUND_DEL);
+                    bufferIdForDisappearance(pcDisappearances, id);
                     break;
                 case EntityKind::SIMPLE_NPC:
                 case EntityKind::COMBAT_NPC:
                 case EntityKind::MOB:
                     id = dynamic_cast<BaseNPC*>(other)->id;
-                    bufferIdForDisappearance(npcDisappearances, id, MAX_IDS_PER_AROUND_DEL);
+                    bufferIdForDisappearance(npcDisappearances, id);
                     break;
                 case EntityKind::EGG:
                     id = dynamic_cast<Egg*>(other)->id;
-                    bufferIdForDisappearance(shinyDisappearances, id, MAX_IDS_PER_AROUND_DEL);
+                    bufferIdForDisappearance(shinyDisappearances, id);
                     break;
                 case EntityKind::BUS:
                     id = dynamic_cast<Bus*>(other)->id;
-                    bufferIdForDisappearance(transportationDisappearances, id, MAX_IDS_PER_AROUND_DEL - 1);
+                    bufferIdForDisappearance(transportationDisappearances, id);
                     break;
                 default:
                     break;
