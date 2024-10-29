@@ -934,3 +934,8 @@ enum {
 
     N_PACKETS = N_CL2LS + N_CL2FE + N_FE2CL + N_LS2CL
 };
+
+/*
+ * Usable space in the packet buffer = CN_PACKET_BUFFER_SIZE - type - size
+ */
+constexpr size_t CN_PACKET_BODY_SIZE = CN_PACKET_BUFFER_SIZE - 2 * sizeof(int32_t);

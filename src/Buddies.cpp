@@ -41,9 +41,9 @@ void Buddies::sendBuddyList(CNSocket* sock) {
 
     // initialize response struct
     size_t resplen = sizeof(sP_FE2CL_REP_PC_BUDDYLIST_INFO_SUCC) + buddyCnt * sizeof(sBuddyBaseInfo);
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    uint8_t respbuf[CN_PACKET_BODY_SIZE];
 
-    memset(respbuf, 0, resplen);
+    memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 
     sP_FE2CL_REP_PC_BUDDYLIST_INFO_SUCC* resp = (sP_FE2CL_REP_PC_BUDDYLIST_INFO_SUCC*)respbuf;
     sBuddyBaseInfo* respdata = (sBuddyBaseInfo*)(respbuf + sizeof(sP_FE2CL_REP_PC_BUDDYLIST_INFO_SUCC));

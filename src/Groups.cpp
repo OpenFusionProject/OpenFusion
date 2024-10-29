@@ -87,8 +87,8 @@ void Groups::addToGroup(Group* group, EntityRef member) {
         size_t pcCount = pcs.size();
         size_t npcCount = npcs.size();
 
-        uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-        memset(respbuf, 0, CN_PACKET_BUFFER_SIZE);
+        uint8_t respbuf[CN_PACKET_BODY_SIZE];
+        memset(respbuf, 0, CN_PACKET_BODY_SIZE);
         sP_FE2CL_PC_GROUP_JOIN* pkt = (sP_FE2CL_PC_GROUP_JOIN*)respbuf;
 
         pkt->iID_NewMember = PlayerManager::getPlayer(member.sock)->iID;
@@ -143,8 +143,8 @@ bool Groups::removeFromGroup(Group* group, EntityRef member) {
         size_t pcCount = pcs.size();
         size_t npcCount = npcs.size();
 
-        uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-        memset(respbuf, 0, CN_PACKET_BUFFER_SIZE);
+        uint8_t respbuf[CN_PACKET_BODY_SIZE];
+        memset(respbuf, 0, CN_PACKET_BODY_SIZE);
         sP_FE2CL_PC_GROUP_LEAVE* pkt = (sP_FE2CL_PC_GROUP_LEAVE*)respbuf;
 
         pkt->iID_LeaveMember = PlayerManager::getPlayer(member.sock)->iID;
@@ -288,8 +288,8 @@ void Groups::groupTickInfo(CNSocket* sock) {
     size_t pcCount = pcs.size();
     size_t npcCount = npcs.size();
 
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-    memset(respbuf, 0, CN_PACKET_BUFFER_SIZE);
+    uint8_t respbuf[CN_PACKET_BODY_SIZE];
+    memset(respbuf, 0, CN_PACKET_BODY_SIZE);
     sP_FE2CL_PC_GROUP_MEMBER_INFO* pkt = (sP_FE2CL_PC_GROUP_MEMBER_INFO*)respbuf;
 
     pkt->iID = plr->iID;

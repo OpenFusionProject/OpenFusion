@@ -238,8 +238,8 @@ static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, i
         return;
     }
 
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-    memset(respbuf, 0, resplen);
+    uint8_t respbuf[CN_PACKET_BODY_SIZE];
+    memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 
     sP_FE2CL_NPC_SKILL_CORRUPTION_HIT *resp = (sP_FE2CL_NPC_SKILL_CORRUPTION_HIT*)respbuf;
     sCAttackResult *respdata = (sCAttackResult*)(respbuf+sizeof(sP_FE2CL_NPC_SKILL_CORRUPTION_HIT));

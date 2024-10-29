@@ -87,8 +87,8 @@ void Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
 
     // initialize response struct
     size_t resplen = sizeof(sP_FE2CL_NPC_SKILL_HIT) + result.size;
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-    memset(respbuf, 0, resplen);
+    uint8_t respbuf[CN_PACKET_BODY_SIZE];
+    memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 
     sP_FE2CL_NPC_SKILL_HIT* pkt = (sP_FE2CL_NPC_SKILL_HIT*)respbuf;
     pkt->iNPC_ID = eggId;
@@ -192,7 +192,7 @@ static void eggPickup(CNSocket* sock, CNPacketData* data) {
     // drop
     if (type->dropCrateId != 0) {
         const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
-        assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+        assert(resplen < CN_PACKET_BODY_SIZE);
         // we know it's only one trailing struct, so we can skip full validation
 
         uint8_t respbuf[resplen]; // not a variable length array, don't worry

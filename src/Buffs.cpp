@@ -178,9 +178,9 @@ void Buffs::tickDrain(EntityRef self, Buff* buff, int mult) {
     int dealt = combatant->takeDamage(buff->getLastSource(), damage);
 
     size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_Damage);
-    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-    memset(respbuf, 0, resplen);
+    assert(resplen < CN_PACKET_BODY_SIZE);
+    uint8_t respbuf[CN_PACKET_BODY_SIZE];
+    memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 
     sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK *pkt = (sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK*)respbuf;
     pkt->iID = self.id;

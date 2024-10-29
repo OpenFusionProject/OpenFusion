@@ -64,7 +64,7 @@ static bool isQuestItemFull(CNSocket* sock, int itemId, int itemCount) {
 static void dropQuestItem(CNSocket *sock, int task, int count, int id, int mobid) {
     std::cout << "Altered item id " << id << " by " << count << " for task id " << task << std::endl;
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
-    assert(resplen < CN_PACKET_BUFFER_SIZE);
+    assert(resplen < CN_PACKET_BODY_SIZE);
     // we know it's only one trailing struct, so we can skip full validation
 
     Player *plr = PlayerManager::getPlayer(sock);
@@ -152,14 +152,14 @@ static int giveMissionReward(CNSocket *sock, int task, int choice=0) {
         plr->Inven[slots[i]] = { 999, 999, 999, 0 }; // temp item; overwritten later
     }
 
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    uint8_t respbuf[CN_PACKET_BODY_SIZE];
     size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + nrewards * sizeof(sItemReward);
-    assert(resplen < CN_PACKET_BUFFER_SIZE);
+    assert(resplen < CN_PACKET_BODY_SIZE);
     sP_FE2CL_REP_REWARD_ITEM *resp = (sP_FE2CL_REP_REWARD_ITEM *)respbuf;
     sItemReward *item = (sItemReward *)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
 
     // don't forget to zero the buffer!
-    memset(respbuf, 0, resplen);
+    memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 
     // update player
     plr->money += reward->money;

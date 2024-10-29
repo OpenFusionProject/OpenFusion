@@ -95,14 +95,14 @@ inline constexpr bool isOutboundPacketID(uint32_t id) {
 // for outbound packets
 inline constexpr bool validOutVarPacket(size_t base, size_t npayloads, size_t plsize) {
     // check for multiplication overflow
-    if (npayloads > 0 && (CN_PACKET_BUFFER_SIZE - 8) / (size_t)npayloads < plsize)
+    if (npayloads > 0 && (CN_PACKET_BODY_SIZE) / (size_t)npayloads < plsize)
         return false;
 
     // it's safe to multiply
     size_t trailing = npayloads * plsize;
 
     // does it fit in a packet?
-    if (base + trailing > CN_PACKET_BUFFER_SIZE - 8)
+    if (base + trailing > CN_PACKET_BODY_SIZE)
         return false;
 
     // everything is a-ok!
@@ -112,14 +112,14 @@ inline constexpr bool validOutVarPacket(size_t base, size_t npayloads, size_t pl
 // for inbound packets
 inline constexpr bool validInVarPacket(size_t base, size_t npayloads, size_t plsize, size_t datasize) {
     // check for multiplication overflow
-    if (npayloads > 0 && (CN_PACKET_BUFFER_SIZE - 8) / (size_t)npayloads < plsize)
+    if (npayloads > 0 && CN_PACKET_BODY_SIZE / (size_t)npayloads < plsize)
         return false;
 
     // it's safe to multiply
     size_t trailing = npayloads * plsize;
 
     // make sure size is exact
-    // datasize has already been validated against CN_PACKET_BUFFER_SIZE
+    // datasize has already been validated against CN_PACKET_BODY_SIZE
     if (datasize != base + trailing)
         return false;
 

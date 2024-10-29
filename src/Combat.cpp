@@ -539,9 +539,9 @@ static void dealGooDamage(CNSocket *sock) {
         return; // ignore completely
 
     size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_DotDamage);
-    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-    memset(respbuf, 0, resplen);
+    assert(resplen < CN_PACKET_BODY_SIZE);
+    uint8_t respbuf[CN_PACKET_BODY_SIZE];
+    memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 
     sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK *pkt = (sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK*)respbuf;
     sSkillResult_DotDamage *dmg = (sSkillResult_DotDamage*)(respbuf + sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK));
@@ -633,9 +633,9 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
 
     // initialize response struct
     size_t resplen = sizeof(sP_FE2CL_PC_ATTACK_CHARs_SUCC) + pkt->iTargetCnt * sizeof(sAttackResult);
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    uint8_t respbuf[CN_PACKET_BODY_SIZE];
 
-    memset(respbuf, 0, resplen);
+    memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 
     sP_FE2CL_PC_ATTACK_CHARs_SUCC *resp = (sP_FE2CL_PC_ATTACK_CHARs_SUCC*)respbuf;
     sAttackResult *respdata = (sAttackResult*)(respbuf+sizeof(sP_FE2CL_PC_ATTACK_CHARs_SUCC));
@@ -847,9 +847,9 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
      */
 
     size_t resplen = sizeof(sP_FE2CL_PC_GRENADE_STYLE_HIT) + pkt->iTargetCnt * sizeof(sAttackResult);
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    uint8_t respbuf[CN_PACKET_BODY_SIZE];
 
-    memset(respbuf, 0, resplen);
+    memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 
     sP_FE2CL_PC_GRENADE_STYLE_HIT* resp = (sP_FE2CL_PC_GRENADE_STYLE_HIT*)respbuf;
     sAttackResult* respdata = (sAttackResult*)(respbuf + sizeof(sP_FE2CL_PC_GRENADE_STYLE_HIT));

@@ -334,8 +334,8 @@ void Abilities::useNanoSkill(CNSocket* sock, SkillData* skill, sNano& nano, std:
     size_t resplen = sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC);
     for(SkillResult& sr : results)
         resplen += sr.size;
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-    memset(respbuf, 0, resplen);
+    uint8_t respbuf[CN_PACKET_BODY_SIZE];
+    memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 
     sP_FE2CL_NANO_SKILL_USE_SUCC* pkt = (sP_FE2CL_NANO_SKILL_USE_SUCC*)respbuf;
     pkt->iPC_ID = plr->iID;
@@ -379,8 +379,8 @@ void Abilities::useNPCSkill(EntityRef npc, int skillID, std::vector<ICombatant*>
     size_t resplen = sizeof(sP_FE2CL_NPC_SKILL_HIT);
     for(SkillResult& sr : results)
         resplen += sr.size;
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-    memset(respbuf, 0, resplen);
+    uint8_t respbuf[CN_PACKET_BODY_SIZE];
+    memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 
     sP_FE2CL_NPC_SKILL_HIT* pkt = (sP_FE2CL_NPC_SKILL_HIT*)respbuf;
     pkt->iNPC_ID = npc.id;

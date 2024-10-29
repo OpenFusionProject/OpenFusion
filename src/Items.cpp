@@ -46,7 +46,7 @@ static void nanoCapsuleHandler(CNSocket* sock, int slot, sItemBase *chest) {
 
     // in order to remove capsule form inventory, we have to send item reward packet with empty item
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
-    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+    assert(resplen < CN_PACKET_BODY_SIZE);
 
     // we know it's only one trailing struct, so we can skip full validation
     uint8_t respbuf[resplen]; // not a variable length array, don't worry
@@ -475,8 +475,8 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
     if (gumball.iOpt == 0)
         gumball = {};
 
-    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
-    memset(respbuf, 0, resplen);
+    uint8_t respbuf[CN_PACKET_BODY_SIZE];
+    memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 
     sP_FE2CL_REP_PC_ITEM_USE_SUCC *resp = (sP_FE2CL_REP_PC_ITEM_USE_SUCC*)respbuf;
     sSkillResult_Buff *respdata = (sSkillResult_Buff*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC));
@@ -556,7 +556,7 @@ static void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
 
     // item giving packet
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
-    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+    assert(resplen < CN_PACKET_BODY_SIZE);
     // we know it's only one trailing struct, so we can skip full validation
 
     uint8_t respbuf[resplen]; // not a variable length array, don't worry
@@ -645,7 +645,7 @@ void Items::checkItemExpire(CNSocket* sock, Player* player) {
     */
 
     const size_t resplen = sizeof(sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM) + sizeof(sTimeLimitItemDeleteInfo2CL);
-    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+    assert(resplen < CN_PACKET_BODY_SIZE);
     // we know it's only one trailing struct, so we can skip full validation
     uint8_t respbuf[resplen]; // not a variable length array, don't worry
     auto packet = (sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM*)respbuf;
@@ -715,7 +715,7 @@ static void giveSingleDrop(CNSocket *sock, Mob* mob, int mobDropId, const DropRo
     Player *plr = PlayerManager::getPlayer(sock);
 
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
-    assert(resplen < CN_PACKET_BUFFER_SIZE - 8);
+    assert(resplen < CN_PACKET_BODY_SIZE);
     // we know it's only one trailing struct, so we can skip full validation
 
     uint8_t respbuf[resplen]; // not a variable length array, don't worry
