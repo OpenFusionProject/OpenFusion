@@ -1,6 +1,8 @@
 #pragma once
 
+#include <stdint.h>
 #include <string>
+#include <time.h>
 
 namespace settings {
     extern int VERBOSITY;
