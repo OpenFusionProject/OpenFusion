@@ -3,6 +3,8 @@
 #include <array>
 #include <optional>
 
+#include <assert.h>
+
 template<class T, size_t N>
 class Bucket {
     std::array<T, N> buf;
@@ -13,9 +15,8 @@ public:
     }
 
     void add(const T& item) {
-        if (sz < N) {
-            buf[sz++] = item;
-        }
+        assert(sz < N);
+        buf[sz++] = item;
     }
 
     std::optional<T> get(size_t idx) const {
