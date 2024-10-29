@@ -126,15 +126,6 @@ static void eggStep(CNServer* serv, time_t currTime) {
 
 }
 
-void Eggs::npcDataToEggData(int x, int y, int z, sNPCAppearanceData* npc, sShinyAppearanceData* egg) {
-    egg->iX = x;
-    egg->iY = y;
-    egg->iZ = z;
-    // client doesn't care about egg->iMapNum
-    egg->iShinyType = npc->iNPCType;
-    egg->iShiny_ID = npc->iNPC_ID;
-}
-
 static void eggPickup(CNSocket* sock, CNPacketData* data) {
     auto pickup = (sP_CL2FE_REQ_SHINY_PICKUP*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);

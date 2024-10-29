@@ -1,6 +1,8 @@
 /* enum definitions from the client */
 #pragma once
 
+#include "core/CNStructs.hpp"
+
 // floats
 const float VALUE_BATTERY_EMPTY_PENALTY = 0.5f;
 const float CN_EP_RANK_1 = 0.8f;
@@ -410,7 +412,13 @@ enum {
     SEND_ANYCAST_NEW = 3,
     SEND_BROADCAST = 4,
 
+#if PROTOCOL_VERSION == 728
+    CN_PACKET_BUFFER_SIZE = 8192,
+#elif PROTOCOL_VERSION == 1013
+    CN_PACKET_BUFFER_SIZE = 8192,
+#else
     CN_PACKET_BUFFER_SIZE = 4096,
+#endif
 
     P_CL2LS_REQ_LOGIN = 0x12000001,		// 301989889
     P_CL2LS_REQ_CHECK_CHAR_NAME = 0x12000002,		// 301989890
