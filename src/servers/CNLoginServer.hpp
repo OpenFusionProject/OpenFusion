@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/Core.hpp"
+#include "db/Database.hpp"
 
 #include "Player.hpp"
 
@@ -23,7 +24,9 @@ enum class LoginError {
     UPDATED_EUALA_REQUIRED = 9
 };
 
-enum class LoginType {
+#define USE_COOKIE_FIELDS 2
+
+enum class AuthMethod {
     PASSWORD = 1,
     COOKIE = 2
 };
@@ -44,12 +47,17 @@ private:
     static void changeName(CNSocket* sock, CNPacketData* data);
     static void duplicateExit(CNSocket* sock, CNPacketData* data);
 
-    static bool isUsernameGood(std::string login);
-    static bool isPasswordGood(std::string password);
+    static bool isUsernameGood(std::string& login);
+    static bool isPasswordGood(std::string& password);
     static bool isPasswordCorrect(std::string actualPassword, std::string tryPassword);
     static bool isAccountInUse(int accountId);
     static bool isCharacterNameGood(std::string Firstname, std::string Lastname);
-    static bool isLoginTypeAllowed(LoginType loginType);
+    static bool isAuthMethodAllowed(AuthMethod authMethod);
+    static bool checkUsername(CNSocket* sock, std::string& username);
+    static bool checkPassword(CNSocket* sock, std::string& password);
+    static bool checkToken(CNSocket* sock, Database::Account& account, std::string& token, bool isCookieAuth);
+    static bool checkBan(CNSocket* sock, Database::Account& account);
+
     static void newAccount(CNSocket* sock, std::string userLogin, std::string userPassword, int32_t clientVerC);
     // returns true if success
     static bool exitDuplicate(int accountId);
