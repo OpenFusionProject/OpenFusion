@@ -1,16 +1,8 @@
+#include "core/CNStructs.hpp"
+
 #include "db/internal.hpp"
 
 #include "bcrypt/BCrypt.hpp"
-
-static int timingSafeStrcmp(const char* a, const char* b) {
-    int diff = 0;
-    while (*a && *b) {
-        diff |= *a++ ^ *b++;
-    }
-    diff |= *a;
-    diff |= *b;
-    return diff;
-}
 
 void Database::findAccount(Account* account, std::string login) {
     std::lock_guard<std::mutex> lock(dbCrit);
