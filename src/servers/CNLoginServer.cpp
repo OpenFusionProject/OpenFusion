@@ -698,7 +698,7 @@ bool CNLoginServer::checkToken(CNSocket* sock, Database::Account& account, std::
         }
     }
 
-    // cookie check failed; check to see if it's a plaintext password sent by auto-login
+    // cookie check failed; check to see if it's a plaintext password
     if (CNLoginServer::isAuthMethodAllowed(AuthMethod::PASSWORD)
         && CNLoginServer::isPasswordCorrect(account.Password, token)) {
         return true;
