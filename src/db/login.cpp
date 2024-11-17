@@ -1,3 +1,5 @@
+#include "core/CNStructs.hpp"
+
 #include "db/internal.hpp"
 
 #include "bcrypt/BCrypt.hpp"
@@ -130,19 +132,21 @@ bool Database::checkCookie(int accountId, const char *tryCookie) {
         return false;
     }
 
-    /*
-     * since cookies are immediately invalidated, we don't need to be concerned about
-     * timing-related side channel attacks, so strcmp is fine here
-     */
-    bool match = (strcmp(cookie, tryCookie) == 0);
+    bool match = (timingSafeStrcmp(cookie, tryCookie) == 0);
     sqlite3_finalize(stmt);
 
-    sqlite3_prepare_v2(db, sql_invalidate, -1, &stmt, NULL);
-    sqlite3_bind_int(stmt, 1, accountId);
-    rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-    if (rc != SQLITE_DONE)
-        std::cout << "[WARN] Database fail on checkCookie(): " << sqlite3_errmsg(db) << std::endl;
+    /*
+     * Only invalidate the cookie if it was correct. This prevents
+     * replay attacks without enabling DOS attacks on accounts.
+     */
+    if (match) {
+        sqlite3_prepare_v2(db, sql_invalidate, -1, &stmt, NULL);
+        sqlite3_bind_int(stmt, 1, accountId);
+        rc = sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
+        if (rc != SQLITE_DONE)
+            std::cout << "[WARN] Database fail on checkCookie(): " << sqlite3_errmsg(db) << std::endl;
+    }
 
     return match;
 }

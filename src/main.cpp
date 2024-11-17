@@ -222,6 +222,17 @@ time_t getTimestamp() {
     return (time_t)value.count();
 }
 
+// timing safe strcmp implementation for e.g. cookie validation
+int timingSafeStrcmp(const char* a, const char* b) {
+    int diff = 0;
+    while (*a && *b) {
+        diff |= *a++ ^ *b++;
+    }
+    diff |= *a;
+    diff |= *b;
+    return diff;
+}
+
 // convert integer timestamp (in s) to FF systime struct
 sSYSTEMTIME timeStampToStruct(uint64_t time) {
 

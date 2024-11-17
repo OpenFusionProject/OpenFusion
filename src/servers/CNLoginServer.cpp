@@ -110,10 +110,16 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
     std::string userToken; // could be password or auth cookie
 
     /*
+     * In this context, "cookie auth" just means the credentials were sent
+     * in the szCookie fields instead of szID and szPassword.
+     */
+    bool isCookieAuth = login->iLoginType == USE_COOKIE_FIELDS;
+
+    /*
      * The std::string -> char* -> std::string maneuver should remove any
      * trailing garbage after the null terminator.
      */
-    if (login->iLoginType == (int32_t)LoginType::COOKIE) {
+    if (isCookieAuth) {
         userLogin = std::string(AUTOU8(login->szCookie_TEGid).c_str());
         userToken = std::string(AUTOU8(login->szCookie_authid).c_str());
     } else {
@@ -121,99 +127,41 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
         userToken = std::string(AUTOU16TOU8(login->szPassword).c_str());
     }
 
-    // check username regex
-    if (!CNLoginServer::isUsernameGood(userLogin)) {
-        // send a custom error message
-        INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
-        std::string text = "Invalid login\n";
-        text += "Login has to be 4 - 32 characters long and can't contain special characters other than dash and underscore";
-        U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
-        msg.iDuringTime = 10;
-        sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
-
-        // we still have to send login fail to prevent softlock
+    if (!CNLoginServer::checkUsername(sock, userLogin)) {
         return loginFail(LoginError::LOGIN_ERROR, userLogin, sock);
     }
 
-    // we only interpret the token as a cookie if cookie login was used and it's allowed.
-    // otherwise we interpret it as a password, and this maintains compatibility with
-    // the auto-login trick used on older clients
-    bool isCookieAuth = login->iLoginType == (int32_t)LoginType::COOKIE
-                        && CNLoginServer::isLoginTypeAllowed(LoginType::COOKIE);
-
-    // password login checks
     if (!isCookieAuth) {
-        // bail if password auth isn't allowed
-        if (!CNLoginServer::isLoginTypeAllowed(LoginType::PASSWORD)) {
-            // send a custom error message
-            INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
-            std::string text = "Password login disabled\n";
-            text += "This server has disabled logging in with plaintext passwords.\n";
-            text += "Please contact an admin for assistance.";
-            U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
-            msg.iDuringTime = 12;
-            sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
-
-            // we still have to send login fail to prevent softlock
-            return loginFail(LoginError::LOGIN_ERROR, userLogin, sock);
-        }
-
-        // check regex
-        if (!CNLoginServer::isPasswordGood(userToken)) {
-            // send a custom error message
-            INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
-            std::string text = "Invalid password\n";
-            text += "Password has to be 8 - 32 characters long";
-            U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
-            msg.iDuringTime = 10;
-            sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
-
-            // we still have to send login fail to prevent softlock
+        // password was sent in plaintext
+        if (!CNLoginServer::checkPassword(sock, userToken)) {
             return loginFail(LoginError::LOGIN_ERROR, userLogin, sock);
         }
     }
 
     Database::Account findUser = {};
     Database::findAccount(&findUser, userLogin);
-    
+
     // account was not found
     if (findUser.AccountID == 0) {
-        // don't auto-create an account if it's a cookie auth for whatever reason
-        if (settings::AUTOCREATEACCOUNTS && !isCookieAuth)
+        /*
+         * Don't auto-create accounts if it's a cookie login.
+         * It'll either be a bad cookie or a plaintext password sent by auto-login;
+         * either way, we only want to allow auto-creation if the user explicitly entered their credentials.
+         */
+        if (settings::AUTOCREATEACCOUNTS && !isCookieAuth) {
             return newAccount(sock, userLogin, userToken, login->iClientVerC);
+        }
 
         return loginFail(LoginError::ID_DOESNT_EXIST, userLogin, sock);
     }
 
-    if (isCookieAuth) {
-        const char *cookie = userToken.c_str();
-        if (!Database::checkCookie(findUser.AccountID, cookie))
-            return loginFail(LoginError::ID_AND_PASSWORD_DO_NOT_MATCH, userLogin, sock);
-    } else {
-        // simple password check
-        if (!CNLoginServer::isPasswordCorrect(findUser.Password, userToken))
-            return loginFail(LoginError::ID_AND_PASSWORD_DO_NOT_MATCH, userLogin, sock);
+    // make sure either a valid cookie or password was sent
+    if (!CNLoginServer::checkToken(sock, findUser, userToken, isCookieAuth)) {
+        return loginFail(LoginError::ID_AND_PASSWORD_DO_NOT_MATCH, userLogin, sock);
     }
 
-    // is the account banned
-    if (findUser.BannedUntil > getTimestamp()) {
-        // send a custom error message
-        INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
-
-        // ceiling devision
-        int64_t remainingDays = (findUser.BannedUntil-getTimestamp()) / 86400 + ((findUser.BannedUntil - getTimestamp()) % 86400 != 0);
-
-        std::string text = "Your account has been banned. \nReason: ";
-        text += findUser.BanReason;
-        text += "\nBan expires in " + std::to_string(remainingDays) + " day";
-        if (remainingDays > 1)
-            text += "s";
-
-        U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
-        msg.iDuringTime = 99999999;
-        sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
-        // don't send fail packet
-        return;
+    if (CNLoginServer::checkBan(sock, findUser)) {
+        return; // don't send fail packet
     }
 
     /* 
@@ -659,12 +607,12 @@ bool CNLoginServer::exitDuplicate(int accountId) {
     return false;
 }
 
-bool CNLoginServer::isUsernameGood(std::string login) {
+bool CNLoginServer::isUsernameGood(std::string& login) {
     const std::regex loginRegex("[a-zA-Z0-9_-]{4,32}");
     return (std::regex_match(login, loginRegex));
 }
 
-bool CNLoginServer::isPasswordGood(std::string password) {
+bool CNLoginServer::isPasswordGood(std::string& password) {
     const std::regex passwordRegex("[a-zA-Z0-9!@#$%^&*()_+]{8,32}");
     return (std::regex_match(password, passwordRegex));
 }
@@ -680,16 +628,107 @@ bool CNLoginServer::isCharacterNameGood(std::string Firstname, std::string Lastn
     return (std::regex_match(Firstname, firstnamecheck) && std::regex_match(Lastname, lastnamecheck));
 }
 
-bool CNLoginServer::isLoginTypeAllowed(LoginType loginType) {
+bool CNLoginServer::isAuthMethodAllowed(AuthMethod authMethod) {
     // the config file specifies "comma-separated" but tbh we don't care
-    switch (loginType) {
-    case LoginType::PASSWORD:
+    switch (authMethod) {
+    case AuthMethod::PASSWORD:
         return settings::AUTHMETHODS.find("password") != std::string::npos;
-    case LoginType::COOKIE:
+    case AuthMethod::COOKIE:
         return settings::AUTHMETHODS.find("cookie") != std::string::npos;
     default:
         break;
     }
+    return false;
+}
+
+bool CNLoginServer::checkPassword(CNSocket* sock, std::string& password) {
+    // check password auth allowed
+    if (!CNLoginServer::isAuthMethodAllowed(AuthMethod::PASSWORD)) {
+        // send a custom error message
+        INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
+        std::string text = "Password login disabled\n";
+        text += "This server has disabled logging in with plaintext passwords.\n";
+        text += "Please contact an admin for assistance.";
+        U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
+        msg.iDuringTime = 12;
+        sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
+
+        return false;
+    }
+
+    // check regex
+    if (!CNLoginServer::isPasswordGood(password)) {
+        // send a custom error message
+        INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
+        std::string text = "Invalid password\n";
+        text += "Password has to be 8 - 32 characters long";
+        U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
+        msg.iDuringTime = 10;
+        sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
+
+        return false;
+    }
+
+    return true;
+}
+
+bool CNLoginServer::checkUsername(CNSocket* sock, std::string& username) {
+    // check username regex
+    if (!CNLoginServer::isUsernameGood(username)) {
+        // send a custom error message
+        INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
+        std::string text = "Invalid login\n";
+        text += "Login has to be 4 - 32 characters long and can't contain special characters other than dash and underscore";
+        U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
+        msg.iDuringTime = 10;
+        sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
+
+        return false;
+    }
+
+    return true;
+}
+
+bool CNLoginServer::checkToken(CNSocket* sock, Database::Account& account, std::string& token, bool isCookieAuth) {
+    // check for valid cookie first
+    if (isCookieAuth && CNLoginServer::isAuthMethodAllowed(AuthMethod::COOKIE)) {
+        const char *cookie = token.c_str();
+        if (Database::checkCookie(account.AccountID, cookie)) {
+            return true;
+        }
+    }
+
+    // cookie check disabled or failed; check to see if it's a plaintext password
+    if (CNLoginServer::isAuthMethodAllowed(AuthMethod::PASSWORD)
+        && CNLoginServer::isPasswordCorrect(account.Password, token)) {
+        return true;
+    }
+
+    return false;
+}
+
+bool CNLoginServer::checkBan(CNSocket* sock, Database::Account& account) {
+    // check if the account is banned
+    if (account.BannedUntil > getTimestamp()) {
+        // send a custom error message
+        INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
+
+        // ceiling devision
+        int64_t remainingDays = (account.BannedUntil-getTimestamp()) / 86400 + ((account.BannedUntil - getTimestamp()) % 86400 != 0);
+
+        std::string text = "Your account has been banned. \nReason: ";
+        text += account.BanReason;
+        text += "\nBan expires in " + std::to_string(remainingDays) + " day";
+        if (remainingDays > 1)
+            text += "s";
+
+        U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
+        msg.iDuringTime = 99999999;
+        sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
+
+        return true;
+    }
+
     return false;
 }
 #pragma endregion
