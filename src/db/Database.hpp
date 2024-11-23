@@ -56,6 +56,7 @@ namespace Database {
     // return true if cookie is valid for the account.
     // invalidates the stored cookie afterwards
     bool checkCookie(int accountId, const char *cookie);
+    void refreshCookie(int accountId, int durationSec);
 
     // interface for the /ban command
     bool banPlayer(int playerId, std::string& reason);

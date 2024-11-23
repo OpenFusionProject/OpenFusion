@@ -151,6 +151,27 @@ bool Database::checkCookie(int accountId, const char *tryCookie) {
     return match;
 }
 
+void Database::refreshCookie(int accountId, int durationSec) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+
+    const char* sql = R"(
+        UPDATE Auth
+        SET Expires = ?
+        WHERE AccountID = ?;
+        )";
+    
+    int expires = getTimestamp() + durationSec;
+
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    sqlite3_bind_int(stmt, 1, expires);
+    sqlite3_bind_int(stmt, 2, accountId);
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE)
+        std::cout << "[WARN] Database fail on refreshCookie(): " << sqlite3_errmsg(db) << std::endl;
+}
+
 void Database::updateSelected(int accountId, int slot) {
     std::lock_guard<std::mutex> lock(dbCrit);
 

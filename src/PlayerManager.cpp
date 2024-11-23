@@ -396,6 +396,14 @@ static void heartbeatPlayer(CNSocket* sock, CNPacketData* data) {
 
 static void exitGame(CNSocket* sock, CNPacketData* data) {
     auto exitData = (sP_CL2FE_REQ_PC_EXIT*)data->buf;
+
+    // Refresh any auth cookie, in case "change character" was used
+    Player* plr = getPlayer(sock);
+    if (plr != nullptr) {
+        // 5 seconds should be enough to log in again
+        Database::refreshCookie(plr->accountId, 5);
+    }
+
     INITSTRUCT(sP_FE2CL_REP_PC_EXIT_SUCC, response);
 
     response.iID = exitData->iID;
