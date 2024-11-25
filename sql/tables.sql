@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS Accounts (
     BannedUntil  INTEGER DEFAULT 0 NOT NULL,
     BannedSince  INTEGER DEFAULT 0 NOT NULL,
     BanReason    TEXT    DEFAULT '' NOT NULL,
+    Email        TEXT    DEFAULT '' NOT NULL,
     PRIMARY KEY(AccountID AUTOINCREMENT)
 );
 
