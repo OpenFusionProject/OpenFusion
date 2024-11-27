@@ -1,15 +1,16 @@
 CREATE TABLE IF NOT EXISTS Accounts (
-    AccountID    INTEGER NOT NULL,
-    Login        TEXT    NOT NULL UNIQUE COLLATE NOCASE,
-    Password     TEXT    NOT NULL,
-    Selected     INTEGER  DEFAULT 1 NOT NULL,
-    AccountLevel INTEGER NOT NULL,
-    Created      INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
-    LastLogin    INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
-    BannedUntil  INTEGER DEFAULT 0 NOT NULL,
-    BannedSince  INTEGER DEFAULT 0 NOT NULL,
-    BanReason    TEXT    DEFAULT '' NOT NULL,
-    Email        TEXT    DEFAULT '' NOT NULL,
+    AccountID         INTEGER NOT NULL,
+    Login             TEXT    NOT NULL UNIQUE COLLATE NOCASE,
+    Password          TEXT    NOT NULL,
+    Selected          INTEGER  DEFAULT 1 NOT NULL,
+    AccountLevel      INTEGER NOT NULL,
+    Created           INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
+    LastLogin         INTEGER DEFAULT (strftime('%s', 'now')) NOT NULL,
+    BannedUntil       INTEGER DEFAULT 0 NOT NULL,
+    BannedSince       INTEGER DEFAULT 0 NOT NULL,
+    BanReason         TEXT    DEFAULT '' NOT NULL,
+    Email             TEXT    DEFAULT '' NOT NULL,
+    LastPasswordReset INTEGER DEFAULT 0 NOT NULL,
     PRIMARY KEY(AccountID AUTOINCREMENT)
 );
 
