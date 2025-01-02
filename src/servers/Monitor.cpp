@@ -106,6 +106,14 @@ outer:
                 goto outer;
         }
 
+        // announcements
+        for (auto& str : Chat::bcasts) {
+            n = std::snprintf(buff, sizeof(buff), "bcast %s\n", str.c_str());
+
+            if (!transmit(it, buff, n))
+                goto outer;
+        }
+
         // emails
         for (auto& str : Email::dump) {
             n = process_email(buff, str);
@@ -124,6 +132,7 @@ outer:
     }
 
     Chat::dump.clear();
+    Chat::bcasts.clear();
     Email::dump.clear();
 }
 

@@ -9,6 +9,7 @@
 #include <assert.h>
 
 std::vector<std::string> Chat::dump;
+std::vector<std::string> Chat::bcasts;
 
 using namespace Chat;
 
@@ -120,9 +121,12 @@ static void announcementHandler(CNSocket* sock, CNPacketData* data) {
         break;
     }
 
-    std::string logLine = "[Bcast " + std::to_string(announcement->iAreaType) + "] " + PlayerManager::getPlayerName(plr, false) + ": " + AUTOU16TOU8(msg.szAnnounceMsg);
-    std::cout << logLine << std::endl;
-    dump.push_back("**" + logLine + "**");
+    std::string logLine = std::to_string(announcement->iAreaType) + " "
+                        + std::to_string(announcement->iAnnounceType) + " "
+                        + std::to_string(announcement->iDuringTime) + " "
+                        + PlayerManager::getPlayerName(plr, false) + ": " + AUTOU16TOU8(msg.szAnnounceMsg);
+    std::cout << "Broadcast " << logLine << std::endl;
+    bcasts.push_back(logLine);
 }
 
 // Buddy freechatting

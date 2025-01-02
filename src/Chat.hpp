@@ -9,6 +9,7 @@
 
 namespace Chat {
     extern std::vector<std::string> dump;
+    extern std::vector<std::string> bcasts;
     void init();
 
     void sendServerMessage(CNSocket* sock, std::string msg); // uses MOTD
