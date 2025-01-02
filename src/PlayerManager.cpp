@@ -620,6 +620,10 @@ std::string PlayerManager::getPlayerName(Player *plr, bool id) {
     if (plr == nullptr)
         return "NOT IN GAME";
 
+    if (plr->PCStyle.iNameCheck == 0) {
+        return "Player " + std::to_string(plr->iID);
+    }
+
     std::string ret = "";
     if (id && plr->accountLevel <= 30)
         ret += "(GM) ";
