@@ -1,15 +1,13 @@
 #include "Chat.hpp"
 
 #include "servers/CNShardServer.hpp"
+#include "servers/Monitor.hpp"
 
 #include "Player.hpp"
 #include "PlayerManager.hpp"
 #include "CustomCommands.hpp"
 
 #include <assert.h>
-
-std::vector<std::string> Chat::dump;
-std::vector<std::string> Chat::bcasts;
 
 using namespace Chat;
 
@@ -29,7 +27,7 @@ static void chatHandler(CNSocket* sock, CNPacketData* data) {
     std::string logLine = "[FreeChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
 
     std::cout << logLine << std::endl;
-    dump.push_back(logLine);
+    Monitor::chats.push_back(logLine);
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_FREECHAT_MESSAGE_SUCC, resp);
@@ -52,7 +50,7 @@ static void menuChatHandler(CNSocket* sock, CNPacketData* data) {
     std::string logLine = "[MenuChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
 
     std::cout << logLine << std::endl;
-    dump.push_back(logLine);
+    Monitor::chats.push_back(logLine);
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, resp);
@@ -126,7 +124,7 @@ static void announcementHandler(CNSocket* sock, CNPacketData* data) {
                         + std::to_string(announcement->iDuringTime) + " "
                         + PlayerManager::getPlayerName(plr, false) + ": " + AUTOU16TOU8(msg.szAnnounceMsg);
     std::cout << "Broadcast " << logLine << std::endl;
-    bcasts.push_back(logLine);
+    Monitor::bcasts.push_back(logLine);
 }
 
 // Buddy freechatting
@@ -159,7 +157,7 @@ static void buddyChatHandler(CNSocket* sock, CNPacketData* data) {
 
     std::string logLine = "[BuddyChat] " + PlayerManager::getPlayerName(plr) + " (to " + PlayerManager::getPlayerName(otherPlr) + "): " + fullChat;
     std::cout << logLine << std::endl;
-    dump.push_back(logLine);
+    Monitor::chats.push_back(logLine);
 
     U8toU16(fullChat, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
 
@@ -189,7 +187,7 @@ static void buddyMenuChatHandler(CNSocket* sock, CNPacketData* data) {
     std::string logLine = "[BuddyMenuChat] " + PlayerManager::getPlayerName(plr) + " (to " + PlayerManager::getPlayerName(otherPlr) + "): " + fullChat;
 
     std::cout << logLine << std::endl;
-    dump.push_back(logLine);
+    Monitor::chats.push_back(logLine);
 
     U8toU16(fullChat, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
 
@@ -222,7 +220,7 @@ static void tradeChatHandler(CNSocket* sock, CNPacketData* data) {
     std::string logLine = "[TradeChat] " + PlayerManager::getPlayerName(plr) + " (to " + PlayerManager::getPlayerName(otherPlr) + "): " + fullChat;
 
     std::cout << logLine << std::endl;
-    dump.push_back(logLine);
+    Monitor::chats.push_back(logLine);
 
     resp.iEmoteCode = pacdat->iEmoteCode;
     sock->sendPacket(resp, P_FE2CL_REP_PC_TRADE_EMOTES_CHAT);
@@ -245,7 +243,7 @@ static void groupChatHandler(CNSocket* sock, CNPacketData* data) {
 
     std::string logLine = "[GroupChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
     std::cout << logLine << std::endl;
-    dump.push_back(logLine);
+    Monitor::chats.push_back(logLine);
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_ALL_GROUP_FREECHAT_MESSAGE_SUCC, resp);
@@ -268,7 +266,7 @@ static void groupMenuChatHandler(CNSocket* sock, CNPacketData* data) {
     std::string logLine = "[GroupMenuChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
 
     std::cout << logLine << std::endl;
-    dump.push_back(logLine);
+    Monitor::chats.push_back(logLine);
 
     // send to client
     INITSTRUCT(sP_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC, resp);

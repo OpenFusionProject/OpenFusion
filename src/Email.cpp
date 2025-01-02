@@ -3,14 +3,13 @@
 #include "core/Core.hpp"
 #include "db/Database.hpp"
 #include "servers/CNShardServer.hpp"
+#include "servers/Monitor.hpp"
 
 #include "PlayerManager.hpp"
 #include "Items.hpp"
 #include "Chat.hpp"
 
 using namespace Email;
-
-std::vector<std::string> Email::dump;
 
 // New email notification
 static void emailUpdateCheck(CNSocket* sock, CNPacketData* data) {
@@ -324,7 +323,7 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
 
     std::string logEmail = "[Email] " + PlayerManager::getPlayerName(plr, true) + " (to " + PlayerManager::getPlayerName(&otherPlr, true) + "): <" + email.SubjectLine + ">\n" + email.MsgBody;
     std::cout << logEmail << std::endl;
-    dump.push_back(logEmail);
+    Monitor::emails.push_back(logEmail);
 
     // notification to recipient if online
     CNSocket* recipient = PlayerManager::getSockFromID(pkt->iTo_PCUID);

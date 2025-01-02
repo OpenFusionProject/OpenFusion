@@ -14,6 +14,12 @@ static std::mutex sockLock; // guards socket list
 static std::list<SOCKET> sockets;
 static sockaddr_in address;
 
+std::vector<std::string> Monitor::chats;
+std::vector<std::string> Monitor::bcasts;
+std::vector<std::string> Monitor::emails;
+
+using namespace Monitor;
+
 static bool transmit(std::list<SOCKET>::iterator& it, char *buff, int len) {
     int n = 0;
     int sock = *it;
@@ -99,7 +105,7 @@ outer:
         }
 
         // chat
-        for (auto& str : Chat::dump) {
+        for (auto& str : chats) {
             n = std::snprintf(buff, sizeof(buff), "chat %s\n", str.c_str());
 
             if (!transmit(it, buff, n))
@@ -107,7 +113,7 @@ outer:
         }
 
         // announcements
-        for (auto& str : Chat::bcasts) {
+        for (auto& str : bcasts) {
             n = std::snprintf(buff, sizeof(buff), "bcast %s\n", str.c_str());
 
             if (!transmit(it, buff, n))
@@ -115,7 +121,7 @@ outer:
         }
 
         // emails
-        for (auto& str : Email::dump) {
+        for (auto& str : emails) {
             n = process_email(buff, str);
 
             if (!transmit(it, buff, n))
@@ -131,9 +137,9 @@ outer:
         it++;
     }
 
-    Chat::dump.clear();
-    Chat::bcasts.clear();
-    Email::dump.clear();
+    chats.clear();
+    bcasts.clear();
+    emails.clear();
 }
 
 bool Monitor::acceptConnection(SOCKET fd, uint16_t revents) {
