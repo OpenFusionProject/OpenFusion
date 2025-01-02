@@ -102,14 +102,14 @@ static void announcementHandler(CNSocket* sock, CNPacketData* data) {
     memcpy(msg.szAnnounceMsg, announcement->szAnnounceMsg, sizeof(msg.szAnnounceMsg));
     std::map<CNSocket*, Player*>::iterator it;
 
+    // This value is completely arbitrary, but these make the most sense when you consider the architecture of the game
     switch (announcement->iAreaType) {
     case 0: // area (all players in viewable chunks)
         sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
         PlayerManager::sendToViewable(sock, msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
         break;
-    case 1: // shard
-    case 2: // world
-        break; // not applicable to OpenFusion
+    case 1: // channel
+    case 2: // shard
     case 3: // global (all players)
         for (it = PlayerManager::players.begin(); it != PlayerManager::players.end(); it++) {
             CNSocket* allSock = it->first;
