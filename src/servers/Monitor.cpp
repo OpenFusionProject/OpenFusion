@@ -17,6 +17,7 @@ static sockaddr_in address;
 std::vector<std::string> Monitor::chats;
 std::vector<std::string> Monitor::bcasts;
 std::vector<std::string> Monitor::emails;
+std::vector<std::string> Monitor::namereqs;
 
 using namespace Monitor;
 
@@ -131,6 +132,14 @@ outer:
                 goto outer;
         }
 
+        // name requests
+        for (auto& str : namereqs) {
+            n = std::snprintf(buff, sizeof(buff), "namereq %s\n", str.c_str());
+
+            if (!transmit(it, buff, n))
+                goto outer;
+        }
+
         if (!transmit(it, (char*)"end\n", 4))
             continue;
 
@@ -140,6 +149,7 @@ outer:
     chats.clear();
     bcasts.clear();
     emails.clear();
+    namereqs.clear();
 }
 
 bool Monitor::acceptConnection(SOCKET fd, uint16_t revents) {

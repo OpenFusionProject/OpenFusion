@@ -1,4 +1,5 @@
 #include "servers/CNLoginServer.hpp"
+#include "servers/Monitor.hpp"
 
 #include "core/CNShared.hpp"
 #include "db/Database.hpp"
@@ -312,6 +313,16 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
         std::cout << "[WARN] Login Server: Database failed to create new character!" << std::endl;
         return invalidCharacter(sock);
     }
+
+    Player plr;
+    Database::getPlayer(&plr, (int)resp.iPC_UID);
+
+    // fire name check event if needed
+    if (plr.PCStyle.iNameCheck == 0) {
+        std::string namereq = std::to_string(resp.iPC_UID) + " " + AUTOU16TOU8(save->szFirstName) + " " + AUTOU16TOU8(save->szLastName);
+        Monitor::namereqs.push_back(namereq);
+    }
+
     resp.iSlotNum = save->iSlotNum;
     resp.iGender = save->iGender;
     
@@ -327,7 +338,9 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
     DEBUGLOG(
         std::cout << "Login Server: new character created" << std::endl;
         std::cout << "\tSlot: " << (int)save->iSlotNum << std::endl;
-        std::cout << "\tName: " << AUTOU16TOU8(save->szFirstName) << " " << AUTOU16TOU8(save->szLastName) << std::endl;
+        std::cout << "\tName: " << AUTOU16TOU8(save->szFirstName) << " " << AUTOU16TOU8(save->szLastName);
+        if (plr.PCStyle.iNameCheck == 0) std::cout << " (pending approval)";
+        std::cout << std::endl;
     )
 }
 
