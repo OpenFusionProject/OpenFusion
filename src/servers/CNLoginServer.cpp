@@ -318,7 +318,7 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
     Database::getPlayer(&plr, (int)resp.iPC_UID);
 
     // fire name check event if needed
-    if (plr.PCStyle.iNameCheck == 0) {
+    if (plr.PCStyle.iNameCheck != 1) {
         std::string namereq = std::to_string(resp.iPC_UID) + " " + AUTOU16TOU8(save->szFirstName) + " " + AUTOU16TOU8(save->szLastName);
         Monitor::namereqs.push_back(namereq);
     }
@@ -339,7 +339,7 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
         std::cout << "Login Server: new character created" << std::endl;
         std::cout << "\tSlot: " << (int)save->iSlotNum << std::endl;
         std::cout << "\tName: " << AUTOU16TOU8(save->szFirstName) << " " << AUTOU16TOU8(save->szLastName);
-        if (plr.PCStyle.iNameCheck == 0) std::cout << " (pending approval)";
+        if (plr.PCStyle.iNameCheck != 1) std::cout << " (pending approval)";
         std::cout << std::endl;
     )
 }
@@ -529,6 +529,15 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
     if (!Database::changeName(save, loginSessions[sock].userID))
         return invalidCharacter(sock);
 
+    Player plr;
+    Database::getPlayer(&plr, (int)save->iPCUID);
+
+    // fire name check event if needed
+    if (plr.PCStyle.iNameCheck != 1) {
+        std::string namereq = std::to_string(save->iPCUID) + " " + AUTOU16TOU8(save->szFirstName) + " " + AUTOU16TOU8(save->szLastName);
+        Monitor::namereqs.push_back(namereq);
+    }
+
     INITSTRUCT(sP_LS2CL_REP_CHANGE_CHAR_NAME_SUCC, resp);
     resp.iPC_UID = save->iPCUID;
     memcpy(resp.szFirstName, save->szFirstName, sizeof(resp.szFirstName));
@@ -540,8 +549,10 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket(resp, P_LS2CL_REP_CHANGE_CHAR_NAME_SUCC);
 
     DEBUGLOG(
-        std::cout << "Login Server: Name check success for character [" << save->iPCUID << "]" << std::endl;
-        std::cout << "\tNew name: " << AUTOU16TOU8(save->szFirstName) << " " << AUTOU16TOU8(save->szLastName) << std::endl;     
+        std::cout << "Login Server: Name change request for character [" << save->iPCUID << "]" << std::endl;
+        std::cout << "\tNew name: " << AUTOU16TOU8(save->szFirstName) << " " << AUTOU16TOU8(save->szLastName);
+        if (plr.PCStyle.iNameCheck != 1) std::cout << " (pending approval)";
+        std::cout << std::endl;
     )
 }
 
