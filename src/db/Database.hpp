@@ -69,7 +69,7 @@ namespace Database {
     bool isNameFree(std::string firstName, std::string lastName);
     bool isSlotFree(int accountId, int slotNum);
     /// returns ID, 0 if something failed
-    int createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID);
+    int createCharacter(int slot, int accountId, const char* firstName, const char* lastName, int nameCheck);
     /// returns true if query succeeded
     bool finishCharacter(sP_CL2LS_REQ_CHAR_CREATE* character, int accountId);
     /// returns true if query succeeded
@@ -85,7 +85,7 @@ namespace Database {
     };
     void evaluateCustomName(int characterID, CustomName decision);
     /// returns true if query succeeded
-    bool changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save, int accountId);
+    bool changeName(int playerId, int accountId, const char* firstName, const char* lastName, int nameCheck);
 
     // getting players
     void getPlayer(Player* plr, int id);

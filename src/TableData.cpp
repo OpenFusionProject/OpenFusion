@@ -1,5 +1,7 @@
 #include "TableData.hpp"
 
+#include "servers/CNLoginServer.hpp"
+
 #include "NPCManager.hpp"
 #include "Missions.hpp"
 #include "Items.hpp"
@@ -79,6 +81,25 @@ static void loadXDT(json& xdtData) {
     NPCManager::NPCData = xdtData["m_pNpcTable"]["m_pNpcData"];
 
     try {
+        // load name wheel names
+        json firstNameData = xdtData["m_pNameTable"]["m_pFirstName"];
+        for (json::iterator _name = firstNameData.begin(); _name != firstNameData.end(); _name++) {
+            auto name = _name.value();
+            LoginServer::WheelFirstNames.push_back(name["m_pstrNameString"]);
+        }
+
+        json middleNameData = xdtData["m_pNameTable"]["m_pMiddleName"];
+        for (json::iterator _name = middleNameData.begin(); _name != middleNameData.end(); _name++) {
+            auto name = _name.value();
+            LoginServer::WheelMiddleNames.push_back(name["m_pstrNameString"]);
+        }
+
+        json lastNameData = xdtData["m_pNameTable"]["m_pLastName"];
+        for (json::iterator _name = lastNameData.begin(); _name != lastNameData.end(); _name++) {
+            auto name = _name.value();
+            LoginServer::WheelLastNames.push_back(name["m_pstrNameString"]);
+        }
+
         // load warps
         json warpData = xdtData["m_pInstanceTable"]["m_pWarpData"];
 

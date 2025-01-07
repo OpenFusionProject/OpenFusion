@@ -13,6 +13,12 @@
 
 std::map<CNSocket*, CNLoginData> CNLoginServer::loginSessions;
 
+namespace LoginServer {
+    std::vector<std::string> WheelFirstNames;
+    std::vector<std::string> WheelMiddleNames;
+    std::vector<std::string> WheelLastNames;
+}
+
 CNLoginServer::CNLoginServer(uint16_t p) {
     serverType = "login";
     port = p;
@@ -286,10 +292,29 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_LS2CL_REP_SAVE_CHAR_NAME_SUCC, resp);
 
     int errorCode = 0;
-    if (!CNLoginServer::isCharacterNameGood(AUTOU16TOU8(save->szFirstName), AUTOU16TOU8(save->szLastName))) {
-        errorCode = 4;
-    } else if (!Database::isNameFree(AUTOU16TOU8(save->szFirstName), AUTOU16TOU8(save->szLastName))) {
-        errorCode = 1;
+
+    std::string firstName = AUTOU16TOU8(save->szFirstName);
+    std::string lastName = AUTOU16TOU8(save->szLastName);
+    int nameCheck = 0;
+
+    // if FNCode isn't 0, it's a wheel name
+    if (save->iFNCode != 0) {
+        if (!CNLoginServer::isNameWheelNameGood(save->iFNCode, save->iMNCode, save->iLNCode, firstName, lastName)) {
+            errorCode = 4;
+        } else {
+            nameCheck = settings:: APPROVEWHEELNAMES ? 1 : 0;
+        }
+    } else {
+        // custom name
+        nameCheck = settings::APPROVECUSTOMNAMES ? 1 : 0;
+    }
+
+    if (errorCode == 0) {
+        if (!CNLoginServer::isCharacterNameGood(firstName, lastName)) {
+            errorCode = 4;
+        } else if (!Database::isNameFree(firstName, lastName)) {
+            errorCode = 1;
+        }
     }
 
     if (errorCode != 0) {
@@ -307,19 +332,16 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
     if (!Database::isSlotFree(loginSessions[sock].userID, save->iSlotNum))
         return invalidCharacter(sock);
 
-    resp.iPC_UID = Database::createCharacter(save, loginSessions[sock].userID);
+    resp.iPC_UID = Database::createCharacter(save->iSlotNum, loginSessions[sock].userID, firstName.c_str(), lastName.c_str(), nameCheck);
     // if query somehow failed
     if (resp.iPC_UID == 0) {
         std::cout << "[WARN] Login Server: Database failed to create new character!" << std::endl;
         return invalidCharacter(sock);
     }
 
-    Player plr;
-    Database::getPlayer(&plr, (int)resp.iPC_UID);
-
     // fire name check event if needed
-    if (plr.PCStyle.iNameCheck != 1) {
-        std::string namereq = std::to_string(resp.iPC_UID) + " " + AUTOU16TOU8(save->szFirstName) + " " + AUTOU16TOU8(save->szLastName);
+    if (nameCheck != 1) {
+        std::string namereq = std::to_string(resp.iPC_UID) + " " + firstName + " " + lastName;
         Monitor::namereqs.push_back(namereq);
     }
 
@@ -338,8 +360,8 @@ void CNLoginServer::nameSave(CNSocket* sock, CNPacketData* data) {
     DEBUGLOG(
         std::cout << "Login Server: new character created" << std::endl;
         std::cout << "\tSlot: " << (int)save->iSlotNum << std::endl;
-        std::cout << "\tName: " << AUTOU16TOU8(save->szFirstName) << " " << AUTOU16TOU8(save->szLastName);
-        if (plr.PCStyle.iNameCheck != 1) std::cout << " (pending approval)";
+        std::cout << "\tName: " << firstName << " " << lastName;
+        if (nameCheck != 1) std::cout << " (pending approval)";
         std::cout << std::endl;
     )
 }
@@ -507,11 +529,30 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
     auto save = (sP_CL2LS_REQ_CHANGE_CHAR_NAME*)data->buf;
 
     int errorCode = 0;
-    if (!CNLoginServer::isCharacterNameGood(AUTOU16TOU8(save->szFirstName), AUTOU16TOU8(save->szLastName))) {
-        errorCode = 4;
+
+    std::string firstName = AUTOU16TOU8(save->szFirstName);
+    std::string lastName = AUTOU16TOU8(save->szLastName);
+    int nameCheck = 0;
+
+    // if FNCode isn't 0, it's a wheel name
+    if (save->iFNCode != 0) {
+        if (!CNLoginServer::isNameWheelNameGood(save->iFNCode, save->iMNCode, save->iLNCode, firstName, lastName)) {
+            errorCode = 4;
+        } else {
+            nameCheck = settings::APPROVEWHEELNAMES ? 1 : 0;
+        }
+    } else {
+        // custom name
+        nameCheck = settings::APPROVECUSTOMNAMES ? 1 : 0;
     }
-    else if (!Database::isNameFree(AUTOU16TOU8(save->szFirstName), AUTOU16TOU8(save->szLastName))) {
-        errorCode = 1;
+
+    if (errorCode == 0) {
+        if (!CNLoginServer::isCharacterNameGood(firstName, lastName)) {
+            errorCode = 4;
+        }
+        else if (!Database::isNameFree(firstName, lastName)) {
+            errorCode = 1;
+        }
     }
 
     if (errorCode != 0) {
@@ -526,15 +567,12 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    if (!Database::changeName(save, loginSessions[sock].userID))
+    if (!Database::changeName(save->iPCUID, loginSessions[sock].userID, firstName.c_str(), lastName.c_str(), nameCheck))
         return invalidCharacter(sock);
 
-    Player plr;
-    Database::getPlayer(&plr, (int)save->iPCUID);
-
     // fire name check event if needed
-    if (plr.PCStyle.iNameCheck != 1) {
-        std::string namereq = std::to_string(save->iPCUID) + " " + AUTOU16TOU8(save->szFirstName) + " " + AUTOU16TOU8(save->szLastName);
+    if (nameCheck != 1) {
+        std::string namereq = std::to_string(save->iPCUID) + " " + firstName + " " + lastName;
         Monitor::namereqs.push_back(namereq);
     }
 
@@ -550,8 +588,8 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
 
     DEBUGLOG(
         std::cout << "Login Server: Name change request for character [" << save->iPCUID << "]" << std::endl;
-        std::cout << "\tNew name: " << AUTOU16TOU8(save->szFirstName) << " " << AUTOU16TOU8(save->szLastName);
-        if (plr.PCStyle.iNameCheck != 1) std::cout << " (pending approval)";
+        std::cout << "\tNew name: " << firstName << " " << lastName;
+        if (nameCheck != 1) std::cout << " (pending approval)";
         std::cout << std::endl;
     )
 }
@@ -643,6 +681,42 @@ bool CNLoginServer::isPasswordGood(std::string& password) {
 
 bool CNLoginServer::isPasswordCorrect(std::string actualPassword, std::string tryPassword) {
     return BCrypt::validatePassword(tryPassword, actualPassword);
+}
+
+bool CNLoginServer::isNameWheelNameGood(int fnCode, int mnCode, int lnCode, std::string& firstName, std::string& lastName) {
+    if (fnCode >= LoginServer::WheelFirstNames.size()
+        || mnCode >= LoginServer::WheelMiddleNames.size()
+        || lnCode >= LoginServer::WheelLastNames.size()) {
+        std::cout << "[WARN] Login Server: Invalid name codes received: " << fnCode << " " << mnCode << " " << lnCode << std::endl;
+        return false;
+    }
+
+    // client sends 1 if not selected for these. they point to a single blank space. why.
+    // just change them to 0, which points to an empty string; keeps the code much cleaner
+    if (mnCode == 1) mnCode = 0;
+    if (lnCode == 1) lnCode = 0;
+
+    std::string firstNameFromWheel = LoginServer::WheelFirstNames[fnCode];
+
+    std::string middleNamePart = LoginServer::WheelMiddleNames[mnCode];
+    std::string lastNamePart = LoginServer::WheelLastNames[lnCode];
+    if (mnCode != 0 && middleNamePart[middleNamePart.size() - 1] != ' ') {
+        // If there's a middle name, we need to lowercase the last name
+        std::transform(lastNamePart.begin(), lastNamePart.end(), lastNamePart.begin(), ::tolower);
+    }
+    std::string lastNameFromWheel = middleNamePart + lastNamePart;
+
+    if (firstNameFromWheel.empty() || lastNameFromWheel.empty()) {
+        std::cout << "[WARN] Login Server: Invalid wheel name combo: " << fnCode << " " << mnCode << " " << lnCode << std::endl;
+        return false;
+    }
+
+    if (firstName != firstNameFromWheel || lastName != lastNameFromWheel) {
+        std::cout << "[WARN] Login Server: Name wheel mismatch. Expected " << firstNameFromWheel << " " << lastNameFromWheel << ", got " << firstName << " " << lastName << std::endl;
+        return false;
+    }
+
+    return true;
 }
 
 bool CNLoginServer::isCharacterNameGood(std::string Firstname, std::string Lastname) {

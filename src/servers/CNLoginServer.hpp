@@ -7,6 +7,12 @@
 
 #include <map>
 
+namespace LoginServer {
+    extern std::vector<std::string> WheelFirstNames;
+    extern std::vector<std::string> WheelMiddleNames;
+    extern std::vector<std::string> WheelLastNames;
+}
+
 struct CNLoginData {
     int userID;
     time_t lastHeartbeat;
@@ -51,6 +57,7 @@ private:
     static bool isPasswordGood(std::string& password);
     static bool isPasswordCorrect(std::string actualPassword, std::string tryPassword);
     static bool isAccountInUse(int accountId);
+    static bool isNameWheelNameGood(int fnCode, int mnCode, int lnCode, std::string& firstName, std::string& lastName);
     static bool isCharacterNameGood(std::string Firstname, std::string Lastname);
     static bool isAuthMethodAllowed(AuthMethod authMethod);
     static bool checkUsername(CNSocket* sock, std::string& username);

@@ -12,7 +12,8 @@ bool settings::SANDBOX = true;
 std::string settings::SANDBOXEXTRAPATH = "";
 
 int settings::LOGINPORT = 23000;
-bool settings::APPROVEALLNAMES = true;
+bool settings::APPROVEWHEELNAMES = true;
+bool settings::APPROVECUSTOMNAMES = true;
 bool settings::AUTOCREATEACCOUNTS = true;
 std::string settings::AUTHMETHODS = "password";
 int settings::DBSAVEINTERVAL = 240;
@@ -89,7 +90,8 @@ void settings::init() {
     SANDBOX = reader.GetBoolean("", "sandbox", SANDBOX);
     SANDBOXEXTRAPATH = reader.Get("", "sandboxextrapath", SANDBOXEXTRAPATH);
     LOGINPORT = reader.GetInteger("login", "port", LOGINPORT);
-    APPROVEALLNAMES = reader.GetBoolean("login", "acceptallcustomnames", APPROVEALLNAMES);
+    APPROVEWHEELNAMES = reader.GetBoolean("login", "acceptallwheelnames", APPROVEWHEELNAMES);
+    APPROVECUSTOMNAMES = reader.GetBoolean("login", "acceptallcustomnames", APPROVECUSTOMNAMES);
     AUTOCREATEACCOUNTS = reader.GetBoolean("login", "autocreateaccounts", AUTOCREATEACCOUNTS);
     AUTHMETHODS = reader.Get("login", "authmethods", AUTHMETHODS);
     DBSAVEINTERVAL = reader.GetInteger("login", "dbsaveinterval", DBSAVEINTERVAL);

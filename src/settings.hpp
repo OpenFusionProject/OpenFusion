@@ -9,7 +9,8 @@ namespace settings {
     extern bool SANDBOX;
     extern std::string SANDBOXEXTRAPATH;
     extern int LOGINPORT;
-    extern bool APPROVEALLNAMES;
+    extern bool APPROVEWHEELNAMES;
+    extern bool APPROVECUSTOMNAMES;
     extern bool AUTOCREATEACCOUNTS;
     extern std::string AUTHMETHODS;
     extern int DBSAVEINTERVAL;

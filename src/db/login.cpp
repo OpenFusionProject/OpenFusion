@@ -2,6 +2,8 @@
 
 #include "db/internal.hpp"
 
+#include "servers/CNLoginServer.hpp"
+
 #include "bcrypt/BCrypt.hpp"
 
 void Database::findAccount(Account* account, std::string login) {
@@ -291,7 +293,7 @@ bool Database::isSlotFree(int accountId, int slotNum) {
     return result;
 }
 
-int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) {
+int Database::createCharacter(int slot, int accountId, const char* firstName, const char* lastName, int nameCheck) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
@@ -304,22 +306,17 @@ int Database::createCharacter(sP_CL2LS_REQ_SAVE_CHAR_NAME* save, int AccountID) 
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         )";
     sqlite3_stmt* stmt;
-    std::string firstName = AUTOU16TOU8(save->szFirstName);
-    std::string lastName =  AUTOU16TOU8(save->szLastName);
 
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-    sqlite3_bind_int(stmt, 1, AccountID);
-    sqlite3_bind_int(stmt, 2, save->iSlotNum);
-    sqlite3_bind_text(stmt, 3, firstName.c_str(), -1, NULL);
-    sqlite3_bind_text(stmt, 4, lastName.c_str(), -1, NULL);
+    sqlite3_bind_int(stmt, 1, accountId);
+    sqlite3_bind_int(stmt, 2, slot);
+    sqlite3_bind_text(stmt, 3, firstName, -1, NULL);
+    sqlite3_bind_text(stmt, 4, lastName, -1, NULL);
     sqlite3_bind_int(stmt, 5, settings::SPAWN_X);
     sqlite3_bind_int(stmt, 6, settings::SPAWN_Y);
     sqlite3_bind_int(stmt, 7, settings::SPAWN_Z);
     sqlite3_bind_int(stmt, 8, settings::SPAWN_ANGLE);
     sqlite3_bind_int(stmt, 9, PC_MAXHEALTH(1));
-
-    // if FNCode isn't 0, it's a wheel name
-    int nameCheck = (settings::APPROVEALLNAMES || save->iFNCode) ? 1 : 0;
     sqlite3_bind_int(stmt, 10, nameCheck);
 
     // blobs
@@ -648,7 +645,7 @@ void Database::evaluateCustomName(int characterID, CustomName decision) {
     sqlite3_finalize(stmt);
 }
 
-bool Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save, int accountId) {
+bool Database::changeName(int playerId, int accountId, const char* firstName, const char* lastName, int nameCheck) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
     const char* sql = R"(
@@ -662,15 +659,10 @@ bool Database::changeName(sP_CL2LS_REQ_CHANGE_CHAR_NAME* save, int accountId) {
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
-    std::string firstName = AUTOU16TOU8(save->szFirstName);
-    std::string lastName = AUTOU16TOU8(save->szLastName);
-
-    sqlite3_bind_text(stmt, 1, firstName.c_str(), -1, NULL);
-    sqlite3_bind_text(stmt, 2, lastName.c_str(), -1, NULL);
-    // if FNCode isn't 0, it's a wheel name
-    int nameCheck = (settings::APPROVEALLNAMES || save->iFNCode) ? 1 : 0;
+    sqlite3_bind_text(stmt, 1, firstName, -1, NULL);
+    sqlite3_bind_text(stmt, 2, lastName, -1, NULL);
     sqlite3_bind_int(stmt, 3, nameCheck);
-    sqlite3_bind_int(stmt, 4, save->iPCUID);
+    sqlite3_bind_int(stmt, 4, playerId);
     sqlite3_bind_int(stmt, 5, accountId);
 
     int rc = sqlite3_step(stmt);
