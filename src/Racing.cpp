@@ -1,8 +1,6 @@
 #include "Racing.hpp"
-
 #include "db/Database.hpp"
 #include "servers/CNShardServer.hpp"
-
 #include "NPCManager.hpp"
 #include "PlayerManager.hpp"
 #include "Missions.hpp"
@@ -14,35 +12,125 @@ std::map<int32_t, EPInfo> Racing::EPData;
 std::map<CNSocket*, EPRace> Racing::EPRaces;
 std::map<int32_t, std::pair<std::vector<int>, std::vector<int>>> Racing::EPRewards;
 
-static void racingStart(CNSocket* sock, CNPacketData* data) {
-    auto req = (sP_CL2FE_REQ_EP_RACE_START*)data->buf;
+namespace {
+    // Helper functions
+    bool validateRaceStart(CNSocket* sock, int32_t startEcomID) {
+        if (NPCManager::NPCs.find(startEcomID) == NPCManager::NPCs.end())
+            return false; // starting line agent not found
 
-    if (NPCManager::NPCs.find(req->iStartEcomID) == NPCManager::NPCs.end())
-        return; // starting line agent not found
+        int mapNum = MAPNUM(NPCManager::NPCs[startEcomID]->instanceID);
+        return EPData.find(mapNum) != EPData.end() && EPData[mapNum].EPID != 0;
+    }
+
+    bool validateRaceEnd(CNSocket* sock, int32_t endEcomID) {
+        if (EPRaces.find(sock) == EPRaces.end() || 
+            NPCManager::NPCs.find(endEcomID) == NPCManager::NPCs.end())
+            return false;
+
+        int mapNum = MAPNUM(NPCManager::NPCs[endEcomID]->instanceID);
+        return EPData.find(mapNum) != EPData.end() && EPData[mapNum].EPID != 0;
+    }
+
+    int calculateRaceScore(const EPInfo& epInfo, int podsCollected, int timeDiff) {
+        int score = std::exp(
+            (epInfo.podFactor * podsCollected) / epInfo.maxPods
+            - (epInfo.timeFactor * timeDiff) / epInfo.maxTime
+            + epInfo.scaleFactor);
+        
+        return (settings::IZRACESCORECAPPED && score > epInfo.maxScore) 
+            ? epInfo.maxScore : score;
+    }
+
+    int calculateFMReward(const EPInfo& epInfo, int podsCollected) {
+        return (1.0 + std::exp(epInfo.scaleFactor - 1.0) * epInfo.podFactor * podsCollected) 
+            / epInfo.maxPods;
+    }
+
+    void handleRaceRanking(const EPInfo& epInfo, Player* plr, int podsCollected, 
+                          int score, int timeDiff, sP_FE2CL_REP_EP_RACE_END_SUCC& resp) {
+        Database::RaceRanking postRanking = {
+            .EPID = epInfo.EPID,
+            .PlayerID = plr->iID,
+            .RingCount = podsCollected,
+            .Score = score,
+            .Time = timeDiff,
+            .Timestamp = getTimestamp()
+        };
+        Database::postRaceRanking(postRanking);
+
+        Database::RaceRanking topRankingPlayer = Database::getTopRaceRanking(epInfo.EPID, plr->iID);
+
+        std::vector<int>* rankScores = &EPRewards[epInfo.EPID].first;
+        std::vector<int>* rankRewards = &EPRewards[epInfo.EPID].second;
+        int maxRank = rankScores->size() - 1;
+
+        int topRank = 0;
+        while (topRank < maxRank && rankScores->at(topRank) > topRankingPlayer.Score)
+            topRank++;
+
+        int currentRank = 0;
+        while (currentRank < maxRank && rankScores->at(currentRank) > postRanking.Score)
+            currentRank++;
+
+        resp.iEPTopRank = topRank + 1;
+        resp.iEPTopRingCount = topRankingPlayer.RingCount;
+        resp.iEPTopScore = topRankingPlayer.Score;
+        resp.iEPTopTime = topRankingPlayer.Time;
+        resp.iEPRank = currentRank + 1;
+        resp.iEPRingCnt = postRanking.RingCount;
+        resp.iEPScore = postRanking.Score;
+        resp.iEPRaceTime = postRanking.Time;
+
+        if (currentRank <= maxRank) {
+            sItemReward reward;
+            reward.iSlotNum = Items::findFreeSlot(plr);
+            if (reward.iSlotNum > -1) {
+                reward.eIL = 1;
+                sItemBase item = {
+                    .iID = rankRewards->at(currentRank),
+                    .iType = 9,
+                    .iOpt = 1,
+                    .iTimeLimit = 0
+                };
+                reward.sItem = item;
+                if (reward.sItem.iID != 0) {
+                    resp.RewardItem = reward;
+                    plr->Inven[reward.iSlotNum] = item;
+                }
+            }
+        }
+    }
+}
+
+void Racing::racingStart(CNSocket* sock, CNPacketData* data) {
+    auto req = (sP_CL2FE_REQ_EP_RACE_START*)data->buf;
+    
+    if (!validateRaceStart(sock, req->iStartEcomID))
+        return;
 
     int mapNum = MAPNUM(NPCManager::NPCs[req->iStartEcomID]->instanceID);
-    if (EPData.find(mapNum) == EPData.end() || EPData[mapNum].EPID == 0)
-        return; // IZ not found
-
-    // make ongoing race entry
-    EPRace race = { {}, req->iEPRaceMode, req->iEPTicketItemSlotNum, getTime() / 1000 };
-    EPRaces[sock] = race;
+    
+    EPRaces[sock] = {
+        std::set<int32_t>(),
+        req->iEPRaceMode,
+        req->iEPTicketItemSlotNum,
+        getTime() / 1000
+    };
 
     INITSTRUCT(sP_FE2CL_REP_EP_RACE_START_SUCC, resp);
-    resp.iStartTick = 0; // ignored
+    resp.iStartTick = 0;
     resp.iLimitTime = EPData[mapNum].maxTime;
-
     sock->sendPacket(resp, P_FE2CL_REP_EP_RACE_START_SUCC);
 }
 
 static void racingGetPod(CNSocket* sock, CNPacketData* data) {
     if (EPRaces.find(sock) == EPRaces.end())
-        return; // race not found
+        return; 
 
     auto req = (sP_CL2FE_REQ_EP_GET_RING*)data->buf;
 
     if (EPRaces[sock].collectedRings.count(req->iRingLID))
-        return; // can't collect the same ring twice
+        return; 
 
     // without an anticheat system, we really don't have a choice but to honor the request
     // TODO: proximity check so players can't cheat the race by replaying packets
@@ -106,22 +194,11 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
     int timeDiff = now - epRace.startTime;
     int podsCollected = epRace.collectedRings.size();
 
-    int score = std::exp(
-        (epInfo.podFactor * podsCollected) / epInfo.maxPods
-        - (epInfo.timeFactor * timeDiff) / epInfo.maxTime
-        + epInfo.scaleFactor);
-    score = (settings::IZRACESCORECAPPED && score > epInfo.maxScore) ? epInfo.maxScore : score;
-    int fm = (1.0 + std::exp(epInfo.scaleFactor - 1.0) * epInfo.podFactor * podsCollected) / epInfo.maxPods;
+    int score = calculateRaceScore(epInfo, podsCollected, timeDiff);
+    int fm = calculateFMReward(epInfo, podsCollected);
 
     // we submit the ranking first...
-    Database::RaceRanking postRanking = {};
-    postRanking.EPID = epInfo.EPID;
-    postRanking.PlayerID = plr->iID;
-    postRanking.RingCount = podsCollected;
-    postRanking.Score = score;
-    postRanking.Time = timeDiff;
-    postRanking.Timestamp = getTimestamp();
-    Database::postRaceRanking(postRanking);
+    handleRaceRanking(epInfo, plr, podsCollected, score, timeDiff, resp);
 
     // ...then we get the top ranking, which may or may not be what we just submitted
     Database::RaceRanking topRankingPlayer = Database::getTopRaceRanking(epInfo.EPID, plr->iID);
@@ -145,13 +222,13 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
 
     // this ranking
     int rank = 0;
-    while (rank < maxRank && rankScores->at(rank) > postRanking.Score)
+    while (rank < maxRank && rankScores->at(rank) > score)
         rank++;
 
     resp.iEPRank = rank + 1;
-    resp.iEPRingCnt = postRanking.RingCount;
-    resp.iEPScore = postRanking.Score;
-    resp.iEPRaceTime = postRanking.Time;
+    resp.iEPRingCnt = podsCollected;
+    resp.iEPScore = score;
+    resp.iEPRaceTime = timeDiff;
     resp.iEPRaceMode = EPRaces[sock].mode;
     resp.iEPRewardFM = fm;
 
@@ -160,21 +237,6 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
     resp.iFusionMatter = plr->fusionmatter;
     resp.iFatigue = 50;
     resp.iFatigue_Level = 1;
-
-    sItemReward reward;
-    reward.iSlotNum = Items::findFreeSlot(plr);
-    reward.eIL = 1;
-    sItemBase item;
-    item.iID = rankRewards->at(rank); // rank scores and rewards line up
-    item.iType = 9;
-    item.iOpt = 1;
-    item.iTimeLimit = 0;
-    reward.sItem = item;
-
-    if (reward.iSlotNum > -1 && reward.sItem.iID != 0) {
-        resp.RewardItem = reward;
-        plr->Inven[reward.iSlotNum] = item;
-    }
 
     EPRaces.erase(sock);
     sock->sendPacket(resp, P_FE2CL_REP_EP_RACE_END_SUCC);
