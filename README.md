@@ -14,22 +14,22 @@ OpenFusion is a reverse-engineered server for FusionFall. It primarily targets v
 
 ### Getting Started
 #### Method A: Installer (Easiest)
-1. Download the client installer by clicking [here](https://github.com/OpenFusionProject/OpenFusion/releases/download/1.6/OpenFusionClient-1.6-Installer.exe) - choose to run the file.
-2. After a few moments, the client should open: you will be given a choice between two public servers by default. Select the one you wish to play and click connect.
+1. Download the launcher installer by clicking [here](https://github.com/OpenFusionProject/OpenFusionLauncher/releases/latest/download/OpenFusionLauncher-Windows-Installer.exe) - choose to run the file.
+2. After a few moments, the launcher should open: you will be given a choice between two public servers by default. Select the one you wish to play and click connect.
 3. To create an account, simply enter the details you wish to use at the login screen then click Log In. Do *not* click register, as this will just lead to a blank screen.
 4. Make a new character, and enjoy the game! Your progress will be saved automatically, and you can resume playing by entering the login details you used in step 3.
 
 #### Method B: Standalone .zip file
-1. Download the client from [here](https://github.com/OpenFusionProject/OpenFusion/releases/download/1.6/OpenFusionClient-1.6.zip).
+1. Download the launcher from [here](https://github.com/OpenFusionProject/OpenFusionLauncher/releases/latest/download/OpenFusionLauncher-Windows-Portable.zip).
 2. Extract it to a folder of your choice. Note: if you are upgrading from an older version, it is preferable to start with a fresh folder rather than overwriting a previous install.
-3. Run OpenFusionClient.exe - you will be given a choice between two public servers by default. Select the one you wish to play and click connect.
+3. Run OpenFusionLauncher.exe - you will be given a choice between two public servers by default. Select the one you wish to play and click connect.
 4. To create an account, simply enter the details you wish to use at the login screen then click Log In. Do *not* click register, as this will just lead to a blank screen.
 5. Make a new character, and enjoy the game! Your progress will be saved automatically, and you can resume playing by entering the login details you used in step 4.
 
 Instructions for getting the client to run on Linux through Wine can be found [here](https://openfusion.dev/docs/guides/running-on-linux/).
 
 ### Hosting a server
-1. Grab `OpenFusionServer-1.6-Original.zip` or `OpenFusionServer-1.6-Academy.zip` from [here](https://github.com/OpenFusionProject/OpenFusion/releases/tag/1.6).
+1. Grab `OpenFusionServer-Windows-Original.zip` or `OpenFusionServer-Windows-Academy.zip` from [here](https://github.com/OpenFusionProject/OpenFusion/releases/latest).
 2. Extract it to a folder of your choice, then run `winfusion.exe` (Windows) or `fusion` (Linux) to start the server.
 3. Add a new server to the client's list:
     1. For Description, enter anything you want. This is what will show up in the server list.

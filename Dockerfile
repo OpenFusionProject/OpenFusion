@@ -38,4 +38,4 @@ EXPOSE 23000/tcp
 EXPOSE 23001/tcp
 EXPOSE 8003/tcp
 
-LABEL Name=openfusion Version=1.6.0
+LABEL Name=openfusion Version=2.0.0

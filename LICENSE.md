@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2020-2024 OpenFusion Contributors
+Copyright (c) 2020-2025 OpenFusion Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
