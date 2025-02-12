@@ -8,6 +8,7 @@ on:
         - .github/workflows/check-builds.yaml
         - CMakeLists.txt
         - Makefile
+        - tdata
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
     paths:
@@ -48,6 +49,7 @@ jobs:
               Rename-Item -Path "bin/fusion" -newName "$version-fusion"
               Write-Output "Built version $version"
           }
+          Copy-Item -Path "tdata" -Destination "bin/tdata" -Recurse
           Copy-Item -Path "sql" -Destination "bin/sql" -Recurse
           Copy-Item -Path "config.ini" -Destination "bin"
         shell: pwsh
@@ -100,6 +102,7 @@ jobs:
                   }
                   Rename-Item -Path "bin/$configuration" -newName "$version-$configuration"
                   Write-Output "Built version $version $configuration"
+                  Copy-Item -Path "tdata" -Destination "bin/$version-$configuration/tdata" -Recurse
                   Copy-Item -Path "sql" -Destination "bin/$version-$configuration/sql" -Recurse
                   Copy-Item -Path "config.ini" -Destination "bin/$version-$configuration"
               }
