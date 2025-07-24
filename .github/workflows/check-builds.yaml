@@ -60,7 +60,7 @@ jobs:
           path: bin
 
   windows-build:
-    runs-on: windows-2019
+    runs-on: windows-2022
     steps:
       - name: Set environment
         run: $s = $env:GITHUB_SHA.subString(0, 7); echo "SHORT_SHA=$s" >> $env:GITHUB_ENV
@@ -75,7 +75,7 @@ jobs:
           $configurations = "Release"
           # "Debug" builds are disabled, since we don't really need them
 
-          $vsPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise"
+          $vsPath = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
 
           Import-Module "$vsPath\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation
@@ -111,7 +111,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: 'windows-vs2019-bin-x64-${{ env.SHORT_SHA }}'
+          name: 'windows-vs2022-bin-x64-${{ env.SHORT_SHA }}'
           path: bin
 
   copy-artifacts:
