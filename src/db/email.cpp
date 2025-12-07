@@ -329,12 +329,23 @@ bool Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments, Pl
         sqlite3_bind_int(stmt, 7, item.iTimeLimit);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
-            std::cout << "[WARN] Database: Failed to send email: " << sqlite3_errmsg(db) << std::endl;
-            sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-            sqlite3_finalize(stmt);
-            return false;
+            // very likely the UNIQUE constraint failing due to
+            // orphaned attachments from an old email.
+            // try deleting them first
+            _deleteEmailAttachments(data->PlayerId, data->MsgIndex, -1);
+
+            // try again
+            sqlite3_reset(stmt);
+            if (sqlite3_step(stmt) != SQLITE_DONE) {
+                // different error, give up
+                std::cout << "[WARN] Database: Failed to send email: " << sqlite3_errmsg(db) << std::endl;
+                sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+                sqlite3_finalize(stmt);
+                return false;
+            }
         }
         sqlite3_reset(stmt);
+        sqlite3_clear_bindings(stmt);
     }
     sqlite3_finalize(stmt);
 
