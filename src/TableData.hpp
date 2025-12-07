@@ -12,7 +12,7 @@
 // these are added to the NPC's static key to avoid collisions
 const int NPC_ID_OFFSET = 1;
 const int MOB_ID_OFFSET = 10000;
-const int MOB_GROUP_ID_OFFSET = 20000;
+const int MOB_GROUP_ID_OFFSET = 30000;
 
 // typedef for JSON object because I don't want to type nlohmann::json every time
 typedef nlohmann::json json;
