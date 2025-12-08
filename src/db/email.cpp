@@ -196,18 +196,16 @@ void Database::updateEmailContent(EmailData* data) {
     sqlite3_finalize(stmt);
 }
 
-void Database::deleteEmailAttachments(int playerID, int index, int slot) {
-    std::lock_guard<std::mutex> lock(dbCrit);
-
+static void _deleteEmailAttachments(int playerID, int index, int slot) {
     sqlite3_stmt* stmt;
 
     std::string sql(R"(
         DELETE FROM EmailItems
-        WHERE PlayerID = ? AND MsgIndex = ?;
+        WHERE PlayerID = ? AND MsgIndex = ?
         )");
 
     if (slot != -1)
-        sql += " AND \"Slot\" = ? ";
+        sql += " AND \"Slot\" = ?";
     sql += ";";
 
     sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, NULL);
@@ -219,6 +217,11 @@ void Database::deleteEmailAttachments(int playerID, int index, int slot) {
     if (sqlite3_step(stmt) != SQLITE_DONE)
         std::cout << "[WARN] Database: Failed to delete email attachments: " << sqlite3_errmsg(db) << std::endl;
     sqlite3_finalize(stmt);
+}
+
+void Database::deleteEmailAttachments(int playerID, int index, int slot) {
+    std::lock_guard<std::mutex> lock(dbCrit);
+    _deleteEmailAttachments(playerID, index, slot);
 }
 
 void Database::deleteEmails(int playerID, int64_t* indices) {
@@ -234,12 +237,15 @@ void Database::deleteEmails(int playerID, int64_t* indices) {
     sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     for (int i = 0; i < 5; i++) {
+        int64_t msgIndex = indices[i];
         sqlite3_bind_int(stmt, 1, playerID);
-        sqlite3_bind_int64(stmt, 2, indices[i]);
+        sqlite3_bind_int64(stmt, 2, msgIndex);
         if (sqlite3_step(stmt) != SQLITE_DONE) {
             std::cout << "[WARN] Database: Failed to delete an email: " << sqlite3_errmsg(db) << std::endl;
         }
         sqlite3_reset(stmt);
+        // delete all attachments
+        _deleteEmailAttachments(playerID, msgIndex, -1);
     }
     sqlite3_finalize(stmt);
 
@@ -323,12 +329,23 @@ bool Database::sendEmail(EmailData* data, std::vector<sItemBase> attachments, Pl
         sqlite3_bind_int(stmt, 7, item.iTimeLimit);
 
         if (sqlite3_step(stmt) != SQLITE_DONE) {
-            std::cout << "[WARN] Database: Failed to send email: " << sqlite3_errmsg(db) << std::endl;
-            sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
-            sqlite3_finalize(stmt);
-            return false;
+            // very likely the UNIQUE constraint failing due to
+            // orphaned attachments from an old email.
+            // try deleting them first
+            _deleteEmailAttachments(data->PlayerId, data->MsgIndex, -1);
+
+            // try again
+            sqlite3_reset(stmt);
+            if (sqlite3_step(stmt) != SQLITE_DONE) {
+                // different error, give up
+                std::cout << "[WARN] Database: Failed to send email: " << sqlite3_errmsg(db) << std::endl;
+                sqlite3_exec(db, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+                sqlite3_finalize(stmt);
+                return false;
+            }
         }
         sqlite3_reset(stmt);
+        sqlite3_clear_bindings(stmt);
     }
     sqlite3_finalize(stmt);
 
