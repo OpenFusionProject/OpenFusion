@@ -45,6 +45,7 @@ namespace settings {
     extern int MONITORINTERVAL;
     extern bool DISABLEFIRSTUSEFLAG;
     extern bool IZRACESCORECAPPED;
+    extern bool DROPFIXESENABLED;
 
     void init();
 }

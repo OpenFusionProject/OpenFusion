@@ -74,6 +74,9 @@ int settings::EVENTMODE = 0;
 // race settings
 bool settings::IZRACESCORECAPPED = true;
 
+// drop fixes enabled
+bool settings::DROPFIXESENABLED = false;
+
 void settings::init() {
     INIReader reader("config.ini");
 
@@ -117,6 +120,7 @@ void settings::init() {
     TDATADIR = reader.Get("shard", "tdatadir", TDATADIR);
     PATCHDIR = reader.Get("shard", "patchdir", PATCHDIR);
     ENABLEDPATCHES = reader.Get("shard", "enabledpatches", ENABLEDPATCHES);
+    DROPFIXESENABLED = reader.GetBoolean("shard", "dropfixesenabled", DROPFIXESENABLED);
     ACCLEVEL = reader.GetInteger("shard", "accountlevel", ACCLEVEL);
     EVENTMODE = reader.GetInteger("shard", "eventmode", EVENTMODE);
     DISABLEFIRSTUSEFLAG = reader.GetBoolean("shard", "disablefirstuseflag", DISABLEFIRSTUSEFLAG);
@@ -126,4 +130,13 @@ void settings::init() {
     MONITORPORT = reader.GetInteger("monitor", "port", MONITORPORT);
     MONITORLISTENIP = reader.Get("monitor", "listenip", MONITORLISTENIP);
     MONITORINTERVAL = reader.GetInteger("monitor", "interval", MONITORINTERVAL);
+
+    if (DROPFIXESENABLED) {
+        std::cout << "[INFO] Drop fixes enabled" << std::endl;
+        if (ENABLEDPATCHES.empty()) {
+            ENABLEDPATCHES = "0104-fix";
+        } else {
+            ENABLEDPATCHES += " 0104-fix 1013-fix";
+        }
+    }
 }
