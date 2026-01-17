@@ -134,9 +134,9 @@ void settings::init() {
     if (DROPFIXESENABLED) {
         std::cout << "[INFO] Drop fixes enabled" << std::endl;
         if (ENABLEDPATCHES.empty()) {
-            ENABLEDPATCHES = "0104-fix";
+            ENABLEDPATCHES = "0104-fixes";
         } else {
-            ENABLEDPATCHES += " 0104-fix 1013-fix";
+            ENABLEDPATCHES += " 0104-fixes 1013-fixes";
         }
     }
 }
