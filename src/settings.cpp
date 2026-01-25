@@ -136,7 +136,10 @@ void settings::init() {
         if (ENABLEDPATCHES.empty()) {
             ENABLEDPATCHES = "0104-fixes";
         } else {
-            ENABLEDPATCHES += " 0104-fixes 1013-fixes";
+            ENABLEDPATCHES += " 0104-fixes";
+            if (ENABLEDPATCHES.find("1013") != std::string::npos) {
+                ENABLEDPATCHES += " 1013-fixes";
+            }
         }
     }
 }
