@@ -16,6 +16,7 @@ private:
 
     static void keepAliveTimer(CNServer*, time_t);
     static void periodicSaveTimer(CNServer* serv, time_t currTime);
+    static void periodicItemExpireTimer(CNServer* serv, time_t currTime);
 
 public:
     static std::map<uint32_t, PacketHandler> ShardPackets;

@@ -117,7 +117,7 @@ namespace Items {
 
     int findFreeSlot(Player *plr);
     Item* getItemData(int32_t id, int32_t type);
-    void checkItemExpire(CNSocket* sock, Player* player);
+    size_t checkAndRemoveExpiredItems(CNSocket* sock, Player* player);
     void setItemStats(Player* plr);
     void updateEquips(CNSocket* sock, Player* plr);
 

@@ -117,6 +117,25 @@ sPCAppearanceData Player::getAppearanceData() {
     return data;
 }
 
+bool Player::hasQuestBoost() const {
+    const sItemBase& booster = Equip[10];
+    return booster.iID == 153 && booster.iOpt > 0;
+}
+
+bool Player::hasHunterBoost() const {
+    const sItemBase& booster = Equip[11];
+    return booster.iID == 154 && booster.iOpt > 0;
+}
+
+bool Player::hasRacerBoost() const {
+    const sItemBase& booster = Equip[9];
+    return booster.iID == 155 && booster.iOpt > 0;
+}
+
+bool Player::hasSuperBoost() const {
+    return Player::hasQuestBoost() && Player::hasHunterBoost() && Player::hasRacerBoost();
+}
+
 // TODO: this is less effiecient than it was, because of memset()
 void Player::enterIntoViewOf(CNSocket *sock) {
     INITSTRUCT(sP_FE2CL_PC_NEW, pkt);

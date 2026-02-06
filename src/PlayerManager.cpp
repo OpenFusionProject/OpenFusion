@@ -243,9 +243,19 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
 
     // client doesnt read this, it gets it from charinfo
     // response.PCLoadData2CL.PCStyle2 = plr->PCStyle2;
-    // inventory
-    for (int i = 0; i < AEQUIP_COUNT; i++)
+
+    // equipment (except nanocom boosters)
+    for (int i = 0; i < 9; i++)
         response.PCLoadData2CL.aEquip[i] = plr->Equip[i];
+    // equipment (nanocom boosters)
+    int32_t serverTime = getTime() / 1000UL;
+    int32_t timestamp = getTimestamp();
+    for (int i = 9; i < AEQUIP_COUNT; i++) {
+        response.PCLoadData2CL.aEquip[i] = plr->Equip[i];
+        // client subtracts server time, then adds local timestamp to the item to print expiration time
+        response.PCLoadData2CL.aEquip[i].iTimeLimit = std::max(0, plr->Equip[i].iTimeLimit - timestamp + serverTime);
+    }
+    // inventory
     for (int i = 0; i < AINVEN_COUNT; i++)
         response.PCLoadData2CL.aInven[i] = plr->Inven[i];
     // quest inventory
@@ -384,7 +394,7 @@ static void loadPlayer(CNSocket* sock, CNPacketData* data) {
         Chat::sendServerMessage(sock, settings::MOTDSTRING); // MOTD
         Missions::failInstancedMissions(sock); // auto-fail missions
         Buddies::sendBuddyList(sock); // buddy list
-        Items::checkItemExpire(sock, plr); // vehicle expiration
+        Items::checkAndRemoveExpiredItems(sock, plr); // vehicle and booster expiration
 
         plr->initialLoadDone = true;
     }
@@ -495,7 +505,6 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
     resp2.PCRegenDataForOtherPC.iAngle = plr->angle;
 
     if (plr->group != nullptr) {
-        
         resp2.PCRegenDataForOtherPC.iConditionBitFlag = plr->getCompositeCondition();
         resp2.PCRegenDataForOtherPC.iPCState = plr->iPCState;
         resp2.PCRegenDataForOtherPC.iSpecialState = plr->iSpecialState;
@@ -517,9 +526,7 @@ static void enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     if (plr->instanceID != 0)
         return;
 
-    bool expired = plr->Equip[8].iTimeLimit < getTimestamp() && plr->Equip[8].iTimeLimit != 0;
-
-    if (plr->Equip[8].iID > 0 && !expired) {
+    if (plr->Equip[8].iID > 0) {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_SUCC, response);
         sock->sendPacket(response, P_FE2CL_PC_VEHICLE_ON_SUCC);
 
@@ -533,30 +540,6 @@ static void enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     } else {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_FAIL, response);
         sock->sendPacket(response, P_FE2CL_PC_VEHICLE_ON_FAIL);
-
-        // check if vehicle didn't expire
-        if (expired) {
-            plr->expiringItem.eIL = 0;
-            plr->expiringItem.iSlotNum = 8;
-            Items::checkItemExpire(sock, plr);
-        }
-    }
-}
-
-static void exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
-    Player* plr = getPlayer(sock);
-
-    if (plr->iPCState & 8) {
-        INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
-        sock->sendPacket(response, P_FE2CL_PC_VEHICLE_OFF_SUCC);
-
-        // send to other players
-        plr->iPCState &= ~8;
-        INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
-        response2.iPC_ID = plr->iID;
-        response2.iState = plr->iPCState;
-
-        sendToViewable(sock, response2, P_FE2CL_PC_STATE_CHANGE);
     }
 }
 
@@ -607,6 +590,23 @@ static void setFirstUseFlag(CNSocket* sock, CNPacketData* data) {
 }
 
 #pragma region Helper methods
+void PlayerManager::exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
+    Player* plr = getPlayer(sock);
+
+    if (plr->iPCState & 8) {
+        INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
+        sock->sendPacket(response, P_FE2CL_PC_VEHICLE_OFF_SUCC);
+
+        // send to other players
+        plr->iPCState &= ~8;
+        INITSTRUCT(sP_FE2CL_PC_STATE_CHANGE, response2);
+        response2.iPC_ID = plr->iID;
+        response2.iState = plr->iPCState;
+
+        sendToViewable(sock, response2, P_FE2CL_PC_STATE_CHANGE);
+    }
+}
+
 Player *PlayerManager::getPlayer(CNSocket* key) {
     if (players.find(key) != players.end())
         return players[key];

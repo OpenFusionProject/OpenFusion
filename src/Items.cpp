@@ -33,6 +33,9 @@ std::map<int32_t, int32_t> Items::EventToDropMap;
 std::map<int32_t, int32_t> Items::MobToDropMap;
 std::map<int32_t, ItemSet> Items::ItemSets;
 
+// 1 week
+#define NANOCOM_BOOSTER_DURATION 604800
+
 #ifdef ACADEMY
 std::map<int32_t, int32_t> Items::NanoCapsules; // crate id -> nano id
 
@@ -502,7 +505,81 @@ static void useGumball(CNSocket* sock, CNPacketData* data) {
 }
 
 static void useNanocomBooster(CNSocket* sock, CNPacketData* data) {
+    // Guard against using nanocom boosters in before and including 0104
+    // either path should be optimized by the compiler, effectively a no-op
+    if (AEQUIP_COUNT < 12) {
+        std::cout << "[WARN] Nanocom Booster use not supported in this version" << std::endl;
+        INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_FAIL, respFail);
+        sock->sendPacket(respFail, P_FE2CL_REP_PC_ITEM_USE_FAIL);
+        return;
+    }
 
+    auto request = (sP_CL2FE_REQ_ITEM_USE*)data->buf;
+    Player* player = PlayerManager::getPlayer(sock);
+    sItemBase item = player->Inven[request->iSlotNum];
+
+    // consume item
+    item.iOpt -= 1;
+    if (item.iOpt == 0)
+        item = {};
+
+    // decide on the booster to activate
+    std::vector<int16_t> boosterIDs;
+    switch(item.iID) {
+    case 153:
+    case 154:
+    case 155:
+        boosterIDs.push_back(item.iID);
+        break;
+    case 156:
+        boosterIDs.push_back(153);
+        boosterIDs.push_back(154);
+        boosterIDs.push_back(155);
+        break;
+    }
+
+    // client wants to subtract server time in seconds from the time limit for display purposes
+    int32_t timeLimitDisplayed = (getTime() / 1000UL) + NANOCOM_BOOSTER_DURATION;
+    // in actuality we will use the timestamp of booster activation to the item time limit similar to vehicles
+    // and this is how it will be saved to the database
+    int32_t timeLimit = getTimestamp() + NANOCOM_BOOSTER_DURATION;
+
+    // give item(s) to inv slots
+    for (int16_t itemID : boosterIDs) {
+        sItemBase boosterItem = { 7, itemID, 1, timeLimitDisplayed };
+
+        // 155 -> 9, 153 -> 10, 154 -> 11
+        int slot = 9 + ((itemID - 152) % 3);
+
+        // give item to the equip slot
+        INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp);
+        resp.eIL = (int)SlotType::EQUIP;
+        resp.iSlotNum = slot;
+        resp.Item = boosterItem;
+        sock->sendPacket(resp, P_FE2CL_REP_PC_GIVE_ITEM_SUCC);
+
+        // inform client of equip change (non visible so it's okay to just send to the player)
+        INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, equipChange);
+        equipChange.iPC_ID = player->iID;
+        equipChange.iEquipSlotNum = slot;
+        equipChange.EquipSlotItem = boosterItem;
+        sock->sendPacket(equipChange, P_FE2CL_PC_EQUIP_CHANGE);
+
+        boosterItem.iTimeLimit = timeLimit;
+        // should replace existing booster in slot if it exists, i.e. you can refresh your boosters
+        player->Equip[slot] = boosterItem;
+    }
+
+    // send item use success packet
+    INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_SUCC, respUse);
+    respUse.iPC_ID = player->iID;
+    respUse.eIL = (int)SlotType::INVENTORY;
+    respUse.iSlotNum = request->iSlotNum;
+    respUse.RemainItem = item;
+    sock->sendPacket(respUse, P_FE2CL_REP_PC_ITEM_USE_SUCC);
+
+    // update inventory serverside
+    player->Inven[request->iSlotNum] = item;
 }
 
 static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
@@ -666,39 +743,87 @@ Item* Items::getItemData(int32_t id, int32_t type) {
     return nullptr;
 }
 
-void Items::checkItemExpire(CNSocket* sock, Player* player) {
-    if (player->expiringItem.eIL == 0 && player->expiringItem.iSlotNum == 0)
-        return;
+size_t Items::checkAndRemoveExpiredItems(CNSocket* sock, Player* player) {
+    int32_t currentTime = getTimestamp();
 
-    /* prepare packet
-    * yes, this is a varadic packet, however analyzing client behavior and code
-    * it only checks takes the first item sent into account
-    * yes, this is very stupid
-    * therefore, we delete all but 1 expired item while loading player
-    * to delete the last one here so player gets a notification
-    */
+    // if there are expired items in bank just remove them silently
+    for (int i = 0; i < ABANK_COUNT; i++) {
+        if (player->Bank[i].iTimeLimit < currentTime && player->Bank[i].iTimeLimit != 0) {
+            memset(&player->Bank[i], 0, sizeof(sItemBase));
+        }
+    }
 
-    const size_t resplen = sizeof(sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM) + sizeof(sTimeLimitItemDeleteInfo2CL);
+    // collect items to remove and data for the packet
+    std::vector<sItemBase*> toRemove;
+    std::vector<sTimeLimitItemDeleteInfo2CL> itemData;
+
+    // equipped items
+    for (int i = 0; i < AEQUIP_COUNT; i++) {
+        if (player->Equip[i].iOpt > 0 && player->Equip[i].iTimeLimit < currentTime && player->Equip[i].iTimeLimit != 0) {
+            toRemove.push_back(&player->Equip[i]);
+            itemData.push_back({ (int)SlotType::EQUIP, i });
+        }
+    }
+    // inventory
+    for (int i = 0; i < AINVEN_COUNT; i++) {
+        if (player->Inven[i].iTimeLimit < currentTime && player->Inven[i].iTimeLimit != 0) {
+            toRemove.push_back(&player->Inven[i]);
+            itemData.push_back({ (int)SlotType::INVENTORY, i });
+        }
+    }
+
+    if (itemData.empty())
+        return 0;
+
+    // prepare packet containing all expired items to delete
+    // this is expected for academy
+    // pre-academy only checks the first item in the packet
+    const size_t resplen = sizeof(sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM) + sizeof(sTimeLimitItemDeleteInfo2CL) * itemData.size();
+
+    // 8 bytes * 262 items = 2096 bytes, in total this shouldn't exceed 2500 bytes
     assert(resplen < CN_PACKET_BODY_SIZE);
-    // we know it's only one trailing struct, so we can skip full validation
-    uint8_t respbuf[resplen]; // not a variable length array, don't worry
-    auto packet = (sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM*)respbuf;
-    sTimeLimitItemDeleteInfo2CL* itemData = (sTimeLimitItemDeleteInfo2CL*)(respbuf + sizeof(sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM));
-    memset(respbuf, 0, resplen);
+    uint8_t respbuf[CN_PACKET_BODY_SIZE];
+    memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 
-    packet->iItemListCount = 1;
-    itemData->eIL = player->expiringItem.eIL;
-    itemData->iSlotNum = player->expiringItem.iSlotNum;
+    auto packet = (sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM*)respbuf;
+
+    for (size_t i = 0; i < itemData.size(); i++) {
+        auto itemToDeletePtr = (sTimeLimitItemDeleteInfo2CL*)(
+            respbuf + sizeof(sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM) + sizeof(sTimeLimitItemDeleteInfo2CL) * i
+        );
+        itemToDeletePtr->eIL = itemData[i].eIL;
+        itemToDeletePtr->iSlotNum = itemData[i].iSlotNum;
+        packet->iItemListCount++;
+    }
+
     sock->sendPacket((void*)&respbuf, P_FE2CL_PC_DELETE_TIME_LIMIT_ITEM, resplen);
 
-    // delete serverside
-    if (player->expiringItem.eIL == 0)
-        memset(&player->Equip[player->expiringItem.iSlotNum], 0, sizeof(sItemBase));
-    else
-        memset(&player->Inven[player->expiringItem.iSlotNum], 0, sizeof(sItemBase));
+    // delete items serverside and send unequip packets
+    for (size_t i = 0; i < itemData.size(); i++) {
+        sItemBase* item = toRemove[i];
+        memset(item, 0, sizeof(sItemBase));
 
-    player->expiringItem.eIL = 0;
-    player->expiringItem.iSlotNum = 0;
+        // send item delete success packet
+        // required for pre-academy builds
+        INITSTRUCT(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC, itemDelete);
+        itemDelete.eIL = itemData[i].eIL;
+        itemDelete.iSlotNum = itemData[i].iSlotNum;
+        sock->sendPacket(itemDelete, P_FE2CL_REP_PC_ITEM_DELETE_SUCC);
+
+        // also update item equips if needed
+        if (itemData[i].eIL == (int)SlotType::EQUIP) {
+            INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, equipChange);
+            equipChange.iPC_ID = player->iID;
+            equipChange.iEquipSlotNum = itemData[i].iSlotNum;
+            sock->sendPacket(equipChange, P_FE2CL_PC_EQUIP_CHANGE);
+        }
+    }
+
+    // exit vehicle if player no longer has one equipped (function checks pcstyle)
+    if (player->Equip[8].iID == 0)
+        PlayerManager::exitPlayerVehicle(sock, nullptr);
+
+    return itemData.size();
 }
 
 void Items::setItemStats(Player* plr) {
