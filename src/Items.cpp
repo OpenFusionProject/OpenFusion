@@ -870,7 +870,68 @@ static void getMobDrop(sItemBase* reward, const std::vector<int>& weights, const
     reward->iID = crateIds[chosenIndex];
 }
 
-static void giveSingleDrop(CNSocket *sock, Mob* mob, int mobDropId, const DropRoll& rolled) {
+static int getTaroDrop(Player* plr, int baseAmount, int groupSize) {
+    double bonus = plr->hasBuff(ECSB_REWARD_CASH) ? (Nanos::getNanoBoost(plr) ? 1.23 : 1.2) : 1.0;
+    double groupEffect = 1.0 / groupSize;
+    int amount = baseAmount * bonus * groupEffect;
+    return amount;
+}
+
+static int getFMDrop(Player* plr, int baseAmount, int levelDiff, int groupSize) {
+    double bonus = plr->hasBuff(ECSB_REWARD_BLOB) ? (Nanos::getNanoBoost(plr) ? 1.23 : 1.2) : 1.0;
+    double boosterEffect = plr->hasHunterBoost() ? (plr->hasQuestBoost() && plr->hasRacerBoost() ? 1.75 : 1.5) : 1.0;
+
+    double levelEffect = 1.0;
+    if (levelDiff >= 6) {
+        // if player is 6 or more levels above mob, no FM is dropped
+        levelEffect = 0.0;
+    } else if (levelDiff <= -3) {
+        // if player is 3 or more levels below mob, FM is 1.2x
+        levelEffect = 1.2;
+    } else {
+        switch (levelDiff) {
+            // if player is within 1 level of the mob, FM is untouched
+            // otherwise, follow the table below
+            case 5:
+                levelEffect = 0.25;
+                break;
+            case 4:
+                levelEffect = 0.5;
+                break;
+            case 3:
+                levelEffect = 0.75;
+                break;
+            case 2:
+                // this case is more lenient
+                levelEffect = 0.899;
+                break;
+            case -2:
+                levelEffect = 1.1;
+                break;
+        }
+    }
+
+    double groupEffect = 1.0;
+    switch (groupSize) {
+        // if no group, FM is untouched
+        // otherwise, follow the table below
+        case 2:
+            groupEffect = 0.875;
+            break;
+        case 3:
+            groupEffect = 0.75;
+            break;
+        case 4:
+            // this case is more lenient
+            groupEffect = 0.688;
+            break;
+    }
+
+    int amount = baseAmount * bonus * boosterEffect * levelEffect * groupEffect;
+    return amount;
+}
+
+static void giveSingleDrop(CNSocket *sock, Mob* mob, int mobDropId, const DropRoll& rolled, int groupSize) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
@@ -922,30 +983,11 @@ static void giveSingleDrop(CNSocket *sock, Mob* mob, int mobDropId, const DropRo
     MiscDropType& miscDropType = Items::MiscDropTypes[drop.miscDropTypeId];
 
     if (rolled.taros % miscDropChance.taroDropChanceTotal < miscDropChance.taroDropChance) {
-        plr->money += miscDropType.taroAmount;
-        // money nano boost
-        if (plr->hasBuff(ECSB_REWARD_CASH)) {
-            int boost = 0;
-            if (Nanos::getNanoBoost(plr)) // for gumballs
-                boost = 1;
-            plr->money += miscDropType.taroAmount * (5 + boost) / 25;
-        }
+        plr->money += getTaroDrop(plr, miscDropType.taroAmount, groupSize);
     }
     if (rolled.fm % miscDropChance.fmDropChanceTotal < miscDropChance.fmDropChance) {
-        // formula for scaling FM with player/mob level difference
-        // TODO: adjust this better
         int levelDifference = plr->level - mob->level;
-        int fm = miscDropType.fmAmount;
-        if (levelDifference > 0)
-            fm = levelDifference < 10 ? fm - (levelDifference * fm / 10) : 0;
-        // scavenger nano boost
-        if (plr->hasBuff(ECSB_REWARD_BLOB)) {
-            int boost = 0;
-            if (Nanos::getNanoBoost(plr)) // for gumballs
-                boost = 1;
-            fm += fm * (5 + boost) / 25;
-        }
-
+        int fm = getFMDrop(plr, miscDropType.fmAmount, levelDifference, groupSize);
         Missions::updateFusionMatter(sock, fm);
     }
 
@@ -989,7 +1031,7 @@ static void giveSingleDrop(CNSocket *sock, Mob* mob, int mobDropId, const DropRo
     }
 }
 
-void Items::giveMobDrop(CNSocket *sock, Mob* mob, const DropRoll& rolled, const DropRoll& eventRolled) {
+void Items::giveMobDrop(CNSocket *sock, Mob* mob, const DropRoll& rolled, const DropRoll& eventRolled, int groupSize) {
     // sanity check
     if (Items::MobToDropMap.find(mob->type) == Items::MobToDropMap.end()) {
         std::cout << "[WARN] Mob ID " << mob->type << " has no drops assigned" << std::endl;
@@ -998,7 +1040,7 @@ void Items::giveMobDrop(CNSocket *sock, Mob* mob, const DropRoll& rolled, const 
     // find mob drop id
     int mobDropId = Items::MobToDropMap[mob->type];
 
-    giveSingleDrop(sock, mob, mobDropId, rolled);
+    giveSingleDrop(sock, mob, mobDropId, rolled, groupSize);
 
     if (settings::EVENTMODE != 0) {
         // sanity check
@@ -1009,7 +1051,7 @@ void Items::giveMobDrop(CNSocket *sock, Mob* mob, const DropRoll& rolled, const 
         // find mob drop id
         int eventMobDropId = Items::EventToDropMap[settings::EVENTMODE];
 
-        giveSingleDrop(sock, mob, eventMobDropId, eventRolled);
+        giveSingleDrop(sock, mob, eventMobDropId, eventRolled, groupSize);
     }
 }
 

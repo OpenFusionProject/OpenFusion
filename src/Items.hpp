@@ -113,7 +113,7 @@ namespace Items {
     void init();
 
     // mob drops
-    void giveMobDrop(CNSocket *sock, Mob *mob, const DropRoll& rolled, const DropRoll& eventRolled);
+    void giveMobDrop(CNSocket *sock, Mob *mob, const DropRoll& rolled, const DropRoll& eventRolled, int groupSize);
 
     int findFreeSlot(Player *plr);
     Item* getItemData(int32_t id, int32_t type);
