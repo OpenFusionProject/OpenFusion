@@ -14,6 +14,8 @@ namespace PlayerManager {
     extern std::map<CNSocket*, Player*> players;
     void init();
 
+    void exitPlayerVehicle(CNSocket* sock, CNPacketData* data);
+
     void removePlayer(CNSocket* key);
 
     void updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, uint64_t I, int angle);

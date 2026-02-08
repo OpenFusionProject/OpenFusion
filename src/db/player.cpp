@@ -2,40 +2,6 @@
 
 // Loading and saving players to/from the DB
 
-static void removeExpiredVehicles(Player* player) {
-    int32_t currentTime = getTimestamp();
-
-    // if there are expired vehicles in bank just remove them silently
-    for (int i = 0; i < ABANK_COUNT; i++) {
-        if (player->Bank[i].iType == 10 && player->Bank[i].iTimeLimit < currentTime && player->Bank[i].iTimeLimit != 0) {
-            memset(&player->Bank[i], 0, sizeof(sItemBase));
-        }
-    }
-
-    // we want to leave only 1 expired vehicle on player to delete it with the client packet
-    std::vector<sItemBase*> toRemove;
-
-    // equipped vehicle
-    if (player->Equip[8].iOpt > 0 && player->Equip[8].iTimeLimit < currentTime && player->Equip[8].iTimeLimit != 0) {
-        toRemove.push_back(&player->Equip[8]);
-        player->toRemoveVehicle.eIL = 0;
-        player->toRemoveVehicle.iSlotNum = 8;
-    }
-    // inventory
-    for (int i = 0; i < AINVEN_COUNT; i++) {
-        if (player->Inven[i].iType == 10 && player->Inven[i].iTimeLimit < currentTime && player->Inven[i].iTimeLimit != 0) {
-            toRemove.push_back(&player->Inven[i]);
-            player->toRemoveVehicle.eIL = 1;
-            player->toRemoveVehicle.iSlotNum = i;
-        }
-    }
-
-    // delete all but one vehicles, leave last one for ceremonial deletion
-    for (int i = 0; i < (int)toRemove.size()-1; i++) {
-        memset(toRemove[i], 0, sizeof(sItemBase));
-    }
-}
-
 void Database::getPlayer(Player* plr, int id) {
     std::lock_guard<std::mutex> lock(dbCrit);
 
@@ -159,8 +125,6 @@ void Database::getPlayer(Player* plr, int id) {
     }
 
     sqlite3_finalize(stmt);
-
-    removeExpiredVehicles(plr);
 
     // get quest inventory
     sql = R"(

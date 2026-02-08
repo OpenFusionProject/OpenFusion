@@ -65,8 +65,6 @@ struct Player : public Entity, public ICombatant {
     sItemBase QInven[AQINVEN_COUNT] = {};
     int32_t CurrentMissionID = 0;
 
-    sTimeLimitItemDeleteInfo2CL toRemoveVehicle = {};
-
     Group* group = nullptr;
 
     bool notify = false;
@@ -111,4 +109,8 @@ struct Player : public Entity, public ICombatant {
 
     sNano* getActiveNano();
     sPCAppearanceData getAppearanceData();
+    bool hasQuestBoost() const;
+    bool hasHunterBoost() const;
+    bool hasRacerBoost() const;
+    bool hasSuperBoost() const;
 };

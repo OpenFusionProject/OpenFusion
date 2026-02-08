@@ -813,7 +813,7 @@ void MobAI::onDeath(CombatNPC* npc, EntityRef src) {
         if (plr->group == nullptr) {
             playerRefs.push_back(plr);
             Combat::genQItemRolls(playerRefs, qitemRolls);
-            Items::giveMobDrop(src.sock, self, rolled, eventRolled);
+            Items::giveMobDrop(src.sock, self, rolled, eventRolled, 1);
             Missions::mobKilled(src.sock, self->type, qitemRolls);
         }
         else {
@@ -829,7 +829,7 @@ void MobAI::onDeath(CombatNPC* npc, EntityRef src) {
                 if (dist > 5000)
                     continue;
 
-                Items::giveMobDrop(sockTo, self, rolled, eventRolled);
+                Items::giveMobDrop(sockTo, self, rolled, eventRolled, players.size());
                 Missions::mobKilled(sockTo, self->type, qitemRolls);
             }
         }
