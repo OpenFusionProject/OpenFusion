@@ -177,7 +177,7 @@ void Database::getPlayer(Player* plr, int id) {
         int slot = sqlite3_column_int(stmt, 0);
 
         // for extra safety
-        if (slot < 0)
+        if (slot < 0 || slot >= AQINVEN_COUNT)
             continue;
 
         sItemBase* item = &plr->QInven[slot];

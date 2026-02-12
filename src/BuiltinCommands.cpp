@@ -14,6 +14,7 @@ void BuiltinCommands::setSpecialState(CNSocket* sock, CNPacketData* data) {
     auto setData = (sP_CL2FE_GM_REQ_PC_SPECIAL_STATE_SWITCH*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // HACK: work around the invisible weapon bug
     if (setData->iSpecialStateFlag == CN_SPECIAL_STATE_FLAG__FULL_UI)
         Items::updateEquips(sock, plr);
@@ -31,7 +32,8 @@ void BuiltinCommands::setSpecialState(CNSocket* sock, CNPacketData* data) {
 }
 
 static void setGMSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {
-    if (PlayerManager::getPlayer(sock)->accountLevel > 30)
+    Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr || plr->accountLevel > 30)
         return;
 
     BuiltinCommands::setSpecialState(sock, data);
@@ -39,6 +41,7 @@ static void setGMSpecialSwitchPlayer(CNSocket* sock, CNPacketData* data) {
 
 static void gotoPlayer(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     if (plr->accountLevel > 50)
         return;
 
@@ -56,6 +59,7 @@ static void gotoPlayer(CNSocket* sock, CNPacketData* data) {
 
 static void setValuePlayer(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     if (plr->accountLevel > 50)
         return;
 
@@ -126,6 +130,7 @@ static void setValuePlayer(CNSocket* sock, CNPacketData* data) {
 static void setGMSpecialOnOff(CNSocket *sock, CNPacketData *data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // access check
     if (plr->accountLevel > 30)
         return;
@@ -140,6 +145,7 @@ static void setGMSpecialOnOff(CNSocket *sock, CNPacketData *data) {
     }
 
     Player *otherPlr = PlayerManager::getPlayer(otherSock);
+    if (otherPlr == nullptr) return;
     if (req->iONOFF)
         otherPlr->iSpecialState |= req->iSpecialStateFlag;
     else
@@ -151,6 +157,7 @@ static void setGMSpecialOnOff(CNSocket *sock, CNPacketData *data) {
 static void locatePlayer(CNSocket *sock, CNPacketData *data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // access check
     if (plr->accountLevel > 30)
         return;
@@ -167,6 +174,7 @@ static void locatePlayer(CNSocket *sock, CNPacketData *data) {
     INITSTRUCT(sP_FE2CL_GM_REP_PC_LOCATION, resp);
     Player *otherPlr = PlayerManager::getPlayer(otherSock);
 
+    if (otherPlr == nullptr) return;
     resp.iTargetPC_UID = otherPlr->accountId;
     resp.iTargetPC_ID = otherPlr->iID;
     resp.iShardID = 0; // sharding is unsupported
@@ -186,6 +194,7 @@ static void locatePlayer(CNSocket *sock, CNPacketData *data) {
 static void kickPlayer(CNSocket *sock, CNPacketData *data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // access check
     if (plr->accountLevel > 30)
         return;
@@ -201,6 +210,7 @@ static void kickPlayer(CNSocket *sock, CNPacketData *data) {
 
     Player *otherPlr = PlayerManager::getPlayer(otherSock);
 
+    if (otherPlr == nullptr) return;
     if (plr->accountLevel > otherPlr->accountLevel) {
         Chat::sendServerMessage(sock, "player has higher access level");
         return;
@@ -221,6 +231,7 @@ static void kickPlayer(CNSocket *sock, CNPacketData *data) {
 static void warpToPlayer(CNSocket *sock, CNPacketData *data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // access check
     if (plr->accountLevel > 30)
         return;
@@ -240,6 +251,7 @@ static void warpToPlayer(CNSocket *sock, CNPacketData *data) {
 static void teleportPlayer(CNSocket *sock, CNPacketData *data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // access check
     if (plr->accountLevel > 30)
         return;
@@ -279,11 +291,13 @@ static void teleportPlayer(CNSocket *sock, CNPacketData *data) {
             return;
         }
         goalPlr = PlayerManager::getPlayer(goalSock);
+        if (goalPlr == nullptr) return;
 
         PlayerManager::sendPlayerTo(targetSock, goalPlr->x, goalPlr->y, goalPlr->z, goalPlr->instanceID);
         break;
     case eCN_GM_TeleportType::Unstick:
         targetPlr = PlayerManager::getPlayer(targetSock);
+        if (targetPlr == nullptr) return;
 
         PlayerManager::sendPlayerTo(targetSock, targetPlr->x - unstickRange/2 + Rand::rand(unstickRange),
             targetPlr->y - unstickRange/2 + Rand::rand(unstickRange), targetPlr->z + 80);
@@ -295,6 +309,7 @@ static void itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
     auto itemreq = (sP_CL2FE_REQ_PC_GIVE_ITEM*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     if (plr->accountLevel > 50) {
         // TODO: send fail packet
         return;
@@ -310,6 +325,9 @@ static void itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
             std::cout << "[WARN] Item id " << itemreq->Item.iID << " with type " << itemreq->Item.iType << " is invalid (give item)" << std::endl;
             return;
         }
+
+        if (itemreq->iSlotNum < 0 || itemreq->iSlotNum >= AINVEN_COUNT)
+            return;
 
         if (itemreq->Item.iType == 10) {
             // item is vehicle, set expiration date
@@ -352,6 +370,7 @@ static void nanoGMGiveHandler(CNSocket* sock, CNPacketData* data) {
     auto nano = (sP_CL2FE_REQ_PC_GIVE_NANO*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     if (plr->accountLevel > 50)
         return;
 

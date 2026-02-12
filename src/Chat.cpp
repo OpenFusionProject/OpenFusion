@@ -7,14 +7,13 @@
 #include "PlayerManager.hpp"
 #include "CustomCommands.hpp"
 
-#include <assert.h>
-
 using namespace Chat;
 
 static void chatHandler(CNSocket* sock, CNPacketData* data) {
     auto chat = (sP_CL2FE_REQ_SEND_FREECHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     std::string fullChat = sanitizeText(AUTOU16TOU8(chat->szFreeChat));
     if (fullChat.length() > 1 && fullChat[0] == CMD_PREFIX) { // PREFIX
         CustomCommands::runCmd(fullChat, sock);
@@ -46,6 +45,7 @@ static void menuChatHandler(CNSocket* sock, CNPacketData* data) {
     auto chat = (sP_CL2FE_REQ_SEND_MENUCHAT_MESSAGE*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     std::string fullChat = sanitizeText(AUTOU16TOU8(chat->szFreeChat));
     std::string logLine = "[MenuChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
 
@@ -56,7 +56,7 @@ static void menuChatHandler(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC, resp);
 
     U8toU16(fullChat, (char16_t*)&resp.szFreeChat, sizeof(resp.szFreeChat));
-    resp.iPC_ID = PlayerManager::getPlayer(sock)->iID;
+    resp.iPC_ID = plr->iID;
     resp.iEmoteCode = chat->iEmoteCode;
 
     sock->sendPacket(resp, P_FE2CL_REP_SEND_MENUCHAT_MESSAGE_SUCC);
@@ -69,6 +69,7 @@ static void emoteHandler(CNSocket* sock, CNPacketData* data) {
     auto emote = (sP_CL2FE_REQ_PC_AVATAR_EMOTES_CHAT*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // send to client
     INITSTRUCT(sP_FE2CL_REP_PC_AVATAR_EMOTES_CHAT, resp);
     resp.iEmoteCode = emote->iEmoteCode;
@@ -92,6 +93,7 @@ void Chat::sendServerMessage(CNSocket* sock, std::string msg) {
 
 static void announcementHandler(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     if (plr->accountLevel > 30)
         return; // only players with account level less than 30 (GM) are allowed to use this command
     auto announcement = (sP_CL2FE_GM_REQ_PC_ANNOUNCE*)data->buf;
@@ -132,6 +134,7 @@ static void buddyChatHandler(CNSocket* sock, CNPacketData* data) {
     auto pkt = (sP_CL2FE_REQ_SEND_BUDDY_FREECHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     INITSTRUCT(sP_FE2CL_REP_SEND_BUDDY_FREECHAT_MESSAGE_SUCC, resp);
 
     CNSocket* otherSock = PlayerManager::getSockFromID(pkt->iBuddyPCUID);
@@ -141,6 +144,7 @@ static void buddyChatHandler(CNSocket* sock, CNPacketData* data) {
 
     Player *otherPlr = PlayerManager::getPlayer(otherSock);
 
+    if (otherPlr == nullptr) return;
     resp.iFromPCUID = plr->PCStyle.iPC_UID;
     resp.iToPCUID = pkt->iBuddyPCUID;
     resp.iEmoteCode = pkt->iEmoteCode;
@@ -170,6 +174,7 @@ static void buddyMenuChatHandler(CNSocket* sock, CNPacketData* data) {
     auto pkt = (sP_CL2FE_REQ_SEND_BUDDY_MENUCHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     INITSTRUCT(sP_FE2CL_REP_SEND_BUDDY_MENUCHAT_MESSAGE_SUCC, resp);
 
     CNSocket* otherSock = PlayerManager::getSockFromID(pkt->iBuddyPCUID);
@@ -179,6 +184,7 @@ static void buddyMenuChatHandler(CNSocket* sock, CNPacketData* data) {
 
     Player *otherPlr = PlayerManager::getPlayer(otherSock);
 
+    if (otherPlr == nullptr) return;
     resp.iFromPCUID = plr->PCStyle.iPC_UID;
     resp.iToPCUID = pkt->iBuddyPCUID;
     resp.iEmoteCode = pkt->iEmoteCode;
@@ -209,8 +215,10 @@ static void tradeChatHandler(CNSocket* sock, CNPacketData* data) {
 
     Player *otherPlr = PlayerManager::getPlayer(otherSock);
 
+    if (otherPlr == nullptr) return;
     INITSTRUCT(sP_FE2CL_REP_PC_TRADE_EMOTES_CHAT, resp);
     Player *plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     resp.iID_Request = pacdat->iID_Request;
     resp.iID_From = pacdat->iID_From;
     resp.iID_To = pacdat->iID_To;
@@ -231,6 +239,7 @@ static void groupChatHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_SEND_ALL_GROUP_FREECHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_ALL_GROUP_FREECHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     std::string fullChat = sanitizeText(AUTOU16TOU8(chat->szFreeChat));
 
     if (fullChat.length() > 1 && fullChat[0] == CMD_PREFIX) { // PREFIX
@@ -262,6 +271,7 @@ static void groupMenuChatHandler(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE* chat = (sP_CL2FE_REQ_SEND_ALL_GROUP_MENUCHAT_MESSAGE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     std::string fullChat = sanitizeText(AUTOU16TOU8(chat->szFreeChat));
     std::string logLine = "[GroupMenuChat] " + PlayerManager::getPlayerName(plr, true) + ": " + fullChat;
 
@@ -277,7 +287,8 @@ static void groupMenuChatHandler(CNSocket* sock, CNPacketData* data) {
 
     if (plr->group == nullptr)
         sock->sendPacket((void*)&resp, P_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC));
-    Groups::sendToGroup(plr->group, (void*)&resp, P_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC));
+    else
+        Groups::sendToGroup(plr->group, (void*)&resp, P_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC, sizeof(sP_FE2CL_REP_SEND_ALL_GROUP_MENUCHAT_MESSAGE_SUCC));
 }
 
 // we only allow plain ascii, at least for now
@@ -286,7 +297,8 @@ std::string Chat::sanitizeText(std::string text, bool allowNewlines) {
     const int BUFSIZE = 512;
     char buf[BUFSIZE];
 
-    assert(text.size() < BUFSIZE);
+    if (text.size() >= BUFSIZE)
+        text.resize(BUFSIZE - 1);
 
     i = 0;
     for (char c : text) {

@@ -13,6 +13,52 @@
 
 std::map<CNSocket*, CNLoginData> CNLoginServer::loginSessions;
 
+struct LoginAttempt {
+    int failCount;
+    time_t firstFail;
+    time_t blockedUntil;
+};
+static std::map<uint32_t, LoginAttempt> loginAttempts;
+
+static bool isLoginRateLimited(uint32_t ip) {
+    if (settings::LOGINRATELIMIT <= 0)
+        return false;
+
+    auto it = loginAttempts.find(ip);
+    if (it == loginAttempts.end())
+        return false;
+
+    time_t now = getTime();
+    if (it->second.blockedUntil > now)
+        return true;
+
+    // reset if window expired
+    if (now - it->second.firstFail > 60000) {
+        loginAttempts.erase(it);
+        return false;
+    }
+
+    return false;
+}
+
+static void recordLoginFailure(uint32_t ip) {
+    if (settings::LOGINRATELIMIT <= 0)
+        return;
+
+    time_t now = getTime();
+    auto it = loginAttempts.find(ip);
+    if (it == loginAttempts.end() || now - it->second.firstFail > 60000) {
+        loginAttempts[ip] = { 1, now, 0 };
+        return;
+    }
+
+    it->second.failCount++;
+    if (it->second.failCount >= settings::LOGINRATELIMIT) {
+        it->second.blockedUntil = now + 60000;
+        std::cout << "[WARN] Rate limiting login attempts from IP" << std::endl;
+    }
+}
+
 namespace LoginServer {
     std::vector<std::string> WheelFirstNames;
     std::vector<std::string> WheelMiddleNames;
@@ -113,6 +159,12 @@ void loginFail(LoginError errorCode, std::string userLogin, CNSocket* sock) {
 void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
     auto login = (sP_CL2LS_REQ_LOGIN*)data->buf;
 
+    uint32_t ip = sock->sockaddr.sin_addr.s_addr;
+    if (isLoginRateLimited(ip)) {
+        loginFail(LoginError::LOGIN_ERROR, "", sock);
+        return;
+    }
+
     std::string userLogin;
     std::string userToken; // could be password or auth cookie
 
@@ -159,11 +211,13 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
             return newAccount(sock, userLogin, userToken, login->iClientVerC);
         }
 
+        recordLoginFailure(ip);
         return loginFail(LoginError::ID_DOESNT_EXIST, userLogin, sock);
     }
 
     // make sure either a valid cookie or password was sent
     if (!CNLoginServer::checkToken(sock, findUser, userToken, isCookieAuth)) {
+        recordLoginFailure(ip);
         return loginFail(LoginError::ID_AND_PASSWORD_DO_NOT_MATCH, userLogin, sock);
     }
 
@@ -375,10 +429,10 @@ bool validateCharacterCreation(sP_CL2LS_REQ_CHAR_CREATE* character) {
     if (!(style->iBody      >= 0 && style->iBody      <= 2   &&
           style->iEyeColor  >= 1 && style->iEyeColor  <= 5   &&
           style->iGender    >= 1 && style->iGender    <= 2   &&
-          style->iHairColor >= 1 && style->iHairColor <= 18) &&
+          style->iHairColor >= 1 && style->iHairColor <= 18  &&
           style->iHeight    >= 0 && style->iHeight    <= 4   &&
           style->iNameCheck >= 0 && style->iNameCheck <= 2   &&
-          style->iSkinColor >= 1 && style->iSkinColor <= 12)
+          style->iSkinColor >= 1 && style->iSkinColor <= 12))
         return false;
             
     // facestyle and hairstyle are gender dependent
@@ -595,17 +649,15 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
 }
 
 void CNLoginServer::duplicateExit(CNSocket* sock, CNPacketData* data) {
-    // TODO: FIX THIS PACKET
-
     sP_CL2LS_REQ_PC_EXIT_DUPLICATE* exit = (sP_CL2LS_REQ_PC_EXIT_DUPLICATE*)data->buf;
     Database::Account account = {};
     Database::findAccount(&account, AUTOU16TOU8(exit->szID));
 
-    // sanity check
-    if (account.AccountID == 0) {
-        std::cout << "[WARN] P_CL2LS_REQ_PC_EXIT_DUPLICATE submitted unknown username: " << exit->szID << std::endl;
+    if (account.AccountID == 0)
         return;
-    }
+
+    if (loginSessions.find(sock) == loginSessions.end() || loginSessions[sock].userID != account.AccountID)
+        return;
 
     exitDuplicate(account.AccountID);
 }
@@ -719,11 +771,39 @@ bool CNLoginServer::isNameWheelNameGood(int fnCode, int mnCode, int lnCode, std:
     return true;
 }
 
+static bool isNamePartValid(const std::string& name) {
+    if (name.empty() || name.size() > 32)
+        return false;
+
+    for (size_t i = 0; i < name.size(); i++) {
+        char c = name[i];
+
+        if (std::isalnum(c))
+            continue;
+
+        if (c == '.') {
+            if (i == 0 || i == name.size() - 1)
+                return false;
+            if (name[i - 1] == '.' || name[i - 1] == ' ')
+                return false;
+            continue;
+        }
+
+        if (c == ' ') {
+            if (i == 0 || i == name.size() - 1)
+                return false;
+            if (name[i - 1] == ' ' || name[i - 1] == '.')
+                return false;
+            continue;
+        }
+
+        return false;
+    }
+    return true;
+}
+
 bool CNLoginServer::isCharacterNameGood(std::string Firstname, std::string Lastname) {
-    //Allow alphanumeric and dot characters in names(disallows dot and space characters at the beginning of a name)
-    std::regex firstnamecheck(R"(((?! )(?!\.)[a-zA-Z0-9]*\.{0,1}(?!\.+ +)[a-zA-Z0-9]* {0,1}(?! +))*$)");
-    std::regex lastnamecheck(R"(((?! )(?!\.)[a-zA-Z0-9]*\.{0,1}(?!\.+ +)[a-zA-Z0-9]* {0,1}(?! +))*$)");
-    return (std::regex_match(Firstname, firstnamecheck) && std::regex_match(Lastname, lastnamecheck));
+    return isNamePartValid(Firstname) && isNamePartValid(Lastname);
 }
 
 bool CNLoginServer::isAuthMethodAllowed(AuthMethod authMethod) {

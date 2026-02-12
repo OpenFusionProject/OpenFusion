@@ -21,6 +21,7 @@ void Nanos::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spendfm) 
 
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     int level = plr->level;
 
 #ifndef ACADEMY
@@ -74,6 +75,7 @@ void Nanos::summonNano(CNSocket *sock, int slot, bool silent) {
     resp.iActiveNanoSlotNum = slot;
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     if (slot > 2 || slot < -1)
         return; // sanity check
 
@@ -115,6 +117,7 @@ static void setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
 
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     if (plr->activeNano > 0 && plr->activeNano == skill->iNanoID)
         summonNano(sock, -1); // just unsummon the nano to prevent infinite buffs
 
@@ -203,6 +206,7 @@ static void nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_NANO_EQUIP_SUCC, resp);
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // sanity checks
     if (nano->iNanoSlotNum > 2 || nano->iNanoSlotNum < 0)
         return;
@@ -228,6 +232,7 @@ static void nanoUnEquipHandler(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_NANO_UNEQUIP_SUCC, resp);
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // sanity check
     if (nano->iNanoSlotNum > 2 || nano->iNanoSlotNum < 0)
         return;
@@ -248,6 +253,7 @@ static void nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
     auto pkt = (sP_CL2FE_REQ_NANO_ACTIVE*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     summonNano(sock, pkt->iNanoSlotNum);
 
     DEBUGLOG(
@@ -258,6 +264,7 @@ static void nanoSummonHandler(CNSocket* sock, CNPacketData* data) {
 static void nanoSkillUseHandler(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // validate request check
     sP_CL2FE_REQ_NANO_SKILL_USE* pkt = (sP_CL2FE_REQ_NANO_SKILL_USE*)data->buf;
     if (!validInVarPacket(sizeof(sP_CL2FE_REQ_NANO_SKILL_USE), pkt->iTargetCnt, sizeof(int32_t), data->size)) {
@@ -299,6 +306,7 @@ static void nanoRecallRegisterHandler(CNSocket* sock, CNPacketData* data) {
 
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     BaseNPC *npc = NPCManager::NPCs[recallData->iNPCID];
 
     INITSTRUCT(sP_FE2CL_REP_REGIST_RXCOM, response);
@@ -313,6 +321,7 @@ static void nanoRecallHandler(CNSocket* sock, CNPacketData* data) {
     auto recallData = (sP_CL2FE_REQ_WARP_USE_RECALL*)data->buf;
 
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     Player* otherPlr = PlayerManager::getPlayerFromID(recallData->iGroupMemberID);
     if (otherPlr == nullptr)
         return;
@@ -336,6 +345,7 @@ static void nanoRecallHandler(CNSocket* sock, CNPacketData* data) {
 static void nanoPotionHandler(CNSocket* sock, CNPacketData* data) {
     Player* player = PlayerManager::getPlayer(sock);
 
+    if (player == nullptr) return;
     // sanity checks
     if (player->activeNano == -1 || player->batteryN == 0)
         return;

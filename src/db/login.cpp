@@ -26,7 +26,8 @@ void Database::findAccount(Account* account, std::string login) {
         account->Password = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
         account->Selected = sqlite3_column_int(stmt, 2);
         account->BannedUntil = sqlite3_column_int64(stmt, 3);
-        account->BanReason = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        const char* reason = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        account->BanReason = reason ? reason : "";
     }
     sqlite3_finalize(stmt);
 }

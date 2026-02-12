@@ -46,6 +46,9 @@ namespace settings {
     extern bool DISABLEFIRSTUSEFLAG;
     extern bool IZRACESCORECAPPED;
     extern bool DROPFIXESENABLED;
+    extern std::string MONITORPASS;
+    extern int MAXPERIP;
+    extern int LOGINRATELIMIT;
 
     void init();
 }

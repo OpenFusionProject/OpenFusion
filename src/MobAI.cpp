@@ -43,7 +43,8 @@ int Mob::takeDamage(EntityRef src, int amt) {
         return 0; // don't hurt a mob casting corruption
 
     if (state == AIState::ROAMING) {
-        assert(target == nullptr && src.kind == EntityKind::PLAYER); // TODO: players only for now
+        if (target != nullptr || src.kind != EntityKind::PLAYER)
+            return 0;
         transition(AIState::COMBAT, src);
 
         if (groupLeader != 0)
@@ -181,6 +182,7 @@ bool MobAI::aggroCheck(Mob *mob, time_t currTime) {
             CNSocket *s = ref.sock;
             Player *plr = PlayerManager::getPlayer(s);
 
+            if (plr == nullptr) continue;
             if (plr->HP <= 0 || plr->onMonkey)
                 continue;
 
@@ -229,6 +231,7 @@ bool MobAI::aggroCheck(Mob *mob, time_t currTime) {
 
 static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, int mobStyle) {
     Player *plr = PlayerManager::getPlayer(mob->target);
+    if (plr == nullptr) return;
 
     size_t resplen = sizeof(sP_FE2CL_NPC_SKILL_CORRUPTION_HIT) + targetData[0] * sizeof(sCAttackResult);
 
@@ -339,6 +342,7 @@ static void dealCorruption(Mob *mob, std::vector<int> targetData, int skillID, i
 
 static void useAbilities(Mob *mob, time_t currTime) {
     Player *plr = PlayerManager::getPlayer(mob->target);
+    if (plr == nullptr) return;
 
     if (mob->skillStyle >= 0) { // corruption hit
         int skillID = (int)mob->data["m_iCorruptionType"];
@@ -365,6 +369,7 @@ static void useAbilities(Mob *mob, time_t currTime) {
                 CNSocket *s = ref.sock;
                 Player *plr = PlayerManager::getPlayer(s);
 
+                if (plr == nullptr) continue;
                 if (!plr->isAlive())
                     continue;
 
@@ -515,7 +520,10 @@ void MobAI::deadStep(CombatNPC* npc, time_t currTime) {
 
 void MobAI::combatStep(CombatNPC* npc, time_t currTime) {
     Mob* self = (Mob*)npc;
-    assert(self->target != nullptr);
+    if (self->target == nullptr) {
+        self->transition(AIState::RETREAT, self->id);
+        return;
+    }
 
     // lose aggro if the player lost connection
     if (PlayerManager::players.find(self->target) == PlayerManager::players.end()) {
@@ -525,6 +533,10 @@ void MobAI::combatStep(CombatNPC* npc, time_t currTime) {
     }
 
     Player *plr = PlayerManager::getPlayer(self->target);
+    if (plr == nullptr) {
+        self->transition(AIState::RETREAT, self->target);
+        return;
+    }
 
     // lose aggro if the player became invulnerable or died
     if (plr->HP <= 0
@@ -770,7 +782,8 @@ void MobAI::onRoamStart(CombatNPC* npc, EntityRef src) {
 void MobAI::onCombatStart(CombatNPC* npc, EntityRef src) {
     Mob* self = (Mob*)npc;
 
-    assert(src.kind == EntityKind::PLAYER);
+    if (src.kind != EntityKind::PLAYER)
+        return;
     self->target = src.sock;
     self->nextMovement = getTime();
     self->nextAttack = 0;
@@ -804,6 +817,7 @@ void MobAI::onDeath(CombatNPC* npc, EntityRef src) {
     // check for the edge case where hitting the mob did not aggro it
     if (src.kind == EntityKind::PLAYER && src.isValid()) {
         Player* plr = PlayerManager::getPlayer(src.sock);
+        if (plr == nullptr) return;
 
         Items::DropRoll rolled;
         Items::DropRoll eventRolled;
@@ -818,12 +832,16 @@ void MobAI::onDeath(CombatNPC* npc, EntityRef src) {
         }
         else {
             auto players = plr->group->filter(EntityKind::PLAYER);
-            for (EntityRef pRef : players) playerRefs.push_back(PlayerManager::getPlayer(pRef.sock));
+            for (EntityRef pRef : players) {
+                Player* pRefPlr = PlayerManager::getPlayer(pRef.sock);
+                if (pRefPlr != nullptr) playerRefs.push_back(pRefPlr);
+            }
             Combat::genQItemRolls(playerRefs, qitemRolls);
             for (int i = 0; i < players.size(); i++) {
                 CNSocket* sockTo = players[i].sock;
                 Player* otherPlr = PlayerManager::getPlayer(sockTo);
 
+                if (otherPlr == nullptr) continue;
                 // only contribute to group members' kills if they're close enough
                 int dist = std::hypot(plr->x - otherPlr->x + 1, plr->y - otherPlr->y + 1);
                 if (dist > 5000)

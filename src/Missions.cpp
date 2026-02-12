@@ -6,6 +6,8 @@
 #include "Items.hpp"
 #include "Nanos.hpp"
 
+#include <climits>
+
 using namespace Missions;
 
 std::map<int32_t, Reward*> Missions::Rewards;
@@ -51,6 +53,7 @@ int Missions::findQSlot(Player *plr, int id) {
 static bool isQuestItemFull(CNSocket* sock, int itemId, int itemCount) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return true;
     int slot = Missions::findQSlot(plr, itemId);
     if (slot == -1) {
         // this should never happen
@@ -64,11 +67,13 @@ static bool isQuestItemFull(CNSocket* sock, int itemId, int itemCount) {
 static void dropQuestItem(CNSocket *sock, int task, int count, int id, int mobid) {
     std::cout << "Altered item id " << id << " by " << count << " for task id " << task << std::endl;
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
-    assert(resplen < CN_PACKET_BODY_SIZE);
+    if (resplen >= CN_PACKET_BODY_SIZE)
+        return;
     // we know it's only one trailing struct, so we can skip full validation
 
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     uint8_t respbuf[resplen]; // not a variable length array, don't worry
     sP_FE2CL_REP_REWARD_ITEM *reward = (sP_FE2CL_REP_REWARD_ITEM *)respbuf;
     sItemReward *item = (sItemReward *)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
@@ -120,6 +125,7 @@ static int giveMissionReward(CNSocket *sock, int task, int choice=0) {
     Reward *reward = Rewards[task];
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return -1;
     int nrewards = 0;
     for (int i = 0; i < 4; i++) {
         if (reward->itemIds[i] != 0)
@@ -154,21 +160,23 @@ static int giveMissionReward(CNSocket *sock, int task, int choice=0) {
 
     uint8_t respbuf[CN_PACKET_BODY_SIZE];
     size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + nrewards * sizeof(sItemReward);
-    assert(resplen < CN_PACKET_BODY_SIZE);
+    if (resplen >= CN_PACKET_BODY_SIZE)
+        return -1;
     sP_FE2CL_REP_REWARD_ITEM *resp = (sP_FE2CL_REP_REWARD_ITEM *)respbuf;
     sItemReward *item = (sItemReward *)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
 
     // don't forget to zero the buffer!
     memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 
-    // update player
-    plr->money += reward->money;
+    // update player (overflow-safe)
+    int64_t newMoney = (int64_t)plr->money + reward->money;
     if (plr->hasBuff(ECSB_REWARD_CASH)) { // nano boost for taros
         int boost = 0;
         if (Nanos::getNanoBoost(plr)) // for gumballs
             boost = 1;
-        plr->money += reward->money * (5 + boost) / 25;
+        newMoney += (int64_t)reward->money * (5 + boost) / 25;
     }
+    plr->money = (int)std::min(std::max(newMoney, (int64_t)0), (int64_t)INT32_MAX);
 
     if (plr->hasBuff(ECSB_REWARD_BLOB)) { // nano boost for fm
         int boost = 0;
@@ -212,6 +220,7 @@ static int giveMissionReward(CNSocket *sock, int task, int choice=0) {
 static bool endTask(CNSocket *sock, int32_t taskNum, int choice=0) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return false;
     if (Tasks.find(taskNum) == Tasks.end())
         return false;
 
@@ -346,6 +355,7 @@ static void taskStart(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_SUCC, response);
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     if (!startTask(plr, missionData->iTaskNum)) {
         INITSTRUCT(sP_FE2CL_REP_PC_TASK_START_FAIL, failresp);
         failresp.iTaskNum = missionData->iTaskNum;
@@ -395,6 +405,7 @@ static void taskEnd(CNSocket* sock, CNPacketData* data) {
     if (task->task["m_iSTGrantTimer"] > 0 && missionData->iNPC_ID == 0) {
         Player* plr = PlayerManager::getPlayer(sock);
 
+        if (plr == nullptr) return;
         /*
          * Enemy killing missions
          * this is gross and should be cleaned up later
@@ -442,6 +453,7 @@ static void taskEnd(CNSocket* sock, CNPacketData* data) {
 static void setMission(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     sP_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID* missionData = (sP_CL2FE_REQ_PC_SET_CURRENT_MISSION_ID*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_SET_CURRENT_MISSION_ID, response);
     response.iCurrentMissionID = missionData->iCurrentMissionID;
@@ -458,6 +470,7 @@ static void quitMission(CNSocket* sock, CNPacketData* data) {
 void Missions::quitTask(CNSocket* sock, int32_t taskNum, bool manual) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     if (Tasks.find(taskNum) == Tasks.end())
         return; // sanity check
 
@@ -514,6 +527,7 @@ void Missions::quitTask(CNSocket* sock, int32_t taskNum, bool manual) {
 void Missions::updateFusionMatter(CNSocket* sock, int fusion) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     plr->fusionmatter += fusion;
 
     // there's a much lower FM cap in the Future
@@ -572,6 +586,7 @@ void Missions::updateFusionMatter(CNSocket* sock, int fusion) {
 void Missions::mobKilled(CNSocket *sock, int mobid, std::map<int, int>& rolls) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     bool missionmob = false;
 
     for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
@@ -637,6 +652,7 @@ void Missions::mobKilled(CNSocket *sock, int mobid, std::map<int, int>& rolls) {
 void Missions::failInstancedMissions(CNSocket* sock) {
     // loop through all tasks; if the required instance is being left, "fail" the task
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     for (int i = 0; i < 6; i++) {
         int taskNum = plr->tasks[i];
         if (Missions::Tasks.find(taskNum) == Missions::Tasks.end())

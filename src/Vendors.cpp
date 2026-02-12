@@ -6,6 +6,8 @@
 #include "Items.hpp"
 #include "Rand.hpp"
 
+#include <climits>
+
 // 7 days
 #define VEHICLE_EXPIRY_DURATION 604800
 
@@ -17,6 +19,7 @@ static void vendorBuy(CNSocket* sock, CNPacketData* data) {
     auto req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // prepare fail packet
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, failResp);
     failResp.iErrorCode = 0;
@@ -46,7 +49,12 @@ static void vendorBuy(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    int itemCost = itemDat->buyPrice * (itemDat->stackSize > 1 ? req->Item.iOpt : 1);
+    int64_t itemCost64 = (int64_t)itemDat->buyPrice * (itemDat->stackSize > 1 ? req->Item.iOpt : 1);
+    if (itemCost64 > INT32_MAX || itemCost64 < 0) {
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL);
+        return;
+    }
+    int itemCost = (int)itemCost64;
     int slot = Items::findFreeSlot(plr);
     if (itemCost > plr->money || slot == -1) {
         sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL);
@@ -86,6 +94,7 @@ static void vendorSell(CNSocket* sock, CNPacketData* data) {
     auto req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // prepare a fail packet
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, failResp);
     failResp.iErrorCode = 0;
@@ -116,8 +125,9 @@ static void vendorSell(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC, resp);
 
-    // increment taros
-    plr->money += itemData->sellPrice * req->iItemCnt;
+    // increment taros (overflow-safe)
+    int64_t newMoney = (int64_t)plr->money + (int64_t)itemData->sellPrice * req->iItemCnt;
+    plr->money = (int)std::min(newMoney, (int64_t)INT32_MAX);
 
     // modify item
     if (item->iOpt - req->iItemCnt > 0) { // selling part of a stack
@@ -149,6 +159,7 @@ static void vendorBuyback(CNSocket* sock, CNPacketData* data) {
     auto req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // prepare fail packet
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL, failResp);
     failResp.iErrorCode = 0;
@@ -272,6 +283,7 @@ static void vendorBuyBattery(CNSocket* sock, CNPacketData* data) {
     auto req = (sP_CL2FE_REQ_PC_VENDOR_BATTERY_BUY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     int cost = req->Item.iOpt * 100;
     if ((req->Item.iID == 3 ? (plr->batteryW >= 9999) : (plr->batteryN >= 9999)) || plr->money < cost || req->Item.iOpt < 0) { // sanity check
         INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL, failResp);
@@ -306,6 +318,7 @@ static void vendorCombineItems(CNSocket* sock, CNPacketData* data) {
     auto req = (sP_CL2FE_REQ_PC_ITEM_COMBINATION*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // prepare fail packet
     INITSTRUCT(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, failResp);
     failResp.iCostumeItemSlot = req->iCostumeItemSlot;

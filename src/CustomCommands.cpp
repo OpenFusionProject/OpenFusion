@@ -44,10 +44,11 @@ bool CustomCommands::runCmd(std::string full, CNSocket* sock) {
     // check if the command exists
     if (commands.find(cmd) != commands.end()) {
         Player* plr = PlayerManager::getPlayer(sock);
+        if (plr == nullptr) return false;
         ChatCommand command = commands[cmd];
 
         // sanity check + does the player have the required account level to use the command?
-        if (plr != nullptr && plr->accountLevel <= command.requiredAccLevel) {
+        if (plr->accountLevel <= command.requiredAccLevel) {
             command.handlr(full, args, sock);
             return true;
         } else {
@@ -64,6 +65,7 @@ bool CustomCommands::runCmd(std::string full, CNSocket* sock) {
 
 static void updatePathMarkers(CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     if (TableData::RunningNPCPaths.find(plr->iID) != TableData::RunningNPCPaths.end()) {
         for (BaseNPC* marker : TableData::RunningNPCPaths[plr->iID].second)
             marker->enterIntoViewOf(sock);
@@ -76,6 +78,7 @@ static void helpCommand(std::string full, std::vector<std::string>& args, CNSock
     Chat::sendServerMessage(sock, "Commands available to you:");
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     for (auto& cmd : commands) {
         if (cmd.second.requiredAccLevel >= plr->accountLevel)
             Chat::sendServerMessage(sock, "/" + cmd.first + (cmd.second.help.length() > 0 ? " - " + cmd.second.help : ""));
@@ -92,6 +95,7 @@ static void accessCommand(std::string full, std::vector<std::string>& args, CNSo
     char *tmp;
 
     Player* self = PlayerManager::getPlayer(sock);
+    if (self == nullptr) return;
     int selfAccess = self->accountLevel;
 
     Player* player;
@@ -168,6 +172,7 @@ static void levelCommand(std::string full, std::vector<std::string>& args, CNSoc
 
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     char *tmp;
     int level = std::strtol(args[1].c_str(), &tmp, 10);
     if (*tmp)
@@ -230,6 +235,7 @@ static void mssCommand(std::string full, std::vector<std::string>& args, CNSocke
         }
 
         Player* plr = PlayerManager::getPlayer(sock);
+        if (plr == nullptr) return;
         route->push_back({ plr->x, plr->y, height }); // add point
         Chat::sendServerMessage(sock, "[MSS] Added point (" + std::to_string(plr->x) + ", " + std::to_string(plr->y) + ", " + std::to_string(height) + ") to route " + std::to_string(routeNum));
         return;
@@ -298,6 +304,7 @@ static void summonWCommand(std::string full, std::vector<std::string>& args, CNS
     }
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     char *rest;
     int type = std::strtol(args[1].c_str(), &rest, 10);
     if (*rest) {
@@ -333,6 +340,7 @@ static void summonWCommand(std::string full, std::vector<std::string>& args, CNS
 static void unsummonWCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     BaseNPC* npc = NPCManager::getNearestNPC(&plr->viewableChunks, plr->x, plr->y, plr->z);
 
     if (npc == nullptr) {
@@ -419,6 +427,7 @@ static void toggleAiCommand(std::string full, std::vector<std::string>& args, CN
 static void npcRotateCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     BaseNPC* npc = NPCManager::getNearestNPC(&plr->viewableChunks, plr->x, plr->y, plr->z);
 
     if (npc == nullptr) {
@@ -447,12 +456,14 @@ static void npcRotateCommand(std::string full, std::vector<std::string>& args, C
 static void refreshCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     PlayerManager::updatePlayerPositionForWarp(sock, plr->x, plr->y, plr->z, plr->instanceID);
 }
 
 static void instanceCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // no additional arguments: report current instance ID
     if (args.size() < 2) {
         Chat::sendServerMessage(sock, "[INST] Current instance ID: " + std::to_string(plr->instanceID));
@@ -489,6 +500,7 @@ static void instanceCommand(std::string full, std::vector<std::string>& args, CN
 static void npcInstanceCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     if (args.size() < 2) {
         Chat::sendServerMessage(sock, "[NPCI] Instance ID must be specified");
         Chat::sendServerMessage(sock, "[NPCI] Usage: /npci <instance ID>");
@@ -517,6 +529,7 @@ static void npcInstanceCommand(std::string full, std::vector<std::string>& args,
 
 static void minfoCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     Chat::sendServerMessage(sock, "[MINFO] Current mission ID: " + std::to_string(plr->CurrentMissionID));
 
     for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
@@ -545,6 +558,7 @@ static void tasksCommand(std::string full, std::vector<std::string>& args, CNSoc
 
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     for (int i = 0; i < ACTIVE_MISSION_COUNT; i++) {
         if (plr->tasks[i] != 0) {
             TaskData& task = *Missions::Tasks[plr->tasks[i]];
@@ -597,6 +611,7 @@ static void eggCommand(std::string full, std::vector<std::string>& args, CNSocke
 
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // some math to place egg nicely in front of the player
     // temporarly disabled for sake of gruntwork
     int addX = 0; //-500.0f * sin(plr->angle / 180.0f * M_PI);
@@ -613,6 +628,7 @@ static void eggCommand(std::string full, std::vector<std::string>& args, CNSocke
 static void notifyCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     if (plr->notify) {
         plr->notify = false;
         Chat::sendServerMessage(sock, "[ADMIN] No longer receiving join notifications");
@@ -635,6 +651,7 @@ static void summonGroupCommand(std::string full, std::vector<std::string>& args,
     }
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     char *rest;
     
     bool wCommand = (args[0] == "/summonGroupW");
@@ -734,6 +751,7 @@ static void flushCommand(std::string full, std::vector<std::string>& args, CNSoc
 
 static void whoisCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     BaseNPC* npc = NPCManager::getNearestNPC(&plr->viewableChunks, plr->x, plr->y, plr->z);
 
     if (npc == nullptr) {
@@ -758,6 +776,7 @@ static void whoisCommand(std::string full, std::vector<std::string>& args, CNSoc
 static void lairUnlockCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     int taskID = -1;
     int missionID = -1;
     int lastDist = INT_MAX;
@@ -803,6 +822,7 @@ static void lairUnlockCommand(std::string full, std::vector<std::string>& args, 
 
 static void hideCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     if (plr->hidden) {
         Chat::sendServerMessage(sock, "[HIDE] You're already hidden from the map.");
         return;
@@ -814,6 +834,7 @@ static void hideCommand(std::string full, std::vector<std::string>& args, CNSock
 
 static void unhideCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     if (!plr->hidden) {
         Chat::sendServerMessage(sock, "[HIDE] You're already visible from the map.");
         return;
@@ -848,6 +869,7 @@ static void redeemCommand(std::string full, std::vector<std::string>& args, CNSo
 
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     if (Database::isCodeRedeemed(plr->iID, code)) {
         Chat::sendServerMessage(sock, "/redeem: You have already redeemed this code item");
         return;
@@ -895,17 +917,20 @@ static void redeemCommand(std::string full, std::vector<std::string>& args, CNSo
 
 static void unwarpableCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player *plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     plr->unwarpable = true;
 }
 
 static void warpableCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player *plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     plr->unwarpable = false;
 }
 
 static void registerallCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     plr->iWarpLocationFlag = UINT32_MAX;
     plr->aSkywayLocationFlag[0] = UINT64_MAX;
     plr->aSkywayLocationFlag[1] = UINT64_MAX;
@@ -923,6 +948,7 @@ static void registerallCommand(std::string full, std::vector<std::string>& args,
 static void unregisterallCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     plr->iWarpLocationFlag = 0;
     plr->aSkywayLocationFlag[0] = 0;
     plr->aSkywayLocationFlag[1] = 0;
@@ -940,6 +966,7 @@ static void unregisterallCommand(std::string full, std::vector<std::string>& arg
 static void banCommand(std::string full, std::vector<std::string>& args, CNSocket *sock) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     if (args.size() < 2) {
         Chat::sendServerMessage(sock, "Usage: /ban PlayerID [reason...]");
         return;
@@ -980,6 +1007,7 @@ static void banCommand(std::string full, std::vector<std::string>& args, CNSocke
 
     Player *otherPlr = PlayerManager::getPlayer(otherSock);
 
+    if (otherPlr == nullptr) return;
     INITSTRUCT(sP_FE2CL_REP_PC_EXIT_SUCC, pkt);
 
     pkt.iID = otherPlr->iID;
@@ -997,6 +1025,7 @@ static void banCommand(std::string full, std::vector<std::string>& args, CNSocke
 static void unbanCommand(std::string full, std::vector<std::string>& args, CNSocket *sock) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     if (args.size() < 2) {
         Chat::sendServerMessage(sock, "Usage: /unban PlayerID");
         return;
@@ -1020,6 +1049,7 @@ static void unbanCommand(std::string full, std::vector<std::string>& args, CNSoc
 static void pathCommand(std::string full, std::vector<std::string>& args, CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     if (args.size() < 2) {
         Chat::sendServerMessage(sock, "[PATH] Too few arguments");
         Chat::sendServerMessage(sock, "[PATH] Usage: /path <start/kf/undo/here/test/cancel/end>");

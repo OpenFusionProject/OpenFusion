@@ -32,6 +32,7 @@ static bool playerHasBuddyWithID(Player* plr, int buddyID) {
 // Refresh buddy list
 void Buddies::sendBuddyList(CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     int buddyCnt = Database::getNumBuddies(plr);
 
     if (!validOutVarPacket(sizeof(sP_FE2CL_REP_PC_BUDDYLIST_INFO_SUCC), buddyCnt, sizeof(sBuddyBaseInfo))) {
@@ -85,6 +86,7 @@ static void requestBuddy(CNSocket* sock, CNPacketData* data) {
     auto req = (sP_CL2FE_REQ_REQUEST_MAKE_BUDDY*)data->buf;
 
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     Player* otherPlr = PlayerManager::getPlayerFromID(req->iBuddyID);
 
     if (otherPlr == nullptr)
@@ -123,6 +125,7 @@ static void reqBuddyByName(CNSocket* sock, CNPacketData* data) {
     auto pkt = (sP_CL2FE_REQ_PC_FIND_NAME_MAKE_BUDDY*)data->buf;
     Player* plrReq = PlayerManager::getPlayer(sock);
 
+    if (plrReq == nullptr) return;
     INITSTRUCT(sP_FE2CL_REP_PC_FIND_NAME_MAKE_BUDDY_SUCC, resp);
 
     CNSocket* otherSock = PlayerManager::getSockFromName(AUTOU16TOU8(pkt->szFirstName), AUTOU16TOU8(pkt->szLastName));
@@ -130,6 +133,7 @@ static void reqBuddyByName(CNSocket* sock, CNPacketData* data) {
         return; // no player found
 
     Player *otherPlr = PlayerManager::getPlayer(otherSock);
+    if (otherPlr == nullptr) return;
     if (playerHasBuddyWithID(plrReq, otherPlr->iID))
         return;
 
@@ -145,6 +149,7 @@ static void reqBuddyByName(CNSocket* sock, CNPacketData* data) {
 static void reqAcceptBuddy(CNSocket* sock, CNPacketData* data) {
     auto req = (sP_CL2FE_REQ_ACCEPT_MAKE_BUDDY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     Player* otherPlr = PlayerManager::getPlayerFromID(req->iBuddyID);
 
     if (otherPlr == nullptr)
@@ -213,6 +218,7 @@ static void reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
 
     Player* plrReq = PlayerManager::getPlayer(sock);
 
+    if (plrReq == nullptr) return;
     INITSTRUCT(sP_FE2CL_REP_ACCEPT_MAKE_BUDDY_SUCC, resp);
 
     Player* otherPlr = PlayerManager::getPlayerFromID(pkt->iBuddyPCUID);
@@ -278,6 +284,7 @@ static void reqFindNameBuddyAccept(CNSocket* sock, CNPacketData* data) {
 static void reqPktGetBuddyState(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
     
+    if (plr == nullptr) return;
     INITSTRUCT(sP_FE2CL_REP_GET_BUDDY_STATE_SUCC, resp);
     
     for (int slot = 0; slot < 50; slot++) {
@@ -293,6 +300,7 @@ static void reqBuddyBlock(CNSocket* sock, CNPacketData* data) {
     auto pkt = (sP_CL2FE_REQ_SET_BUDDY_BLOCK*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // sanity checks
     if (pkt->iBuddySlot < 0 || pkt->iBuddySlot >= 50 || plr->buddyIDs[pkt->iBuddySlot] != pkt->iBuddyPCUID)
         return;
@@ -317,6 +325,7 @@ static void reqBuddyBlock(CNSocket* sock, CNPacketData* data) {
     if (otherSock == nullptr)
         return; // other player isn't online, no broadcast needed
     Player* otherPlr = PlayerManager::getPlayer(otherSock);
+    if (otherPlr == nullptr) return;
     // search for the slot with the requesting player's ID
     otherResp.iBuddyPCUID = plr->PCStyle.iPC_UID;
     for (int i = 0; i < 50; i++) {
@@ -336,6 +345,7 @@ static void reqPlayerBlock(CNSocket* sock, CNPacketData* data) {
     auto pkt = (sP_CL2FE_REQ_SET_PC_BLOCK*)data->buf;
 
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     int buddySlot = getAvailableBuddySlot(plr);
     if (buddySlot == -1)
         return;
@@ -363,6 +373,7 @@ static void reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
 
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // remove buddy on our side
     INITSTRUCT(sP_FE2CL_REP_REMOVE_BUDDY_SUCC, resp);
     resp.iBuddyPCUID = pkt->iBuddyPCUID;
@@ -389,6 +400,7 @@ static void reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
     if (otherSock == nullptr)
         return; // other player isn't online, no broadcast needed
     Player* otherPlr = PlayerManager::getPlayer(otherSock);
+    if (otherPlr == nullptr) return;
     // search for the slot with the requesting player's ID
     resp.iBuddyPCUID = plr->PCStyle.iPC_UID;
     for (int i = 0; i < 50; i++) {
@@ -407,6 +419,7 @@ static void reqBuddyDelete(CNSocket* sock, CNPacketData* data) {
 static void reqBuddyWarp(CNSocket* sock, CNPacketData* data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     auto pkt = (sP_CL2FE_REQ_PC_BUDDY_WARP*)data->buf;
 
     if (pkt->iSlotNum < 0 || pkt->iSlotNum >= 50)

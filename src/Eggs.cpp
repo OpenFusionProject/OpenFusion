@@ -9,8 +9,6 @@
 #include "Entities.hpp"
 #include "Items.hpp"
 
-#include <assert.h>
-
 using namespace Eggs;
 
 std::unordered_map<int, EggType> Eggs::EggTypes;
@@ -18,6 +16,7 @@ std::unordered_map<int, EggType> Eggs::EggTypes;
 void Eggs::eggBuffPlayer(CNSocket* sock, int skillId, int eggId, int duration) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // eggId might be 0 if the buff is made by the /buff command
     EntityRef src = eggId == 0 ? sock : EntityRef(eggId);
     
@@ -130,6 +129,7 @@ static void eggPickup(CNSocket* sock, CNPacketData* data) {
     auto pickup = (sP_CL2FE_REQ_SHINY_PICKUP*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     EntityRef eggRef = {pickup->iShinyID};
 
     if (!eggRef.isValid()) {
@@ -147,12 +147,10 @@ static void eggPickup(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    /* this has some issues with position desync, leaving it out for now
-    if (abs(egg->x - plr->x)>500 || abs(egg->y - plr->y) > 500) {
-        std::cout << "[WARN] Player tried to open an egg isn't nearby?!" << std::endl;
+    if (abs(egg->x - plr->x) > 10000 || abs(egg->y - plr->y) > 10000) {
+        std::cout << "[WARN] Player tried to open an egg that isn't nearby" << std::endl;
         return;
     }
-    */
 
     int typeId = egg->type;
     if (EggTypes.find(typeId) == EggTypes.end()) {
@@ -183,7 +181,8 @@ static void eggPickup(CNSocket* sock, CNPacketData* data) {
     // drop
     if (type->dropCrateId != 0) {
         const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
-        assert(resplen < CN_PACKET_BODY_SIZE);
+        if (resplen >= CN_PACKET_BODY_SIZE)
+            return;
         // we know it's only one trailing struct, so we can skip full validation
 
         uint8_t respbuf[resplen]; // not a variable length array, don't worry
