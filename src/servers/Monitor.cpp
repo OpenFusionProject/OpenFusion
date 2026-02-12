@@ -8,10 +8,12 @@
 #include "settings.hpp"
 
 #include <cstdio>
+#include <set>
 
 static SOCKET listener;
 static std::mutex sockLock; // guards socket list
 static std::list<SOCKET> sockets;
+static std::set<SOCKET> pendingAuth; // sockets that haven't authenticated yet
 static sockaddr_in address;
 
 std::vector<std::string> Monitor::chats;
@@ -21,28 +23,33 @@ std::vector<std::string> Monitor::namereqs;
 
 using namespace Monitor;
 
+static void closeSock(SOCKET sock) {
+#ifdef _WIN32
+    shutdown(sock, SD_BOTH);
+    closesocket(sock);
+#else
+    shutdown(sock, SHUT_RDWR);
+    close(sock);
+#endif
+}
+
 static bool transmit(std::list<SOCKET>::iterator& it, char *buff, int len) {
     int n = 0;
     int sock = *it;
 
     while (n < len) {
-        n += send(sock, buff+n, len-n, 0);
-        if (SOCKETERROR(n)) {
+        int ret = send(sock, buff+n, len-n, 0);
+        if (SOCKETERROR(ret)) {
             printSocketError("send");
 
-#ifdef _WIN32
-            shutdown(sock, SD_BOTH);
-            closesocket(sock);
-#else
-            shutdown(sock, SHUT_RDWR);
-            close(sock);
-#endif
+            closeSock(sock);
 
             std::cout << "[INFO] Disconnected a monitor" << std::endl;
 
             it = sockets.erase(it);
             return false;
         }
+        n += ret;
     }
 
     return true;
@@ -67,7 +74,7 @@ static int process_email(char *buff, std::string email) {
     int i = 6;
 
     for (char c : email) {
-        if (i == BUFSIZE-2)
+        if (i >= BUFSIZE-3)
             break;
 
         buff[i++] = c;
@@ -85,6 +92,38 @@ static void tick(CNServer *serv, time_t delta) {
     std::lock_guard<std::mutex> lock(sockLock);
     char buff[BUFSIZE];
     int n;
+
+    // check pending auth sockets for incoming password
+    for (auto it = pendingAuth.begin(); it != pendingAuth.end(); ) {
+        SOCKET s = *it;
+        char authbuf[256] = {};
+        int recved = recv(s, authbuf, sizeof(authbuf) - 1, 0);
+        if (recved > 0) {
+            // strip trailing newline/whitespace
+            std::string pass(authbuf, recved);
+            while (!pass.empty() && (pass.back() == '\n' || pass.back() == '\r' || pass.back() == ' '))
+                pass.pop_back();
+            if (timingSafeStrcmp(pass.c_str(), settings::MONITORPASS.c_str()) == 0) {
+                sockets.push_back(s);
+                std::cout << "[INFO] Monitor client authenticated" << std::endl;
+            } else {
+                std::cout << "[WARN] Monitor client failed authentication" << std::endl;
+                closeSock(s);
+            }
+            it = pendingAuth.erase(it);
+        } else if (recved == 0) {
+            closeSock(s);
+            it = pendingAuth.erase(it);
+        } else {
+            // EWOULDBLOCK is fine, just wait
+            if (OF_ERRNO != OF_EWOULD) {
+                closeSock(s);
+                it = pendingAuth.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
 
     auto it = sockets.begin();
 outer:
@@ -179,7 +218,11 @@ bool Monitor::acceptConnection(SOCKET fd, uint16_t revents) {
     {
         std::lock_guard<std::mutex> lock(sockLock);
 
-        sockets.push_back(sock);
+        if (settings::MONITORPASS.empty()) {
+            sockets.push_back(sock);
+        } else {
+            pendingAuth.insert(sock);
+        }
     }
 
     return true;

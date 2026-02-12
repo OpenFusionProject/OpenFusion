@@ -13,6 +13,52 @@
 
 std::map<CNSocket*, CNLoginData> CNLoginServer::loginSessions;
 
+struct LoginAttempt {
+    int failCount;
+    time_t firstFail;
+    time_t blockedUntil;
+};
+static std::map<uint32_t, LoginAttempt> loginAttempts;
+
+static bool isLoginRateLimited(uint32_t ip) {
+    if (settings::LOGINRATELIMIT <= 0)
+        return false;
+
+    auto it = loginAttempts.find(ip);
+    if (it == loginAttempts.end())
+        return false;
+
+    time_t now = getTime();
+    if (it->second.blockedUntil > now)
+        return true;
+
+    // reset if window expired
+    if (now - it->second.firstFail > 60000) {
+        loginAttempts.erase(it);
+        return false;
+    }
+
+    return false;
+}
+
+static void recordLoginFailure(uint32_t ip) {
+    if (settings::LOGINRATELIMIT <= 0)
+        return;
+
+    time_t now = getTime();
+    auto it = loginAttempts.find(ip);
+    if (it == loginAttempts.end() || now - it->second.firstFail > 60000) {
+        loginAttempts[ip] = { 1, now, 0 };
+        return;
+    }
+
+    it->second.failCount++;
+    if (it->second.failCount >= settings::LOGINRATELIMIT) {
+        it->second.blockedUntil = now + 60000;
+        std::cout << "[WARN] Rate limiting login attempts from IP" << std::endl;
+    }
+}
+
 namespace LoginServer {
     std::vector<std::string> WheelFirstNames;
     std::vector<std::string> WheelMiddleNames;
@@ -113,6 +159,12 @@ void loginFail(LoginError errorCode, std::string userLogin, CNSocket* sock) {
 void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
     auto login = (sP_CL2LS_REQ_LOGIN*)data->buf;
 
+    uint32_t ip = sock->sockaddr.sin_addr.s_addr;
+    if (isLoginRateLimited(ip)) {
+        loginFail(LoginError::LOGIN_ERROR, "", sock);
+        return;
+    }
+
     std::string userLogin;
     std::string userToken; // could be password or auth cookie
 
@@ -159,11 +211,13 @@ void CNLoginServer::login(CNSocket* sock, CNPacketData* data) {
             return newAccount(sock, userLogin, userToken, login->iClientVerC);
         }
 
+        recordLoginFailure(ip);
         return loginFail(LoginError::ID_DOESNT_EXIST, userLogin, sock);
     }
 
     // make sure either a valid cookie or password was sent
     if (!CNLoginServer::checkToken(sock, findUser, userToken, isCookieAuth)) {
+        recordLoginFailure(ip);
         return loginFail(LoginError::ID_AND_PASSWORD_DO_NOT_MATCH, userLogin, sock);
     }
 

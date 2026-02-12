@@ -14,7 +14,7 @@ std::string settings::SANDBOXEXTRAPATH = "";
 int settings::LOGINPORT = 23000;
 bool settings::APPROVEWHEELNAMES = true;
 bool settings::APPROVECUSTOMNAMES = true;
-bool settings::AUTOCREATEACCOUNTS = true;
+bool settings::AUTOCREATEACCOUNTS = false;
 std::string settings::AUTHMETHODS = "password";
 int settings::DBSAVEINTERVAL = 240;
 
@@ -77,6 +77,15 @@ bool settings::IZRACESCORECAPPED = true;
 // drop fixes enabled
 bool settings::DROPFIXESENABLED = false;
 
+// monitor auth
+std::string settings::MONITORPASS = "";
+
+// per-IP connection limit
+int settings::MAXPERIP = 5;
+
+// login rate limit (max failed attempts per 60s)
+int settings::LOGINRATELIMIT = 5;
+
 void settings::init() {
     INIReader reader("config.ini");
 
@@ -130,6 +139,9 @@ void settings::init() {
     MONITORPORT = reader.GetInteger("monitor", "port", MONITORPORT);
     MONITORLISTENIP = reader.Get("monitor", "listenip", MONITORLISTENIP);
     MONITORINTERVAL = reader.GetInteger("monitor", "interval", MONITORINTERVAL);
+    MONITORPASS = reader.Get("monitor", "password", MONITORPASS);
+    MAXPERIP = reader.GetInteger("shard", "maxperip", MAXPERIP);
+    LOGINRATELIMIT = reader.GetInteger("login", "ratelimit", LOGINRATELIMIT);
 
     if (DROPFIXESENABLED) {
         std::cout << "[INFO] Drop fixes enabled" << std::endl;

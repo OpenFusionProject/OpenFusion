@@ -2,6 +2,9 @@
 #include "CNStructs.hpp"
 
 #include <assert.h>
+#include <map>
+
+static std::map<uint32_t, int> connectionsPerIP;
 
 // ========================================================[[ CNSocketEncryption ]]========================================================
 
@@ -462,6 +465,21 @@ void CNServer::start() {
                 if (!setSockNonblocking(sock, newConnectionSocket))
                     continue;
 
+                uint32_t connIP = address.sin_addr.s_addr;
+                auto ipIt = connectionsPerIP.find(connIP);
+                if (settings::MAXPERIP > 0 && ipIt != connectionsPerIP.end() && ipIt->second >= settings::MAXPERIP) {
+                    std::cout << "[WARN] Rejecting connection from " << inet_ntoa(address.sin_addr) << " (too many connections)" << std::endl;
+#ifdef _WIN32
+                    shutdown(newConnectionSocket, SD_BOTH);
+                    closesocket(newConnectionSocket);
+#else
+                    shutdown(newConnectionSocket, SHUT_RDWR);
+                    close(newConnectionSocket);
+#endif
+                    continue;
+                }
+                connectionsPerIP[connIP]++;
+
                 std::cout << "New " << serverType << " connection! " << inet_ntoa(address.sin_addr) << std::endl;
 
                 addPollFD(newConnectionSocket);
@@ -507,6 +525,10 @@ void CNServer::start() {
             CNSocket *cSock = it->second;
 
             if (!cSock->isAlive()) {
+                uint32_t deadIP = cSock->sockaddr.sin_addr.s_addr;
+                if (connectionsPerIP.count(deadIP) && --connectionsPerIP[deadIP] <= 0)
+                    connectionsPerIP.erase(deadIP);
+
                 killConnection(cSock);
                 it = connections.erase(it);
 
