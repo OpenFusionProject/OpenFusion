@@ -49,7 +49,12 @@ static void vendorBuy(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    int itemCost = itemDat->buyPrice * (itemDat->stackSize > 1 ? req->Item.iOpt : 1);
+    int64_t itemCost64 = (int64_t)itemDat->buyPrice * (itemDat->stackSize > 1 ? req->Item.iOpt : 1);
+    if (itemCost64 > INT32_MAX || itemCost64 < 0) {
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL);
+        return;
+    }
+    int itemCost = (int)itemCost64;
     int slot = Items::findFreeSlot(plr);
     if (itemCost > plr->money || slot == -1) {
         sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL);
@@ -120,8 +125,9 @@ static void vendorSell(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC, resp);
 
-    // increment taros
-    plr->money += itemData->sellPrice * req->iItemCnt;
+    // increment taros (overflow-safe)
+    int64_t newMoney = (int64_t)plr->money + (int64_t)itemData->sellPrice * req->iItemCnt;
+    plr->money = (int)std::min(newMoney, (int64_t)INT32_MAX);
 
     // modify item
     if (item->iOpt - req->iItemCnt > 0) { // selling part of a stack

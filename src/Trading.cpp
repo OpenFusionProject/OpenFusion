@@ -19,6 +19,8 @@ static bool doTrade(Player* plr, Player* plr2) {
     for (int i = 0; i < 5; i++) {
         // remove items offered by us
         if (plr->Trade[i].iID != 0) {
+            if (plr->Trade[i].iInvenNum < 0 || plr->Trade[i].iInvenNum >= AINVEN_COUNT)
+                return false;
             if (plrInven[plr->Trade[i].iInvenNum].iID == 0
                 || plr->Trade[i].iID != plrInven[plr->Trade[i].iInvenNum].iID
                 || plr->Trade[i].iType != plrInven[plr->Trade[i].iInvenNum].iType) // pulling a fast one on us
@@ -42,6 +44,8 @@ static bool doTrade(Player* plr, Player* plr2) {
         }
 
         if (plr2->Trade[i].iID != 0) {
+            if (plr2->Trade[i].iInvenNum < 0 || plr2->Trade[i].iInvenNum >= AINVEN_COUNT)
+                return false;
             if (plr2Inven[plr2->Trade[i].iInvenNum].iID == 0
                 || plr2->Trade[i].iID != plr2Inven[plr2->Trade[i].iInvenNum].iID
                 || plr2->Trade[i].iType != plr2Inven[plr2->Trade[i].iInvenNum].iType) // pulling a fast one on us
@@ -275,19 +279,40 @@ static void tradeConfirm(CNSocket* sock, CNPacketData* data) {
     plr->isTradeConfirm = false;
     plr2->isTradeConfirm = false;
 
+    int64_t newMoney1 = (int64_t)plr->money + plr2->moneyInTrade - plr->moneyInTrade;
+    int64_t newMoney2 = (int64_t)plr2->money + plr->moneyInTrade - plr2->moneyInTrade;
+    if (plr->moneyInTrade > plr->money || plr2->moneyInTrade > plr2->money
+        || newMoney1 > INT32_MAX || newMoney1 < 0
+        || newMoney2 > INT32_MAX || newMoney2 < 0) {
+        INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CONFIRM_ABORT, fail);
+        fail.iID_Request = plr->iID;
+        fail.iID_From = pacdat->iID_From;
+        fail.iID_To = pacdat->iID_To;
+        sock->sendPacket((void*)&fail, P_FE2CL_REP_PC_TRADE_CONFIRM_ABORT, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_ABORT));
+        fail.iID_Request = plr2->iID;
+        otherSock->sendPacket((void*)&fail, P_FE2CL_REP_PC_TRADE_CONFIRM_ABORT, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_ABORT));
+
+        memset(&plr->Trade, 0, sizeof(plr->Trade));
+        memset(&plr2->Trade, 0, sizeof(plr2->Trade));
+        plr->moneyInTrade = 0;
+        plr2->moneyInTrade = 0;
+        return;
+    }
+
     if (doTrade(plr, plr2)) { // returns false if not enough slots
         INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CONFIRM_SUCC, resp2);
         resp2.iID_Request = pacdat->iID_Request;
         resp2.iID_From = pacdat->iID_From;
         resp2.iID_To = pacdat->iID_To;
-        plr->money = plr->money + plr2->moneyInTrade - plr->moneyInTrade;
+
+        plr->money = (int32_t)newMoney1;
         resp2.iCandy = plr->money;
         memcpy(resp2.Item, plr2->Trade, sizeof(plr2->Trade));
         memcpy(resp2.ItemStay, plr->Trade, sizeof(plr->Trade));
 
         sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_TRADE_CONFIRM_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_SUCC));
 
-        plr2->money = plr2->money + plr->moneyInTrade - plr2->moneyInTrade;
+        plr2->money = (int32_t)newMoney2;
         resp2.iCandy = plr2->money;
         memcpy(resp2.Item, plr->Trade, sizeof(plr->Trade));
         memcpy(resp2.ItemStay, plr2->Trade, sizeof(plr2->Trade));
@@ -349,6 +374,9 @@ static void tradeRegisterItem(CNSocket* sock, CNPacketData* data) {
 
     if (pacdat->Item.iSlotNum < 0 || pacdat->Item.iSlotNum > 4)
         return; // sanity check, there are only 5 trade slots
+
+    if (pacdat->Item.iInvenNum < 0 || pacdat->Item.iInvenNum >= AINVEN_COUNT)
+        return;
 
     CNSocket* otherSock; // weird flip flop because we need to know who the other player is
     if (pacdat->iID_Request == pacdat->iID_From)
@@ -418,6 +446,9 @@ static void tradeUnregisterItem(CNSocket* sock, CNPacketData* data) {
     resp.iID_To = pacdat->iID_To;
     resp.TradeItem = pacdat->Item;
     resp.InvenItem = plr->Trade[pacdat->Item.iSlotNum];
+
+    if (resp.InvenItem.iInvenNum < 0 || resp.InvenItem.iInvenNum >= AINVEN_COUNT)
+        return;
 
     memset(&plr->Trade[pacdat->Item.iSlotNum], 0, sizeof(plr->Trade[pacdat->Item.iSlotNum])); // clean up item slot
 

@@ -251,7 +251,7 @@ void CNSocket::step() {
             // we got our packet size!!!!
             readSize = *((int32_t*)readBuffer);
             // sanity check
-            if (readSize > CN_PACKET_BUFFER_SIZE) {
+            if (readSize <= 0 || readSize > CN_PACKET_BUFFER_SIZE) {
                 kill();
                 return;
             }

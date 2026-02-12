@@ -44,8 +44,14 @@ static void racingGetPod(CNSocket* sock, CNPacketData* data) {
     if (EPRaces[sock].collectedRings.count(req->iRingLID))
         return; // can't collect the same ring twice
 
-    // without an anticheat system, we really don't have a choice but to honor the request
-    // TODO: proximity check so players can't cheat the race by replaying packets
+    Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
+
+    if (plr->instanceID == 0) {
+        std::cout << "[WARN] Player tried to collect ring outside IZ" << std::endl;
+        return;
+    }
+
     EPRaces[sock].collectedRings.insert(req->iRingLID);
 
     INITSTRUCT(sP_FE2CL_REP_EP_GET_RING_SUCC, resp);

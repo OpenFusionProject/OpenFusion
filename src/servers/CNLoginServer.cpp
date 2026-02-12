@@ -375,10 +375,10 @@ bool validateCharacterCreation(sP_CL2LS_REQ_CHAR_CREATE* character) {
     if (!(style->iBody      >= 0 && style->iBody      <= 2   &&
           style->iEyeColor  >= 1 && style->iEyeColor  <= 5   &&
           style->iGender    >= 1 && style->iGender    <= 2   &&
-          style->iHairColor >= 1 && style->iHairColor <= 18) &&
+          style->iHairColor >= 1 && style->iHairColor <= 18  &&
           style->iHeight    >= 0 && style->iHeight    <= 4   &&
           style->iNameCheck >= 0 && style->iNameCheck <= 2   &&
-          style->iSkinColor >= 1 && style->iSkinColor <= 12)
+          style->iSkinColor >= 1 && style->iSkinColor <= 12))
         return false;
             
     // facestyle and hairstyle are gender dependent
@@ -595,17 +595,15 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
 }
 
 void CNLoginServer::duplicateExit(CNSocket* sock, CNPacketData* data) {
-    // TODO: FIX THIS PACKET
-
     sP_CL2LS_REQ_PC_EXIT_DUPLICATE* exit = (sP_CL2LS_REQ_PC_EXIT_DUPLICATE*)data->buf;
     Database::Account account = {};
     Database::findAccount(&account, AUTOU16TOU8(exit->szID));
 
-    // sanity check
-    if (account.AccountID == 0) {
-        std::cout << "[WARN] P_CL2LS_REQ_PC_EXIT_DUPLICATE submitted unknown username: " << exit->szID << std::endl;
+    if (account.AccountID == 0)
         return;
-    }
+
+    if (loginSessions.find(sock) == loginSessions.end() || loginSessions[sock].userID != account.AccountID)
+        return;
 
     exitDuplicate(account.AccountID);
 }
@@ -719,11 +717,39 @@ bool CNLoginServer::isNameWheelNameGood(int fnCode, int mnCode, int lnCode, std:
     return true;
 }
 
+static bool isNamePartValid(const std::string& name) {
+    if (name.empty() || name.size() > 32)
+        return false;
+
+    for (size_t i = 0; i < name.size(); i++) {
+        char c = name[i];
+
+        if (std::isalnum(c))
+            continue;
+
+        if (c == '.') {
+            if (i == 0 || i == name.size() - 1)
+                return false;
+            if (name[i - 1] == '.' || name[i - 1] == ' ')
+                return false;
+            continue;
+        }
+
+        if (c == ' ') {
+            if (i == 0 || i == name.size() - 1)
+                return false;
+            if (name[i - 1] == ' ' || name[i - 1] == '.')
+                return false;
+            continue;
+        }
+
+        return false;
+    }
+    return true;
+}
+
 bool CNLoginServer::isCharacterNameGood(std::string Firstname, std::string Lastname) {
-    //Allow alphanumeric and dot characters in names(disallows dot and space characters at the beginning of a name)
-    std::regex firstnamecheck(R"(((?! )(?!\.)[a-zA-Z0-9]*\.{0,1}(?!\.+ +)[a-zA-Z0-9]* {0,1}(?! +))*$)");
-    std::regex lastnamecheck(R"(((?! )(?!\.)[a-zA-Z0-9]*\.{0,1}(?!\.+ +)[a-zA-Z0-9]* {0,1}(?! +))*$)");
-    return (std::regex_match(Firstname, firstnamecheck) && std::regex_match(Lastname, lastnamecheck));
+    return isNamePartValid(Firstname) && isNamePartValid(Lastname);
 }
 
 bool CNLoginServer::isAuthMethodAllowed(AuthMethod authMethod) {

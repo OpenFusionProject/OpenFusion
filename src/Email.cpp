@@ -9,12 +9,16 @@
 #include "Items.hpp"
 #include "Chat.hpp"
 
+#include <climits>
+
 using namespace Email;
 
 // New email notification
 static void emailUpdateCheck(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_PC_NEW_EMAIL, resp);
-    resp.iNewEmailCnt = Database::getUnreadEmailCount(PlayerManager::getPlayer(sock)->iID);
+    Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
+    resp.iNewEmailCnt = Database::getUnreadEmailCount(plr->iID);
     sock->sendPacket(resp, P_FE2CL_REP_PC_NEW_EMAIL);
 }
 
@@ -25,21 +29,23 @@ static void emailReceivePageList(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_PC_RECV_EMAIL_PAGE_LIST_SUCC, resp);
     resp.iPageNum = pkt->iPageNum;
 
-    std::vector<Database::EmailData> emails = Database::getEmails(PlayerManager::getPlayer(sock)->iID, pkt->iPageNum);
+    Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
+    std::vector<Database::EmailData> emails = Database::getEmails(plr->iID, pkt->iPageNum);
     for (int i = 0; i < emails.size(); i++) {
         // convert each email and load them into the packet
-        Database::EmailData* email = &emails.at(i);
-        sEmailInfo* emailInfo = new sEmailInfo();
-        emailInfo->iEmailIndex = email->MsgIndex;
-        emailInfo->iReadFlag = email->ReadFlag;
-        emailInfo->iItemCandyFlag = email->ItemFlag;
-        emailInfo->iFromPCUID = email->SenderId;
-        emailInfo->SendTime = timeStampToStruct(email->SendTime);
-        emailInfo->DeleteTime = timeStampToStruct(email->DeleteTime);
-        U8toU16(email->SenderFirstName, emailInfo->szFirstName, sizeof(emailInfo->szFirstName));
-        U8toU16(email->SenderLastName, emailInfo->szLastName, sizeof(emailInfo->szLastName));
-        U8toU16(email->SubjectLine, emailInfo->szSubject, sizeof(emailInfo->szSubject));
-        resp.aEmailInfo[i] = *emailInfo;
+        Database::EmailData* email = &emails[i];
+        sEmailInfo emailInfo = {};
+        emailInfo.iEmailIndex = email->MsgIndex;
+        emailInfo.iReadFlag = email->ReadFlag;
+        emailInfo.iItemCandyFlag = email->ItemFlag;
+        emailInfo.iFromPCUID = email->SenderId;
+        emailInfo.SendTime = timeStampToStruct(email->SendTime);
+        emailInfo.DeleteTime = timeStampToStruct(email->DeleteTime);
+        U8toU16(email->SenderFirstName, emailInfo.szFirstName, sizeof(emailInfo.szFirstName));
+        U8toU16(email->SenderLastName, emailInfo.szLastName, sizeof(emailInfo.szLastName));
+        U8toU16(email->SubjectLine, emailInfo.szSubject, sizeof(emailInfo.szSubject));
+        resp.aEmailInfo[i] = emailInfo;
     }
 
     sock->sendPacket(resp, P_FE2CL_REP_PC_RECV_EMAIL_PAGE_LIST_SUCC);
@@ -63,6 +69,7 @@ static void emailRead(CNSocket* sock, CNPacketData* data) {
     for (int i = 0; i < 4; i++) {
         resp.aItem[i] = attachments[i];
     }
+    delete[] attachments;
     U8toU16(email.MsgBody, (char16_t*)resp.szContent, sizeof(resp.szContent));
 
     sock->sendPacket(resp, P_FE2CL_REP_PC_READ_EMAIL_SUCC);
@@ -74,8 +81,11 @@ static void emailReceiveTaros(CNSocket* sock, CNPacketData* data) {
 
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     Database::EmailData email = Database::getEmail(plr->iID, pkt->iEmailIndex);
     // money transfer
+    if (email.Taros < 0 || plr->money > INT32_MAX - email.Taros)
+        return;
     plr->money += email.Taros;
     email.Taros = 0;
     // update Taros in email
@@ -93,12 +103,14 @@ static void emailReceiveItemSingle(CNSocket* sock, CNPacketData* data) {
     auto pkt = (sP_CL2FE_REQ_PC_RECV_EMAIL_ITEM*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     if (pkt->iSlotNum < 0 || pkt->iSlotNum >= AINVEN_COUNT || pkt->iEmailItemSlot < 1 || pkt->iEmailItemSlot > 4)
         return; // sanity check
 
     // get email item from db and delete it
     sItemBase* attachments = Database::getEmailAttachments(plr->iID, pkt->iEmailIndex);
     sItemBase itemFrom = attachments[pkt->iEmailItemSlot - 1];
+    delete[] attachments;
     Database::deleteEmailAttachments(plr->iID, pkt->iEmailIndex, pkt->iEmailItemSlot);
 
     // move item to player inventory
@@ -157,6 +169,7 @@ static void emailReceiveItemAll(CNSocket* sock, CNPacketData* data) {
 
         sock->sendPacket(resp2, P_FE2CL_REP_PC_GIVE_ITEM_SUCC);
     }
+    delete[] itemsFrom;
 
     // delete all items from db
     Database::deleteEmailAttachments(plr->iID, pkt->iEmailIndex, -1);
@@ -222,7 +235,8 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
         }
     }
 
-    if (pkt->iCash < 0 || pkt->iCash > plr->money + 50 + 20 * itemCount || invalid) {
+    int64_t totalCost = (int64_t)pkt->iCash + 50 + 20 * itemCount;
+    if (pkt->iCash < 0 || totalCost > plr->money || invalid) {
         INITSTRUCT(sP_FE2CL_REP_PC_SEND_EMAIL_FAIL, errResp);
         errResp.iErrorCode = 1;
         errResp.iTo_PCUID = pkt->iTo_PCUID;

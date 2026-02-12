@@ -192,16 +192,21 @@ std::string U16toU8(char16_t* src, size_t max) {
 
 // returns number of char16_t that was written at des
 size_t U8toU16(std::string src, char16_t* des, size_t max) {
+    size_t maxChars = max / sizeof(char16_t);
+    if (maxChars == 0)
+        return 0;
+
     std::wstring_convert<std::codecvt_utf8_utf16<char16_t>,char16_t> convert;
     std::u16string tmp = convert.from_bytes(src);
-
     // copy utf16 string to buffer
-    if (sizeof(char16_t) * tmp.length() > max) // make sure we don't write outside the buffer
-        memcpy(des, tmp.c_str(), sizeof(char16_t) * max);
-    else
-        memcpy(des, tmp.c_str(), sizeof(char16_t) * tmp.length());
-    des[tmp.length()] = '\0';
+    if (tmp.length() >= maxChars) {
+        memcpy(des, tmp.c_str(), sizeof(char16_t) * (maxChars - 1));
+        des[maxChars - 1] = '\0';
+        return maxChars - 1;
+    }
 
+    memcpy(des, tmp.c_str(), sizeof(char16_t) * tmp.length());
+    des[tmp.length()] = '\0';
     return tmp.length();
 }
 

@@ -326,6 +326,9 @@ static void itemGMGiveHandler(CNSocket* sock, CNPacketData* data) {
             return;
         }
 
+        if (itemreq->iSlotNum < 0 || itemreq->iSlotNum >= AINVEN_COUNT)
+            return;
+
         if (itemreq->Item.iType == 10) {
             // item is vehicle, set expiration date
             // set time limit: current time + 7days

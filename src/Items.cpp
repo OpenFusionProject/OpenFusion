@@ -83,7 +83,7 @@ static void nanoCapsuleHandler(CNSocket* sock, int slot, sItemBase *chest) {
         INITSTRUCT(sP_FE2CL_GM_REP_PC_ANNOUNCE, msg);
         msg.iDuringTime = 4;
         std::string text = "You have already acquired this nano!";
-        U8toU16(text, msg.szAnnounceMsg, sizeof(text));
+        U8toU16(text, msg.szAnnounceMsg, sizeof(msg.szAnnounceMsg));
         sock->sendPacket(msg, P_FE2CL_GM_REP_PC_ANNOUNCE);
         return;
     }
@@ -437,11 +437,16 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
     auto request = (sP_CL2FE_REQ_ITEM_USE*)data->buf;
     Player* player = PlayerManager::getPlayer(sock);
 
+    if (player == nullptr) return;
     if (request->iSlotNum < 0 || request->iSlotNum >= AINVEN_COUNT)
         return; // sanity check
 
     // gumball can only be used from inventory, so we ignore eIL
     sItemBase gumball = player->Inven[request->iSlotNum];
+
+    if (request->iNanoSlot < 0 || request->iNanoSlot > 2)
+        return;
+
     sNano nano = player->Nanos[player->equippedNanos[request->iNanoSlot]];
 
     // sanity check, check if gumball exists

@@ -6,6 +6,8 @@
 #include "Items.hpp"
 #include "Nanos.hpp"
 
+#include <climits>
+
 using namespace Missions;
 
 std::map<int32_t, Reward*> Missions::Rewards;
@@ -158,21 +160,23 @@ static int giveMissionReward(CNSocket *sock, int task, int choice=0) {
 
     uint8_t respbuf[CN_PACKET_BODY_SIZE];
     size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + nrewards * sizeof(sItemReward);
-    assert(resplen < CN_PACKET_BODY_SIZE);
+    if (resplen >= CN_PACKET_BODY_SIZE)
+        return -1;
     sP_FE2CL_REP_REWARD_ITEM *resp = (sP_FE2CL_REP_REWARD_ITEM *)respbuf;
     sItemReward *item = (sItemReward *)(respbuf + sizeof(sP_FE2CL_REP_REWARD_ITEM));
 
     // don't forget to zero the buffer!
     memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 
-    // update player
-    plr->money += reward->money;
+    // update player (overflow-safe)
+    int64_t newMoney = (int64_t)plr->money + reward->money;
     if (plr->hasBuff(ECSB_REWARD_CASH)) { // nano boost for taros
         int boost = 0;
         if (Nanos::getNanoBoost(plr)) // for gumballs
             boost = 1;
-        plr->money += reward->money * (5 + boost) / 25;
+        newMoney += (int64_t)reward->money * (5 + boost) / 25;
     }
+    plr->money = (int)std::min(std::max(newMoney, (int64_t)0), (int64_t)INT32_MAX);
 
     if (plr->hasBuff(ECSB_REWARD_BLOB)) { // nano boost for fm
         int boost = 0;
