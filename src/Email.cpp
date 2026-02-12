@@ -51,6 +51,7 @@ static void emailRead(CNSocket* sock, CNPacketData* data) {
 
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     Database::EmailData email = Database::getEmail(plr->iID, pkt->iEmailIndex);
     sItemBase* attachments = Database::getEmailAttachments(plr->iID, pkt->iEmailIndex);
     email.ReadFlag = 1; // mark as read
@@ -129,6 +130,7 @@ static void emailReceiveItemAll(CNSocket* sock, CNPacketData* data) {
 
     // move items to player inventory
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     sItemBase* itemsFrom = Database::getEmailAttachments(plr->iID, pkt->iEmailIndex);
     for (int i = 0; i < 4; i++) {
         int slot = Items::findFreeSlot(plr);
@@ -169,7 +171,9 @@ static void emailReceiveItemAll(CNSocket* sock, CNPacketData* data) {
 static void emailDelete(CNSocket* sock, CNPacketData* data) {
     auto pkt = (sP_CL2FE_REQ_PC_DELETE_EMAIL*)data->buf;
 
-    Database::deleteEmails(PlayerManager::getPlayer(sock)->iID, pkt->iEmailIndexArray);
+    Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
+    Database::deleteEmails(plr->iID, pkt->iEmailIndexArray);
 
     INITSTRUCT(sP_FE2CL_REP_PC_DELETE_EMAIL_SUCC, resp);
     for (int i = 0; i < 5; i++) {
@@ -184,6 +188,7 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
     auto pkt = (sP_CL2FE_REQ_PC_SEND_EMAIL*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // sanity checks
     bool invalid = false;
     int itemCount = 0;

@@ -106,6 +106,7 @@ static void npcBarkHandler(CNSocket* sock, CNPacketData* data) {
     auto& barks = td->task["m_iHBarkerTextID"];
 
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     std::vector<std::pair<int32_t, int32_t>> npcLines;
 
     for (Chunk* chunk : plr->viewableChunks) {
@@ -143,6 +144,7 @@ static void npcBarkHandler(CNSocket* sock, CNPacketData* data) {
 static void npcUnsummonHandler(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     if (plr->accountLevel > 30)
         return;
 
@@ -175,6 +177,7 @@ static void npcSummonHandler(CNSocket* sock, CNPacketData* data) {
     auto req = (sP_CL2FE_REQ_NPC_SUMMON*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     int limit = NPCData.back()["m_iNpcNumber"];
 
     // permission & sanity check
@@ -189,6 +192,7 @@ static void npcSummonHandler(CNSocket* sock, CNPacketData* data) {
 
 static void handleWarp(CNSocket* sock, int32_t warpId) {
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     // sanity check
     if (Warps.find(warpId) == Warps.end())
         return;
@@ -213,7 +217,10 @@ static void handleWarp(CNSocket* sock, int32_t warpId) {
         uint64_t instanceID = Warps[warpId].instanceID;
 
         Player* leader = plr;
-        if (plr->group != nullptr) leader = PlayerManager::getPlayer(plr->group->filter(EntityKind::PLAYER)[0].sock);
+        if (plr->group != nullptr) {
+            Player* groupLeader = PlayerManager::getPlayer(plr->group->filter(EntityKind::PLAYER)[0].sock);
+            if (groupLeader != nullptr) leader = groupLeader;
+        }
 
         // if warp requires you to be on a mission, it's gotta be a unique instance
         if (Warps[warpId].limitTaskID != 0 || instanceID == 14) { // 14 is a special case for the Time Lab

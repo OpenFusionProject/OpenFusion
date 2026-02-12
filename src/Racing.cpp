@@ -61,6 +61,7 @@ static void racingCancel(CNSocket* sock, CNPacketData* data) {
         return; // race not found
 
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     EPRaces.erase(sock);
 
     INITSTRUCT(sP_FE2CL_REP_EP_RACE_CANCEL_SUCC, resp);
@@ -92,6 +93,7 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
     auto req = (sP_CL2FE_REQ_EP_RACE_END*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     if (NPCManager::NPCs.find(req->iEndEcomID) == NPCManager::NPCs.end())
         return; // finish line agent not found
 

@@ -1,7 +1,5 @@
 #include "db/internal.hpp"
 
-#include <assert.h>
-
 // Miscellanious in-game database interactions
 
 static int getAccountIDFromPlayerID(int playerId, int *accountLevel=nullptr) {
@@ -254,7 +252,11 @@ RaceRanking Database::getTopRaceRanking(int epID, int playerID) {
         return ranking;
     }
 
-    assert(epID == sqlite3_column_int(stmt, 0)); // EPIDs should always match
+    if (epID != sqlite3_column_int(stmt, 0)) {
+        std::cout << "[WARN] Race ranking EPID mismatch" << std::endl;
+        sqlite3_finalize(stmt);
+        return ranking;
+    }
 
     ranking.EPID = epID;
     ranking.PlayerID = sqlite3_column_int(stmt, 1);

@@ -9,6 +9,7 @@
 static void movePlayer(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     auto* moveData = (sP_CL2FE_REQ_PC_MOVE*)data->buf;
     PlayerManager::updatePlayerPosition(sock, moveData->iX, moveData->iY, moveData->iZ, plr->instanceID, moveData->iAngle);
 
@@ -55,6 +56,7 @@ static void movePlayer(CNSocket* sock, CNPacketData* data) {
 static void stopPlayer(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     auto stopData = (sP_CL2FE_REQ_PC_STOP*)data->buf;
     PlayerManager::updatePlayerPosition(sock, stopData->iX, stopData->iY, stopData->iZ, plr->instanceID, plr->angle);
 
@@ -77,6 +79,7 @@ static void stopPlayer(CNSocket* sock, CNPacketData* data) {
 static void jumpPlayer(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     auto jumpData = (sP_CL2FE_REQ_PC_JUMP*)data->buf;
     PlayerManager::updatePlayerPosition(sock, jumpData->iX, jumpData->iY, jumpData->iZ, plr->instanceID, jumpData->iAngle);
 
@@ -105,6 +108,7 @@ static void jumpPlayer(CNSocket* sock, CNPacketData* data) {
 static void jumppadPlayer(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     auto jumppadData = (sP_CL2FE_REQ_PC_JUMPPAD*)data->buf;
     PlayerManager::updatePlayerPosition(sock, jumppadData->iX, jumppadData->iY, jumppadData->iZ, plr->instanceID, jumppadData->iAngle);
 
@@ -131,6 +135,7 @@ static void jumppadPlayer(CNSocket* sock, CNPacketData* data) {
 static void launchPlayer(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     auto launchData = (sP_CL2FE_REQ_PC_LAUNCHER*)data->buf;
     PlayerManager::updatePlayerPosition(sock, launchData->iX, launchData->iY, launchData->iZ, plr->instanceID, launchData->iAngle);
 
@@ -158,6 +163,7 @@ static void launchPlayer(CNSocket* sock, CNPacketData* data) {
 static void ziplinePlayer(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     sP_CL2FE_REQ_PC_ZIPLINE* ziplineData = (sP_CL2FE_REQ_PC_ZIPLINE*)data->buf;
     PlayerManager::updatePlayerPosition(sock, ziplineData->iX, ziplineData->iY, ziplineData->iZ, plr->instanceID, ziplineData->iAngle);
 
@@ -192,6 +198,7 @@ static void ziplinePlayer(CNSocket* sock, CNPacketData* data) {
 static void movePlatformPlayer(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     auto platformData = (sP_CL2FE_REQ_PC_MOVEPLATFORM*)data->buf;
     PlayerManager::updatePlayerPosition(sock, platformData->iX, platformData->iY, platformData->iZ, plr->instanceID, platformData->iAngle);
 
@@ -223,6 +230,7 @@ static void movePlatformPlayer(CNSocket* sock, CNPacketData* data) {
 static void moveSliderPlayer(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     auto sliderData = (sP_CL2FE_REQ_PC_MOVETRANSPORTATION*)data->buf;
     PlayerManager::updatePlayerPosition(sock, sliderData->iX, sliderData->iY, sliderData->iZ, plr->instanceID, sliderData->iAngle);
 
@@ -253,6 +261,7 @@ static void moveSliderPlayer(CNSocket* sock, CNPacketData* data) {
 static void moveSlopePlayer(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     sP_CL2FE_REQ_PC_SLOPE* slopeData = (sP_CL2FE_REQ_PC_SLOPE*)data->buf;
     PlayerManager::updatePlayerPosition(sock, slopeData->iX, slopeData->iY, slopeData->iZ, plr->instanceID, slopeData->iAngle);
 

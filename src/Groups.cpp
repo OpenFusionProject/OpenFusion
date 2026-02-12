@@ -25,6 +25,7 @@ static void attachGroupData(std::vector<EntityRef>& pcs, std::vector<EntityRef>&
         sPCGroupMemberInfo* info = (sPCGroupMemberInfo*)pivot;
 
         Player* plr = PlayerManager::getPlayer(pcRef.sock);
+        if (plr == nullptr) continue;
         info->iPC_ID = plr->iID;
         info->iPCUID = plr->PCStyle.iPC_UID;
         info->iNameCheck = plr->PCStyle.iNameCheck;
@@ -69,6 +70,7 @@ void Groups::addToGroup(Group* group, EntityRef member) {
 
     if (member.kind == EntityKind::PLAYER) {
         Player* plr = PlayerManager::getPlayer(member.sock);
+        if (plr == nullptr) return;
         plr->group = group;
     }
     else if (member.kind == EntityKind::COMBAT_NPC) {
@@ -91,7 +93,9 @@ void Groups::addToGroup(Group* group, EntityRef member) {
         memset(respbuf, 0, CN_PACKET_BODY_SIZE);
         sP_FE2CL_PC_GROUP_JOIN* pkt = (sP_FE2CL_PC_GROUP_JOIN*)respbuf;
 
-        pkt->iID_NewMember = PlayerManager::getPlayer(member.sock)->iID;
+        Player* memberPlr = PlayerManager::getPlayer(member.sock);
+        if (memberPlr == nullptr) return;
+        pkt->iID_NewMember = memberPlr->iID;
         pkt->iMemberPCCnt = (int32_t)pcCount;
         pkt->iMemberNPCCnt = (int32_t)npcCount;
 
@@ -117,7 +121,8 @@ bool Groups::removeFromGroup(Group* group, EntityRef member) {
 
     if (member.kind == EntityKind::PLAYER) {
         Player* plr = PlayerManager::getPlayer(member.sock);
-        plr->group = nullptr; // no dangling pointers here muahaahahah
+        if (plr == nullptr) return false;
+        plr->group = nullptr;
 
         INITSTRUCT(sP_FE2CL_PC_GROUP_LEAVE_SUCC, leavePkt);
         member.sock->sendPacket(leavePkt, P_FE2CL_PC_GROUP_LEAVE_SUCC);
@@ -147,7 +152,9 @@ bool Groups::removeFromGroup(Group* group, EntityRef member) {
         memset(respbuf, 0, CN_PACKET_BODY_SIZE);
         sP_FE2CL_PC_GROUP_LEAVE* pkt = (sP_FE2CL_PC_GROUP_LEAVE*)respbuf;
 
-        pkt->iID_LeaveMember = PlayerManager::getPlayer(member.sock)->iID;
+        Player* leavePlr = PlayerManager::getPlayer(member.sock);
+        if (leavePlr == nullptr) return false;
+        pkt->iID_LeaveMember = leavePlr->iID;
         pkt->iMemberPCCnt = (int32_t)pcCount;
         pkt->iMemberNPCCnt = (int32_t)npcCount;
 
@@ -189,6 +196,7 @@ static void requestGroup(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_GROUP_INVITE* recv = (sP_CL2FE_REQ_PC_GROUP_INVITE*)data->buf;
 
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     Player* otherPlr = PlayerManager::getPlayerFromID(recv->iID_To);
 
     if (otherPlr == nullptr)
@@ -223,6 +231,7 @@ static void refuseGroup(CNSocket* sock, CNPacketData* data) {
 
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     INITSTRUCT(sP_FE2CL_PC_GROUP_INVITE_REFUSE, resp);
 
     resp.iID_To = plr->iID;
@@ -233,6 +242,7 @@ static void refuseGroup(CNSocket* sock, CNPacketData* data) {
 static void joinGroup(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_GROUP_JOIN* recv = (sP_CL2FE_REQ_PC_GROUP_JOIN*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     Player* otherPlr = PlayerManager::getPlayerFromID(recv->iID_From);
 
     if (otherPlr == nullptr)
@@ -257,6 +267,7 @@ static void joinGroup(CNSocket* sock, CNPacketData* data) {
 
 static void leaveGroup(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     groupKick(plr->group, sock);
 }
 
@@ -282,6 +293,7 @@ void Groups::sendToGroup(Group* group, EntityRef excluded, void* buf, uint32_t t
 
 void Groups::groupTickInfo(CNSocket* sock) {
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     Group* group = plr->group;
     std::vector<EntityRef> pcs = group->filter(EntityKind::PLAYER);
     std::vector<EntityRef> npcs = group->filter(EntityKind::COMBAT_NPC);

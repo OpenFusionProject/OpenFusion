@@ -6,6 +6,8 @@
 #include "Items.hpp"
 #include "Rand.hpp"
 
+#include <climits>
+
 // 7 days
 #define VEHICLE_EXPIRY_DURATION 604800
 
@@ -17,6 +19,7 @@ static void vendorBuy(CNSocket* sock, CNPacketData* data) {
     auto req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_BUY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // prepare fail packet
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_FAIL, failResp);
     failResp.iErrorCode = 0;
@@ -86,6 +89,7 @@ static void vendorSell(CNSocket* sock, CNPacketData* data) {
     auto req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_SELL*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // prepare a fail packet
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_FAIL, failResp);
     failResp.iErrorCode = 0;
@@ -149,6 +153,7 @@ static void vendorBuyback(CNSocket* sock, CNPacketData* data) {
     auto req = (sP_CL2FE_REQ_PC_VENDOR_ITEM_RESTORE_BUY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // prepare fail packet
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_FAIL, failResp);
     failResp.iErrorCode = 0;
@@ -272,6 +277,7 @@ static void vendorBuyBattery(CNSocket* sock, CNPacketData* data) {
     auto req = (sP_CL2FE_REQ_PC_VENDOR_BATTERY_BUY*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     int cost = req->Item.iOpt * 100;
     if ((req->Item.iID == 3 ? (plr->batteryW >= 9999) : (plr->batteryN >= 9999)) || plr->money < cost || req->Item.iOpt < 0) { // sanity check
         INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL, failResp);
@@ -306,6 +312,7 @@ static void vendorCombineItems(CNSocket* sock, CNPacketData* data) {
     auto req = (sP_CL2FE_REQ_PC_ITEM_COMBINATION*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // prepare fail packet
     INITSTRUCT(sP_FE2CL_REP_PC_ITEM_COMBINATION_FAIL, failResp);
     failResp.iCostumeItemSlot = req->iCostumeItemSlot;

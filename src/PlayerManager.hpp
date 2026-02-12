@@ -40,6 +40,7 @@ namespace PlayerManager {
     template<class T>
     void sendToViewable(CNSocket *sock, T& pkt, uint32_t type) {
         Player* plr = getPlayer(sock);
+        if (plr == nullptr) return;
         for (auto it = plr->viewableChunks.begin(); it != plr->viewableChunks.end(); it++) {
             Chunk* chunk = *it;
             for (const EntityRef& ref : chunk->entities) {

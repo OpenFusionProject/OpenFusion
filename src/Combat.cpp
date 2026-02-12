@@ -367,6 +367,7 @@ static std::pair<int,int> getDamage(int attackPower, int defensePower, bool shou
 
 static bool checkRapidFire(CNSocket *sock, int targetCount, bool allowManyTargets) {
     Player *plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return true;
     time_t currTime = getTime();
 
     if (currTime - plr->lastShot < plr->fireRate * 80)
@@ -393,6 +394,7 @@ static bool checkRapidFire(CNSocket *sock, int targetCount, bool allowManyTarget
 static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
     auto pkt = (sP_CL2FE_REQ_PC_ATTACK_NPCs*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     auto targets = (int32_t*)data->trailers;
 
     // kick the player if firing too rapidly
@@ -514,6 +516,7 @@ void Combat::genQItemRolls(std::vector<Player*> players, std::map<int, int>& rol
 static void combatBegin(CNSocket *sock, CNPacketData *data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     plr->inCombat = true;
 
     // HACK: make sure the player has the right weapon out for combat
@@ -529,17 +532,20 @@ static void combatBegin(CNSocket *sock, CNPacketData *data) {
 static void combatEnd(CNSocket *sock, CNPacketData *data) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     plr->inCombat = false;
     plr->healCooldown = 4000;
 }
 
 static void dealGooDamage(CNSocket *sock) {
     Player *plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     if(plr->iSpecialState & CN_SPECIAL_STATE_FLAG__INVULNERABLE)
         return; // ignore completely
 
     size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_DotDamage);
-    assert(resplen < CN_PACKET_BODY_SIZE);
+    if (resplen >= CN_PACKET_BODY_SIZE)
+        return;
     uint8_t respbuf[CN_PACKET_BODY_SIZE];
     memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 
@@ -587,6 +593,7 @@ static void dotDamageOnOff(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_DOT_DAMAGE_ONOFF *pkt = (sP_CL2FE_DOT_DAMAGE_ONOFF*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // infection debuff toggles as the client asks it to,
     // so we add and remove a permanent debuff
     if (pkt->iFlag && !plr->hasBuff(ECSB_INFECTION)) {
@@ -614,6 +621,7 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
     sP_CL2FE_REQ_PC_ATTACK_CHARs* pkt = (sP_CL2FE_REQ_PC_ATTACK_CHARs*)data->buf;
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // only GMs can use this variant
     if (plr->accountLevel > 30)
         return;
@@ -753,6 +761,7 @@ static void grenadeFire(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_GRENADE_STYLE_FIRE* grenade = (sP_CL2FE_REQ_PC_GRENADE_STYLE_FIRE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     INITSTRUCT(sP_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC, resp);
     resp.iToX = grenade->iToX;
     resp.iToY = grenade->iToY;
@@ -781,6 +790,7 @@ static void rocketFire(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_ROCKET_STYLE_FIRE* rocket = (sP_CL2FE_REQ_PC_ROCKET_STYLE_FIRE*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // We should be sending back rocket succ packet, but it doesn't work, and this one works
     INITSTRUCT(sP_FE2CL_REP_PC_GRENADE_STYLE_FIRE_SUCC, resp);
     resp.iToX = rocket->iToX;
@@ -811,6 +821,7 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_ROCKET_STYLE_HIT* pkt = (sP_CL2FE_REQ_PC_ROCKET_STYLE_HIT*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     if (pkt->iTargetCnt == 0) {
         Bullets[plr->iID].erase(pkt->iBulletID);
         // no targets hit, don't send response

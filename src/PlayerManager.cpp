@@ -14,7 +14,6 @@
 #include "Buddies.hpp"
 #include "BuiltinCommands.hpp"
 
-#include <assert.h>
 #include <algorithm>
 #include <vector>
 #include <cmath>
@@ -71,6 +70,7 @@ void PlayerManager::removePlayer(CNSocket* key) {
 
 void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, uint64_t I, int angle) {
     Player* plr = getPlayer(sock);
+    if (plr == nullptr) return;
     plr->angle = angle;
     ChunkPos oldChunk = plr->chunkPos;
     ChunkPos newChunk = Chunking::chunkPosAt(X, Y, I);
@@ -93,6 +93,7 @@ void PlayerManager::updatePlayerPosition(CNSocket* sock, int X, int Y, int Z, ui
  */
 void PlayerManager::updatePlayerPositionForWarp(CNSocket* sock, int X, int Y, int Z, uint64_t inst) {
     Player *plr = getPlayer(sock);
+    if (plr == nullptr) return;
 
     // force player to reload chunks
     Chunking::updateEntityChunk({sock}, plr->chunkPos, Chunking::INVALID_CHUNK);
@@ -101,6 +102,7 @@ void PlayerManager::updatePlayerPositionForWarp(CNSocket* sock, int X, int Y, in
 
 void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I) {
     Player* plr = getPlayer(sock);
+    if (plr == nullptr) return;
     plr->onMonkey = false;
 
     if (plr->instanceID == INSTANCE_OVERWORLD) {
@@ -144,7 +146,9 @@ void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z, uint64_t I
 }
 
 void PlayerManager::sendPlayerTo(CNSocket* sock, int X, int Y, int Z) {
-    sendPlayerTo(sock, X, Y, Z, getPlayer(sock)->instanceID);
+    Player* plr = getPlayer(sock);
+    if (plr == nullptr) return;
+    sendPlayerTo(sock, X, Y, Z, plr->instanceID);
 }
 
 /*
@@ -325,7 +329,7 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
 
 void PlayerManager::sendToGroup(CNSocket* sock, void* buf, uint32_t type, size_t size) {
     Player* plr = getPlayer(sock);
-    if (plr->group == nullptr)
+    if (plr == nullptr || plr->group == nullptr)
         return;
     for(const EntityRef& ref : plr->group->filter(EntityKind::PLAYER))
         ref.sock->sendPacket(buf, type, size);
@@ -333,6 +337,7 @@ void PlayerManager::sendToGroup(CNSocket* sock, void* buf, uint32_t type, size_t
 
 void PlayerManager::sendToViewable(CNSocket* sock, void* buf, uint32_t type, size_t size) {
     Player* plr = getPlayer(sock);
+    if (plr == nullptr) return;
     for (auto it = plr->viewableChunks.begin(); it != plr->viewableChunks.end(); it++) {
         Chunk* chunk = *it;
         for (const EntityRef& ref : chunk->entities) {
@@ -348,6 +353,7 @@ static void loadPlayer(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_LOADING_COMPLETE* complete = (sP_CL2FE_REQ_PC_LOADING_COMPLETE*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_LOADING_COMPLETE_SUCC, response);
     Player *plr = getPlayer(sock);
+    if (plr == nullptr) return;
 
     DEBUGLOG(
         std::cout << "P_CL2FE_REQ_PC_LOADING_COMPLETE:" << std::endl;
@@ -391,7 +397,9 @@ static void loadPlayer(CNSocket* sock, CNPacketData* data) {
 }
 
 static void heartbeatPlayer(CNSocket* sock, CNPacketData* data) {
-    getPlayer(sock)->lastHeartbeat = getTime();
+    Player* plr = getPlayer(sock);
+    if (plr == nullptr) return;
+    plr->lastHeartbeat = getTime();
 }
 
 static void exitGame(CNSocket* sock, CNPacketData* data) {
@@ -417,6 +425,7 @@ static void exitGame(CNSocket* sock, CNPacketData* data) {
 
 static void revivePlayer(CNSocket* sock, CNPacketData* data) {
     Player *plr = getPlayer(sock);
+    if (plr == nullptr) return;
     WarpLocation* target = getRespawnPoint(plr);
 
     auto reviveData = (sP_CL2FE_REQ_PC_REGEN*)data->buf;
@@ -512,6 +521,7 @@ static void revivePlayer(CNSocket* sock, CNPacketData* data) {
 
 static void enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     Player* plr = getPlayer(sock);
+    if (plr == nullptr) return;
 
     // vehicles are only allowed in the overworld
     if (plr->instanceID != 0)
@@ -545,6 +555,7 @@ static void enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
 
 static void exitPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     Player* plr = getPlayer(sock);
+    if (plr == nullptr) return;
 
     if (plr->iPCState & 8) {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
@@ -568,6 +579,7 @@ static void changePlayerGuide(CNSocket *sock, CNPacketData *data) {
     auto pkt = (sP_CL2FE_REQ_PC_CHANGE_MENTOR*)data->buf;
     INITSTRUCT(sP_FE2CL_REP_PC_CHANGE_MENTOR_SUCC, resp);
     Player *plr = getPlayer(sock);
+    if (plr == nullptr) return;
 
     resp.iMentor = pkt->iMentor;
     resp.iMentorCnt = 1;
@@ -594,6 +606,7 @@ static void changePlayerGuide(CNSocket *sock, CNPacketData *data) {
 static void setFirstUseFlag(CNSocket* sock, CNPacketData* data) {
     auto flag = (sP_CL2FE_REQ_PC_FIRST_USE_FLAG_SET*)data->buf;
     Player* plr = getPlayer(sock);
+    if (plr == nullptr) return;
 
     if (flag->iFlagCode < 1 || flag->iFlagCode > 128) {
         std::cout << "[WARN] Client submitted invalid first use flag number?!" << std::endl;
@@ -611,8 +624,7 @@ Player *PlayerManager::getPlayer(CNSocket* key) {
     if (players.find(key) != players.end())
         return players[key];
 
-    // this should never happen
-    assert(false);
+    return nullptr;
 }
 
 std::string PlayerManager::getPlayerName(Player *plr, bool id) {
@@ -693,15 +705,16 @@ CNSocket *PlayerManager::getSockFromName(std::string firstname, std::string last
 CNSocket *PlayerManager::getSockFromAny(int by, int id, int uid, std::string firstname, std::string lastname) {
     switch ((eCN_GM_TargetSearchBy)by) {
     case eCN_GM_TargetSearchBy::PC_ID:
-        assert(id != 0);
+        if (id == 0) return nullptr;
         return getSockFromID(id);
     case eCN_GM_TargetSearchBy::PC_UID: // account id; not player id
-        assert(uid != 0);
+        if (uid == 0) return nullptr;
         for (auto& pair : players)
             if (pair.second->accountId == uid)
                 return pair.first;
+        return nullptr;
     case eCN_GM_TargetSearchBy::PC_Name:
-        assert(firstname != "" && lastname != ""); // XXX: remove this if we start messing around with edited names?
+        if (firstname.empty() || lastname.empty()) return nullptr;
         return getSockFromName(firstname, lastname);
     }
 

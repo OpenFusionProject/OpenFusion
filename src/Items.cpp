@@ -12,7 +12,6 @@
 #include "Buffs.hpp"
 
 #include <string.h> // for memset()
-#include <assert.h>
 #include <numeric>
 
 using namespace Items;
@@ -38,6 +37,7 @@ std::map<int32_t, int32_t> Items::NanoCapsules; // crate id -> nano id
 
 static void nanoCapsuleHandler(CNSocket* sock, int slot, sItemBase *chest) {
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     int32_t nanoId = NanoCapsules[chest->iID];
 
     // chest opening acknowledgement packet
@@ -46,7 +46,8 @@ static void nanoCapsuleHandler(CNSocket* sock, int slot, sItemBase *chest) {
 
     // in order to remove capsule form inventory, we have to send item reward packet with empty item
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
-    assert(resplen < CN_PACKET_BODY_SIZE);
+    if (resplen >= CN_PACKET_BODY_SIZE)
+        return;
 
     // we know it's only one trailing struct, so we can skip full validation
     uint8_t respbuf[resplen]; // not a variable length array, don't worry
@@ -258,6 +259,7 @@ static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // sanity check
     if (itemmove->iToSlotNum < 0 || itemmove->iFromSlotNum < 0)
         return;
@@ -416,6 +418,7 @@ static void itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
 
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     if (itemdel->iSlotNum < 0 || itemdel->iSlotNum >= AINVEN_COUNT)
         return; // sanity check
 
@@ -518,6 +521,7 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
 static void itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     // just send bank inventory
     INITSTRUCT(sP_FE2CL_REP_PC_BANK_OPEN_SUCC, resp);
     for (int i = 0; i < ABANK_COUNT; i++) {
@@ -536,6 +540,7 @@ static void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
 
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     sItemBase *chest = &plr->Inven[pkt->iSlotNum];
     // we could reject the packet if the client thinks the item is different, but eh
 
@@ -556,7 +561,8 @@ static void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
 
     // item giving packet
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
-    assert(resplen < CN_PACKET_BODY_SIZE);
+    if (resplen >= CN_PACKET_BODY_SIZE)
+        return;
     // we know it's only one trailing struct, so we can skip full validation
 
     uint8_t respbuf[resplen]; // not a variable length array, don't worry
@@ -645,7 +651,8 @@ void Items::checkItemExpire(CNSocket* sock, Player* player) {
     */
 
     const size_t resplen = sizeof(sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM) + sizeof(sTimeLimitItemDeleteInfo2CL);
-    assert(resplen < CN_PACKET_BODY_SIZE);
+    if (resplen >= CN_PACKET_BODY_SIZE)
+        return;
     // we know it's only one trailing struct, so we can skip full validation
     uint8_t respbuf[resplen]; // not a variable length array, don't worry
     auto packet = (sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM*)respbuf;
@@ -714,8 +721,10 @@ static void getMobDrop(sItemBase* reward, const std::vector<int>& weights, const
 static void giveSingleDrop(CNSocket *sock, Mob* mob, int mobDropId, const DropRoll& rolled) {
     Player *plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) return;
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
-    assert(resplen < CN_PACKET_BODY_SIZE);
+    if (resplen >= CN_PACKET_BODY_SIZE)
+        return;
     // we know it's only one trailing struct, so we can skip full validation
 
     uint8_t respbuf[resplen]; // not a variable length array, don't worry

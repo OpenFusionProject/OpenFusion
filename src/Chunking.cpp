@@ -76,7 +76,10 @@ void Chunking::untrackEntity(ChunkPos chunkPos, const EntityRef ref) {
 
     if (ref.kind == EntityKind::PLAYER)
         chunks[chunkPos]->nplayers--;
-    assert(chunks[chunkPos]->nplayers >= 0);
+    if (chunks[chunkPos]->nplayers < 0) {
+        std::cout << "[WARN] Chunk player count went negative" << std::endl;
+        chunks[chunkPos]->nplayers = 0;
+    }
 
     // if chunk is completely empty, free it
     if (chunk->entities.size() == 0)
@@ -85,7 +88,8 @@ void Chunking::untrackEntity(ChunkPos chunkPos, const EntityRef ref) {
 
 template<class T, size_t N>
 static void sendAroundPackets(const EntityRef recipient, std::vector<Bucket<T, N>>& buckets, uint32_t packetId) {
-    assert(recipient.kind == EntityKind::PLAYER);
+    if (recipient.kind != EntityKind::PLAYER)
+        return;
 
     uint8_t pktBuf[CN_PACKET_BODY_SIZE];
     for (const auto& bucket : buckets) {
@@ -311,7 +315,7 @@ static void emptyChunk(ChunkPos chunkPos) {
     std::set refs(chunk->entities);
     for (const EntityRef ref : refs) {
         if (ref.kind == EntityKind::PLAYER)
-            assert(0);
+            continue;
 
         // every call of this will check if the chunk is empty and delete it if so
         NPCManager::destroyNPC(ref.id);

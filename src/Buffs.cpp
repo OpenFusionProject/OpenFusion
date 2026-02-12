@@ -178,7 +178,8 @@ void Buffs::tickDrain(EntityRef self, Buff* buff, int mult) {
     int dealt = combatant->takeDamage(buff->getLastSource(), damage);
 
     size_t resplen = sizeof(sP_FE2CL_CHAR_TIME_BUFF_TIME_TICK) + sizeof(sSkillResult_Damage);
-    assert(resplen < CN_PACKET_BODY_SIZE);
+    if (resplen >= CN_PACKET_BODY_SIZE)
+        return;
     uint8_t respbuf[CN_PACKET_BODY_SIZE];
     memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 

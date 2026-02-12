@@ -125,21 +125,18 @@ void CNSocket::kill() {
 }
 
 void CNSocket::validatingSendPacket(void *pkt, uint32_t packetType) {
-    assert(isOutboundPacketID(packetType));
-    assert(Packets::packets.find(packetType) != Packets::packets.end());
+    if (!isOutboundPacketID(packetType))
+        return;
+    if (Packets::packets.find(packetType) == Packets::packets.end())
+        return;
 
     PacketDesc& desc = Packets::packets[packetType];
     size_t resplen = desc.size;
 
-    /*
-     * Note that this validation doesn't happen on time to prevent a buffer
-     * overflow if it would have taken place, but we do it anyway so the
-     * assertion failure at least makes it clear that something isn't being
-     * validated properly.
-     */
     if (desc.variadic) {
         int32_t ntrailers = *(int32_t*)(((uint8_t*)pkt) + desc.cntMembOfs);
-        assert(validOutVarPacket(desc.size, ntrailers, desc.trailerSize));
+        if (!validOutVarPacket(desc.size, ntrailers, desc.trailerSize))
+            return;
         resplen = desc.size + ntrailers * desc.trailerSize;
     }
 

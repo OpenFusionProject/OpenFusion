@@ -3,8 +3,6 @@
 #include "NPCManager.hpp"
 #include "PlayerManager.hpp"
 
-#include <assert.h>
-
 static_assert(std::is_standard_layout<EntityRef>::value);
 static_assert(std::is_trivially_copyable<EntityRef>::value);
 
@@ -29,7 +27,8 @@ bool EntityRef::isValid() const {
 }
 
 Entity *EntityRef::getEntity() const {
-    assert(isValid());
+    if (!isValid())
+        return nullptr;
 
     if (kind == EntityKind::PLAYER)
         return PlayerManager::getPlayer(sock);

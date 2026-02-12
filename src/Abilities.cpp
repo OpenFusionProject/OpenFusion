@@ -309,6 +309,7 @@ static void attachSkillResults(std::vector<SkillResult> results, uint8_t* pivot)
 void Abilities::useNanoSkill(CNSocket* sock, SkillData* skill, sNano& nano, std::vector<ICombatant*> affected) {
 
     Player* plr = PlayerManager::getPlayer(sock);
+    if (plr == nullptr) return;
     ICombatant* combatant = dynamic_cast<ICombatant*>(plr);
 
     int boost = 0;
@@ -401,8 +402,11 @@ void Abilities::useNPCSkill(EntityRef npc, int skillID, std::vector<ICombatant*>
 static std::vector<ICombatant*> entityRefsToCombatants(std::vector<EntityRef> refs) {
     std::vector<ICombatant*> combatants;
     for(EntityRef ref : refs) {
-        if(ref.kind == EntityKind::PLAYER)
-            combatants.push_back(dynamic_cast<ICombatant*>(PlayerManager::getPlayer(ref.sock)));
+        if(ref.kind == EntityKind::PLAYER) {
+            Player* p = PlayerManager::getPlayer(ref.sock);
+            if (p != nullptr)
+                combatants.push_back(dynamic_cast<ICombatant*>(p));
+        }
         else if(ref.kind == EntityKind::COMBAT_NPC || ref.kind == EntityKind::MOB)
             combatants.push_back(dynamic_cast<ICombatant*>(ref.getEntity()));
     }
