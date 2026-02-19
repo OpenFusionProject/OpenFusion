@@ -36,6 +36,16 @@ std::map<int32_t, ItemSet> Items::ItemSets;
 // 1 week
 #define NANOCOM_BOOSTER_DURATION 604800
 
+// known general item ids
+#define GENERALITEM_GUMBALL_ADAPTIUM 119
+#define GENERALITEM_GUMBALL_BLASTONS 120
+#define GENERALITEM_GUMBALL_COSMIX 121
+
+#define GENERALITEM_FUSION_HUNTER_BOOSTER 153
+#define GENERALITEM_IZ_RACER_BOOSTER 154
+#define GENERALITEM_QUESTER_BOOSTER 155
+#define GENERALITEM_SUPER_BOOSTER_DX 156
+
 #ifdef ACADEMY
 std::map<int32_t, int32_t> Items::NanoCapsules; // crate id -> nano id
 
@@ -325,14 +335,14 @@ static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 
     // if equipping an item, validate that it's of the correct type for the slot
     if ((SlotType)itemmove->eTo == SlotType::EQUIP) {
-        if (fromItem->iType == 10 && itemmove->iToSlotNum != 8)
+        if (fromItem->iType == 10 && itemmove->iToSlotNum != AEQUIP_VEHICLE_IDX)
             return; // vehicle in wrong slot
         else if (fromItem->iType != 10
               && !(fromItem->iType == 0 && itemmove->iToSlotNum == 7)
               && fromItem->iType != itemmove->iToSlotNum)
             return; // something other than a vehicle or a weapon in a non-matching slot
-        else if (itemmove->iToSlotNum > 8)
-            return; // any slot higher than 8 is for a booster, and they can't be equipped via move packet
+        else if (itemmove->iToSlotNum >= AEQUIP_COUNT_MINUS_BOOSTERS)
+            return; // boosters can't be equipped via move packet
     }
 
     // save items to response
@@ -389,7 +399,7 @@ static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         }
 
         // unequip vehicle if equip slot 8 is 0
-        if (plr->Equip[8].iID == 0 && plr->iPCState & 8) {
+        if (plr->Equip[AEQUIP_VEHICLE_IDX].iID == 0 && plr->iPCState & 8) {
             INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
             sock->sendPacket(response, P_FE2CL_PC_VEHICLE_OFF_SUCC);
 
@@ -443,9 +453,9 @@ static void useGumball(CNSocket* sock, CNPacketData* data) {
 
     // sanity check, check if gumball type matches nano style
     int nanoStyle = Nanos::nanoStyle(nano.iID);
-    if (!((gumball.iID == 119 && nanoStyle == 0) ||
-        (  gumball.iID == 120 && nanoStyle == 1) ||
-        (  gumball.iID == 121 && nanoStyle == 2))) {
+    if (!((gumball.iID == GENERALITEM_GUMBALL_ADAPTIUM && nanoStyle == 0) ||
+        (  gumball.iID == GENERALITEM_GUMBALL_BLASTONS && nanoStyle == 1) ||
+        (  gumball.iID == GENERALITEM_GUMBALL_COSMIX   && nanoStyle == 2))) {
         std::cout << "[WARN] Gumball type doesn't match nano type" << std::endl;
         INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_FAIL, response);
         sock->sendPacket(response, P_FE2CL_REP_PC_ITEM_USE_FAIL);
@@ -507,7 +517,7 @@ static void useGumball(CNSocket* sock, CNPacketData* data) {
 static void useNanocomBooster(CNSocket* sock, CNPacketData* data) {
     // Guard against using nanocom boosters in before and including 0104
     // either path should be optimized by the compiler, effectively a no-op
-    if (AEQUIP_COUNT < 12) {
+    if (AEQUIP_COUNT < AEQUIP_COUNT_WITH_BOOSTERS) {
         std::cout << "[WARN] Nanocom Booster use not supported in this version" << std::endl;
         INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_FAIL, respFail);
         sock->sendPacket(respFail, P_FE2CL_REP_PC_ITEM_USE_FAIL);
@@ -518,25 +528,25 @@ static void useNanocomBooster(CNSocket* sock, CNPacketData* data) {
     Player* player = PlayerManager::getPlayer(sock);
     sItemBase item = player->Inven[request->iSlotNum];
 
+    // decide on the booster to activate
+    std::vector<int16_t> boosterIDs;
+    switch(item.iID) {
+    case GENERALITEM_FUSION_HUNTER_BOOSTER:
+    case GENERALITEM_IZ_RACER_BOOSTER:
+    case GENERALITEM_QUESTER_BOOSTER:
+        boosterIDs.push_back(item.iID);
+        break;
+    case GENERALITEM_SUPER_BOOSTER_DX:
+        boosterIDs.push_back(GENERALITEM_FUSION_HUNTER_BOOSTER);
+        boosterIDs.push_back(GENERALITEM_IZ_RACER_BOOSTER);
+        boosterIDs.push_back(GENERALITEM_QUESTER_BOOSTER);
+        break;
+    }
+
     // consume item
     item.iOpt -= 1;
     if (item.iOpt == 0)
         item = {};
-
-    // decide on the booster to activate
-    std::vector<int16_t> boosterIDs;
-    switch(item.iID) {
-    case 153:
-    case 154:
-    case 155:
-        boosterIDs.push_back(item.iID);
-        break;
-    case 156:
-        boosterIDs.push_back(153);
-        boosterIDs.push_back(154);
-        boosterIDs.push_back(155);
-        break;
-    }
 
     // client wants to subtract server time in seconds from the time limit for display purposes
     int32_t timeLimitDisplayed = (getTime() / 1000UL) + NANOCOM_BOOSTER_DURATION;
@@ -548,8 +558,8 @@ static void useNanocomBooster(CNSocket* sock, CNPacketData* data) {
     for (int16_t itemID : boosterIDs) {
         sItemBase boosterItem = { 7, itemID, 1, timeLimitDisplayed };
 
-        // 155 -> 9, 153 -> 10, 154 -> 11
-        int slot = 9 + ((itemID - 152) % 3);
+        // quester 155 -> 9, hunter 153 -> 10, racer 154 -> 11
+        int slot = 9 + ((itemID - GENERALITEM_FUSION_HUNTER_BOOSTER + 1) % 3);
 
         // give item to the equip slot
         INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp);
@@ -607,15 +617,15 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
      */
 
     switch(item.iID) {
-    case 119:
-    case 120:
-    case 121:
+    case GENERALITEM_GUMBALL_ADAPTIUM:
+    case GENERALITEM_GUMBALL_BLASTONS:
+    case GENERALITEM_GUMBALL_COSMIX:
         useGumball(sock, data);
         break;
-    case 153:
-    case 154:
-    case 155:
-    case 156:
+    case GENERALITEM_FUSION_HUNTER_BOOSTER:
+    case GENERALITEM_IZ_RACER_BOOSTER:
+    case GENERALITEM_QUESTER_BOOSTER:
+    case GENERALITEM_SUPER_BOOSTER_DX:
         useNanocomBooster(sock, data);
         break;
     default:
@@ -709,7 +719,7 @@ static void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     // if we failed to open a crate, at least give the player a gumball (suggested by Jade)
     if (failing) {
         item->sItem.iType = 7;
-        item->sItem.iID = 119 + Rand::rand(3);
+        item->sItem.iID = GENERALITEM_GUMBALL_ADAPTIUM + Rand::rand(3);
         item->sItem.iOpt = 1;
 
         std::cout << "[WARN] Crate open failed, giving a Gumball..." << std::endl;
@@ -820,7 +830,7 @@ size_t Items::checkAndRemoveExpiredItems(CNSocket* sock, Player* player) {
     }
 
     // exit vehicle if player no longer has one equipped (function checks pcstyle)
-    if (player->Equip[8].iID == 0)
+    if (player->Equip[AEQUIP_VEHICLE_IDX].iID == 0)
         PlayerManager::exitPlayerVehicle(sock, nullptr);
 
     return itemData.size();
@@ -881,53 +891,53 @@ static int getFMDrop(Player* plr, int baseAmount, int levelDiff, int groupSize) 
     double bonus = plr->hasBuff(ECSB_REWARD_BLOB) ? (Nanos::getNanoBoost(plr) ? 1.23 : 1.2) : 1.0;
     double boosterEffect = plr->hasHunterBoost() ? (plr->hasQuestBoost() && plr->hasRacerBoost() ? 1.75 : 1.5) : 1.0;
 
+    // if player is within 1 level of the mob, FM is untouched
     double levelEffect = 1.0;
-    if (levelDiff >= 6) {
+    // otherwise, follow the table below
+    switch (std::clamp(levelDiff, -3, 6)) {
+    case 6:
         // if player is 6 or more levels above mob, no FM is dropped
         levelEffect = 0.0;
-    } else if (levelDiff <= -3) {
+        break;
+    case 5:
+        levelEffect = 0.25;
+        break;
+    case 4:
+        levelEffect = 0.5;
+        break;
+    case 3:
+        levelEffect = 0.75;
+        break;
+    case 2:
+        levelEffect = 0.899;
+        break;
+    case -2:
+        levelEffect = 1.1;
+        break;
+    case -3:
         // if player is 3 or more levels below mob, FM is 1.2x
         levelEffect = 1.2;
-    } else {
-        switch (levelDiff) {
-            // if player is within 1 level of the mob, FM is untouched
-            // otherwise, follow the table below
-            case 5:
-                levelEffect = 0.25;
-                break;
-            case 4:
-                levelEffect = 0.5;
-                break;
-            case 3:
-                levelEffect = 0.75;
-                break;
-            case 2:
-                // this case is more lenient
-                levelEffect = 0.899;
-                break;
-            case -2:
-                levelEffect = 1.1;
-                break;
-        }
+        break;
     }
 
+    // if no group, FM is untouched
     double groupEffect = 1.0;
+    // otherwise, follow the table below
     switch (groupSize) {
-        // if no group, FM is untouched
-        // otherwise, follow the table below
-        case 2:
-            groupEffect = 0.875;
-            break;
-        case 3:
-            groupEffect = 0.75;
-            break;
-        case 4:
-            // this case is more lenient
-            groupEffect = 0.688;
-            break;
+    case 2:
+        groupEffect = 0.875;
+        break;
+    case 3:
+        groupEffect = 0.75;
+        break;
+    case 4:
+        // this case is more lenient
+        groupEffect = 0.688;
+        break;
     }
 
-    int amount = baseAmount * bonus * boosterEffect * levelEffect * groupEffect;
+    int amount = baseAmount * bonus * levelEffect * groupEffect;
+    amount *= boosterEffect;
     return amount;
 }
 

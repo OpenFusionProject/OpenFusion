@@ -245,12 +245,12 @@ static void enterPlayer(CNSocket* sock, CNPacketData* data) {
     // response.PCLoadData2CL.PCStyle2 = plr->PCStyle2;
 
     // equipment (except nanocom boosters)
-    for (int i = 0; i < 9; i++)
+    for (int i = 0; i < AEQUIP_COUNT_MINUS_BOOSTERS; i++)
         response.PCLoadData2CL.aEquip[i] = plr->Equip[i];
-    // equipment (nanocom boosters)
+    // equipment (nanocom boosters, loop only runs if boosters are available)
     int32_t serverTime = getTime() / 1000UL;
     int32_t timestamp = getTimestamp();
-    for (int i = 9; i < AEQUIP_COUNT; i++) {
+    for (int i = AEQUIP_COUNT_MINUS_BOOSTERS; i < AEQUIP_COUNT; i++) {
         response.PCLoadData2CL.aEquip[i] = plr->Equip[i];
         // client subtracts server time, then adds local timestamp to the item to print expiration time
         response.PCLoadData2CL.aEquip[i].iTimeLimit = std::max(0, plr->Equip[i].iTimeLimit - timestamp + serverTime);
@@ -526,7 +526,7 @@ static void enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     if (plr->instanceID != 0)
         return;
 
-    if (plr->Equip[8].iID > 0) {
+    if (plr->Equip[AEQUIP_VEHICLE_IDX].iID > 0) {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_SUCC, response);
         sock->sendPacket(response, P_FE2CL_PC_VEHICLE_ON_SUCC);
 

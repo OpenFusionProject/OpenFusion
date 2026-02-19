@@ -41,7 +41,7 @@
 // wrapper for U16toU8
 #define ARRLEN(x) (sizeof(x)/sizeof(*x))
 #define AUTOU8(x) std::string((char*)x, ARRLEN(x))
-#define AUTOU16TOU8(x) U16toU8(x, ARRLEN(x)) 
+#define AUTOU16TOU8(x) U16toU8(x, ARRLEN(x))
 
 // TODO: rewrite U16toU8 & U8toU16 to not use codecvt
 
@@ -66,5 +66,9 @@ void terminate(int);
 #else
     #error Invalid PROTOCOL_VERSION
 #endif
+
+#define AEQUIP_VEHICLE_IDX 8
+#define AEQUIP_COUNT_MINUS_BOOSTERS 9
+#define AEQUIP_COUNT_WITH_BOOSTERS 12
 
 sSYSTEMTIME timeStampToStruct(uint64_t time);
