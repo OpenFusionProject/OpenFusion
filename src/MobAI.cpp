@@ -808,6 +808,7 @@ void MobAI::onDeath(CombatNPC* npc, EntityRef src) {
         Items::DropRoll rolled;
         Items::DropRoll eventRolled;
         std::map<int, int> qitemRolls;
+        std::vector<EntityRef> playersInRange;
         std::vector<Player*> playerRefs;
 
         if (plr->group == nullptr) {
@@ -818,8 +819,6 @@ void MobAI::onDeath(CombatNPC* npc, EntityRef src) {
         }
         else {
             auto players = plr->group->filter(EntityKind::PLAYER);
-            for (EntityRef pRef : players) playerRefs.push_back(PlayerManager::getPlayer(pRef.sock));
-            Combat::genQItemRolls(playerRefs, qitemRolls);
             for (int i = 0; i < players.size(); i++) {
                 CNSocket* sockTo = players[i].sock;
                 Player* otherPlr = PlayerManager::getPlayer(sockTo);
@@ -829,7 +828,14 @@ void MobAI::onDeath(CombatNPC* npc, EntityRef src) {
                 if (dist > 5000)
                     continue;
 
-                Items::giveMobDrop(sockTo, self, rolled, eventRolled, players.size());
+                playersInRange.push_back(players[i]);
+            }
+
+            for (EntityRef pRef : playersInRange) playerRefs.push_back(PlayerManager::getPlayer(pRef.sock));
+            Combat::genQItemRolls(playerRefs, qitemRolls);
+            for (int i = 0; i < playersInRange.size(); i++) {
+                CNSocket* sockTo = playersInRange[i].sock;
+                Items::giveMobDrop(sockTo, self, rolled, eventRolled, playersInRange.size());
                 Missions::mobKilled(sockTo, self->type, qitemRolls);
             }
         }
