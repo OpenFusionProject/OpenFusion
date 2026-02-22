@@ -887,7 +887,7 @@ static int32_t calculateTaroReward(Player* plr, int baseAmount, int groupSize) {
 }
 
 static int32_t calculateFMReward(Player* plr, int baseAmount, int levelDiff, int groupSize) {
-    double bonus = plr->hasBuff(ECSB_REWARD_BLOB) ? (Nanos::getNanoBoost(plr) ? 1.23 : 1.2) : 1.0;
+    double scavenge = plr->hasBuff(ECSB_REWARD_BLOB) ? (Nanos::getNanoBoost(plr) ? 1.23 : 1.2) : 1.0;
     double boosterEffect = plr->hasHunterBoost() ? (plr->hasQuestBoost() && plr->hasRacerBoost() ? 1.75 : 1.5) : 1.0;
 
     // if player is within 1 level of the mob, FM is untouched
@@ -937,7 +937,7 @@ static int32_t calculateFMReward(Player* plr, int baseAmount, int levelDiff, int
         }
     }
 
-    int32_t amount = baseAmount * plr->rateF[RATE_SLOT_COMBAT] * bonus * levelEffect * groupEffect;
+    int32_t amount = baseAmount * plr->rateF[RATE_SLOT_COMBAT] * scavenge * levelEffect * groupEffect;
     amount *= boosterEffect;
     return amount;
 }
