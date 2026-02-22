@@ -46,6 +46,7 @@ namespace settings {
     extern bool DISABLEFIRSTUSEFLAG;
     extern bool IZRACESCORECAPPED;
     extern bool DROPFIXESENABLED;
+    extern bool LESSTAROFMINGROUPDISABLED;
 
     void init();
 }

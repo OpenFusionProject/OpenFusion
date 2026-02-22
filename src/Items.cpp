@@ -882,7 +882,7 @@ static void getMobDrop(sItemBase* reward, const std::vector<int>& weights, const
 
 static int32_t calculateTaroReward(Player* plr, int baseAmount, int groupSize) {
     double bonus = plr->hasBuff(ECSB_REWARD_CASH) ? (Nanos::getNanoBoost(plr) ? 1.23 : 1.2) : 1.0;
-    double groupEffect = 1.0 / groupSize;
+    double groupEffect = settings::LESSTAROFMINGROUPDISABLED ? 1.0 : 1.0 / groupSize;
     return baseAmount * plr->rateT[RATE_SLOT_COMBAT] * bonus * groupEffect;
 }
 
@@ -922,17 +922,19 @@ static int32_t calculateFMReward(Player* plr, int baseAmount, int levelDiff, int
     // if no group, FM is untouched
     double groupEffect = 1.0;
     // otherwise, follow the table below
-    switch (groupSize) {
-    case 2:
-        groupEffect = 0.875;
-        break;
-    case 3:
-        groupEffect = 0.75;
-        break;
-    case 4:
-        // this case is more lenient
-        groupEffect = 0.688;
-        break;
+    if (!settings::LESSTAROFMINGROUPDISABLED) {
+        switch (groupSize) {
+        case 2:
+            groupEffect = 0.875;
+            break;
+        case 3:
+            groupEffect = 0.75;
+            break;
+        case 4:
+            // this case is more lenient
+            groupEffect = 0.688;
+            break;
+        }
     }
 
     int32_t amount = baseAmount * plr->rateF[RATE_SLOT_COMBAT] * bonus * levelEffect * groupEffect;

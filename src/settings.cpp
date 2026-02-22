@@ -77,6 +77,9 @@ bool settings::IZRACESCORECAPPED = true;
 // drop fixes enabled
 bool settings::DROPFIXESENABLED = false;
 
+// less taro / fm while in a group
+bool settings::LESSTAROFMINGROUPDISABLED = false;
+
 void settings::init() {
     INIReader reader("config.ini");
 
@@ -121,6 +124,7 @@ void settings::init() {
     PATCHDIR = reader.Get("shard", "patchdir", PATCHDIR);
     ENABLEDPATCHES = reader.Get("shard", "enabledpatches", ENABLEDPATCHES);
     DROPFIXESENABLED = reader.GetBoolean("shard", "dropfixesenabled", DROPFIXESENABLED);
+    LESSTAROFMINGROUPDISABLED = reader.GetBoolean("shard", "lesstarofmingroupdisabled", LESSTAROFMINGROUPDISABLED);
     ACCLEVEL = reader.GetInteger("shard", "accountlevel", ACCLEVEL);
     EVENTMODE = reader.GetInteger("shard", "eventmode", EVENTMODE);
     DISABLEFIRSTUSEFLAG = reader.GetBoolean("shard", "disablefirstuseflag", DISABLEFIRSTUSEFLAG);
