@@ -75,7 +75,7 @@ static void emailReceiveTaros(CNSocket* sock, CNPacketData* data) {
 
     Database::EmailData email = Database::getEmail(plr->iID, pkt->iEmailIndex);
     // money transfer
-    plr->money += email.Taros;
+    plr->addCapped(CappedValueType::TAROS, email.Taros);
     email.Taros = 0;
     // update Taros in email
     Database::updateEmailContent(&email);
@@ -274,7 +274,7 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
     }
 
     int cost = pkt->iCash + 50 + 20 * attachments.size(); // attached taros + postage
-    plr->money -= cost;
+    plr->subtractCapped(CappedValueType::TAROS, cost);
     Database::EmailData email = {
         (int)pkt->iTo_PCUID, // PlayerId
         Database::getNextEmailIndex(pkt->iTo_PCUID), // MsgIndex
@@ -291,7 +291,7 @@ static void emailSend(CNSocket* sock, CNPacketData* data) {
     };
 
     if (!Database::sendEmail(&email, attachments, plr)) {
-        plr->money += cost; // give money back
+        plr->addCapped(CappedValueType::TAROS, cost); // give money back
         // give items back
         while (!attachments.empty()) {
             sItemBase attachment = attachments.back();

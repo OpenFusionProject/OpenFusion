@@ -117,7 +117,7 @@ static void transportWarpHandler(CNSocket* sock, CNPacketData* data) {
     }
 
     TransportRoute route = Routes[req->iTransporationID];
-    plr->money -= route.cost;
+    plr->subtractCapped(CappedValueType::TAROS, route.cost);
 
     TransportLocation* target = nullptr;
     switch (route.type) {
@@ -143,7 +143,7 @@ static void transportWarpHandler(CNSocket* sock, CNPacketData* data) {
         }
 
         // refund and send alert packet
-        plr->money += route.cost;
+        plr->addCapped(CappedValueType::TAROS, route.cost);
         INITSTRUCT(sP_FE2CL_ANNOUNCE_MSG, alert);
         alert.iAnnounceType = 0; // don't think this lets us make a confirm dialog
         alert.iDuringTime = 3;

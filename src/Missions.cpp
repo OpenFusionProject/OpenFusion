@@ -12,6 +12,20 @@ std::map<int32_t, Reward*> Missions::Rewards;
 std::map<int32_t, TaskData*> Missions::Tasks;
 nlohmann::json Missions::AvatarGrowth[37];
 
+static int32_t calculateTaroReward(Player* plr, int32_t baseAmount) {
+    double bonus = plr->hasBuff(ECSB_REWARD_CASH) ? (Nanos::getNanoBoost(plr) ? 1.23 : 1.2) : 1.0;
+    return baseAmount * plr->rateT[RATE_SLOT_MISSION] * bonus;
+}
+
+static int32_t calculateFMReward(Player* plr, int32_t baseAmount) {
+    double scavenge = plr->hasBuff(ECSB_REWARD_BLOB) ? (Nanos::getNanoBoost(plr) ? 1.23 : 1.2) : 1.0;
+    double missionBoost = plr->hasQuestBoost() ? (plr->hasHunterBoost() && plr->hasRacerBoost() ? 1.75 : 1.5) : 1.0;
+
+    int32_t reward = baseAmount * plr->rateF[RATE_SLOT_MISSION] * scavenge;
+    reward *= missionBoost;
+    return reward;
+}
+
 static void saveMission(Player* player, int missionId) {
     // sanity check missionID so we don't get exceptions
     if (missionId < 0 || missionId > 1023) {
@@ -148,7 +162,7 @@ static int giveMissionReward(CNSocket *sock, int task, int choice=0) {
             }
             return -1;
         }
-        
+
         plr->Inven[slots[i]] = { 999, 999, 999, 0 }; // temp item; overwritten later
     }
 
@@ -162,21 +176,12 @@ static int giveMissionReward(CNSocket *sock, int task, int choice=0) {
     memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 
     // update player
-    plr->money += reward->money;
-    if (plr->hasBuff(ECSB_REWARD_CASH)) { // nano boost for taros
-        int boost = 0;
-        if (Nanos::getNanoBoost(plr)) // for gumballs
-            boost = 1;
-        plr->money += reward->money * (5 + boost) / 25;
-    }
+    int32_t money = calculateTaroReward(plr, reward->money);
+    plr->addCapped(CappedValueType::TAROS, money);
 
-    if (plr->hasBuff(ECSB_REWARD_BLOB)) { // nano boost for fm
-        int boost = 0;
-        if (Nanos::getNanoBoost(plr)) // for gumballs
-            boost = 1;
-        updateFusionMatter(sock, reward->fusionmatter * (30 + boost) / 25);
-    } else
-        updateFusionMatter(sock, reward->fusionmatter);
+    int32_t fusionMatter = calculateFMReward(plr, reward->fusionmatter);
+    plr->addCapped(CappedValueType::FUSIONMATTER, fusionMatter);
+    Missions::updateFusionMatter(sock);
 
     // simple rewards
     resp->m_iCandy = plr->money;
@@ -511,17 +516,13 @@ void Missions::quitTask(CNSocket* sock, int32_t taskNum, bool manual) {
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_STOP_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_STOP_SUCC));
 }
 
-void Missions::updateFusionMatter(CNSocket* sock, int fusion) {
+void Missions::updateFusionMatter(CNSocket* sock) {
     Player *plr = PlayerManager::getPlayer(sock);
-
-    plr->fusionmatter += fusion;
 
     // there's a much lower FM cap in the Future
     int fmCap = AvatarGrowth[plr->level]["m_iFMLimit"];
     if (plr->fusionmatter > fmCap)
         plr->fusionmatter = fmCap;
-    else if (plr->fusionmatter < 0) // if somehow lowered too far
-        plr->fusionmatter = 0;
 
     // don't run nano mission logic at level 36
     if (plr->level >= 36)
@@ -551,7 +552,7 @@ void Missions::updateFusionMatter(CNSocket* sock, int fusion) {
     response.iTaskNum = AvatarGrowth[plr->level]["m_iNanoQuestTaskID"];
     sock->sendPacket((void*)&response, P_FE2CL_REP_PC_TASK_START_SUCC, sizeof(sP_FE2CL_REP_PC_TASK_START_SUCC));
 #else
-    plr->fusionmatter -= (int)Missions::AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"];
+    plr->subtractCapped(CappedValueType::FUSIONMATTER, (int)Missions::AvatarGrowth[plr->level]["m_iReqBlob_NanoCreate"]);
     plr->level++;
 
     INITSTRUCT(sP_FE2CL_REP_PC_CHANGE_LEVEL_SUCC, response);

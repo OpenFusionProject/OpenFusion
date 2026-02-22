@@ -72,7 +72,7 @@ static void vendorBuy(CNSocket* sock, CNPacketData* data) {
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_BUY_SUCC, resp);
 
-    plr->money = plr->money - itemCost;
+    plr->subtractCapped(CappedValueType::TAROS, itemCost);
     plr->Inven[slot] = req->Item;
 
     resp.iCandy = plr->money;
@@ -117,7 +117,7 @@ static void vendorSell(CNSocket* sock, CNPacketData* data) {
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_SELL_SUCC, resp);
 
     // increment taros
-    plr->money += itemData->sellPrice * req->iItemCnt;
+    plr->addCapped(CappedValueType::TAROS, itemData->sellPrice * req->iItemCnt);
 
     // modify item
     if (item->iOpt - req->iItemCnt > 0) { // selling part of a stack
@@ -209,7 +209,7 @@ static void vendorBuyback(CNSocket* sock, CNPacketData* data) {
         std::cout << "[WARN] Client and server disagree on bought item slot (" << req->iInvenSlotNum << " vs " << slot << ")" << std::endl;
     }
 
-    plr->money = plr->money - itemCost;
+    plr->subtractCapped(CappedValueType::TAROS, itemCost);
     plr->Inven[slot] = item;
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_ITEM_RESTORE_BUY_SUCC, resp);
@@ -273,7 +273,7 @@ static void vendorBuyBattery(CNSocket* sock, CNPacketData* data) {
     Player* plr = PlayerManager::getPlayer(sock);
 
     int cost = req->Item.iOpt * 100;
-    if ((req->Item.iID == 3 ? (plr->batteryW >= 9999) : (plr->batteryN >= 9999)) || plr->money < cost || req->Item.iOpt < 0) { // sanity check
+    if ((req->Item.iID == 3 ? (plr->batteryW >= PC_BATTERY_MAX) : (plr->batteryN >= PC_BATTERY_MAX)) || plr->money < cost || req->Item.iOpt < 0) { // sanity check
         INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL, failResp);
         failResp.iErrorCode = 0;
         sock->sendPacket(failResp, P_FE2CL_REP_PC_VENDOR_BATTERY_BUY_FAIL);
@@ -281,17 +281,11 @@ static void vendorBuyBattery(CNSocket* sock, CNPacketData* data) {
     }
 
     cost = plr->batteryW + plr->batteryN;
-    plr->batteryW += req->Item.iID == 3 ? req->Item.iOpt * 100 : 0;
-    plr->batteryN += req->Item.iID == 4 ? req->Item.iOpt * 100 : 0;
-
-    // caps
-    if (plr->batteryW > 9999)
-        plr->batteryW = 9999;
-    if (plr->batteryN > 9999)
-        plr->batteryN = 9999;
+    plr->addCapped(CappedValueType::BATTERY_W, req->Item.iID == 3 ? req->Item.iOpt * 100 : 0);
+    plr->addCapped(CappedValueType::BATTERY_N, req->Item.iID == 4 ? req->Item.iOpt * 100 : 0);
 
     cost = plr->batteryW + plr->batteryN - cost;
-    plr->money -= cost;
+    plr->subtractCapped(CappedValueType::TAROS, cost);
 
     INITSTRUCT(sP_FE2CL_REP_PC_VENDOR_BATTERY_BUY_SUCC, resp);
 
@@ -364,7 +358,7 @@ static void vendorCombineItems(CNSocket* sock, CNPacketData* data) {
 
     float rolled = Rand::randFloat(100.0f); // success chance out of 100
     //std::cout << rolled << " vs " << successChance << std::endl;
-    plr->money -= cost;
+    plr->subtractCapped(CappedValueType::TAROS, cost);
 
 
     INITSTRUCT(sP_FE2CL_REP_PC_ITEM_COMBINATION_SUCC, resp);

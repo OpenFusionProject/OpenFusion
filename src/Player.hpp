@@ -15,6 +15,14 @@ struct BuffStack;
 
 #define PC_MAXHEALTH(level) (925 + 75 * (level))
 
+enum class CappedValueType {
+    TAROS,
+    FUSIONMATTER,
+    BATTERY_W,
+    BATTERY_N,
+    TAROS_IN_TRADE,
+};
+
 struct Player : public Entity, public ICombatant {
     int accountId = 0;
     int accountLevel = 0; // permission level (see CN_ACCOUNT_LEVEL enums)
@@ -82,6 +90,9 @@ struct Player : public Entity, public ICombatant {
     time_t lastShot = 0;
     std::vector<sItemBase> buyback = {};
 
+    double rateF[5] = { 1.0, 1.0, 1.0, 1.0, 1.0 };
+    double rateT[5] = { 1.0, 1.0, 1.0, 1.0, 1.0 };
+
     Player() { kind = EntityKind::PLAYER; }
 
     virtual void enterIntoViewOf(CNSocket *sock) override;
@@ -113,4 +124,7 @@ struct Player : public Entity, public ICombatant {
     bool hasHunterBoost() const;
     bool hasRacerBoost() const;
     bool hasSuperBoost() const;
+    void addCapped(CappedValueType type, int32_t diff);
+    void subtractCapped(CappedValueType type, int32_t diff);
+    void setCapped(CappedValueType type, int32_t value);
 };

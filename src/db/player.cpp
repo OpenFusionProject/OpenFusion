@@ -59,13 +59,13 @@ void Database::getPlayer(Player* plr, int id) {
     plr->angle = sqlite3_column_int(stmt, 15);
     plr->HP = sqlite3_column_int(stmt, 16);
     plr->accountLevel = sqlite3_column_int(stmt, 17);
-    plr->fusionmatter = sqlite3_column_int(stmt, 18);
-    plr->money = sqlite3_column_int(stmt, 19);
+    plr->setCapped(CappedValueType::FUSIONMATTER, sqlite3_column_int(stmt, 18));
+    plr->setCapped(CappedValueType::TAROS, sqlite3_column_int(stmt, 19));
 
     memcpy(plr->aQuestFlag, sqlite3_column_blob(stmt, 20), sizeof(plr->aQuestFlag));
 
-    plr->batteryW = sqlite3_column_int(stmt, 21);
-    plr->batteryN = sqlite3_column_int(stmt, 22);
+    plr->setCapped(CappedValueType::BATTERY_W, sqlite3_column_int(stmt, 21));
+    plr->setCapped(CappedValueType::BATTERY_N, sqlite3_column_int(stmt, 22));
     plr->mentor = sqlite3_column_int(stmt, 23);
     plr->iWarpLocationFlag = sqlite3_column_int(stmt, 24);
 

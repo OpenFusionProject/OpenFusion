@@ -47,7 +47,7 @@ namespace Missions {
     bool startTask(Player* plr, int TaskID);
 
     // checks if player doesn't have n/n quest items
-    void updateFusionMatter(CNSocket* sock, int fusion);
+    void updateFusionMatter(CNSocket* sock);
 
     void mobKilled(CNSocket *sock, int mobid, std::map<int, int>& rolls);
 

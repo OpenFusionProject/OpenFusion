@@ -526,7 +526,7 @@ static void enterPlayerVehicle(CNSocket* sock, CNPacketData* data) {
     if (plr->instanceID != 0)
         return;
 
-    if (plr->Equip[AEQUIP_VEHICLE_IDX].iID > 0) {
+    if (plr->Equip[EQUIP_SLOT_VEHICLE].iID > 0) {
         INITSTRUCT(sP_FE2CL_PC_VEHICLE_ON_SUCC, response);
         sock->sendPacket(response, P_FE2CL_PC_VEHICLE_ON_SUCC);
 
@@ -568,7 +568,7 @@ static void changePlayerGuide(CNSocket *sock, CNPacketData *data) {
         }
 
         // start Blossom nano mission if applicable
-        Missions::updateFusionMatter(sock, 0);
+        Missions::updateFusionMatter(sock);
     }
     // save it on player
     plr->mentor = pkt->iMentor;

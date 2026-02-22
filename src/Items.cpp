@@ -335,7 +335,7 @@ static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 
     // if equipping an item, validate that it's of the correct type for the slot
     if ((SlotType)itemmove->eTo == SlotType::EQUIP) {
-        if (fromItem->iType == 10 && itemmove->iToSlotNum != AEQUIP_VEHICLE_IDX)
+        if (fromItem->iType == 10 && itemmove->iToSlotNum != EQUIP_SLOT_VEHICLE)
             return; // vehicle in wrong slot
         else if (fromItem->iType != 10
               && !(fromItem->iType == 0 && itemmove->iToSlotNum == 7)
@@ -399,7 +399,7 @@ static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         }
 
         // unequip vehicle if equip slot 8 is 0
-        if (plr->Equip[AEQUIP_VEHICLE_IDX].iID == 0 && plr->iPCState & 8) {
+        if (plr->Equip[EQUIP_SLOT_VEHICLE].iID == 0 && plr->iPCState & 8) {
             INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
             sock->sendPacket(response, P_FE2CL_PC_VEHICLE_OFF_SUCC);
 
@@ -830,7 +830,7 @@ size_t Items::checkAndRemoveExpiredItems(CNSocket* sock, Player* player) {
     }
 
     // exit vehicle if player no longer has one equipped (function checks pcstyle)
-    if (player->Equip[AEQUIP_VEHICLE_IDX].iID == 0)
+    if (player->Equip[EQUIP_SLOT_VEHICLE].iID == 0)
         PlayerManager::exitPlayerVehicle(sock, nullptr);
 
     return itemData.size();
@@ -880,14 +880,13 @@ static void getMobDrop(sItemBase* reward, const std::vector<int>& weights, const
     reward->iID = crateIds[chosenIndex];
 }
 
-static int getTaroDrop(Player* plr, int baseAmount, int groupSize) {
+static int32_t calculateTaroReward(Player* plr, int baseAmount, int groupSize) {
     double bonus = plr->hasBuff(ECSB_REWARD_CASH) ? (Nanos::getNanoBoost(plr) ? 1.23 : 1.2) : 1.0;
     double groupEffect = 1.0 / groupSize;
-    int amount = baseAmount * bonus * groupEffect;
-    return amount;
+    return baseAmount * plr->rateT[RATE_SLOT_COMBAT] * bonus * groupEffect;
 }
 
-static int getFMDrop(Player* plr, int baseAmount, int levelDiff, int groupSize) {
+static int32_t calculateFMReward(Player* plr, int baseAmount, int levelDiff, int groupSize) {
     double bonus = plr->hasBuff(ECSB_REWARD_BLOB) ? (Nanos::getNanoBoost(plr) ? 1.23 : 1.2) : 1.0;
     double boosterEffect = plr->hasHunterBoost() ? (plr->hasQuestBoost() && plr->hasRacerBoost() ? 1.75 : 1.5) : 1.0;
 
@@ -936,7 +935,7 @@ static int getFMDrop(Player* plr, int baseAmount, int levelDiff, int groupSize) 
         break;
     }
 
-    int amount = baseAmount * bonus * levelEffect * groupEffect;
+    int32_t amount = baseAmount * plr->rateF[RATE_SLOT_COMBAT] * bonus * levelEffect * groupEffect;
     amount *= boosterEffect;
     return amount;
 }
@@ -993,24 +992,20 @@ static void giveSingleDrop(CNSocket *sock, Mob* mob, int mobDropId, const DropRo
     MiscDropType& miscDropType = Items::MiscDropTypes[drop.miscDropTypeId];
 
     if (rolled.taros % miscDropChance.taroDropChanceTotal < miscDropChance.taroDropChance) {
-        plr->money += getTaroDrop(plr, miscDropType.taroAmount, groupSize);
+        int32_t taros = calculateTaroReward(plr, miscDropType.taroAmount, groupSize);
+        plr->addCapped(CappedValueType::TAROS, taros);
     }
     if (rolled.fm % miscDropChance.fmDropChanceTotal < miscDropChance.fmDropChance) {
         int levelDifference = plr->level - mob->level;
-        int fm = getFMDrop(plr, miscDropType.fmAmount, levelDifference, groupSize);
-        Missions::updateFusionMatter(sock, fm);
+        int32_t fm = calculateFMReward(plr, miscDropType.fmAmount, levelDifference, groupSize);
+        plr->addCapped(CappedValueType::FUSIONMATTER, fm);
+        Missions::updateFusionMatter(sock);
     }
 
     if (rolled.potions % miscDropChance.potionDropChanceTotal < miscDropChance.potionDropChance)
-        plr->batteryN += miscDropType.potionAmount;
+        plr->addCapped(CappedValueType::BATTERY_N, miscDropType.potionAmount);
     if (rolled.boosts % miscDropChance.boostDropChanceTotal < miscDropChance.boostDropChance)
-        plr->batteryW += miscDropType.boostAmount;
-
-    // caps
-    if (plr->batteryW > 9999)
-        plr->batteryW = 9999;
-    if (plr->batteryN > 9999)
-        plr->batteryN = 9999;
+        plr->addCapped(CappedValueType::BATTERY_W, miscDropType.boostAmount);
 
     // simple rewards
     reward->m_iCandy = plr->money;

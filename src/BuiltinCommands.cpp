@@ -75,30 +75,22 @@ static void setValuePlayer(CNSocket* sock, CNPacketData* data) {
     case CN_GM_SET_VALUE_TYPE__HP:
         response.iSetValue = plr->HP = setData->iSetValue;
         break;
-    case CN_GM_SET_VALUE_TYPE__WEAPON_BATTERY :
-        plr->batteryW = setData->iSetValue;
-
-        // caps
-        if (plr->batteryW > 9999)
-            plr->batteryW = 9999;
-
+    case CN_GM_SET_VALUE_TYPE__WEAPON_BATTERY:
+        plr->setCapped(CappedValueType::BATTERY_W, setData->iSetValue);
         response.iSetValue = plr->batteryW;
         break;
     case CN_GM_SET_VALUE_TYPE__NANO_BATTERY:
-        plr->batteryN = setData->iSetValue;
-
-        // caps
-        if (plr->batteryN > 9999)
-            plr->batteryN = 9999;
-
+        plr->setCapped(CappedValueType::BATTERY_N, setData->iSetValue);
         response.iSetValue = plr->batteryN;
         break;
     case CN_GM_SET_VALUE_TYPE__FUSION_MATTER:
-        Missions::updateFusionMatter(sock, setData->iSetValue - plr->fusionmatter);
+        plr->setCapped(CappedValueType::FUSIONMATTER, setData->iSetValue);
+        Missions::updateFusionMatter(sock);
         response.iSetValue = plr->fusionmatter;
         break;
     case CN_GM_SET_VALUE_TYPE__CANDY:
-        response.iSetValue = plr->money = setData->iSetValue;
+        plr->setCapped(CappedValueType::TAROS, setData->iSetValue);
+        response.iSetValue = plr->money;
         break;
     case CN_GM_SET_VALUE_TYPE__SPEED:
     case CN_GM_SET_VALUE_TYPE__JUMP:
@@ -146,6 +138,47 @@ static void setGMSpecialOnOff(CNSocket *sock, CNPacketData *data) {
         otherPlr->iSpecialState &= ~req->iSpecialStateFlag;
 
     // this is only used for muting players, so no need to update the client since that logic is server-side
+}
+
+static void setGMRewardRate(CNSocket *sock, CNPacketData *data) {
+    Player *plr = PlayerManager::getPlayer(sock);
+
+    // access check
+    if (plr->accountLevel > 30)
+        return;
+
+    auto req = (sP_CL2FE_GM_REQ_REWARD_RATE*)data->buf;
+
+    if (req->iGetSet != 0) {
+        double *rate = plr->rateT;
+
+        switch (req->iRewardType) {
+        case REWARD_TYPE_TAROS:
+            rate = plr->rateT;
+            break;
+        case REWARD_TYPE_FUSIONMATTER:
+            rate = plr->rateF;
+            break;
+        }
+
+        switch (req->iRewardRateIndex) {
+        case RATE_SLOT_ALL:
+            for (int i = 0; i < 5; i++)
+                rate[i] = req->iSetRateValue;
+            break;
+        case RATE_SLOT_COMBAT:
+        case RATE_SLOT_MISSION:
+        case RATE_SLOT_EGG:
+        case RATE_SLOT_RACING:
+            rate[req->iRewardRateIndex] = req->iSetRateValue;
+            break;
+        }
+    }
+
+    INITSTRUCT(sP_FE2CL_GM_REP_REWARD_RATE_SUCC, resp);
+    memcpy(resp.afRewardRate_Taros, plr->rateT, sizeof(resp.afRewardRate_Taros));
+    memcpy(resp.afRewardRate_FusionMatter, plr->rateF, sizeof(resp.afRewardRate_FusionMatter));
+    sock->sendPacket(resp, P_FE2CL_GM_REP_REWARD_RATE_SUCC);
 }
 
 static void locatePlayer(CNSocket *sock, CNPacketData *data) {
@@ -371,6 +404,7 @@ void BuiltinCommands::init() {
 
     REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_SPECIAL_STATE_SWITCH, setGMSpecialSwitchPlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_TARGET_PC_SPECIAL_STATE_ONOFF, setGMSpecialOnOff);
+    REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_REWARD_RATE, setGMRewardRate);
 
     REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_PC_LOCATION, locatePlayer);
     REGISTER_SHARD_PACKET(P_CL2FE_GM_REQ_KICK_PLAYER, kickPlayer);

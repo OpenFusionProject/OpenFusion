@@ -67,7 +67,6 @@ void terminate(int);
     #error Invalid PROTOCOL_VERSION
 #endif
 
-#define AEQUIP_VEHICLE_IDX 8
 #define AEQUIP_COUNT_MINUS_BOOSTERS 9
 #define AEQUIP_COUNT_WITH_BOOSTERS 12
 
