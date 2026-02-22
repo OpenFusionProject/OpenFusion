@@ -47,6 +47,8 @@ namespace settings {
     extern bool IZRACESCORECAPPED;
     extern bool DROPFIXESENABLED;
     extern bool LESSTAROFMINGROUPDISABLED;
+    extern int TARORATE;
+    extern int FUSIONMATTERRATE;
 
     void init();
 }

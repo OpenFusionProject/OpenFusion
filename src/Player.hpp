@@ -93,7 +93,11 @@ struct Player : public Entity, public ICombatant {
     double rateF[5] = { 1.0, 1.0, 1.0, 1.0, 1.0 };
     double rateT[5] = { 1.0, 1.0, 1.0, 1.0, 1.0 };
 
-    Player() { kind = EntityKind::PLAYER; }
+    Player() {
+        kind = EntityKind::PLAYER;
+        std::fill_n(rateF, 5, (double)settings::FUSIONMATTERRATE / 100.0);
+        std::fill_n(rateT, 5, (double)settings::TARORATE / 100.0);
+    }
 
     virtual void enterIntoViewOf(CNSocket *sock) override;
     virtual void disappearFromViewOf(CNSocket *sock) override;

@@ -80,6 +80,10 @@ bool settings::DROPFIXESENABLED = false;
 // less taro / fm while in a group
 bool settings::LESSTAROFMINGROUPDISABLED = false;
 
+// general reward percentages
+int settings::TARORATE = 100;
+int settings::FUSIONMATTERRATE = 100;
+
 void settings::init() {
     INIReader reader("config.ini");
 
@@ -125,6 +129,8 @@ void settings::init() {
     ENABLEDPATCHES = reader.Get("shard", "enabledpatches", ENABLEDPATCHES);
     DROPFIXESENABLED = reader.GetBoolean("shard", "dropfixesenabled", DROPFIXESENABLED);
     LESSTAROFMINGROUPDISABLED = reader.GetBoolean("shard", "lesstarofmingroupdisabled", LESSTAROFMINGROUPDISABLED);
+    TARORATE = reader.GetInteger("shard", "tarorate", TARORATE);
+    FUSIONMATTERRATE = reader.GetInteger("shard", "fusionmatterrate", FUSIONMATTERRATE);
     ACCLEVEL = reader.GetInteger("shard", "accountlevel", ACCLEVEL);
     EVENTMODE = reader.GetInteger("shard", "eventmode", EVENTMODE);
     DISABLEFIRSTUSEFLAG = reader.GetBoolean("shard", "disablefirstuseflag", DISABLEFIRSTUSEFLAG);

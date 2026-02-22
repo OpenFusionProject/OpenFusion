@@ -150,7 +150,7 @@ static void setGMRewardRate(CNSocket *sock, CNPacketData *data) {
     auto req = (sP_CL2FE_GM_REQ_REWARD_RATE*)data->buf;
 
     if (req->iGetSet != 0) {
-        double *rate = plr->rateT;
+        double *rate = nullptr;
 
         switch (req->iRewardType) {
         case REWARD_TYPE_TAROS:
@@ -161,23 +161,36 @@ static void setGMRewardRate(CNSocket *sock, CNPacketData *data) {
             break;
         }
 
+        if (rate == nullptr) {
+            std::cout << "[WARN] Invalid reward type for setGMRewardRate(): " << req->iRewardType << std::endl;
+            return;
+        }
+
+        if (req->iSetRateValue < 0 || req->iSetRateValue > 1000) {
+            std::cout << "[WARN] Invalid rate value for setGMRewardRate(): " << req->iSetRateValue << " (must be between 0 and 1000)" << std::endl;
+            return;
+        }
+
         switch (req->iRewardRateIndex) {
         case RATE_SLOT_ALL:
             for (int i = 0; i < 5; i++)
-                rate[i] = req->iSetRateValue;
+                rate[i] = req->iSetRateValue / 100.0;
             break;
         case RATE_SLOT_COMBAT:
         case RATE_SLOT_MISSION:
         case RATE_SLOT_EGG:
         case RATE_SLOT_RACING:
-            rate[req->iRewardRateIndex] = req->iSetRateValue;
+            rate[req->iRewardRateIndex] = req->iSetRateValue / 100.0;
             break;
         }
     }
 
     INITSTRUCT(sP_FE2CL_GM_REP_REWARD_RATE_SUCC, resp);
-    memcpy(resp.afRewardRate_Taros, plr->rateT, sizeof(resp.afRewardRate_Taros));
-    memcpy(resp.afRewardRate_FusionMatter, plr->rateF, sizeof(resp.afRewardRate_FusionMatter));
+    for (int i = 0; i < 5; i++) {
+        // double to float
+        resp.afRewardRate_Taros[i] = plr->rateT[i];
+        resp.afRewardRate_FusionMatter[i] = plr->rateF[i];
+    }
     sock->sendPacket(resp, P_FE2CL_GM_REP_REWARD_RATE_SUCC);
 }
 
