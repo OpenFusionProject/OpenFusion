@@ -118,16 +118,25 @@ sPCAppearanceData Player::getAppearanceData() {
 }
 
 bool Player::hasQuestBoost() const {
+    if (AEQUIP_COUNT < AEQUIP_COUNT_WITH_BOOSTERS)
+        return false;
+
     const sItemBase& booster = Equip[10];
     return booster.iID == 153 && booster.iOpt > 0;
 }
 
 bool Player::hasHunterBoost() const {
+    if (AEQUIP_COUNT < AEQUIP_COUNT_WITH_BOOSTERS)
+        return false;
+
     const sItemBase& booster = Equip[11];
     return booster.iID == 154 && booster.iOpt > 0;
 }
 
 bool Player::hasRacerBoost() const {
+    if (AEQUIP_COUNT < AEQUIP_COUNT_WITH_BOOSTERS)
+        return false;
+
     const sItemBase& booster = Equip[9];
     return booster.iID == 155 && booster.iOpt > 0;
 }
