@@ -49,6 +49,7 @@ namespace settings {
     extern bool LESSTAROFMINGROUPDISABLED;
     extern int TARORATE;
     extern int FUSIONMATTERRATE;
+    extern bool REMOVEEXPIREDITEMSFROMBANK;
 
     void init();
 }

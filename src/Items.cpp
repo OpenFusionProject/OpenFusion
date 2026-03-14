@@ -757,9 +757,11 @@ size_t Items::checkAndRemoveExpiredItems(CNSocket* sock, Player* player) {
     int32_t currentTime = getTimestamp();
 
     // if there are expired items in bank just remove them silently
-    for (int i = 0; i < ABANK_COUNT; i++) {
-        if (player->Bank[i].iTimeLimit < currentTime && player->Bank[i].iTimeLimit != 0) {
-            memset(&player->Bank[i], 0, sizeof(sItemBase));
+    if (settings::REMOVEEXPIREDITEMSFROMBANK) {
+        for (int i = 0; i < ABANK_COUNT; i++) {
+            if (player->Bank[i].iTimeLimit < currentTime && player->Bank[i].iTimeLimit != 0) {
+                memset(&player->Bank[i], 0, sizeof(sItemBase));
+            }
         }
     }
 

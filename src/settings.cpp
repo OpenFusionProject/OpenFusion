@@ -84,6 +84,9 @@ bool settings::LESSTAROFMINGROUPDISABLED = false;
 int settings::TARORATE = 100;
 int settings::FUSIONMATTERRATE = 100;
 
+// should expired items in the bank disappear automatically?
+bool settings::REMOVEEXPIREDITEMSFROMBANK = false;
+
 void settings::init() {
     INIReader reader("config.ini");
 
@@ -136,6 +139,7 @@ void settings::init() {
     DISABLEFIRSTUSEFLAG = reader.GetBoolean("shard", "disablefirstuseflag", DISABLEFIRSTUSEFLAG);
     ANTICHEAT = reader.GetBoolean("shard", "anticheat", ANTICHEAT);
     IZRACESCORECAPPED = reader.GetBoolean("shard", "izracescorecapped", IZRACESCORECAPPED);
+    REMOVEEXPIREDITEMSFROMBANK = reader.GetBoolean("shard", "removeexpireditemsfrombank", REMOVEEXPIREDITEMSFROMBANK);
     MONITORENABLED = reader.GetBoolean("monitor", "enabled", MONITORENABLED);
     MONITORPORT = reader.GetInteger("monitor", "port", MONITORPORT);
     MONITORLISTENIP = reader.Get("monitor", "listenip", MONITORLISTENIP);
