@@ -365,14 +365,8 @@ void CNServer::init() {
     }
 
     // attach socket to the port
-    int opt = 1;
-#ifdef _WIN32
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt)) != 0) {
-#else
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) != 0) {
-#endif
+    if (!setSocketOption(sock, SOL_SOCKET, SO_REUSEADDR, 1)) {
         std::cerr << "[FATAL] OpenFusion: setsockopt failed" << std::endl;
-        printSocketError("setsockopt");
         exit(EXIT_FAILURE);
     }
     address.sin_family = AF_INET;
@@ -413,6 +407,18 @@ void CNServer::init() {
 
 CNServer::CNServer() {};
 CNServer::CNServer(uint16_t p): port(p) {}
+
+bool CNServer::setSocketOption(SOCKET s, int level, int option, int value) {
+#ifdef _WIN32
+    if (setsockopt(s, level, option, (const char*)&value, sizeof(value)) != 0) {
+#else
+    if (setsockopt(s, level, option, &value, sizeof(value)) != 0) {
+#endif
+        printSocketError("setsockopt");
+        return false;
+    }
+    return true;
+}
 
 void CNServer::addPollFD(SOCKET s) {
     fds.push_back({s, POLLIN});
@@ -461,6 +467,9 @@ void CNServer::start() {
                     printSocketError("accept");
                     continue;
                 }
+
+                if (!setSocketOption(newConnectionSocket, IPPROTO_TCP, TCP_NODELAY, 1))
+                    std::cout << "[WARN] OpenFusion: failed to set TCP_NODELAY on new connection" << std::endl;
 
                 if (!setSockNonblocking(sock, newConnectionSocket))
                     continue;

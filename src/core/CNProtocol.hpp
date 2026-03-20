@@ -28,6 +28,7 @@
 // posix platform
     #include <sys/socket.h>
     #include <netinet/in.h>
+    #include <netinet/tcp.h>
     #include <arpa/inet.h>
     #include <poll.h>
     #include <unistd.h>
@@ -239,6 +240,7 @@ protected:
 
     bool active = true;
 
+    bool setSocketOption(SOCKET s, int level, int option, int value);
     void addPollFD(SOCKET s);
     void removePollFD(int i);
 
