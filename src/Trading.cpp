@@ -453,7 +453,7 @@ static void tradeRegisterCash(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC));
     otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC));
 
-    plr->addCapped(CappedValueType::TAROS_IN_TRADE, pacdat->iCandy);
+    plr->setCapped(CappedValueType::TAROS_IN_TRADE, pacdat->iCandy);
     plr->isTradeConfirm = false;
 }
 
