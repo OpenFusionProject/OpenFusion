@@ -77,6 +77,16 @@ bool settings::IZRACESCORECAPPED = true;
 // drop fixes enabled
 bool settings::DROPFIXESENABLED = false;
 
+// less taro / fm while in a group
+bool settings::LESSTAROFMINGROUPDISABLED = false;
+
+// general reward percentages
+int settings::TARORATE = 100;
+int settings::FUSIONMATTERRATE = 100;
+
+// should expired items in the bank disappear automatically?
+bool settings::REMOVEEXPIREDITEMSFROMBANK = false;
+
 void settings::init() {
     INIReader reader("config.ini");
 
@@ -121,11 +131,15 @@ void settings::init() {
     PATCHDIR = reader.Get("shard", "patchdir", PATCHDIR);
     ENABLEDPATCHES = reader.Get("shard", "enabledpatches", ENABLEDPATCHES);
     DROPFIXESENABLED = reader.GetBoolean("shard", "dropfixesenabled", DROPFIXESENABLED);
+    LESSTAROFMINGROUPDISABLED = reader.GetBoolean("shard", "lesstarofmingroupdisabled", LESSTAROFMINGROUPDISABLED);
+    TARORATE = reader.GetInteger("shard", "tarorate", TARORATE);
+    FUSIONMATTERRATE = reader.GetInteger("shard", "fusionmatterrate", FUSIONMATTERRATE);
     ACCLEVEL = reader.GetInteger("shard", "accountlevel", ACCLEVEL);
     EVENTMODE = reader.GetInteger("shard", "eventmode", EVENTMODE);
     DISABLEFIRSTUSEFLAG = reader.GetBoolean("shard", "disablefirstuseflag", DISABLEFIRSTUSEFLAG);
     ANTICHEAT = reader.GetBoolean("shard", "anticheat", ANTICHEAT);
     IZRACESCORECAPPED = reader.GetBoolean("shard", "izracescorecapped", IZRACESCORECAPPED);
+    REMOVEEXPIREDITEMSFROMBANK = reader.GetBoolean("shard", "removeexpireditemsfrombank", REMOVEEXPIREDITEMSFROMBANK);
     MONITORENABLED = reader.GetBoolean("monitor", "enabled", MONITORENABLED);
     MONITORPORT = reader.GetInteger("monitor", "port", MONITORPORT);
     MONITORLISTENIP = reader.Get("monitor", "listenip", MONITORLISTENIP);

@@ -170,11 +170,11 @@ static SkillResult handleSkillBatteryDrain(SkillData* skill, int power, ICombata
     if(!blocked) {
         boostDrain = (int)(skill->values[0][power] * scalingFactor);
         if(boostDrain > plr->batteryW) boostDrain = plr->batteryW;
-        plr->batteryW -= boostDrain;
+        plr->subtractCapped(CappedValueType::BATTERY_W, boostDrain);
 
         potionDrain = (int)(skill->values[1][power] * scalingFactor);
         if(potionDrain > plr->batteryN) potionDrain = plr->batteryN;
-        plr->batteryN -= potionDrain;
+        plr->subtractCapped(CappedValueType::BATTERY_N, potionDrain);
     }
 
     sSkillResult_BatteryDrain result{};
@@ -364,7 +364,7 @@ void Abilities::useNPCSkill(EntityRef npc, int skillID, std::vector<ICombatant*>
     ICombatant* src = nullptr;
     if(npc.kind == EntityKind::COMBAT_NPC || npc.kind == EntityKind::MOB)
         src = dynamic_cast<ICombatant*>(entity);
-    
+
     SkillData* skill = &SkillTable[skillID];
 
     std::vector<SkillResult> results = handleSkill(skill, 0, src, affected);
@@ -443,7 +443,7 @@ std::vector<ICombatant*> Abilities::matchTargets(ICombatant* src, SkillData* ski
         }
     }
 
-    return targets; 
+    return targets;
 }
 
 /* ripped from client (enums emplaced) */

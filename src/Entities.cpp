@@ -117,6 +117,121 @@ sPCAppearanceData Player::getAppearanceData() {
     return data;
 }
 
+bool Player::hasQuestBoost() const {
+    if (AEQUIP_COUNT < AEQUIP_COUNT_WITH_BOOSTERS)
+        return false;
+
+    const sItemBase& booster = Equip[10];
+    return booster.iID == 153 && booster.iOpt > 0;
+}
+
+bool Player::hasHunterBoost() const {
+    if (AEQUIP_COUNT < AEQUIP_COUNT_WITH_BOOSTERS)
+        return false;
+
+    const sItemBase& booster = Equip[11];
+    return booster.iID == 154 && booster.iOpt > 0;
+}
+
+bool Player::hasRacerBoost() const {
+    if (AEQUIP_COUNT < AEQUIP_COUNT_WITH_BOOSTERS)
+        return false;
+
+    const sItemBase& booster = Equip[9];
+    return booster.iID == 155 && booster.iOpt > 0;
+}
+
+bool Player::hasSuperBoost() const {
+    return Player::hasQuestBoost() && Player::hasHunterBoost() && Player::hasRacerBoost();
+}
+
+static int32_t getCap(CappedValueType type) {
+    switch (type) {
+    case CappedValueType::TAROS:
+        return PC_CANDY_MAX;
+    case CappedValueType::FUSIONMATTER:
+        return PC_FUSIONMATTER_MAX;
+    case CappedValueType::BATTERY_W:
+        return PC_BATTERY_MAX;
+    case CappedValueType::BATTERY_N:
+        return PC_BATTERY_MAX;
+    case CappedValueType::TAROS_IN_TRADE:
+        return PC_CANDY_MAX;
+    default:
+        return INT32_MAX;
+    }
+}
+
+static int32_t *getCappedValue(Player *player, CappedValueType type) {
+    switch (type) {
+    case CappedValueType::TAROS:
+        return &player->money;
+    case CappedValueType::FUSIONMATTER:
+        return &player->fusionmatter;
+    case CappedValueType::BATTERY_W:
+        return &player->batteryW;
+    case CappedValueType::BATTERY_N:
+        return &player->batteryN;
+    case CappedValueType::TAROS_IN_TRADE:
+        return &player->moneyInTrade;
+    default:
+        return nullptr;
+    }
+}
+
+void Player::addCapped(CappedValueType type, int32_t diff) {
+    if (diff <= 0)
+        return;
+
+    int32_t max = getCap(type);
+    int32_t *value = getCappedValue(this, type);
+
+    if (value == nullptr)
+        return;
+
+    if (diff > max)
+        diff = max;
+
+    if (*value + diff > max)
+        *value = max;
+    else
+        *value += diff;
+}
+
+void Player::subtractCapped(CappedValueType type, int32_t diff) {
+    if (diff <= 0)
+        return;
+
+    int32_t max = getCap(type);
+    int32_t *value = getCappedValue(this, type);
+
+    if (value == nullptr)
+        return;
+
+    if (diff > max)
+        diff = max;
+
+    if (*value - diff < 0)
+        *value = 0;
+    else
+        *value -= diff;
+}
+
+void Player::setCapped(CappedValueType type, int32_t value) {
+    int32_t max = getCap(type);
+    int32_t *valToSet = getCappedValue(this, type);
+
+    if (valToSet == nullptr)
+        return;
+
+    if (value < 0)
+        value = 0;
+    else if (value > max)
+        value = max;
+
+    *valToSet = value;
+}
+
 // TODO: this is less effiecient than it was, because of memset()
 void Player::enterIntoViewOf(CNSocket *sock) {
     INITSTRUCT(sP_FE2CL_PC_NEW, pkt);

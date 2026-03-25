@@ -230,7 +230,7 @@ static void tradeConfirm(CNSocket* sock, CNPacketData* data) {
 
     Player* plr = PlayerManager::getPlayer(sock);
     Player* plr2 = PlayerManager::getPlayer(otherSock);
-    
+
     if (!(plr->isTrading && plr2->isTrading)) { // both players must be trading
         INITSTRUCT(sP_FE2CL_REP_PC_TRADE_CONFIRM_ABORT, resp);
         resp.iID_Request = plr2->iID;
@@ -273,14 +273,16 @@ static void tradeConfirm(CNSocket* sock, CNPacketData* data) {
         resp2.iID_Request = pacdat->iID_Request;
         resp2.iID_From = pacdat->iID_From;
         resp2.iID_To = pacdat->iID_To;
-        plr->money = plr->money + plr2->moneyInTrade - plr->moneyInTrade;
+        plr->subtractCapped(CappedValueType::TAROS, plr->moneyInTrade);
+        plr->addCapped(CappedValueType::TAROS, plr2->moneyInTrade);
         resp2.iCandy = plr->money;
         memcpy(resp2.Item, plr2->Trade, sizeof(plr2->Trade));
         memcpy(resp2.ItemStay, plr->Trade, sizeof(plr->Trade));
 
         sock->sendPacket((void*)&resp2, P_FE2CL_REP_PC_TRADE_CONFIRM_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CONFIRM_SUCC));
 
-        plr2->money = plr2->money + plr->moneyInTrade - plr2->moneyInTrade;
+        plr2->subtractCapped(CappedValueType::TAROS, plr2->moneyInTrade);
+        plr2->addCapped(CappedValueType::TAROS, plr->moneyInTrade);
         resp2.iCandy = plr2->money;
         memcpy(resp2.Item, plr->Trade, sizeof(plr->Trade));
         memcpy(resp2.ItemStay, plr2->Trade, sizeof(plr2->Trade));
@@ -358,7 +360,7 @@ static void tradeRegisterItem(CNSocket* sock, CNPacketData* data) {
 
     // since you can spread items like gumballs over multiple slots, we need to count them all
     // to make sure the inventory shows the right value during trade.
-    int count = 0; 
+    int count = 0;
     for (int i = 0; i < 5; i++) {
         if (plr->Trade[i].iInvenNum == pacdat->Item.iInvenNum)
             count += plr->Trade[i].iOpt;
@@ -410,7 +412,7 @@ static void tradeUnregisterItem(CNSocket* sock, CNPacketData* data) {
 
     // since you can spread items like gumballs over multiple slots, we need to count them all
     // to make sure the inventory shows the right value during trade.
-    int count = 0; 
+    int count = 0;
     for (int i = 0; i < 5; i++) {
         if (plr->Trade[i].iInvenNum == resp.InvenItem.iInvenNum)
             count += plr->Trade[i].iOpt;
@@ -451,7 +453,7 @@ static void tradeRegisterCash(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC));
     otherSock->sendPacket((void*)&resp, P_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC, sizeof(sP_FE2CL_REP_PC_TRADE_CASH_REGISTER_SUCC));
 
-    plr->moneyInTrade = pacdat->iCandy;
+    plr->setCapped(CappedValueType::TAROS_IN_TRADE, pacdat->iCandy);
     plr->isTradeConfirm = false;
 }
 

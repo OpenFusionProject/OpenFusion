@@ -300,7 +300,7 @@ EntityRef CombatNPC::getRef() {
 }
 
 void CombatNPC::step(time_t currTime) {
-    
+
     if(stateHandlers.find(state) != stateHandlers.end())
         stateHandlers[state](this, currTime);
     else {
@@ -441,11 +441,7 @@ static void pcAttackNpcs(CNSocket *sock, CNPacketData *data) {
         damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, (plr->batteryW > 6 + difficulty),
             Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
 
-        if (plr->batteryW >= 6 + difficulty)
-            plr->batteryW -= 6 + difficulty;
-        else
-            plr->batteryW = 0;
-
+        plr->subtractCapped(CappedValueType::BATTERY_W, 6 + difficulty);
         damage.first = mob->takeDamage(sock, damage.first);
 
         respdata[i].iID = mob->id;
@@ -690,10 +686,7 @@ static void pcAttackChars(CNSocket *sock, CNPacketData *data) {
                 Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
         }
 
-        if (plr->batteryW >= 6 + plr->level)
-            plr->batteryW -= 6 + plr->level;
-        else
-            plr->batteryW = 0;
+        plr->subtractCapped(CappedValueType::BATTERY_W, 6 + plr->level);
 
         damage.first = target->takeDamage(sock, damage.first);
 
@@ -742,7 +735,7 @@ static int8_t addBullet(Player* plr, bool isGrenade) {
     toAdd.weaponBoost = plr->batteryW > 0;
     if (toAdd.weaponBoost) {
         int boostCost = Rand::rand(11) + 20;
-        plr->batteryW = boostCost > plr->batteryW ? 0 : plr->batteryW - boostCost;
+        plr->subtractCapped(CappedValueType::BATTERY_W, boostCost);
     }
 
     Bullets[plr->iID][findId] = toAdd;

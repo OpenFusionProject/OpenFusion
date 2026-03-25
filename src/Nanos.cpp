@@ -33,8 +33,10 @@ void Nanos::addNano(CNSocket* sock, int16_t nanoID, int16_t slot, bool spendfm) 
      */
     plr->level = level;
 
-    if (spendfm)
-        Missions::updateFusionMatter(sock, -(int)Missions::AvatarGrowth[plr->level-1]["m_iReqBlob_NanoCreate"]);
+    if (spendfm) {
+        plr->subtractCapped(CappedValueType::FUSIONMATTER, (int)Missions::AvatarGrowth[plr->level-1]["m_iReqBlob_NanoCreate"]);
+        Missions::updateFusionMatter(sock);
+    }
 #endif
 
     // Send to client
@@ -143,7 +145,7 @@ static void setNanoSkill(CNSocket* sock, sP_CL2FE_REQ_NANO_TUNE* skill) {
         return;
 #endif
 
-    plr->fusionmatter -= (int)Missions::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"];
+    plr->subtractCapped(CappedValueType::FUSIONMATTER, (int)Missions::AvatarGrowth[plr->level]["m_iReqBlob_NanoTune"]);
 
     int reqItemCount = NanoTunings[skill->iTuneID].reqItemCount;
     int reqItemID = NanoTunings[skill->iTuneID].reqItems;
@@ -190,7 +192,7 @@ int Nanos::nanoStyle(int nanoID) {
 }
 
 bool Nanos::getNanoBoost(Player* plr) {
-    for (int i = 0; i < 3; i++) 
+    for (int i = 0; i < 3; i++)
         if (plr->equippedNanos[i] == plr->activeNano)
             if (plr->hasBuff(ECSB_STIMPAKSLOT1 + i))
                 return true;
@@ -355,7 +357,7 @@ static void nanoPotionHandler(CNSocket* sock, CNPacketData* data) {
 
     sock->sendPacket(response, P_FE2CL_REP_CHARGE_NANO_STAMINA);
     // now update serverside
-    player->batteryN -= difference;
+    player->subtractCapped(CappedValueType::BATTERY_N, difference);
     player->Nanos[nano.iID].iStamina += difference;
 
 }

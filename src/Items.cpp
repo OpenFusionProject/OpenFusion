@@ -33,6 +33,19 @@ std::map<int32_t, int32_t> Items::EventToDropMap;
 std::map<int32_t, int32_t> Items::MobToDropMap;
 std::map<int32_t, ItemSet> Items::ItemSets;
 
+// 1 week
+#define NANOCOM_BOOSTER_DURATION 604800
+
+// known general item ids
+#define GENERALITEM_GUMBALL_ADAPTIUM 119
+#define GENERALITEM_GUMBALL_BLASTONS 120
+#define GENERALITEM_GUMBALL_COSMIX 121
+
+#define GENERALITEM_FUSION_HUNTER_BOOSTER 153
+#define GENERALITEM_IZ_RACER_BOOSTER 154
+#define GENERALITEM_QUESTER_BOOSTER 155
+#define GENERALITEM_SUPER_BOOSTER_DX 156
+
 #ifdef ACADEMY
 std::map<int32_t, int32_t> Items::NanoCapsules; // crate id -> nano id
 
@@ -322,14 +335,14 @@ static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
 
     // if equipping an item, validate that it's of the correct type for the slot
     if ((SlotType)itemmove->eTo == SlotType::EQUIP) {
-        if (fromItem->iType == 10 && itemmove->iToSlotNum != 8)
+        if (fromItem->iType == 10 && itemmove->iToSlotNum != EQUIP_SLOT_VEHICLE)
             return; // vehicle in wrong slot
         else if (fromItem->iType != 10
               && !(fromItem->iType == 0 && itemmove->iToSlotNum == 7)
               && fromItem->iType != itemmove->iToSlotNum)
             return; // something other than a vehicle or a weapon in a non-matching slot
-        else if (itemmove->iToSlotNum >= AEQUIP_COUNT) // TODO: reject slots >= 9?
-            return; // invalid slot
+        else if (itemmove->iToSlotNum >= AEQUIP_COUNT_MINUS_BOOSTERS)
+            return; // boosters can't be equipped via move packet
     }
 
     // save items to response
@@ -386,7 +399,7 @@ static void itemMoveHandler(CNSocket* sock, CNPacketData* data) {
         }
 
         // unequip vehicle if equip slot 8 is 0
-        if (plr->Equip[8].iID == 0 && plr->iPCState & 8) {
+        if (plr->Equip[EQUIP_SLOT_VEHICLE].iID == 0 && plr->iPCState & 8) {
             INITSTRUCT(sP_FE2CL_PC_VEHICLE_OFF_SUCC, response);
             sock->sendPacket(response, P_FE2CL_PC_VEHICLE_OFF_SUCC);
 
@@ -430,30 +443,19 @@ static void itemDeleteHandler(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket(resp, P_FE2CL_REP_PC_ITEM_DELETE_SUCC);
 }
 
-static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
+static void useGumball(CNSocket* sock, CNPacketData* data) {
     auto request = (sP_CL2FE_REQ_ITEM_USE*)data->buf;
     Player* player = PlayerManager::getPlayer(sock);
-
-    if (request->iSlotNum < 0 || request->iSlotNum >= AINVEN_COUNT)
-        return; // sanity check
 
     // gumball can only be used from inventory, so we ignore eIL
     sItemBase gumball = player->Inven[request->iSlotNum];
     sNano nano = player->Nanos[player->equippedNanos[request->iNanoSlot]];
 
-    // sanity check, check if gumball exists
-    if (!(gumball.iOpt > 0 && gumball.iType == 7 && gumball.iID>=119 && gumball.iID<=121)) {
-        std::cout << "[WARN] Gumball not found" << std::endl;
-        INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_FAIL, response);
-        sock->sendPacket(response, P_FE2CL_REP_PC_ITEM_USE_FAIL);
-        return;
-    }
-
     // sanity check, check if gumball type matches nano style
     int nanoStyle = Nanos::nanoStyle(nano.iID);
-    if (!((gumball.iID == 119 && nanoStyle == 0) ||
-        (  gumball.iID == 120 && nanoStyle == 1) ||
-        (  gumball.iID == 121 && nanoStyle == 2))) {
+    if (!((gumball.iID == GENERALITEM_GUMBALL_ADAPTIUM && nanoStyle == 0) ||
+        (  gumball.iID == GENERALITEM_GUMBALL_BLASTONS && nanoStyle == 1) ||
+        (  gumball.iID == GENERALITEM_GUMBALL_COSMIX   && nanoStyle == 2))) {
         std::cout << "[WARN] Gumball type doesn't match nano type" << std::endl;
         INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_FAIL, response);
         sock->sendPacket(response, P_FE2CL_REP_PC_ITEM_USE_FAIL);
@@ -472,11 +474,8 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    if (gumball.iOpt == 0)
-        gumball = {};
-
-    uint8_t respbuf[CN_PACKET_BODY_SIZE];
-    memset(respbuf, 0, CN_PACKET_BODY_SIZE);
+    uint8_t respbuf[CN_PACKET_BUFFER_SIZE];
+    memset(respbuf, 0, resplen);
 
     sP_FE2CL_REP_PC_ITEM_USE_SUCC *resp = (sP_FE2CL_REP_PC_ITEM_USE_SUCC*)respbuf;
     sSkillResult_Buff *respdata = (sSkillResult_Buff*)(respbuf+sizeof(sP_FE2CL_NANO_SKILL_USE_SUCC));
@@ -513,6 +512,128 @@ static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
     sock->sendPacket((void*)&respbuf, P_FE2CL_REP_PC_ITEM_USE_SUCC, resplen);
     // update inventory serverside
     player->Inven[resp->iSlotNum] = resp->RemainItem;
+}
+
+static void useNanocomBooster(CNSocket* sock, CNPacketData* data) {
+    // Guard against using nanocom boosters in before and including 0104
+    // either path should be optimized by the compiler, effectively a no-op
+    if (AEQUIP_COUNT < AEQUIP_COUNT_WITH_BOOSTERS) {
+        std::cout << "[WARN] Nanocom Booster use not supported in this version" << std::endl;
+        INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_FAIL, respFail);
+        sock->sendPacket(respFail, P_FE2CL_REP_PC_ITEM_USE_FAIL);
+        return;
+    }
+
+    auto request = (sP_CL2FE_REQ_ITEM_USE*)data->buf;
+    Player* player = PlayerManager::getPlayer(sock);
+    sItemBase item = player->Inven[request->iSlotNum];
+
+    // decide on the booster to activate
+    std::vector<int16_t> boosterIDs;
+    switch(item.iID) {
+    case GENERALITEM_FUSION_HUNTER_BOOSTER:
+    case GENERALITEM_IZ_RACER_BOOSTER:
+    case GENERALITEM_QUESTER_BOOSTER:
+        boosterIDs.push_back(item.iID);
+        break;
+    case GENERALITEM_SUPER_BOOSTER_DX:
+        boosterIDs.push_back(GENERALITEM_FUSION_HUNTER_BOOSTER);
+        boosterIDs.push_back(GENERALITEM_IZ_RACER_BOOSTER);
+        boosterIDs.push_back(GENERALITEM_QUESTER_BOOSTER);
+        break;
+    }
+
+    // consume item
+    item.iOpt -= 1;
+    if (item.iOpt == 0)
+        item = {};
+
+    // client wants to subtract server time in seconds from the time limit for display purposes
+    int32_t timeLimitDisplayed = (getTime() / 1000UL) + NANOCOM_BOOSTER_DURATION;
+    // in actuality we will use the timestamp of booster activation to the item time limit similar to vehicles
+    // and this is how it will be saved to the database
+    int32_t timeLimit = getTimestamp() + NANOCOM_BOOSTER_DURATION;
+
+    // give item(s) to inv slots
+    for (int16_t itemID : boosterIDs) {
+        sItemBase boosterItem = { 7, itemID, 1, timeLimitDisplayed };
+
+        // quester 155 -> 9, hunter 153 -> 10, racer 154 -> 11
+        int slot = 9 + ((itemID - GENERALITEM_FUSION_HUNTER_BOOSTER + 1) % 3);
+
+        // give item to the equip slot
+        INITSTRUCT(sP_FE2CL_REP_PC_GIVE_ITEM_SUCC, resp);
+        resp.eIL = (int)SlotType::EQUIP;
+        resp.iSlotNum = slot;
+        resp.Item = boosterItem;
+        sock->sendPacket(resp, P_FE2CL_REP_PC_GIVE_ITEM_SUCC);
+
+        // inform client of equip change (non visible so it's okay to just send to the player)
+        INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, equipChange);
+        equipChange.iPC_ID = player->iID;
+        equipChange.iEquipSlotNum = slot;
+        equipChange.EquipSlotItem = boosterItem;
+        sock->sendPacket(equipChange, P_FE2CL_PC_EQUIP_CHANGE);
+
+        boosterItem.iTimeLimit = timeLimit;
+        // should replace existing booster in slot if it exists, i.e. you can refresh your boosters
+        player->Equip[slot] = boosterItem;
+    }
+
+    // send item use success packet
+    INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_SUCC, respUse);
+    respUse.iPC_ID = player->iID;
+    respUse.eIL = (int)SlotType::INVENTORY;
+    respUse.iSlotNum = request->iSlotNum;
+    respUse.RemainItem = item;
+    sock->sendPacket(respUse, P_FE2CL_REP_PC_ITEM_USE_SUCC);
+
+    // update inventory serverside
+    player->Inven[request->iSlotNum] = item;
+}
+
+static void itemUseHandler(CNSocket* sock, CNPacketData* data) {
+    auto request = (sP_CL2FE_REQ_ITEM_USE*)data->buf;
+    Player* player = PlayerManager::getPlayer(sock);
+
+    if (request->iSlotNum < 0 || request->iSlotNum >= AINVEN_COUNT)
+        return; // sanity check
+
+    sItemBase item = player->Inven[request->iSlotNum];
+
+    // sanity check, check the item exists and has correct iType
+    if (!(item.iOpt > 0 && item.iType == 7)) {
+        std::cout << "[WARN] General item not found" << std::endl;
+        INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_FAIL, response);
+        sock->sendPacket(response, P_FE2CL_REP_PC_ITEM_USE_FAIL);
+        return;
+    }
+
+    /*
+     * TODO: In the XDT, there are subtypes for general-use items
+     * (m_pGeneralItemTable -> m_pItemData-> m_iItemType) that
+     * determine their behavior. It would be better to load these
+     * and use them in this switch, rather than hardcoding by IDs.
+     */
+
+    switch(item.iID) {
+    case GENERALITEM_GUMBALL_ADAPTIUM:
+    case GENERALITEM_GUMBALL_BLASTONS:
+    case GENERALITEM_GUMBALL_COSMIX:
+        useGumball(sock, data);
+        break;
+    case GENERALITEM_FUSION_HUNTER_BOOSTER:
+    case GENERALITEM_IZ_RACER_BOOSTER:
+    case GENERALITEM_QUESTER_BOOSTER:
+    case GENERALITEM_SUPER_BOOSTER_DX:
+        useNanocomBooster(sock, data);
+        break;
+    default:
+        std::cout << "[INFO] General item "<< item.iID << " is unimplemented." << std::endl;
+        INITSTRUCT(sP_FE2CL_REP_PC_ITEM_USE_FAIL, response);
+        sock->sendPacket(response, P_FE2CL_REP_PC_ITEM_USE_FAIL);
+        break;
+    }
 }
 
 static void itemBankOpenHandler(CNSocket* sock, CNPacketData* data) {
@@ -598,7 +719,7 @@ static void chestOpenHandler(CNSocket *sock, CNPacketData *data) {
     // if we failed to open a crate, at least give the player a gumball (suggested by Jade)
     if (failing) {
         item->sItem.iType = 7;
-        item->sItem.iID = 119 + Rand::rand(3);
+        item->sItem.iID = GENERALITEM_GUMBALL_ADAPTIUM + Rand::rand(3);
         item->sItem.iOpt = 1;
 
         std::cout << "[WARN] Crate open failed, giving a Gumball..." << std::endl;
@@ -632,39 +753,89 @@ Item* Items::getItemData(int32_t id, int32_t type) {
     return nullptr;
 }
 
-void Items::checkItemExpire(CNSocket* sock, Player* player) {
-    if (player->toRemoveVehicle.eIL == 0 && player->toRemoveVehicle.iSlotNum == 0)
-        return;
+size_t Items::checkAndRemoveExpiredItems(CNSocket* sock, Player* player) {
+    int32_t currentTime = getTimestamp();
 
-    /* prepare packet
-    * yes, this is a varadic packet, however analyzing client behavior and code
-    * it only checks takes the first item sent into account
-    * yes, this is very stupid
-    * therefore, we delete all but 1 expired vehicle while loading player
-    * to delete the last one here so player gets a notification
-    */
+    // if there are expired items in bank just remove them silently
+    if (settings::REMOVEEXPIREDITEMSFROMBANK) {
+        for (int i = 0; i < ABANK_COUNT; i++) {
+            if (player->Bank[i].iTimeLimit < currentTime && player->Bank[i].iTimeLimit != 0) {
+                memset(&player->Bank[i], 0, sizeof(sItemBase));
+            }
+        }
+    }
 
-    const size_t resplen = sizeof(sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM) + sizeof(sTimeLimitItemDeleteInfo2CL);
+    // collect items to remove and data for the packet
+    std::vector<sItemBase*> toRemove;
+    std::vector<sTimeLimitItemDeleteInfo2CL> itemData;
+
+    // equipped items
+    for (int i = 0; i < AEQUIP_COUNT; i++) {
+        if (player->Equip[i].iOpt > 0 && player->Equip[i].iTimeLimit < currentTime && player->Equip[i].iTimeLimit != 0) {
+            toRemove.push_back(&player->Equip[i]);
+            itemData.push_back({ (int)SlotType::EQUIP, i });
+        }
+    }
+    // inventory
+    for (int i = 0; i < AINVEN_COUNT; i++) {
+        if (player->Inven[i].iTimeLimit < currentTime && player->Inven[i].iTimeLimit != 0) {
+            toRemove.push_back(&player->Inven[i]);
+            itemData.push_back({ (int)SlotType::INVENTORY, i });
+        }
+    }
+
+    if (itemData.empty())
+        return 0;
+
+    // prepare packet containing all expired items to delete
+    // this is expected for academy
+    // pre-academy only checks the first item in the packet
+    const size_t resplen = sizeof(sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM) + sizeof(sTimeLimitItemDeleteInfo2CL) * itemData.size();
+
+    // 8 bytes * 262 items = 2096 bytes, in total this shouldn't exceed 2500 bytes
     assert(resplen < CN_PACKET_BODY_SIZE);
-    // we know it's only one trailing struct, so we can skip full validation
-    uint8_t respbuf[resplen]; // not a variable length array, don't worry
-    auto packet = (sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM*)respbuf;
-    sTimeLimitItemDeleteInfo2CL* itemData = (sTimeLimitItemDeleteInfo2CL*)(respbuf + sizeof(sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM));
-    memset(respbuf, 0, resplen);
+    uint8_t respbuf[CN_PACKET_BODY_SIZE];
+    memset(respbuf, 0, CN_PACKET_BODY_SIZE);
 
-    packet->iItemListCount = 1;
-    itemData->eIL = player->toRemoveVehicle.eIL;
-    itemData->iSlotNum = player->toRemoveVehicle.iSlotNum;
+    auto packet = (sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM*)respbuf;
+
+    for (size_t i = 0; i < itemData.size(); i++) {
+        auto itemToDeletePtr = (sTimeLimitItemDeleteInfo2CL*)(
+            respbuf + sizeof(sP_FE2CL_PC_DELETE_TIME_LIMIT_ITEM) + sizeof(sTimeLimitItemDeleteInfo2CL) * i
+        );
+        itemToDeletePtr->eIL = itemData[i].eIL;
+        itemToDeletePtr->iSlotNum = itemData[i].iSlotNum;
+        packet->iItemListCount++;
+    }
+
     sock->sendPacket((void*)&respbuf, P_FE2CL_PC_DELETE_TIME_LIMIT_ITEM, resplen);
 
-    // delete serverside
-    if (player->toRemoveVehicle.eIL == 0)
-        memset(&player->Equip[8], 0, sizeof(sItemBase));
-    else
-        memset(&player->Inven[player->toRemoveVehicle.iSlotNum], 0, sizeof(sItemBase));
+    // delete items serverside and send unequip packets
+    for (size_t i = 0; i < itemData.size(); i++) {
+        sItemBase* item = toRemove[i];
+        memset(item, 0, sizeof(sItemBase));
 
-    player->toRemoveVehicle.eIL = 0;
-    player->toRemoveVehicle.iSlotNum = 0;
+        // send item delete success packet
+        // required for pre-academy builds
+        INITSTRUCT(sP_FE2CL_REP_PC_ITEM_DELETE_SUCC, itemDelete);
+        itemDelete.eIL = itemData[i].eIL;
+        itemDelete.iSlotNum = itemData[i].iSlotNum;
+        sock->sendPacket(itemDelete, P_FE2CL_REP_PC_ITEM_DELETE_SUCC);
+
+        // also update item equips if needed
+        if (itemData[i].eIL == (int)SlotType::EQUIP) {
+            INITSTRUCT(sP_FE2CL_PC_EQUIP_CHANGE, equipChange);
+            equipChange.iPC_ID = player->iID;
+            equipChange.iEquipSlotNum = itemData[i].iSlotNum;
+            sock->sendPacket(equipChange, P_FE2CL_PC_EQUIP_CHANGE);
+        }
+    }
+
+    // exit vehicle if player no longer has one equipped (function checks pcstyle)
+    if (player->Equip[EQUIP_SLOT_VEHICLE].iID == 0)
+        PlayerManager::exitPlayerVehicle(sock, nullptr);
+
+    return itemData.size();
 }
 
 void Items::setItemStats(Player* plr) {
@@ -711,7 +882,69 @@ static void getMobDrop(sItemBase* reward, const std::vector<int>& weights, const
     reward->iID = crateIds[chosenIndex];
 }
 
-static void giveSingleDrop(CNSocket *sock, Mob* mob, int mobDropId, const DropRoll& rolled) {
+static int32_t calculateTaroReward(Player* plr, int baseAmount, int groupSize) {
+    double bonus = plr->hasBuff(ECSB_REWARD_CASH) ? (Nanos::getNanoBoost(plr) ? 1.23 : 1.2) : 1.0;
+    double groupEffect = settings::LESSTAROFMINGROUPDISABLED ? 1.0 : 1.0 / groupSize;
+    return baseAmount * plr->rateT[RATE_SLOT_COMBAT] * bonus * groupEffect;
+}
+
+static int32_t calculateFMReward(Player* plr, int baseAmount, int levelDiff, int groupSize) {
+    double scavenge = plr->hasBuff(ECSB_REWARD_BLOB) ? (Nanos::getNanoBoost(plr) ? 1.23 : 1.2) : 1.0;
+    double boosterEffect = plr->hasHunterBoost() ? (plr->hasQuestBoost() && plr->hasRacerBoost() ? 1.75 : 1.5) : 1.0;
+
+    // if player is within 1 level of the mob, FM is untouched
+    double levelEffect = 1.0;
+    // otherwise, follow the table below
+    switch (std::clamp(levelDiff, -3, 6)) {
+    case 6:
+        // if player is 6 or more levels above mob, no FM is dropped
+        levelEffect = 0.0;
+        break;
+    case 5:
+        levelEffect = 0.25;
+        break;
+    case 4:
+        levelEffect = 0.5;
+        break;
+    case 3:
+        levelEffect = 0.75;
+        break;
+    case 2:
+        levelEffect = 0.899;
+        break;
+    case -2:
+        levelEffect = 1.1;
+        break;
+    case -3:
+        // if player is 3 or more levels below mob, FM is 1.2x
+        levelEffect = 1.2;
+        break;
+    }
+
+    // if no group, FM is untouched
+    double groupEffect = 1.0;
+    // otherwise, follow the table below
+    if (!settings::LESSTAROFMINGROUPDISABLED) {
+        switch (groupSize) {
+        case 2:
+            groupEffect = 0.875;
+            break;
+        case 3:
+            groupEffect = 0.75;
+            break;
+        case 4:
+            // this case is more lenient
+            groupEffect = 0.688;
+            break;
+        }
+    }
+
+    int32_t amount = baseAmount * plr->rateF[RATE_SLOT_COMBAT] * scavenge * levelEffect * groupEffect;
+    amount *= boosterEffect;
+    return amount;
+}
+
+static void giveSingleDrop(CNSocket *sock, Mob* mob, int mobDropId, const DropRoll& rolled, int groupSize) {
     Player *plr = PlayerManager::getPlayer(sock);
 
     const size_t resplen = sizeof(sP_FE2CL_REP_REWARD_ITEM) + sizeof(sItemReward);
@@ -763,43 +996,20 @@ static void giveSingleDrop(CNSocket *sock, Mob* mob, int mobDropId, const DropRo
     MiscDropType& miscDropType = Items::MiscDropTypes[drop.miscDropTypeId];
 
     if (rolled.taros % miscDropChance.taroDropChanceTotal < miscDropChance.taroDropChance) {
-        plr->money += miscDropType.taroAmount;
-        // money nano boost
-        if (plr->hasBuff(ECSB_REWARD_CASH)) {
-            int boost = 0;
-            if (Nanos::getNanoBoost(plr)) // for gumballs
-                boost = 1;
-            plr->money += miscDropType.taroAmount * (5 + boost) / 25;
-        }
+        int32_t taros = calculateTaroReward(plr, miscDropType.taroAmount, groupSize);
+        plr->addCapped(CappedValueType::TAROS, taros);
     }
     if (rolled.fm % miscDropChance.fmDropChanceTotal < miscDropChance.fmDropChance) {
-        // formula for scaling FM with player/mob level difference
-        // TODO: adjust this better
         int levelDifference = plr->level - mob->level;
-        int fm = miscDropType.fmAmount;
-        if (levelDifference > 0)
-            fm = levelDifference < 10 ? fm - (levelDifference * fm / 10) : 0;
-        // scavenger nano boost
-        if (plr->hasBuff(ECSB_REWARD_BLOB)) {
-            int boost = 0;
-            if (Nanos::getNanoBoost(plr)) // for gumballs
-                boost = 1;
-            fm += fm * (5 + boost) / 25;
-        }
-
-        Missions::updateFusionMatter(sock, fm);
+        int32_t fm = calculateFMReward(plr, miscDropType.fmAmount, levelDifference, groupSize);
+        plr->addCapped(CappedValueType::FUSIONMATTER, fm);
+        Missions::updateFusionMatter(sock);
     }
 
     if (rolled.potions % miscDropChance.potionDropChanceTotal < miscDropChance.potionDropChance)
-        plr->batteryN += miscDropType.potionAmount;
+        plr->addCapped(CappedValueType::BATTERY_N, miscDropType.potionAmount);
     if (rolled.boosts % miscDropChance.boostDropChanceTotal < miscDropChance.boostDropChance)
-        plr->batteryW += miscDropType.boostAmount;
-
-    // caps
-    if (plr->batteryW > 9999)
-        plr->batteryW = 9999;
-    if (plr->batteryN > 9999)
-        plr->batteryN = 9999;
+        plr->addCapped(CappedValueType::BATTERY_W, miscDropType.boostAmount);
 
     // simple rewards
     reward->m_iCandy = plr->money;
@@ -830,7 +1040,7 @@ static void giveSingleDrop(CNSocket *sock, Mob* mob, int mobDropId, const DropRo
     }
 }
 
-void Items::giveMobDrop(CNSocket *sock, Mob* mob, const DropRoll& rolled, const DropRoll& eventRolled) {
+void Items::giveMobDrop(CNSocket *sock, Mob* mob, const DropRoll& rolled, const DropRoll& eventRolled, int groupSize) {
     // sanity check
     if (Items::MobToDropMap.find(mob->type) == Items::MobToDropMap.end()) {
         std::cout << "[WARN] Mob ID " << mob->type << " has no drops assigned" << std::endl;
@@ -839,7 +1049,7 @@ void Items::giveMobDrop(CNSocket *sock, Mob* mob, const DropRoll& rolled, const 
     // find mob drop id
     int mobDropId = Items::MobToDropMap[mob->type];
 
-    giveSingleDrop(sock, mob, mobDropId, rolled);
+    giveSingleDrop(sock, mob, mobDropId, rolled, groupSize);
 
     if (settings::EVENTMODE != 0) {
         // sanity check
@@ -850,14 +1060,13 @@ void Items::giveMobDrop(CNSocket *sock, Mob* mob, const DropRoll& rolled, const 
         // find mob drop id
         int eventMobDropId = Items::EventToDropMap[settings::EVENTMODE];
 
-        giveSingleDrop(sock, mob, eventMobDropId, eventRolled);
+        giveSingleDrop(sock, mob, eventMobDropId, eventRolled, groupSize);
     }
 }
 
 void Items::init() {
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_MOVE, itemMoveHandler);
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_ITEM_DELETE, itemDeleteHandler);
-    // this one is for gumballs
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_ITEM_USE, itemUseHandler);
     // Bank
     REGISTER_SHARD_PACKET(P_CL2FE_REQ_PC_BANK_OPEN, itemBankOpenHandler);

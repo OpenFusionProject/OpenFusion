@@ -7,12 +7,22 @@
 #include "PlayerManager.hpp"
 #include "Missions.hpp"
 #include "Items.hpp"
+#include "Nanos.hpp"
 
 using namespace Racing;
 
 std::map<int32_t, EPInfo> Racing::EPData;
 std::map<CNSocket*, EPRace> Racing::EPRaces;
 std::map<int32_t, std::pair<std::vector<int>, std::vector<int>>> Racing::EPRewards;
+
+static int32_t calculateFMReward(Player* plr, int32_t baseAmount) {
+    double scavenge = plr->hasBuff(ECSB_REWARD_BLOB) ? (Nanos::getNanoBoost(plr) ? 1.23 : 1.2) : 1.0;
+    double raceBoost = plr->hasRacerBoost() ? (plr->hasHunterBoost() && plr->hasQuestBoost() ? 1.75 : 1.5) : 1.0;
+
+    int32_t reward = baseAmount * plr->rateF[RATE_SLOT_RACING] * scavenge;
+    reward *= raceBoost;
+    return reward;
+}
 
 static void racingStart(CNSocket* sock, CNPacketData* data) {
     auto req = (sP_CL2FE_REQ_EP_RACE_START*)data->buf;
@@ -155,7 +165,9 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
     resp.iEPRaceMode = EPRaces[sock].mode;
     resp.iEPRewardFM = fm;
 
-    Missions::updateFusionMatter(sock, resp.iEPRewardFM);
+    int32_t fmReward = calculateFMReward(plr, resp.iEPRewardFM);
+    plr->addCapped(CappedValueType::FUSIONMATTER, fmReward);
+    Missions::updateFusionMatter(sock);
 
     resp.iFusionMatter = plr->fusionmatter;
     resp.iFatigue = 50;

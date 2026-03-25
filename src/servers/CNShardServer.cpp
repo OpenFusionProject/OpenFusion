@@ -9,6 +9,7 @@
 #include "MobAI.hpp"
 #include "settings.hpp"
 #include "TableData.hpp" // for flush()
+#include "Items.hpp" // for checkAndRemoveExpiredItems()
 
 #include <iostream>
 #include <sstream>
@@ -23,6 +24,7 @@ CNShardServer::CNShardServer(uint16_t p) {
     pHandler = &CNShardServer::handlePacket;
     REGISTER_SHARD_TIMER(keepAliveTimer, 4000);
     REGISTER_SHARD_TIMER(periodicSaveTimer, settings::DBSAVEINTERVAL*1000);
+    REGISTER_SHARD_TIMER(periodicItemExpireTimer, 60000);
     init();
 
     if (settings::MONITORENABLED)
@@ -86,6 +88,22 @@ void CNShardServer::periodicSaveTimer(CNServer* serv, time_t currTime) {
 
     TableData::flush();
     std::cout << "[INFO] Done." << std::endl;
+}
+
+void CNShardServer::periodicItemExpireTimer(CNServer* serv, time_t currTime) {
+    size_t playersWithExpiredItems = 0;
+    size_t itemsRemoved = 0;
+
+    for (const auto& [sock, player] : PlayerManager::players) {
+        // check and remove expired items
+        size_t removed = Items::checkAndRemoveExpiredItems(sock, player);
+        itemsRemoved += removed;
+        playersWithExpiredItems += (removed == 0 ? 0 : 1);
+    }
+
+    if (playersWithExpiredItems > 0) {
+        std::cout << "[INFO] Removed " << itemsRemoved << " expired items from " << playersWithExpiredItems << " players." << std::endl;
+    }
 }
 
 bool CNShardServer::checkExtraSockets(int i) {
