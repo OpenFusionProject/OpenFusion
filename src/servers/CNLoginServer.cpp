@@ -375,10 +375,10 @@ bool validateCharacterCreation(sP_CL2LS_REQ_CHAR_CREATE* character) {
     if (!(style->iBody      >= 0 && style->iBody      <= 2   &&
           style->iEyeColor  >= 1 && style->iEyeColor  <= 5   &&
           style->iGender    >= 1 && style->iGender    <= 2   &&
-          style->iHairColor >= 1 && style->iHairColor <= 18) &&
+          style->iHairColor >= 1 && style->iHairColor <= 18  &&
           style->iHeight    >= 0 && style->iHeight    <= 4   &&
           style->iNameCheck >= 0 && style->iNameCheck <= 2   &&
-          style->iSkinColor >= 1 && style->iSkinColor <= 12)
+          style->iSkinColor >= 1 && style->iSkinColor <= 12))
         return false;
             
     // facestyle and hairstyle are gender dependent
