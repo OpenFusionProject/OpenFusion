@@ -804,8 +804,20 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_ROCKET_STYLE_HIT* pkt = (sP_CL2FE_REQ_PC_ROCKET_STYLE_HIT*)data->buf;
     Player* plr = PlayerManager::getPlayer(sock);
 
+    if (plr == nullptr) {
+        return;
+    }
+
+    if (Bullets.find(plr->iID) == Bullets.end() || Bullets[plr->iID].find(pkt->iBulletID) == Bullets[plr->iID].end()) {
+        std::cout << "[WARN] projectileHit: bullet not found" << std::endl;
+        return;
+    }
+
+    // Remove the bullet immediately to prevent leaking it in early return paths
+    Bullet bullet = Bullets[plr->iID][pkt->iBulletID];
+    Bullets[plr->iID].erase(pkt->iBulletID);
+
     if (pkt->iTargetCnt == 0) {
-        Bullets[plr->iID].erase(pkt->iBulletID);
         // no targets hit, don't send response
         return;
     }
@@ -848,11 +860,6 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
     sAttackResult* respdata = (sAttackResult*)(respbuf + sizeof(sP_FE2CL_PC_GRENADE_STYLE_HIT));
 
     resp->iTargetCnt = pkt->iTargetCnt;
-    if (Bullets.find(plr->iID) == Bullets.end() || Bullets[plr->iID].find(pkt->iBulletID) == Bullets[plr->iID].end()) {
-        std::cout << "[WARN] projectileHit: bullet not found" << std::endl;
-        return;
-    }
-    Bullet* bullet = &Bullets[plr->iID][pkt->iBulletID];
 
     for (int i = 0; i < pkt->iTargetCnt; i++) {
         if (NPCManager::NPCs.find(pktdata[i]) == NPCManager::NPCs.end()) {
@@ -870,10 +877,10 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
         Mob* mob = (Mob*)npc;
         std::pair<int, int> damage;
 
-        damage.first = pkt->iTargetCnt > 1 ? bullet->groupDamage : bullet->pointDamage;
+        damage.first = pkt->iTargetCnt > 1 ? bullet.groupDamage : bullet.pointDamage;
 
         int difficulty = (int)mob->data["m_iNpcLevel"];
-        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, bullet->weaponBoost, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
+        damage = getDamage(damage.first, (int)mob->data["m_iProtection"], true, bullet.weaponBoost, Nanos::nanoStyle(plr->activeNano), (int)mob->data["m_iNpcStyle"], difficulty);
 
         damage.first = mob->takeDamage(sock, damage.first);
 
@@ -885,11 +892,9 @@ static void projectileHit(CNSocket* sock, CNPacketData* data) {
 
     resp->iPC_ID = plr->iID;
     resp->iBulletID = pkt->iBulletID;
-    resp->Bullet.iID = bullet->bulletType;
+    resp->Bullet.iID = bullet.bulletType;
     sock->sendPacket((void*)respbuf, P_FE2CL_PC_GRENADE_STYLE_HIT, resplen);
     PlayerManager::sendToViewable(sock, (void*)respbuf, P_FE2CL_PC_GRENADE_STYLE_HIT, resplen);
-
-    Bullets[plr->iID].erase(resp->iBulletID);
 }
 
 static void playerTick(CNServer *serv, time_t currTime) {
