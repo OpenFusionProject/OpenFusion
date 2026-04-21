@@ -22,6 +22,17 @@ WIN_CXXFLAGS=$(WIN_CFLAGS) -std=c++17 -DPROTOCOL_VERSION=$(PROTOCOL_VERSION) -DG
 WIN_LDFLAGS=-static -lws2_32 -lwsock32 -lsqlite3
 WIN_SERVER=bin/winfusion.exe
 
+# Compile with Intel Control-flow Enforcement, but only for x86_64
+CFLAGS-x86_64=-fcf-protection=full
+LDFLAGS-x86_64=-fcf-protection=full
+WIN_CFLAGS-x86_64=-fcf-protection=full
+WIN_LDFLAGS-x86_64=-fcf-protection=full
+
+CFLAGS+=$(CFLAGS-$(shell uname -m))
+LDFLAGS+=$(CFLAGS-$(shell uname -m))
+WIN_CFLAGS+=$(CFLAGS-$(shell uname -m))
+WIN_LDFLAGS+=$(CFLAGS-$(shell uname -m))
+
 # C code; currently exclusively from vendored libraries
 CSRC=\
 	vendor/bcrypt/bcrypt.c\
