@@ -1,0 +1,2 @@
+CompileFlags:
+    Add: [-Wall, -Wno-unknown-pragmas, -std=c++17, -DPROTOCOL_VERSION=1013, -DGIT_VERSION="", -I./src, -I./vendor]
