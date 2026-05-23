@@ -340,6 +340,9 @@ static void tradeConfirmCancel(CNSocket* sock, CNPacketData* data) {
 static void tradeRegisterItem(CNSocket* sock, CNPacketData* data) {
     sP_CL2FE_REQ_PC_TRADE_ITEM_REGISTER* pacdat = (sP_CL2FE_REQ_PC_TRADE_ITEM_REGISTER*)data->buf;
 
+    if (pacdat->Item.iInvenNum < 0 || pacdat->Item.iInvenNum >= AINVEN_COUNT)
+        return; // inventory bounds check
+
     if (pacdat->Item.iSlotNum < 0 || pacdat->Item.iSlotNum > 4)
         return; // sanity check, there are only 5 trade slots
 
@@ -353,7 +356,13 @@ static void tradeRegisterItem(CNSocket* sock, CNPacketData* data) {
         return;
 
     Player* plr = PlayerManager::getPlayer(sock);
+    if (!plr->isTrading)
+        return;
+
     Player* plr2 = PlayerManager::getPlayer(otherSock);
+    if (!plr2->isTrading)
+        return;
+
     plr->Trade[pacdat->Item.iSlotNum] = pacdat->Item;
     plr->isTradeConfirm = false;
     plr2->isTradeConfirm = false;
@@ -397,7 +406,13 @@ static void tradeUnregisterItem(CNSocket* sock, CNPacketData* data) {
         return;
 
     Player* plr = PlayerManager::getPlayer(sock);
+    if (!plr->isTrading)
+        return;
+
     Player* plr2 = PlayerManager::getPlayer(otherSock);
+    if (!plr2->isTrading)
+        return;
+
     plr->isTradeConfirm = false;
     plr2->isTradeConfirm = false;
 
