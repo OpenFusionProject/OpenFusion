@@ -20,6 +20,10 @@ RUN sed -i 's/^CXX=clang++$/&-18/' Makefile
 
 RUN make nosandbox -j$(nproc)
 
+# export-only stage: `docker build --target=export --output=./bin .`
+FROM scratch AS export
+COPY --from=build /usr/src/app/bin/fusion /fusion
+
 # prod
 FROM alpine:3
 
