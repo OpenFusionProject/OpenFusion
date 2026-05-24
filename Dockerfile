@@ -1,22 +1,18 @@
 # build
-FROM alpine:3 as build
+FROM debian:trixie-slim as build
 
 WORKDIR /usr/src/app
 
-RUN apk update && apk upgrade && apk add \
-linux-headers \
+RUN apt update && apt upgrade -y && apt install -y \
 git \
-clang18 \
-make \
-sqlite-dev
+clang \
+build-essential \
+libsqlite3-dev
 
 COPY src ./src
 COPY vendor ./vendor
 COPY .git ./.git
 COPY Makefile CMakeLists.txt version.h.in ./
-
-RUN sed -i 's/^CC=clang$/&-18/' Makefile
-RUN sed -i 's/^CXX=clang++$/&-18/' Makefile
 
 RUN make nosandbox -j$(nproc)
 
@@ -25,13 +21,12 @@ FROM scratch AS export
 COPY --from=build /usr/src/app/bin/fusion /fusion
 
 # prod
-FROM alpine:3
+FROM debian:trixie-slim
 
 WORKDIR /usr/src/app
 
-RUN apk update && apk upgrade && apk add \
-libstdc++ \
-sqlite-dev
+RUN apt update && apt upgrade -y && apt install -y \
+libsqlite3-dev
 
 COPY --from=build /usr/src/app/bin/fusion /bin/fusion
 
