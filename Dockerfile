@@ -30,7 +30,6 @@ libstdc++ \
 sqlite-dev
 
 COPY --from=build /usr/src/app/bin/fusion /bin/fusion
-COPY sql ./sql
 
 CMD ["/bin/fusion"]
 
