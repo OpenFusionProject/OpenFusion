@@ -595,30 +595,33 @@ void Missions::mobKilled(CNSocket *sock, int mobid, std::map<int, int>& rolls) {
             }
 
             // drop quest item
-            if (task["m_iCSUItemNumNeeded"][j] != 0 && !isQuestItemFull(sock, task["m_iCSUItemID"][j], task["m_iCSUItemNumNeeded"][j]) ) {
-                bool drop = rolls[plr->tasks[i]] % 100 < task["m_iSTItemDropRate"][j];
-                if (drop) {
-                    dropQuestItem(sock, plr->tasks[i], 1, task["m_iCSUItemID"][j], mobid);
-
-                    /*
-                     * Workaround: The client has a bug where it only sends a TASK_END request
-                     * for the first task of multiple that met their quest item requirements
-                     * at the same time. We deal with this by sending TASK_END response packets
-                     * proactively and then silently ignoring the extra TASK_END requests it
-                     * sends afterwards.
-                     */
-                    if (isQuestItemFull(sock, task["m_iCSUItemID"][j], task["m_iCSUItemNumNeeded"][j])) {
-                        INITSTRUCT(sP_FE2CL_REP_PC_TASK_END_SUCC, end);
-                        end.iTaskNum = plr->tasks[i];
-
-                        if (!endTask(sock, plr->tasks[i]))
-                            continue;
-
-                        sock->sendPacket(end, P_FE2CL_REP_PC_TASK_END_SUCC);
+            if (task["m_iCSUItemNumNeeded"][j] != 0) {
+                if (!isQuestItemFull(sock, task["m_iCSUItemID"][j], task["m_iCSUItemNumNeeded"][j])) {
+                    bool drop = rolls[plr->tasks[i]] % 100 < task["m_iSTItemDropRate"][j];
+                    if (drop) {
+                        dropQuestItem(sock, plr->tasks[i], 1, task["m_iCSUItemID"][j], mobid);
                     }
-                } else {
-                    // fail to drop (itemID == 0)
-                    dropQuestItem(sock, plr->tasks[i], 1, 0, mobid);
+                    else {
+                        // fail to drop (itemID == 0)
+                        dropQuestItem(sock, plr->tasks[i], 1, 0, mobid);
+                    }
+                }
+                
+                /*
+                * Workaround: The client has a bug where it only sends a TASK_END request
+                * for the first task of multiple that met their quest item requirements
+                * at the same time. We deal with this by sending TASK_END response packets
+                * proactively and then silently ignoring the extra TASK_END requests it
+                * sends afterwards.
+                */
+                if (isQuestItemFull(sock, task["m_iCSUItemID"][j], task["m_iCSUItemNumNeeded"][j])) {
+                    INITSTRUCT(sP_FE2CL_REP_PC_TASK_END_SUCC, end);
+                    end.iTaskNum = plr->tasks[i];
+
+                    if (!endTask(sock, plr->tasks[i]))
+                        continue;
+
+                    sock->sendPacket(end, P_FE2CL_REP_PC_TASK_END_SUCC);
                 }
             }
         }
