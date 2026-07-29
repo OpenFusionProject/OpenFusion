@@ -84,11 +84,8 @@ jobs:
           Invoke-Expression "vcpkg integrate install"
 
           foreach ($version in $versions) {
-              if (Test-Path -LiteralPath "build") {
-                  Remove-Item "build" -Recurse
-                  Write-Output "Deleted existing build folder"
-              }
-              Invoke-Expression "cmake -B build -DPROTOCOL_VERSION=$version -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+              $buildDir = "build-$version"
+              Invoke-Expression "cmake -B $buildDir -DPROTOCOL_VERSION=$version -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
               if ($LASTEXITCODE -ne "0") {
                   Write-Error "cmake generation failed for version $version" -ErrorAction Stop
               }
@@ -96,7 +93,7 @@ jobs:
 
               foreach ($configuration in $configurations) {
                   Write-Output "Building version $version $configuration"
-                  Invoke-Expression "msbuild build\OpenFusion.sln /maxcpucount:8 /p:BuildInParallel=true /p:CL_MPCount=8 /p:UseMultiToolTask=true /p:Configuration=$configuration"
+                  Invoke-Expression "msbuild $buildDir\OpenFusion.sln /maxcpucount:8 /nodeReuse:false /p:BuildInParallel=true /p:CL_MPCount=8 /p:UseMultiToolTask=true /p:Configuration=$configuration"
                   if ($LASTEXITCODE -ne "0") {
                       Write-Error "msbuild build failed for version $version" -ErrorAction Stop
                   }
