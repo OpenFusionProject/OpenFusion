@@ -215,6 +215,14 @@ static void nanoEquipHandler(CNSocket* sock, CNPacketData* data) {
     resp.iNanoID = nano->iNanoID;
     resp.iNanoSlotNum = nano->iNanoSlotNum;
 
+    /*
+     * A gumball (stimpak) buff is keyed to the nano slot, not the nano itself.
+     * If this slot's occupant is changing, drop the buff so the incoming nano
+     * doesn't inherit the boost (which would also bypass the gumball type check).
+     */
+    if (plr->equippedNanos[nano->iNanoSlotNum] != nano->iNanoID)
+        plr->removeBuff(ECSB_STIMPAKSLOT1 + nano->iNanoSlotNum);
+
     // Update player
     plr->equippedNanos[nano->iNanoSlotNum] = nano->iNanoID;
 
@@ -239,6 +247,9 @@ static void nanoUnEquipHandler(CNSocket* sock, CNPacketData* data) {
     // unsummon nano if removed
     if (plr->equippedNanos[nano->iNanoSlotNum] == plr->activeNano)
         summonNano(sock, -1);
+
+    // a gumball (stimpak) buff is tied to this slot; drop it as the nano leaves
+    plr->removeBuff(ECSB_STIMPAKSLOT1 + nano->iNanoSlotNum);
 
     // update player
     plr->equippedNanos[nano->iNanoSlotNum] = 0;
