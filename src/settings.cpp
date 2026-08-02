@@ -6,6 +6,14 @@
 
 #include <iostream>
 
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <netdb.h>
+#include <arpa/inet.h>
+#endif
+
 // defaults :)
 int settings::VERBOSITY = 1;
 bool settings::SANDBOX = true;
@@ -155,5 +163,35 @@ void settings::init() {
                 ENABLEDPATCHES += " 1013-fixes";
             }
         }
+    }
+}
+
+void settings::resolveShardIP() {
+    // if it's already a literal IPv4 address, there's nothing to do
+    in_addr addr = {};
+    if (inet_pton(AF_INET, SHARDSERVERIP.c_str(), &addr) == 1)
+        return;
+
+    addrinfo hints = {};
+    hints.ai_family = AF_INET; // the client can only handle IPv4 addresses
+    hints.ai_socktype = SOCK_STREAM;
+
+    addrinfo* result = nullptr;
+    if (getaddrinfo(SHARDSERVERIP.c_str(), nullptr, &hints, &result) != 0) {
+        std::cerr << "[WARN] Could not resolve shard IP \"" << SHARDSERVERIP
+            << "\". Check the \"ip\" setting in the [shard] section of config.ini" << std::endl;
+        return;
+    }
+
+    // use the first IPv4 address that was resolved
+    char resolved[INET_ADDRSTRLEN] = {};
+    inet_ntop(AF_INET, &((sockaddr_in*)result->ai_addr)->sin_addr, resolved, sizeof(resolved));
+    freeaddrinfo(result);
+
+    std::string resolvedIP = resolved;
+
+    if (resolvedIP != SHARDSERVERIP) {
+        std::cout << "[INFO] Resolved shard IP \"" << SHARDSERVERIP << "\" to " << resolvedIP << std::endl;
+        SHARDSERVERIP = resolvedIP;
     }
 }
