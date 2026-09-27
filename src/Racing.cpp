@@ -163,13 +163,14 @@ static void racingEnd(CNSocket* sock, CNPacketData* data) {
     resp.iEPScore = postRanking.Score;
     resp.iEPRaceTime = postRanking.Time;
     resp.iEPRaceMode = EPRaces[sock].mode;
-    resp.iEPRewardFM = fm;
 
-    int32_t fmReward = calculateFMReward(plr, resp.iEPRewardFM);
+    int32_t prevFM = plr->fusionmatter;
+    int32_t fmReward = calculateFMReward(plr, fm);
     plr->addCapped(CappedValueType::FUSIONMATTER, fmReward);
     Missions::updateFusionMatter(sock);
 
     resp.iFusionMatter = plr->fusionmatter;
+    resp.iEPRewardFM = std::max(0, plr->fusionmatter - prevFM);
     resp.iFatigue = 50;
     resp.iFatigue_Level = 1;
 
