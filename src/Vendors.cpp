@@ -315,13 +315,25 @@ static void vendorCombineItems(CNSocket* sock, CNPacketData* data) {
 
     sItemBase* itemStats = &plr->Inven[req->iStatItemSlot];
     sItemBase* itemLooks = &plr->Inven[req->iCostumeItemSlot];
+
+    // if item is already combined, the style item id will be in the higher 16 bits of the iOpt
+    int16_t itemLooksNonCombinedID = (itemLooks->iOpt >> 16) > 0 ? (itemLooks->iOpt >> 16) : itemLooks->iID;
+
     Items::Item* itemStatsDat = Items::getItemData(itemStats->iID, itemStats->iType);
     Items::Item* itemLooksDat = Items::getItemData(itemLooks->iID, itemLooks->iType);
+    Items::Item* itemLooksNonCombinedDat = (itemLooksNonCombinedID == itemLooks->iID) ? itemLooksDat : Items::getItemData(itemLooksNonCombinedID, itemLooks->iType);
 
     // sanity check item and combination entry existence
-    if (itemStatsDat == nullptr || itemLooksDat == nullptr
-        || Items::CrocPotTable.find(abs(itemStatsDat->level - itemLooksDat->level)) == Items::CrocPotTable.end()) {
-        std::cout << "[WARN] Either item ids or croc pot value set not found" << std::endl;
+    if (itemStatsDat == nullptr || itemLooksDat == nullptr || itemLooksNonCombinedDat == nullptr) {
+        std::cout << "[WARN] Item ids not found for croc pot" << std::endl;
+        sock->sendPacket(failResp, P_FE2CL_REP_PC_ITEM_COMBINATION_FAIL);
+        return;
+    }
+
+    int levelDiff = abs(itemStatsDat->level - itemLooksDat->level);
+    auto recipeIt = Items::CrocPotTable.find(levelDiff);
+    if (recipeIt == Items::CrocPotTable.end()) {
+        std::cout << "[WARN] Croc pot value set not found for level diff " << levelDiff << std::endl;
         sock->sendPacket(failResp, P_FE2CL_REP_PC_ITEM_COMBINATION_FAIL);
         return;
     }
@@ -334,8 +346,9 @@ static void vendorCombineItems(CNSocket* sock, CNPacketData* data) {
         return;
     }
 
-    CrocPotEntry* recipe = &Items::CrocPotTable[abs(itemStatsDat->level - itemLooksDat->level)];
-    int cost = itemStatsDat->buyPrice * recipe->multStats + itemLooksDat->buyPrice * recipe->multLooks;
+    CrocPotEntry* recipe = &recipeIt->second;
+    // buy price of combined items is the uncombined style item's buy price
+    int cost = itemStatsDat->buyPrice * recipe->multStats + itemLooksNonCombinedDat->buyPrice * recipe->multLooks;
     float successChance = recipe->base / 100.0f; // base success chance
 
     // rarity gap multiplier
@@ -356,10 +369,15 @@ static void vendorCombineItems(CNSocket* sock, CNPacketData* data) {
         break;
     }
 
+#ifdef ACADEMY
+    // uncombined academy items in the style slot with level 0 have 100% success chance
+    if (itemLooksNonCombinedID == itemLooks->iID && itemLooksDat->level == 0)
+        successChance = 100.0f;
+#endif
+
     float rolled = Rand::randFloat(100.0f); // success chance out of 100
     //std::cout << rolled << " vs " << successChance << std::endl;
     plr->subtractCapped(CappedValueType::TAROS, cost);
-
 
     INITSTRUCT(sP_FE2CL_REP_PC_ITEM_COMBINATION_SUCC, resp);
     if (rolled < successChance) {
@@ -367,7 +385,7 @@ static void vendorCombineItems(CNSocket* sock, CNPacketData* data) {
         resp.iSuccessFlag = 1;
 
         // modify the looks item with the new stats and set the appearance through iOpt
-        itemLooks->iOpt = (int32_t)((itemLooks->iOpt) >> 16 > 0 ? (itemLooks->iOpt >> 16) : itemLooks->iID) << 16;
+        itemLooks->iOpt = (int32_t)itemLooksNonCombinedID << 16;
         itemLooks->iID = itemStats->iID;
 
         // delete stats item
