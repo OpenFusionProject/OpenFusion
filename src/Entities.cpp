@@ -117,7 +117,7 @@ sPCAppearanceData Player::getAppearanceData() {
     return data;
 }
 
-bool Player::hasQuestBoost() const {
+bool Player::hasHunterBoost() const {
     if (AEQUIP_COUNT < AEQUIP_COUNT_WITH_BOOSTERS)
         return false;
 
@@ -125,7 +125,7 @@ bool Player::hasQuestBoost() const {
     return booster.iID == 153 && booster.iOpt > 0;
 }
 
-bool Player::hasHunterBoost() const {
+bool Player::hasRacerBoost() const {
     if (AEQUIP_COUNT < AEQUIP_COUNT_WITH_BOOSTERS)
         return false;
 
@@ -133,7 +133,7 @@ bool Player::hasHunterBoost() const {
     return booster.iID == 154 && booster.iOpt > 0;
 }
 
-bool Player::hasRacerBoost() const {
+bool Player::hasQuestBoost() const {
     if (AEQUIP_COUNT < AEQUIP_COUNT_WITH_BOOSTERS)
         return false;
 

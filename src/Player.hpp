@@ -124,9 +124,9 @@ struct Player : public Entity, public ICombatant {
 
     sNano* getActiveNano();
     sPCAppearanceData getAppearanceData();
-    bool hasQuestBoost() const;
     bool hasHunterBoost() const;
     bool hasRacerBoost() const;
+    bool hasQuestBoost() const;
     bool hasSuperBoost() const;
     void addCapped(CappedValueType type, int32_t diff);
     void subtractCapped(CappedValueType type, int32_t diff);
