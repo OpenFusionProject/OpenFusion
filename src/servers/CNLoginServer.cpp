@@ -480,7 +480,16 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
         std::cout << "Connecting to shard server" << std::endl;
     )
 
-    const char* shard_ip = settings::SHARDSERVERIP.c_str();
+    /*
+     * On builds that can do DNS lookups at runtime (Windows, and Linux builds
+     * without the sandbox), re-resolve the shard address on every character
+     * select so that changes to a dynamic-DNS address are picked up without a
+     * restart. Sandboxed Linux builds resolve the address at startup instead.
+     */
+    if (settings::canResolveShardIP())
+        settings::resolveShardIP();
+
+    std::string shard_ip = settings::SHARDSERVERIP;
 
     /*
      * Work around the issue of not being able to connect to a local server if
@@ -490,9 +499,12 @@ void CNLoginServer::characterSelect(CNSocket* sock, CNPacketData* data) {
     if (settings::LOCALHOSTWORKAROUND && sock->sockaddr.sin_addr.s_addr == htonl(INADDR_LOOPBACK))
         shard_ip = "127.0.0.1";
 
-    memcpy(resp.g_FE_ServerIP, shard_ip, strlen(shard_ip));
+    // g_FE_ServerIP is only 16 bytes and the client expects a null-terminated
+    // string, so make sure we never write past it
+    size_t ipLen = std::min(shard_ip.size(), sizeof(resp.g_FE_ServerIP) - 1);
+    memcpy(resp.g_FE_ServerIP, shard_ip.c_str(), ipLen);
+    resp.g_FE_ServerIP[ipLen] = '\0';
 
-    resp.g_FE_ServerIP[strlen(shard_ip)] = '\0';
     resp.g_FE_ServerPort = settings::SHARDPORT;
 
     LoginMetadata *lm = new LoginMetadata();

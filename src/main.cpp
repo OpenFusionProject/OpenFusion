@@ -112,6 +112,14 @@ int main() {
 
     initsignals();
     settings::init();
+
+    /*
+     * If the shard IP is a hostname, resolve it to a literal IPv4 address now.
+     * This must happen before the sandbox goes up, since the login server isn't
+     * allowed to open new sockets (like the DNS query sockets) afterwards.
+     */
+    settings::resolveShardIP();
+
     Database::init();
     Rand::init(getTime());
     TableData::init();

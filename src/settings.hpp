@@ -52,4 +52,30 @@ namespace settings {
     extern bool REMOVEEXPIREDITEMSFROMBANK;
 
     void init();
+
+    /*
+     * Whether the shard IP can be resolved at runtime, after the sandbox is up.
+     * The Linux seccomp sandbox blocks opening new sockets, which getaddrinfo()
+     * needs, so hostnames can only be resolved at startup there. Every other
+     * platform, and Linux builds without the sandbox, can resolve any time.
+     */
+    inline bool canResolveShardIP() {
+#ifdef __linux__
+#ifdef CONFIG_NOSANDBOX
+        return true;
+#else
+        return !SANDBOX;
+#endif
+#else
+        return true;
+#endif
+    }
+
+    /*
+     * The client only understands literal IPv4 addresses in the shard select
+     * packet, so if the configured shard IP is a hostname it gets resolved here.
+     * Safe to call repeatedly; it does nothing if the address is already a
+     * literal IP or the hostname has already been resolved.
+     */
+    void resolveShardIP();
 }
