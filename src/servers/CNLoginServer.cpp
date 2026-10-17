@@ -595,17 +595,15 @@ void CNLoginServer::changeName(CNSocket* sock, CNPacketData* data) {
 }
 
 void CNLoginServer::duplicateExit(CNSocket* sock, CNPacketData* data) {
-    // TODO: FIX THIS PACKET
-
     sP_CL2LS_REQ_PC_EXIT_DUPLICATE* exit = (sP_CL2LS_REQ_PC_EXIT_DUPLICATE*)data->buf;
     Database::Account account = {};
     Database::findAccount(&account, AUTOU16TOU8(exit->szID));
 
-    // sanity check
-    if (account.AccountID == 0) {
-        std::cout << "[WARN] P_CL2LS_REQ_PC_EXIT_DUPLICATE submitted unknown username: " << exit->szID << std::endl;
+    if (account.AccountID == 0)
         return;
-    }
+
+    if (loginSessions.find(sock) == loginSessions.end() || loginSessions[sock].userID != account.AccountID)
+        return;
 
     exitDuplicate(account.AccountID);
 }
